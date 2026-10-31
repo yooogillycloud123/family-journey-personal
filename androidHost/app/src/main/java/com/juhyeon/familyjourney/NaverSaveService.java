@@ -78,9 +78,8 @@ public final class NaverSaveService extends AccessibilityService {
     }
     if(!job.equals(running)){running=job;stage=0;lastAction=0;}
     if(System.currentTimeMillis()-lastAction<850)return;
-    AccessibilityNodeInfo root=getRootInActiveWindow();
-    if(root==null||root.getPackageName()==null||
-       !NAVER.contentEquals(root.getPackageName()))return;
+    AccessibilityNodeInfo root=naverRoot();
+    if(root==null)return;
     try{
       final String list=pref.getString("list","내 장소").trim();
       final String memo=trim(pref.getString("memo",""),50);
@@ -249,6 +248,23 @@ public final class NaverSaveService extends AccessibilityService {
     return contains(root,"메모를 남겨주세요")||
       contains(root,"지도 위에 표시될 별명")||
       contains(root,"관련 URL을 추가해주세요");
+  }
+  private AccessibilityNodeInfo naverRoot(){
+    AccessibilityNodeInfo focused=getRootInActiveWindow();
+    if(focused!=null&&focused.getPackageName()!=null&&
+       NAVER.contentEquals(focused.getPackageName()))return focused;
+    // While Samsung/Gboard keyboard is open, the active root may be the IME.
+    // Read only the NAVER Maps window, still restricted to an armed job.
+    try{
+      List<AccessibilityWindowInfo> windows=getWindows();
+      if(windows!=null)for(AccessibilityWindowInfo w:windows){
+        if(w==null)continue;
+        AccessibilityNodeInfo r=w.getRoot();
+        if(r!=null&&r.getPackageName()!=null&&NAVER.contentEquals(r.getPackageName()))
+          return r;
+      }
+    }catch(Exception e){Log.d("FJ_Naver","NAVER window not accessible");}
+    return null;
   }
   private boolean keyboardIsVisible(){
     try{
