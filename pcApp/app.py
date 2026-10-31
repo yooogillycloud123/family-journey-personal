@@ -14,8 +14,15 @@ DB=ROOT/"familyjourney.sqlite3"
 ASSETS=ROOT/"Imported Photos"
 ASSETS.mkdir(exist_ok=True)
 TOKEN=uuid.uuid4().hex
+class SafeConnection(sqlite3.Connection):
+    # sqlite3.Connection context manager alone does not close on Windows.
+    # Release file handles to allow moving/rotating backups and clean tests.
+    def __exit__(self,*exc):
+        try:return super().__exit__(*exc)
+        finally:self.close()
+
 def connect():
-    c=sqlite3.connect(DB,timeout=30)
+    c=sqlite3.connect(DB,timeout=30,factory=SafeConnection)
     c.row_factory=sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
     c.executescript("""CREATE TABLE IF NOT EXISTS photos(
