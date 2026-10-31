@@ -166,6 +166,14 @@ public final class HostActivity extends Activity {
           return new WebResourceResponse(mime,"utf-8",getAssets().open(path));
         }catch(Exception e){Log.e("FamilyJourney","ASSET "+path,e);return new WebResourceResponse("text/plain","utf-8",new java.io.ByteArrayInputStream(new byte[0]));}
       }
+      @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){
+        // The photo reindex flow can legitimately reload the same local page.
+        // The one-shot readiness latch must be rearmed per navigation, or
+        // subsequent reloads stay blank without native photo handshake.
+        readyReceived.set(false);
+        mapBooted=false;
+        super.onPageStarted(view,url,favicon);
+      }
       @Override public void onPageFinished(WebView view,String url){
         super.onPageFinished(view,url);
         statusNative("HTML 완료");
