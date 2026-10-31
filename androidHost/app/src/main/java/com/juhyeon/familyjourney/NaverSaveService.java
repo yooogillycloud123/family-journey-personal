@@ -2,197 +2,316 @@ package com.juhyeon.familyjourney;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.SharedPreferences;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Locale;
 
-/** User-armed, one-place NAVER Maps address-to-list assistant. No credentials or photos. */
+/**
+ * R18: One-shot, user-armed Android NAVER Maps save-sheet assistant.
+ * Only com.nhn.android.nmap windows are observed. Passwords, authentication,
+ * and all other packages are explicitly out of scope. No coordinate/photo upload.
+ *
+ * The accessibility tree varies across NAVER versions. Never pretend a tap
+ * guarantees persistence; only report VERIFIED for a visible confirmation.
+ */
 public final class NaverSaveService extends AccessibilityService {
   static final String STORE="familyjourney_naver_oneshot";
   static final String NAVER="com.nhn.android.nmap";
   private String running="";
-  private int stage=0;
-  private long cooldown=0;
-  private void state(SharedPreferences p,String value,boolean stop){
-    SharedPreferences.Editor e=p.edit().putString("state",value);
+  private int stage=0; // 0 detail, 1 collapsed save sheet, 2 expanded editor, 3 list, 4 save, 5 verification
+  private long lastAction=0L;
+
+  private void state(SharedPreferences p,String status,boolean stop){
+    if(status.equals(p.getString("state",""))&&!stop)return;
+    SharedPreferences.Editor e=p.edit().putString("state",status);
     if(stop)e.putBoolean("armed",false);
     e.apply();
-    Log.i("FJ_Naver","job_state="+value);
+    Log.i("FJ_Naver","naver_save_stage="+status);
   }
-  @Override public void onAccessibilityEvent(AccessibilityEvent event){
+  @Override public void onAccessibilityEvent(AccessibilityEvent event) {
     if(event==null||event.getPackageName()==null||
-       !NAVER.contentEquals(event.getPackageName()))return;
-    SharedPreferences p=getSharedPreferences(STORE,MODE_PRIVATE);
-    if(!p.getBoolean("armed",false))return;
-    String job=p.getString("job","");
-    String address=p.getString("expectedAddress","");
+        !NAVER.contentEquals(event.getPackageName()))return;
+    SharedPreferences pref=getSharedPreferences(STORE,MODE_PRIVATE);
+    if(!pref.getBoolean("armed",false))return;
+    String job=pref.getString("job","");
+    String address=pref.getString("expectedAddress","");
     if(job.length()<6||address.length()<8)return;
-    if(System.currentTimeMillis()-p.getLong("started",0)>180000){
-      state(p,"TIMEOUT",true);return;
+    if(System.currentTimeMillis()-pref.getLong("started",0)>180000){
+      state(pref,"TIMEOUT",true);return;
     }
-    if(!job.equals(running)){running=job;stage=0;cooldown=0;}
-    if(System.currentTimeMillis()-cooldown<1100)return;
-    AccessibilityNodeInfo root=getRootInActiveWindow();if(root==null)return;
+    if(!job.equals(running)){running=job;stage=0;lastAction=0;}
+    if(System.currentTimeMillis()-lastAction<850)return;
+    AccessibilityNodeInfo root=getRootInActiveWindow();
+    if(root==null)return;
     try{
-      boolean detail=exact(root,"길찾기")||exact(root,"거리뷰")||
-          exact(root,"출발")||exact(root,"도착")||exact(root,"전화")||exact(root,"주소");
+      final String list=pref.getString("list","내 장소").trim();
+      final String memo=trim(pref.getString("memo",""),50);
+      final String alias=trim(pref.getString("alias",""),25);
+      boolean sheet=isSaveSheet(root);
+      boolean editor=isMemoEditor(root);
       if(stage==0){
-        // Never click the first search hit: owner must open its matching detail.
-        if(!detail || !containsAddress(root,address)){
-          state(p,"WAITING_ADDRESS_RESULT",false);return;
+        if(sheet){stage=1;state(pref,"SHEET_FOUND",false);return;}
+        boolean detail=has(root,"출발")||has(root,"도착")||
+          has(root,"길찾기")||has(root,"거리뷰")||has(root,"주소");
+        // Never auto-pick the first search result. User opens the matching
+        // detailed address, not any nearby business.
+        if(!detail||!containsAddress(root,address)){
+          state(pref,"WAITING_ADDRESS_RESULT",false);return;
         }
-        if(exact(root,"저장됨")||exact(root,"저장 해제")){
-          stage=2;state(p,"ALREADY_SAVED_NOTE_PENDING",false);return;
-        }
-        AccessibilityNodeInfo save=find(root,"저장","저장하기","장소 저장");
-        if(save==null){state(p,"WAITING_SAVE_CONTROL",false);return;}
-        if(click(save)){
-          stage=1;cooldown=System.currentTimeMillis();
-          state(p,"SAVE_CONTROL_CLICKED",false);
-        }
+        AccessibilityNodeInfo save=find(root,"저장","저장하기","장소 저장","저장됨");
+        if(save==null){state(pref,"WAITING_SAVE_CONTROL",false);return;}
+        if(click(save)){stage=1;action();state(pref,"SAVE_CONTROL_CLICKED",false);}
       }else if(stage==1){
-        String list=p.getString("list","내 장소");
-        AccessibilityNodeInfo dest=find(root,list);
-        if(dest==null){
-          if(exact(root,"저장됨")||exact(root,"저장 완료")){
-            stage=2;state(p,"LIST_MAY_BE_SAVED",false);
-          }else state(p,"WAITING_USER_LIST",false);
-          return;
+        if(editor){stage=2;state(pref,"MEMO_EDITOR_OPENED",false);return;}
+        if(!sheet){
+          state(pref,"WAITING_SAVE_SHEET",false);return;
         }
-        if(click(dest)){
-          cooldown=System.currentTimeMillis();
-          stage=2;state(p,"LIST_CLICKED_UNVERIFIED",false);
-        }
+        if(memo.isEmpty()&&alias.isEmpty()){stage=3;return;}
+        AccessibilityNodeInfo opener=findContains(root,"메모, 별명, URL 추가",
+          "메모·별명·URL 추가","메모,별명,URL 추가","메모, 별명, URL");
+        if(opener==null)opener=find(root,"메모 추가","별명 추가","메모, 별명");
+        if(opener==null){state(pref,"WAITING_MEMO_EXPAND",false);return;}
+        if(click(opener)){stage=2;action();state(pref,"MEMO_EDITOR_OPENED",false);}
+        else state(pref,"WAITING_MEMO_EXPAND",false);
       }else if(stage==2){
-        AccessibilityNodeInfo done=find(root,"완료","저장","적용");
-        if(done!=null && (exact(root,"저장할 리스트")||exact(root,"저장 리스트"))){
-          if(click(done)){cooldown=System.currentTimeMillis();state(p,"COMMIT_CLICKED_UNVERIFIED",false);}
-          return;
+        if(!editor){
+          if(sheet){state(pref,"WAITING_MEMO_EDITOR",false);return;}
+          state(pref,"WAITING_SAVE_SHEET",false);return;
         }
-        // On Naver, nickname / note are user-specific saved-place metadata.
-        // Open that editor only by a clearly labeled memo/alias action.
-        String note=p.getString("memo","").trim();
-        String alias=p.getString("alias","").trim();
-        if(!alias.isEmpty()){note=alias+(note.isEmpty()?"":" · "+note);}
-        if(note.isEmpty()){
-          if(exact(root,"저장됨")||exact(root,"저장 완료")){
-            state(p,"VERIFIED",true);
-          }else state(p,"WAITING_SAVED_CONFIRMATION",false);
-          return;
+        AccessibilityNodeInfo noteField=findMemoField(root,true);
+        AccessibilityNodeInfo aliasField=findMemoField(root,false);
+        if(noteField==null||aliasField==null||noteField.equals(aliasField)){
+          state(pref,"FIELDS_NOT_ACCESSIBLE",false);return;
         }
-        AccessibilityNodeInfo memoButton=find(root,"메모","메모 추가","메모하기","메모 입력","저장 메모","별명");
-        if(memoButton==null){state(p,"NEEDS_USER_MEMO_EDIT",false);return;}
-        if(click(memoButton)){
-          stage=3;cooldown=System.currentTimeMillis();
-          state(p,"MEMO_EDITOR_OPENED",false);
-        }
+        boolean noteOk=putIfDifferent(noteField,memo);
+        boolean aliasOk=putIfDifferent(aliasField,alias);
+        if(noteOk&&aliasOk){
+          stage=3;action();
+          state(pref,"MEMO_FIELDS_ENTERED_UNVERIFIED",false);
+        }else state(pref,"MEMO_INPUT_RETRY",false);
       }else if(stage==3){
-        // Avoid entering a note into Naver search/login text boxes. Only edit
-        // when the UI exposes a memo-specific caption next to an editable field.
-        boolean editor=exact(root,"메모")||exact(root,"메모 입력")||
-          exact(root,"저장 메모")||exact(root,"메모 추가")||exact(root,"별명");
-        if(!editor){state(p,"NEEDS_USER_MEMO_EDIT",false);return;}
-        AccessibilityNodeInfo input=findEdit(root);
-        if(input==null){state(p,"NEEDS_USER_MEMO_EDIT",false);return;}
-        String note=p.getString("memo","").trim();
-        String alias=p.getString("alias","").trim();
-        String combined=alias+(note.isEmpty()?"":" · "+note);
-        if(combined.length()>350)combined=combined.substring(0,350);
-        Bundle args=new Bundle();args.putCharSequence(
-          AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,combined);
-        if(input.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,args)){
-          stage=4;cooldown=System.currentTimeMillis();
-          state(p,"MEMO_ENTERED_UNVERIFIED",false);
-        }else state(p,"NEEDS_USER_MEMO_EDIT",false);
+        if(!sheet){state(pref,"WAITING_SAVE_SHEET",false);return;}
+        AccessibilityNodeInfo row=findList(root,list);
+        if(row==null){
+          state(pref,"NEEDS_LIST_SELECTION",false);return;
+        }
+        if(isSelected(row)){
+          stage=4;state(pref,"LIST_SELECTED",false);return;
+        }
+        // NAVER currently preselects "내 장소". Without check metadata do
+        // not toggle a potentially selected list off. Non-default lists may
+        // be explicitly selected once; check result before final save.
+        if("내 장소".equals(list)){
+          stage=4;state(pref,"DEFAULT_LIST_VISUAL_CHECK",false);return;
+        }
+        if(click(row)){
+          stage=4;action();state(pref,"LIST_CLICKED_UNVERIFIED",false);
+        }else state(pref,"NEEDS_LIST_SELECTION",false);
       }else if(stage==4){
-        AccessibilityNodeInfo commit=find(root,"완료","저장");
-        if(commit!=null && click(commit)){
-          stage=5;cooldown=System.currentTimeMillis();
-          state(p,"MEMO_COMMIT_UNVERIFIED",false);
+        if(!sheet){state(pref,"WAITING_SAVE_SHEET",false);return;}
+        if(!memo.isEmpty()||!alias.isEmpty()){
+          if(!editor || !enteredTextVisible(root,memo,alias)){
+            // Do not commit a list-only save if memo/alias failed.
+            state(pref,"MEMO_READBACK_FAILED",false);return;
+          }
+        }
+        AccessibilityNodeInfo submit=findBottomSave(root);
+        if(submit==null){state(pref,"SAVE_SUBMIT_NOT_FOUND",false);return;}
+        if(click(submit)){
+          stage=5;action();
+          state(pref,"SAVE_CLICKED_UNVERIFIED",false);
         }
       }else if(stage==5){
-        String note=p.getString("memo","").trim();
-        String alias=p.getString("alias","").trim();
-        if(!alias.isEmpty()&&visibleContains(root,alias)){
-          state(p,"VERIFIED",true);
-        }else if(alias.isEmpty()&&!note.isEmpty()&&visibleContains(root,note)){
-          state(p,"VERIFIED",true);
-        }else state(p,"NEEDS_USER_MEMO_VERIFY",false);
+        if(has(root,"저장 완료")||has(root,"저장되었습니다")||
+            has(root,"저장했어요")||has(root,"저장되었어요")){
+          state(pref,"VERIFIED",true);
+        }else if(!sheet && (has(root,"저장됨")||has(root,"저장 해제"))){
+          // Distinguish a known saved-place icon from actual memo persistence.
+          state(pref,"PLACE_SAVED_MEMO_UNVERIFIED",true);
+        }else state(pref,"WAITING_NAVER_SAVE_CONFIRM",false);
       }
-    }catch(Exception ex){
-      Log.w("FJ_Naver","Naver UI not recognized",ex);
-      state(p,"UI_CHANGED_CHECK_MANUALLY",false);
+    }catch(Exception e){
+      Log.w("FJ_Naver","NAVER content changed during save",e);
+      state(pref,"UI_CHANGED_CHECK_MANUALLY",false);
     }finally{root.recycle();}
   }
-  private static String normalize(String s){
-    return s==null?"":s.replaceAll("\\s+","").toLowerCase(Locale.ROOT);
+  private void action(){lastAction=System.currentTimeMillis();}
+  private static String trim(String t,int max){
+    String s=t==null?"":t.trim();return s.substring(0,Math.min(max,s.length()));
   }
-  private static boolean containsAddress(AccessibilityNodeInfo root,String address){
-    String key=normalize(address).replace("대한민국","")
-      .replace("전라북도","전북").replace("전북특별자치도","전북");
-    // Require a distinctive street/lot number PLUS at least one locality token.
-    String[] tokens=address.trim().split("\\s+");
-    String number="";
-    for(int i=tokens.length-1;i>=0;i--)if(tokens[i].matches(".*\\d.*")){
-      number=normalize(tokens[i]);break;
+  private static boolean isSaveSheet(AccessibilityNodeInfo root){
+    return has(root,"새 리스트 만들기")&&
+      (has(root,"메모, 별명, URL 추가")||
+        contains(root,"메모, 별명, URL")||contains(root,"내 장소")||
+        contains(root,"저장할 리스트"));
+  }
+  private static boolean isMemoEditor(AccessibilityNodeInfo root) {
+    return contains(root,"메모를 남겨주세요")||
+      contains(root,"지도 위에 표시될 별명")||
+      contains(root,"관련 URL을 추가해주세요");
+  }
+  private static AccessibilityNodeInfo findMemoField(AccessibilityNodeInfo root,boolean note){
+    String[] keys=note?new String[]{"메모를 남겨주세요","메모"}:
+      new String[]{"지도 위에 표시될 별명","별명을 남겨주세요","별명"};
+    ArrayList<AccessibilityNodeInfo> editables=allEdits(root);
+    for(AccessibilityNodeInfo field:editables){
+      String hint=field.getHintText()==null?"":field.getHintText().toString();
+      String text=field.getText()==null?"":field.getText().toString();
+      String desc=field.getContentDescription()==null?"":field.getContentDescription().toString();
+      for(String key:keys)if(hint.contains(key)||desc.contains(key)||
+          text.contains(key))return field;
     }
-    String locality="";
-    for(String token:tokens)if(token.endsWith("읍")||token.endsWith("면")||
-      token.endsWith("동")||token.endsWith("리")||token.endsWith("길")||
-      token.endsWith("로"))locality=normalize(token);
-    if(number.isEmpty()||locality.isEmpty())return visibleContains(root,address);
-    String visible=allVisibleText(root);
-    return visible.contains(number)&&visible.contains(locality);
+    // Screenshot-proven three-field memo/alias/URL editor: order is memo,
+    // nickname, URL. Only use the positional fallback in that precise dialog.
+    if(isMemoEditor(root)&&editables.size()>=3){
+      editables.sort((a,b)->{
+        Rect aa=new Rect(),bb=new Rect();a.getBoundsInScreen(aa);b.getBoundsInScreen(bb);
+        return Integer.compare(aa.top,bb.top);
+      });
+      return editables.get(note?0:1);
+    }
+    return null;
   }
-  private static String allVisibleText(AccessibilityNodeInfo root){
-    StringBuilder sb=new StringBuilder();
+  private static boolean putIfDifferent(AccessibilityNodeInfo edit,String value){
+    String before=edit.getText()==null?"":edit.getText().toString();
+    if(value.equals(before))return true;
+    if(!edit.isEditable()||edit.isPassword())return false;
+    Bundle arg=new Bundle();
+    arg.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,value);
+    return edit.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,arg);
+  }
+  private static boolean enteredTextVisible(AccessibilityNodeInfo root,String memo,String alias){
+    AccessibilityNodeInfo a=findMemoField(root,true),b=findMemoField(root,false);
+    if(a==null||b==null)return false;
+    String av=a.getText()==null?"":a.getText().toString();
+    String bv=b.getText()==null?"":b.getText().toString();
+    return (memo.isEmpty()||av.equals(memo))&&(alias.isEmpty()||bv.equals(alias));
+  }
+  private static ArrayList<AccessibilityNodeInfo> allEdits(AccessibilityNodeInfo root){
+    ArrayList<AccessibilityNodeInfo> list=new ArrayList<>();
     ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int n=0;
-    while(!q.isEmpty()&&n++<800){
-      AccessibilityNodeInfo v=q.removeFirst();
-      if(v.getText()!=null)sb.append(normalize(v.getText().toString()));
-      if(v.getContentDescription()!=null)sb.append(normalize(v.getContentDescription().toString()));
-      for(int i=0;i<v.getChildCount();i++){AccessibilityNodeInfo c=v.getChild(i);if(c!=null)q.add(c);}
-    }return sb.toString();
+    while(!q.isEmpty()&&n++<500){
+      AccessibilityNodeInfo node=q.removeFirst();
+      if(node.isEditable()&&!node.isPassword())list.add(node);
+      for(int i=0;i<node.getChildCount();i++){
+        AccessibilityNodeInfo ch=node.getChild(i);if(ch!=null)q.add(ch);
+      }
+    }
+    return list;
   }
-  private static boolean visibleContains(AccessibilityNodeInfo root,String value){
-    return !value.isEmpty()&&allVisibleText(root).contains(normalize(value));
-  }
-  private static boolean exact(AccessibilityNodeInfo root,String label){
-    return find(root,label)!=null;
-  }
-  private static AccessibilityNodeInfo find(AccessibilityNodeInfo root,String... labels){
+  private static AccessibilityNodeInfo findList(AccessibilityNodeInfo root,String name){
     ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int n=0;
-    while(!q.isEmpty()&&n++<800){
-      AccessibilityNodeInfo v=q.removeFirst();
-      String text=v.getText()==null?"":v.getText().toString().trim();
-      String desc=v.getContentDescription()==null?"":v.getContentDescription().toString().trim();
-      for(String label:labels)if(label.equals(text)||label.equals(desc))return v;
-      for(int i=0;i<v.getChildCount();i++){AccessibilityNodeInfo c=v.getChild(i);if(c!=null)q.add(c);}
-    }return null;
-  }
-  private static AccessibilityNodeInfo findEdit(AccessibilityNodeInfo root){
-    // Scope editing to a memo/alias row, not the NAVER search bar.
-    AccessibilityNodeInfo label=find(root,"메모","메모 입력","저장 메모","메모 추가","별명");
-    for(int depth=0;label!=null&&depth<3;depth++,label=label.getParent()){
-      ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(label);int n=0;
-      while(!q.isEmpty()&&n++<90){
-        AccessibilityNodeInfo v=q.removeFirst();
-        String cls=String.valueOf(v.getClassName());
-        if(v.isEditable()&&cls.contains("EditText")&&!v.isPassword())return v;
-        for(int i=0;i<v.getChildCount();i++){
-          AccessibilityNodeInfo c=v.getChild(i);if(c!=null)q.add(c);
-        }
+    while(!q.isEmpty()&&n++<700){
+      AccessibilityNodeInfo node=q.removeFirst();
+      String label=node.getText()==null?"":node.getText().toString().trim();
+      // A list is rendered as "내 장소 174" with a count. Never match
+      // substring "내 장소" in unrelated address/search text.
+      if(label.equals(name)||label.matches(java.util.regex.Pattern.quote(name)+"\\s+\\d+")){
+        return node;
+      }
+      for(int i=0;i<node.getChildCount();i++){
+        AccessibilityNodeInfo ch=node.getChild(i);if(ch!=null)q.add(ch);
       }
     }
     return null;
   }
-  private static boolean click(AccessibilityNodeInfo v){
-    for(int i=0;i<5&&v!=null;i++,v=v.getParent()){
-      if(v.isClickable()&&v.performAction(AccessibilityNodeInfo.ACTION_CLICK))return true;
+  private static boolean isSelected(AccessibilityNodeInfo n){
+    for(int i=0;i<4&&n!=null;i++,n=n.getParent()){
+      if(n.isChecked()||n.isSelected())return true;
+      CharSequence d=n.getContentDescription();
+      if(d!=null&&(d.toString().contains("선택됨")||
+        d.toString().contains("체크됨")))return true;
+      for(int j=0;j<n.getChildCount();j++){
+        AccessibilityNodeInfo child=n.getChild(j);
+        if(child!=null&&child.isChecked())return true;
+      }
     }return false;
+  }
+  private static AccessibilityNodeInfo findBottomSave(AccessibilityNodeInfo root){
+    AccessibilityNodeInfo best=null;int bestY=-1;
+    ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int n=0;
+    while(!q.isEmpty()&&n++<700){
+      AccessibilityNodeInfo node=q.removeFirst();
+      String txt=node.getText()==null?"":node.getText().toString().trim();
+      String desc=node.getContentDescription()==null?"":node.getContentDescription().toString().trim();
+      if("저장".equals(txt)||"저장".equals(desc)){
+        Rect box=new Rect();node.getBoundsInScreen(box);
+        if(box.centerY()>bestY){best=node;bestY=box.centerY();}
+      }
+      for(int i=0;i<node.getChildCount();i++){
+        AccessibilityNodeInfo child=node.getChild(i);if(child!=null)q.add(child);
+      }
+    }return best;
+  }
+  private static boolean click(AccessibilityNodeInfo n){
+    for(int i=0;i<5&&n!=null;i++,n=n.getParent()){
+      if(n.isClickable()&&n.performAction(AccessibilityNodeInfo.ACTION_CLICK))return true;
+    }
+    return false;
+  }
+  private static AccessibilityNodeInfo find(AccessibilityNodeInfo root,String... labels){
+    ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int n=0;
+    while(!q.isEmpty()&&n++<700){
+      AccessibilityNodeInfo node=q.removeFirst();
+      String txt=node.getText()==null?"":node.getText().toString().trim();
+      String desc=node.getContentDescription()==null?"":node.getContentDescription().toString().trim();
+      for(String label:labels)if(label.equals(txt)||label.equals(desc))return node;
+      for(int i=0;i<node.getChildCount();i++){
+        AccessibilityNodeInfo child=node.getChild(i);if(child!=null)q.add(child);
+      }
+    }return null;
+  }
+  private static AccessibilityNodeInfo findContains(AccessibilityNodeInfo root,String... labels){
+    ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int n=0;
+    while(!q.isEmpty()&&n++<700){
+      AccessibilityNodeInfo node=q.removeFirst();
+      String txt=node.getText()==null?"":node.getText().toString().trim();
+      String desc=node.getContentDescription()==null?"":node.getContentDescription().toString().trim();
+      for(String label:labels)if(txt.contains(label)||desc.contains(label))return node;
+      for(int i=0;i<node.getChildCount();i++){
+        AccessibilityNodeInfo child=node.getChild(i);if(child!=null)q.add(child);
+      }
+    }return null;
+  }
+  private static boolean contains(AccessibilityNodeInfo root,String needle){
+    return findContains(root,needle)!=null;
+  }
+  private static boolean has(AccessibilityNodeInfo root,String needle){
+    return find(root,needle)!=null;
+  }
+  private static String compact(String text){
+    return text==null?"":text.replaceAll("\\s+","").toLowerCase(Locale.ROOT);
+  }
+  private static String allText(AccessibilityNodeInfo root){
+    StringBuilder sb=new StringBuilder();
+    ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int n=0;
+    while(!q.isEmpty()&&n++<700){
+      AccessibilityNodeInfo v=q.removeFirst();
+      if(v.getText()!=null)sb.append(compact(v.getText().toString()));
+      if(v.getContentDescription()!=null)sb.append(compact(v.getContentDescription().toString()));
+      for(int i=0;i<v.getChildCount();i++){
+        AccessibilityNodeInfo ch=v.getChild(i);if(ch!=null)q.add(ch);
+      }
+    }return sb.toString();
+  }
+  private static boolean containsAddress(AccessibilityNodeInfo root,String address){
+    String[] chunks=address.trim().split("\\s+");
+    String number="",local="";
+    for(int i=chunks.length-1;i>=0;i--)if(chunks[i].matches(".*\\d.*")){
+      number=compact(chunks[i]);break;
+    }
+    for(String token:chunks)if(token.endsWith("읍")||token.endsWith("면")||
+      token.endsWith("동")||token.endsWith("리")||token.endsWith("길")||
+      token.endsWith("로"))local=compact(token);
+    String ui=allText(root);
+    if(!number.isEmpty()&&!local.isEmpty())return ui.contains(number)&&ui.contains(local);
+    return ui.contains(compact(address));
   }
   @Override public void onInterrupt(){}
 }
