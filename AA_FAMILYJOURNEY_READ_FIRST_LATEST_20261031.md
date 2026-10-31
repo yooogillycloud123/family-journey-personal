@@ -1,4 +1,4 @@
-# FamilyJourney 최신 Canonical READ FIRST — 2026-10-31 R21
+# FamilyJourney 최신 Canonical READ FIRST — 2026-10-31 R25
 
 **새 대화에서 모든 분석·소스 변경·APK 빌드 전에 이 파일을 처음부터 끝까지 읽고 가장 최신 체크포인트부터 재개한다.** 본 파일은 이 저장소의 오래된 v0.1/v0.2 시제품 설명이나 R12 이하 인계 문서보다 최신이다. AirPods 별도 프로젝트 지침과 섞지 말 것.
 
@@ -62,3 +62,7 @@ Read `FAMILYJOURNEY_R22_CALENDAR_FAMILY_DIARY_CANONICAL_20261031.md` **in full**
 - **Real Galaxy diary UX / all-photo scan / photo count / IndexedDB persistence on phone NOT YET TESTED**. Headless browser is inaccessible in current container (ERR_BLOCKED_BY_ADMINISTRATOR), don't claim headless visual PASS. Phone test required before any final parity assertions.
 - Future: real Android Photo Picker across arbitrary days, richer geo/time activities, multi-day import, full backup restore, family notes export PDF, optional private sync. D·LOG backend, accounts and copyrighted UI are NOT incorporated.
 - User's NAVER favorite autosave R21 behavior still conditional; don't claim end-to-end account save fully proven.
+
+
+## 9. LATEST — R25 (2026-10-31)
+**Read `AA_FAMILYJOURNEY_R25_READ_FIRST_20261031.md` from start to end before ANY new FamilyJourney edit.** Latest APK `FamilyJourney_R25_CuratedDefault_PCPhotoImport.apk`; package `com.juhyeon.familyjourne2`, versionCode25, same owner signing certificate. R24 user verified working. New diary initial tab is curated/selected photos, automatic full photo calendar remains second tab. Android native SAF picker explicitly imports PC-origin images or transferred ZIP files into user local Pictures/FamilyJourney PC Imports, preserves EXIF date and original bytes, sha256 dedup, reindexes. No PC direct SMB sync or iOS build yet. R25 on-device importer NOT VERIFIED. No deleting original R24 data, no new app, no regression of map/video/Naversave/zoom/share. SHA256 and code instructions in R25 READ FIRST.
