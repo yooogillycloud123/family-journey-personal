@@ -334,6 +334,7 @@ public final class HostActivity extends Activity {
         if(readyReceived.compareAndSet(false,true)){statusNative("웹 준비됨");grantOrScan();}
         break;
       case "watchdog":diagnostics("web-watchdog");break;
+      case "forceScan":if(permitted())scan();else grantOrScan();break;
       case "mapBooted":mapBooted=true;statusNative("여행 지도 표시 완료");break;
       case "needPhotos":if(p.optBoolean("need",true))scan();break;
       case "rescan":js("location.reload()");break;
@@ -389,6 +390,12 @@ public final class HostActivity extends Activity {
       if(name==null||name.length()>40||json==null||json.length()>1100000)return;
       try{handle(name,new JSONObject(json));}catch(Exception e){Log.w("FamilyJourney","message "+name,e);}
     }
+  }
+  @Override public void onBackPressed(){
+    if(web==null){super.onBackPressed();return;}
+    web.evaluateJavascript("(function(){return window.__photoMapBack?window.__photoMapBack():false})()",value->{
+      if(!"true".equals(value))HostActivity.super.onBackPressed();
+    });
   }
   @Override public void onDestroy(){
     if(web!=null){web.removeJavascriptInterface("NativeHost");web.destroy();web=null;}
