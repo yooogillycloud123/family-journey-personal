@@ -107,9 +107,6 @@ public final class NaverSaveService extends AccessibilityService {
         // NAVER currently preselects "내 장소". Without check metadata do
         // not toggle a potentially selected list off. Non-default lists may
         // be explicitly selected once; check result before final save.
-        if("내 장소".equals(list)){
-          stage=4;state(pref,"DEFAULT_LIST_VISUAL_CHECK",false);return;
-        }
         if(click(row)){
           stage=4;action();state(pref,"LIST_CLICKED_UNVERIFIED",false);
         }else state(pref,"NEEDS_LIST_SELECTION",false);
