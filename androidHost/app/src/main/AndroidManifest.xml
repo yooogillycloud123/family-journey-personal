@@ -7,7 +7,7 @@
   <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
   <queries><package android:name="com.nhn.android.nmap"/></queries>
-  <application android:label="우리 가족 여행" android:usesCleartextTraffic="false" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+  <application android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:label="우리 가족 여행" android:usesCleartextTraffic="false" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
     <service android:name=".NaverSaveService"
       android:label="가족여행 · 네이버지도 장소 저장 보조"
       android:exported="true"
