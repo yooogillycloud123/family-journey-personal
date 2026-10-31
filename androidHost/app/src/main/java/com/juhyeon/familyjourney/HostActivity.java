@@ -481,6 +481,18 @@ public final class HostActivity extends Activity {
         });
         break;
       }
+      case "openPhoto":{
+        String id=p.optString("id","");
+        if(!id.matches("[0-9]{1,18}")){message("사진 ID가 올바르지 않습니다.");break;}
+        try{
+          Uri photo=ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,Long.parseLong(id));
+          Intent openImage=new Intent(Intent.ACTION_VIEW);
+          openImage.setDataAndType(photo,"image/*");
+          openImage.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+          ui.post(()->{try{startActivity(openImage);}catch(Exception e){message("원본 사진을 열 수 없습니다.");}});
+        }catch(Exception e){message("원본 사진 열기 실패");}
+        break;
+      }
       case "openUrl":openExternal(p.optString("url",""));break;
       case "openSettings":
         ui.post(()->{Intent i=new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName()));startActivity(i);});break;
