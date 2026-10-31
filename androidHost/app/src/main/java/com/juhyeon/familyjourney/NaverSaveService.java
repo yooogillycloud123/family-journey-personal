@@ -174,13 +174,20 @@ public final class NaverSaveService extends AccessibilityService {
     }return null;
   }
   private static AccessibilityNodeInfo findEdit(AccessibilityNodeInfo root){
-    ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int n=0;
-    while(!q.isEmpty()&&n++<500){
-      AccessibilityNodeInfo v=q.removeFirst();
-      String cls=String.valueOf(v.getClassName());
-      if(v.isEditable()&&cls.contains("EditText")&&!v.isPassword())return v;
-      for(int i=0;i<v.getChildCount();i++){AccessibilityNodeInfo c=v.getChild(i);if(c!=null)q.add(c);}
-    }return null;
+    // Scope editing to a memo/alias row, not the NAVER search bar.
+    AccessibilityNodeInfo label=find(root,"메모","메모 입력","저장 메모","메모 추가","별명");
+    for(int depth=0;label!=null&&depth<3;depth++,label=label.getParent()){
+      ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(label);int n=0;
+      while(!q.isEmpty()&&n++<90){
+        AccessibilityNodeInfo v=q.removeFirst();
+        String cls=String.valueOf(v.getClassName());
+        if(v.isEditable()&&cls.contains("EditText")&&!v.isPassword())return v;
+        for(int i=0;i<v.getChildCount();i++){
+          AccessibilityNodeInfo c=v.getChild(i);if(c!=null)q.add(c);
+        }
+      }
+    }
+    return null;
   }
   private static boolean click(AccessibilityNodeInfo v){
     for(int i=0;i<5&&v!=null;i++,v=v.getParent()){
