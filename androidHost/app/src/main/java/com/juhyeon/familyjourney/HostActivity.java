@@ -397,6 +397,48 @@ public final class HostActivity extends Activity {
       if(n==0)jsInvoke("__thumbsResult",request+",[],true");
     });
   }
+  /**
+   * Diary-only MediaStore index. DATE_TAKEN covers all images including photos
+   * without GPS, unlike the travel map's expensive EXIF geolocation scan.
+   * No images are uploaded or copied; this passes IDs and local timestamps.
+   * If captured time is absent, mark the MediaStore added-date fallback.
+   */
+  private void diaryPhotoIndex(int request) {
+    bg.execute(()->{
+      final Uri media=MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+      final String[] columns={
+        MediaStore.Images.Media._ID,
+        MediaStore.Images.Media.DATE_TAKEN,
+        MediaStore.Images.Media.DATE_ADDED
+      };
+      int total=0; JSONArray batch=new JSONArray();
+      try(Cursor cursor=getContentResolver().query(media,columns,null,null,
+            MediaStore.Images.Media.DATE_TAKEN+" ASC")){
+        if(cursor==null)throw new IllegalStateException("No MediaStore");
+        while(cursor.moveToNext()&&total<100000){
+          long id=cursor.getLong(0);
+          long taken=cursor.isNull(1)?0L:cursor.getLong(1);
+          long added=cursor.isNull(2)?0L:cursor.getLong(2)*1000L;
+          if(taken<=0&&added<=0)continue;
+          JSONObject photo=new JSONObject();
+          photo.put("id",Long.toString(id));
+          photo.put("t",taken>0?taken:added); // milliseconds since epoch
+          photo.put("approx",taken<=0);
+          batch.put(photo);total++;
+          if(batch.length()>=160){
+            jsInvoke("__fjDiaryChunk",request+","+batch.toString()+",false");
+            batch=new JSONArray();
+          }
+        }
+      }catch(Exception e){
+        Log.w("FJ_Diary","Gallery timeline index failed",e);
+        jsInvoke("__fjDiaryError",request+","+quote(e.getClass().getSimpleName()));
+        return;
+      }
+      jsInvoke("__fjDiaryChunk",request+","+batch.toString()+",true");
+      Log.i("FJ_Diary","indexed photos="+total);
+    });
+  }
   private void startVideo(){
     try{
       if(videoStream!=null)videoStream.close();
@@ -467,6 +509,7 @@ public final class HostActivity extends Activity {
         forcePhotoRescan=true;
         js("location.reload()");
         break;
+      case "diaryIndex":diaryPhotoIndex(p.optInt("id"));break;
       case "thumbs":thumbnails(p);break;
       case "geocode":{
         int id=p.optInt("id");
