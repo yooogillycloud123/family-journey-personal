@@ -2,16 +2,38 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-  <!-- Own minimalist family-photo symbol, not a copy of Instagram's trademark. -->
-  <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF"
-      android:strokeWidth="3.7" android:strokeLineCap="round"
-      android:strokeLineJoin="round"
-      android:pathData="M36,27 L72,27 C77,27 81,31 81,36 L81,72 C81,77 77,81 72,81 L36,81 C31,81 27,77 27,72 L27,36 C27,31 31,27 36,27 Z"/>
-  <path android:fillColor="#FFFFFFFF"
-      android:pathData="M68,34 a5.1,5.1 0,1 0,0.001,0 Z"/>
-  <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF"
-      android:strokeWidth="3.7" android:strokeLineCap="round" android:strokeLineJoin="round"
-      android:pathData="M32,71 L43,58 L51,65 L62,52 L76,68"/>
-  <path android:fillColor="#FFFFFFFF"
-      android:pathData="M48,40 C44,35 36,38 37,45 C38,50 45,55 54,61 C63,55 70,50 71,45 C72,38 64,35 60,40 L54,46 Z"/>
+  <!-- MOA family: dad upper left, mom upper right, daughter lower left, baby lower right.
+       Strokes deliberately open: no inter-child heart, ornaments or connecting flourishes.
+       Adaptive-icon safe zone: essential marks remain inside approx. 22..86. -->
+  <!-- Dad: large, simple circular head and one open outer contour. -->
+  <path android:fillColor="#00000000" android:strokeColor="@color/moa_coral"
+        android:strokeWidth="3" android:strokeLineCap="round"
+        android:pathData="M42,31 A7,7 0,1 1,28 31 A7,7 0,1 1,42 31"/>
+  <path android:fillColor="#00000000" android:strokeColor="@color/moa_coral"
+        android:strokeWidth="3" android:strokeLineCap="round"
+        android:pathData="M20,63 C20,50 25,44 35,43 C46,42 52,49 55,57"/>
+  <!-- Mom: smaller ~75% head, one spare flowing long-hair contour, no neck. -->
+  <path android:fillColor="#00000000" android:strokeColor="@color/moa_peach"
+        android:strokeWidth="3" android:strokeLineCap="round"
+        android:pathData="M61,35 C58,31 60,27 64,26 C70,24 74,29 74,33 C74,40 81,41 83,44"/>
+  <path android:fillColor="#00000000" android:strokeColor="@color/moa_peach"
+        android:strokeWidth="3" android:strokeLineCap="round"
+        android:pathData="M56,59 C57,49 63,43 71,43 C81,43 87,52 87,64"/>
+  <!-- First daughter: a brief open hair curve and separate open torso. -->
+  <path android:fillColor="#00000000" android:strokeColor="@color/moa_coral"
+        android:strokeWidth="2.8" android:strokeLineCap="round"
+        android:pathData="M31,68 C29,62 33,57 38,56 C45,54 49,59 49,64"/>
+  <path android:fillColor="#00000000" android:strokeColor="@color/moa_coral"
+        android:strokeWidth="3" android:strokeLineCap="round"
+        android:pathData="M26,85 C26,74 31,69 39,69 C46,69 50,75 51,83"/>
+  <!-- Baby: visibly smaller, tiny natural hair curl and separate silhouette. -->
+  <path android:fillColor="#00000000" android:strokeColor="@color/moa_peach"
+        android:strokeWidth="2.8" android:strokeLineCap="round"
+        android:pathData="M61,69 C60,65 63,61 67,61 C72,61 74,66 72,70"/>
+  <path android:fillColor="#00000000" android:strokeColor="@color/moa_peach"
+        android:strokeWidth="2.5" android:strokeLineCap="round"
+        android:pathData="M68,61 C69,58 73,58 74,61"/>
+  <path android:fillColor="#00000000" android:strokeColor="@color/moa_peach"
+        android:strokeWidth="3" android:strokeLineCap="round"
+        android:pathData="M58,84 C59,76 62,73 68,73 C74,73 78,78 80,84"/>
 </vector>
