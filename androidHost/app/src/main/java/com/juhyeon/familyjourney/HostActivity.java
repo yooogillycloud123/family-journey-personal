@@ -301,8 +301,18 @@ public final class HostActivity extends Activity {
       case "log":Log.d("FamilyJourney",p.optString("text",""));break;
       case "status":Log.i("FamilyJourney",p.optString("text",""));break;
       case "premiumInfo":
-        // Never pretend a separate package has inherited the Play purchase.
-        // Paid control is not changed; real premium runtime parity remains unverified.
+        // Another app's Play billing purchase cannot be queried from this package.
+        break;
+      case "purchase":
+      case "restore":
+        jsInvoke("__nativeEvent",quote(name)+",{ok:false,available:false,message:"+quote("구매한 원본 여행여권의 프리미엄 권한은 별도 서명 앱으로 자동 이전되지 않습니다.")+"}");
+        break;
+      case "rewardedAd":
+        // Independent host never requests or shows a paid-ad SDK.
+        jsInvoke("__nativeEvent",quote(name)+",{ok:false,available:false,rewarded:false}");
+        break;
+      case "adPrivacy":
+        jsInvoke("__nativeEvent",quote(name)+",{ok:true,message:"+quote("이 앱은 광고 SDK를 포함하지 않습니다.")+"}");
         break;
       case "share":{
         Intent send=new Intent(Intent.ACTION_SEND);
