@@ -120,6 +120,12 @@ public final class HostActivity extends Activity {
     web.setWebViewClient(new WebViewClient(){
       @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest req){
         Uri uri=req.getUrl();
+        // All WebView document/fetch/image requests are checked here; do not leak family travel telemetry
+        // to the commercial publisher or any other unapproved endpoint.
+        if(!NetworkPolicy.permitted(uri)){
+          Log.w("FamilyJourneyPrivacy","Blocked network host: "+(uri.getHost()==null?"unknown":uri.getHost()));
+          return NetworkPolicy.denied();
+        }
         if(!HOST.equals(uri.getHost()))return super.shouldInterceptRequest(view,req);
         String path=uri.getPath();
         if(path==null||path.equals("/"))path="/web/index.html";
@@ -138,6 +144,7 @@ public final class HostActivity extends Activity {
       @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){
         Uri uri=r.getUrl();
         if(HOST.equals(uri.getHost()))return false;
+        if(!NetworkPolicy.permitted(uri)){message("개인정보 보호 정책에 따라 외부 링크를 차단했습니다.");return true;}
         try{startActivity(new Intent(Intent.ACTION_VIEW,uri));}catch(Exception ignored){}
         return true;
       }
@@ -358,8 +365,13 @@ public final class HostActivity extends Activity {
     });
   }
   private void openExternal(String url){
-    if(!url.startsWith("https://")&&!url.startsWith("nmap://"))return;
-    ui.post(()->{try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(Exception e){message("링크를 열 수 없습니다.");}});
+    Uri target;
+    try{target=Uri.parse(url);}catch(Exception e){return;}
+    if(!NetworkPolicy.permitted(target)){
+      message("등록되지 않은 외부 서비스 연결은 차단됩니다.");
+      return;
+    }
+    ui.post(()->{try{startActivity(new Intent(Intent.ACTION_VIEW,target));}catch(Exception e){message("링크를 열 수 없습니다.");}});
   }
   private void handle(String name,JSONObject p){
     switch(name){
