@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- R32 launch: same base platform theme and existing view behavior. -->
+  <style name="MoaLaunchTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+    <item name="android:windowBackground">@color/moa_cream</item>
+    <item name="android:statusBarColor">@color/moa_cream</item>
+    <item name="android:navigationBarColor">@color/moa_cream</item>
+    <item name="android:windowLightStatusBar">true</item>
+  </style>
+</resources>
