@@ -47,3 +47,18 @@
 - ZIP alternate `/mnt/data/FamilyJourney_R21_PhotoShare_NaverAutoFlow.zip`.
 - Script `/mnt/data/_fj_r21/package_r21.py`; private patched gallery script `/mnt/data/_fj_r21/fj-naver-favorites-r21.js`; `/mnt/data/_fj_r21/test_share_gallery_r21.py` headless Chromium PASS: share selected id 101, gallery open id 101, move and share id 102, back closes dialog, no JS errors. Original map/video cores byte-identical to R20.
 - Phone NAVER favorite auto-tap/list/save and user screenshot/physical keyboard tests still unverified; do not claim end-to-end success.
+
+
+## 7. NEWEST R22 — Calendar photo diary integrated 2026-10-31 (supersedes R21 as latest APK)
+Read `FAMILYJOURNEY_R22_CALENDAR_FAMILY_DIARY_CANONICAL_20261031.md` **in full** before touching R22. User uploaded D·LOG v1.14.3 split APK solely as a feature reference; never publish proprietary source/assets or user photos/GPS.
+
+- R22 private signed APK: `/mnt/data/FamilyJourney_R22_FamilyCalendar_PhotoDiary.apk`, **SHA256 `93c57875b5d0676b4ae47e0c933115a59701090e425664e404f47977b4ad2fbf`**, `versionCode=22`, package `com.juhyeon.familyjourne2`, same private certificate SHA256 `0d25313c1a6f769d1a9b43ea9d3b7a4626a12924a887062ad25dc69907fbad09`. Safe in-place update on R21.
+- ZIP fallback: `/mnt/data/FamilyJourney_R22_FamilyCalendar_PhotoDiary.zip`.
+- Additive independent JS/CSS: `/mnt/data/_fj_r22/family-diary.js` and `family-diary.css`. Packaging script `/mnt/data/_fj_r22/package_r22.py`.
+- New nav tab: **일기** between 기록 and 설정; existing 추천/대결 remain hidden, originals intact.
+- Native `HostActivity.diaryPhotoIndex` user-triggered MediaStore ID + DATE_TAKEN; fallback DATE_ADDED tagged approximate; all photos including GPS-less. Batch 160 to WebView callback.
+- Monthly calendar cover thumbnails/counts/record dots, day photos by time, >60min photo-group timeline, activity title per group, manual multi-select OR full-day selection, title/freeform diary/tags/mood, IndexedDB local save/edit/delete, JSON memo export. Day photo tap uses existing R21 pinch/swipe/share viewer exposed through additive `FamilyJourneyNaver.openFullGallery`. No photos copied or uploaded. Original GPS map/video native.js, app.js, engine.js byte-identical.
+- Public Android CI code commit `f7f5d48c3e07b639d301033cc0ae00f7e2d66739`, version bump `80b2b0f14ad5fdc293dc9f0db9ce397fe9b3532e`. CI run `41184907394` compile/host signing PASS. Standalone APK signed v3 and ZIP CRC PASS. Node JS syntax and grouping unit tests PASS.
+- **Real Galaxy diary UX / all-photo scan / photo count / IndexedDB persistence on phone NOT YET TESTED**. Headless browser is inaccessible in current container (ERR_BLOCKED_BY_ADMINISTRATOR), don't claim headless visual PASS. Phone test required before any final parity assertions.
+- Future: real Android Photo Picker across arbitrary days, richer geo/time activities, multi-day import, full backup restore, family notes export PDF, optional private sync. D·LOG backend, accounts and copyrighted UI are NOT incorporated.
+- User's NAVER favorite autosave R21 behavior still conditional; don't claim end-to-end account save fully proven.
