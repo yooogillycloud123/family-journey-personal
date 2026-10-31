@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 108 108" role="img" aria-label="모아, 아빠 엄마 첫째 딸 둘째 딸">
+  <title>모아 — 우리 가족의 모든 기억, 모아</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFF9F4"/>
+      <stop offset="100%" stop-color="#FFEFE7"/>
+    </linearGradient>
+    <linearGradient id="family" x1="0" y1=".2" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F86E7C"/>
+      <stop offset="100%" stop-color="#FFA582"/>
+    </linearGradient>
+  </defs>
+  <rect x="0.5" y="0.5" width="107" height="107" rx="27" fill="url(#bg)"/>
+  <g fill="none" stroke="url(#family)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M42 31 A7 7 0 1 1 28 31 A7 7 0 1 1 42 31"/>
+    <path d="M20 63 C20 50 25 44 35 43 C46 42 52 49 55 57"/>
+    <path d="M61 35 C58 31 60 27 64 26 C70 24 74 29 74 33 C74 40 81 41 83 44"/>
+    <path d="M56 59 C57 49 63 43 71 43 C81 43 87 52 87 64"/>
+    <path d="M31 68 C29 62 33 57 38 56 C45 54 49 59 49 64"/>
+    <path d="M26 85 C26 74 31 69 39 69 C46 69 50 75 51 83"/>
+    <path d="M61 69 C60 65 63 61 67 61 C72 61 74 66 72 70"/>
+    <path d="M68 61 C69 58 73 58 74 61"/>
+    <path d="M58 84 C59 76 62 73 68 73 C74 73 78 78 80 84"/>
+  </g>
+</svg>
