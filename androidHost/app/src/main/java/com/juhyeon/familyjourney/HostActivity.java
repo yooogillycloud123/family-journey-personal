@@ -705,12 +705,29 @@ public final class HostActivity extends Activity {
         root.addView(close,new android.widget.LinearLayout.LayoutParams(-1,-2));
         android.widget.FrameLayout frame=new android.widget.FrameLayout(this);
         root.addView(frame,new android.widget.LinearLayout.LayoutParams(-1,0,1f));
+        // R28: the video stays in the native viewer; share and Gallery are
+        // explicit actions on this one original MediaStore URI (zero copy).
+        android.widget.LinearLayout actions=new android.widget.LinearLayout(this);
+        actions.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        actions.setPadding(12,6,12,20);
+        android.widget.Button shareAction=new android.widget.Button(this);
+        shareAction.setText("공유 · 카톡 등");
+        actions.addView(shareAction,new android.widget.LinearLayout.LayoutParams(0,-2,1f));
+        android.widget.Button galleryAction=new android.widget.Button(this);
+        galleryAction.setText("갤러리에서 열기");
+        actions.addView(galleryAction,new android.widget.LinearLayout.LayoutParams(0,-2,1f));
+        root.addView(actions,new android.widget.LinearLayout.LayoutParams(-1,-2));
         android.widget.VideoView player=new android.widget.VideoView(this);
         frame.addView(player,new android.widget.FrameLayout.LayoutParams(-1,-1));
         android.widget.MediaController controls=new android.widget.MediaController(this);
         controls.setAnchorView(player);
         player.setMediaController(controls);
         player.setVideoURI(uri);
+        shareAction.setOnClickListener(v->{player.pause();shareDiaryVideo(key);});
+        galleryAction.setOnClickListener(v->{
+          player.pause();
+          openDiaryVideoGallery(key);
+        });
         player.setOnPreparedListener(mp->{player.start();controls.show(3500);});
         player.setOnErrorListener((mp,what,extra)->{
           message("이 동영상은 휴대폰 기본 플레이어에서 열어 보세요.");
@@ -741,6 +758,77 @@ public final class HostActivity extends Activity {
       }catch(Exception e){message("동영상 공유 실패");}
     });
   }
+  private void openDiaryVideoGallery(String key){
+    if(key==null||!key.matches("v[0-9]{1,18}"))return;
+    final Uri uri=ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+      Long.parseLong(key.substring(1)));
+    ui.post(()->{
+      try{
+        Intent gallery=new Intent(Intent.ACTION_VIEW);
+        gallery.setDataAndType(uri,"video/*");
+        gallery.setPackage("com.sec.android.gallery3d");
+        gallery.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try{startActivity(gallery);}
+        catch(Exception samsungUnavailable){
+          Intent fallback=new Intent(Intent.ACTION_VIEW);
+          fallback.setDataAndType(uri,"video/*");
+          fallback.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+          startActivity(Intent.createChooser(fallback,"동영상 열기"));
+        }
+      }catch(Exception e){message("동영상을 갤러리에서 열 수 없습니다.");}
+    });
+  }
+
+  // An on-demand query for an individual diary item, not a new background
+  // 13,000-file GPS scan. MediaStore IDs only; no originals are copied.
+  private void diaryMediaLocation(JSONObject request){
+    final String key=request.optString("id","");
+    final int req=request.optInt("request",0);
+    if(!key.matches("(?:v)?[0-9]{1,18}"))return;
+    bg.execute(()->{
+      JSONObject result=new JSONObject();
+      try{
+        result.put("id",key);
+        boolean video=key.startsWith("v");
+        Uri uri=ContentUris.withAppendedId(video?
+          MediaStore.Video.Media.EXTERNAL_CONTENT_URI:
+          MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+          Long.parseLong(video?key.substring(1):key));
+        double lat=Double.NaN,lon=Double.NaN;
+        if(!video){
+          Uri original=uri;
+          if(Build.VERSION.SDK_INT>=29 &&
+            checkSelfPermission(Manifest.permission.ACCESS_MEDIA_LOCATION)==PackageManager.PERMISSION_GRANTED){
+            try{original=MediaStore.setRequireOriginal(uri);}catch(Exception ignored){}
+          }
+          try(InputStream in=getContentResolver().openInputStream(original)){
+            if(in!=null){
+              ExifInterface exif=new ExifInterface(in);
+              float[] point=new float[2];
+              if(exif.getLatLong(point)){lat=point[0];lon=point[1];}
+            }
+          }
+        }else{
+          android.media.MediaMetadataRetriever mmr=new android.media.MediaMetadataRetriever();
+          try{
+            mmr.setDataSource(this,uri);
+            String location=mmr.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_LOCATION);
+            if(location!=null){
+              // ISO-6709 e.g. +35.123456+126.123456/; no guess if absent.
+              java.util.regex.Matcher m=java.util.regex.Pattern.compile(
+                "^([+-][0-9]+(?:\\.[0-9]+)?)([+-][0-9]+(?:\\.[0-9]+)?)(?:[+-][0-9]+(?:\\.[0-9]+)?)?/?$").matcher(location);
+              if(m.matches()){lat=Double.parseDouble(m.group(1));lon=Double.parseDouble(m.group(2));}
+            }
+          }finally{mmr.release();}
+        }
+        if(Double.isFinite(lat)&&Double.isFinite(lon)&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180){
+          result.put("lat",lat);result.put("lon",lon);result.put("hasGps",true);
+        }else result.put("hasGps",false);
+      }catch(Exception e){try{result.put("hasGps",false);result.put("error",e.getClass().getSimpleName());}catch(Exception ignored){}}
+      jsInvoke("__fjDiaryMediaLocationResult",req+","+result.toString());
+    });
+  }
+
   private void startVideo(){
     try{
       if(videoStream!=null)videoStream.close();
@@ -814,6 +902,8 @@ public final class HostActivity extends Activity {
       case "diaryIndex":diaryPhotoIndex(p.optInt("id"));break;
       case "diaryPlayVideo":playDiaryVideo(p.optString("id",""));break;
       case "diaryShareVideo":shareDiaryVideo(p.optString("id",""));break;
+      case "diaryOpenVideoGallery":openDiaryVideoGallery(p.optString("id",""));break;
+      case "diaryMediaLocation":diaryMediaLocation(p);break;
       case "diaryImportPc":pickPcPhotos();break;
       case "thumbs":thumbnails(p);break;
       case "geocode":{
