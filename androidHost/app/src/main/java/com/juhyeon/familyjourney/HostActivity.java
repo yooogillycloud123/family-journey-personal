@@ -102,7 +102,7 @@ public final class HostActivity extends Activity {
     return checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)==PackageManager.PERMISSION_GRANTED;
   }
   private void grantOrScan(){
-    if(permitted()){scan();return;}
+    if(permitted()){fingerprint();return;}
     ArrayList<String> permissions=new ArrayList<>();
     if(Build.VERSION.SDK_INT>=33)permissions.add(Manifest.permission.READ_MEDIA_IMAGES);
     else permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
@@ -112,7 +112,7 @@ public final class HostActivity extends Activity {
   }
   @Override public void onRequestPermissionsResult(int rc,String[] permissions,int[] results){
     super.onRequestPermissionsResult(rc,permissions,results);
-    if(rc==REQ&&permitted())scan();
+    if(rc==REQ&&permitted())fingerprint();
     else if(rc==REQ)message("모든 사진 접근을 허용해야 자동 분석됩니다. 설정에서 허용해 주세요.");
   }
   private void message(String text){ui.post(()->Toast.makeText(this,text,Toast.LENGTH_LONG).show());}
@@ -129,6 +129,19 @@ public final class HostActivity extends Activity {
       Date d=f.parse(date.substring(0,19));
       return d==null?fallback:d.getTime()/1000L;
     }catch(Exception e){return fallback;}
+  }
+  private void fingerprint(){
+    bg.execute(()->{
+      try{
+        Cursor cursor=getContentResolver().query(
+          MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+          new String[]{MediaStore.Images.Media._ID,MediaStore.Images.Media.DATE_MODIFIED},
+          null,null,MediaStore.Images.Media.DATE_MODIFIED+" DESC");
+        int count=0;long mostRecent=0;
+        if(cursor!=null){try{count=cursor.getCount();if(cursor.moveToFirst())mostRecent=cursor.getLong(1);}finally{cursor.close();}}
+        jsInvoke("__nativeFingerprint",quote(count+"|"+mostRecent));
+      }catch(Exception e){Log.e("FamilyJourney","fingerprint",e);message("사진첩 메타데이터를 읽지 못했습니다.");}
+    });
   }
   private void scan(){
     if(!loading.compareAndSet(false,true))return;
@@ -170,8 +183,6 @@ public final class HostActivity extends Activity {
             }
           }
         }finally{cursor.close();}}
-        String fp=scanned+"|"+geo+"|"+(scanned>0?photos.optJSONObject(photos.length()-1):"");
-        jsInvoke("__nativeFingerprint",quote(fp));
         String serialized=photos.toString();
         js("window.__nativePhotosBegin&&window.__nativePhotosBegin()");
         for(int offset=0;offset<serialized.length();offset+=16000){
@@ -263,8 +274,8 @@ public final class HostActivity extends Activity {
   }
   private void handle(String name,JSONObject p){
     switch(name){
-      case "ready": fingerprints();break;
-      case "needPhotos":break; // Full data delivered directly by the scanner after fingerprint.
+      case "ready": grantOrScan();break;
+      case "needPhotos":if(p.optBoolean("need",true))scan();break;
       case "rescan":js("location.reload()");break;
       case "thumbs":thumbnails(p);break;
       case "geocode":{
