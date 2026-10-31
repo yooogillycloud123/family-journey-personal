@@ -66,6 +66,7 @@ public final class NaverSaveService extends AccessibilityService {
         }
         AccessibilityNodeInfo save=find(root,"저장","저장하기","장소 저장","저장됨","즐겨찾기","즐겨찾기 추가");
         if(save==null)save=findBookmarkControl(root);
+        if(save==null)save=findDetailHeaderStar(root,address);
         if(save==null){state(pref,"WAITING_SAVE_CONTROL",false);return;}
         if(click(save)){stage=1;action();state(pref,"SAVE_CONTROL_CLICKED",false);}
       }else if(stage==1){
@@ -156,6 +157,49 @@ public final class NaverSaveService extends AccessibilityService {
         AccessibilityNodeInfo child=item.getChild(i);if(child!=null)q.add(child);
       }
     }return null;
+  }
+  private static AccessibilityNodeInfo findDetailHeaderStar(AccessibilityNodeInfo root,String address){
+    // Only inspect clickable nodes next to an exact on-screen address header,
+    // never an arbitrary search result or first item.
+    String[] parts=address.trim().split("\\s+");
+    String streetNumber="",locality="";
+    for(int i=parts.length-1;i>=0;i--)if(parts[i].matches(".*\\d.*")){
+      streetNumber=compact(parts[i]);break;
+    }
+    for(String p:parts)if(p.endsWith("리")||p.endsWith("동")||p.endsWith("길"))
+      locality=compact(p);
+    if(streetNumber.isEmpty()||locality.isEmpty())return null;
+    ArrayDeque<AccessibilityNodeInfo> queue=new ArrayDeque<>();queue.add(root);
+    ArrayList<AccessibilityNodeInfo> buttons=new ArrayList<>();
+    Rect heading=null;
+    int seen=0;
+    while(!queue.isEmpty()&&seen++<800){
+      AccessibilityNodeInfo n=queue.removeFirst();
+      if(n.getText()!=null){
+        String value=compact(n.getText().toString());
+        if(value.contains(streetNumber)&&value.contains(locality)){
+          Rect r=new Rect();n.getBoundsInScreen(r);
+          if(heading==null||r.top<heading.top)heading=r;
+        }
+      }
+      if(n.isClickable())buttons.add(n);
+      for(int j=0;j<n.getChildCount();j++){
+        AccessibilityNodeInfo ch=n.getChild(j);if(ch!=null)queue.add(ch);
+      }
+    }
+    if(heading==null)return null;
+    Rect rootBox=new Rect();root.getBoundsInScreen(rootBox);
+    for(AccessibilityNodeInfo n:buttons){
+      Rect r=new Rect();n.getBoundsInScreen(r);
+      if(r.width()>rootBox.width()*.18||r.height()>rootBox.height()*.12)continue;
+      float relX=(float)(r.centerX()-rootBox.left)/Math.max(1,rootBox.width());
+      if(relX<.72f||relX>.87f)continue;
+      if(Math.abs(r.centerY()-heading.centerY())>130)continue;
+      String desc=n.getContentDescription()==null?"":n.getContentDescription().toString();
+      if(desc.contains("닫기")||desc.contains("공유"))continue;
+      return n;
+    }
+    return null;
   }
   private static boolean isSaveSheet(AccessibilityNodeInfo root){
     return has(root,"새 리스트 만들기")&&
