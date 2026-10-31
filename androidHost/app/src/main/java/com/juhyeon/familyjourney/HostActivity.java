@@ -58,6 +58,8 @@ public final class HostActivity extends Activity {
   // R25: explicit PC photo/ZIP import through the Android system document picker.
   // The PC itself is not read over the network; user transfers a folder or ZIP.
   private static final int REQ_PC_PHOTOS=2581;
+  private static final int REQ_DIARY_VIDEO=2582;
+  private volatile int pendingDiaryVideoRequest=-1;
   private static final long MAX_PC_PHOTO_BYTES=90L*1024L*1024L;
   private static final int MAX_PC_PHOTO_COUNT=3500;
   private final AtomicBoolean pcImportRunning=new AtomicBoolean(false);
@@ -263,6 +265,11 @@ public final class HostActivity extends Activity {
   }
   @Override public void onRequestPermissionsResult(int rc,String[] permissions,int[] results){
     super.onRequestPermissionsResult(rc,permissions,results);
+    if(rc==REQ_DIARY_VIDEO){
+      int index=pendingDiaryVideoRequest;pendingDiaryVideoRequest=-1;
+      if(index>=0)diaryPhotoIndex(index);
+      return;
+    }
     if(rc==REQ&&permitted()){statusNative("사진 접근 승인");fingerprint();}
     else if(rc==REQ){
       statusNative("권한 부족: 모든 사진 접근 필요");
@@ -377,7 +384,9 @@ public final class HostActivity extends Activity {
         for(int k=first;k<Math.min(n,first+12);k++){
           String key=ids.optString(k);
           try{
-            Uri uri=ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,Long.parseLong(key));
+            boolean video=key.matches("v[0-9]{1,18}");
+            if(!video&&!key.matches("[0-9]{1,18}"))continue;
+            Uri uri=ContentUris.withAppendedId(video?MediaStore.Video.Media.EXTERNAL_CONTENT_URI:MediaStore.Images.Media.EXTERNAL_CONTENT_URI,Long.parseLong(video?key.substring(1):key));
             Bitmap thumb;
             if(Build.VERSION.SDK_INT>=29)
               thumb=getContentResolver().loadThumbnail(uri,new Size(target,target),null);
@@ -606,6 +615,15 @@ public final class HostActivity extends Activity {
     }
   }
   private void diaryPhotoIndex(int request) {
+    // Only request VIDEO access when the user actually opens/rescans the diary.
+    // Declining video permission preserves the prior R25 photo-only flow.
+    if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.READ_MEDIA_VIDEO)!=PackageManager.PERMISSION_GRANTED &&
+      !getSharedPreferences("fj-diary-video-permission",MODE_PRIVATE).getBoolean("asked",false)){
+      pendingDiaryVideoRequest=request;
+      getSharedPreferences("fj-diary-video-permission",MODE_PRIVATE).edit().putBoolean("asked",true).apply();
+      ui.post(()->requestPermissions(new String[]{Manifest.permission.READ_MEDIA_VIDEO},REQ_DIARY_VIDEO));
+      return;
+    }
     bg.execute(()->{
       final Uri media=MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
       final String[] columns={
@@ -639,8 +657,88 @@ public final class HostActivity extends Activity {
         jsInvoke("__fjDiaryError",request+","+quote(e.getClass().getSimpleName()));
         return;
       }
+      // R26: append VIDEO metadata without touching original photo IDs/counts.
+      // Video references use 'v'+MediaStore ID, never a numeric image ID.
+      int videoCount=0;
+      if(Build.VERSION.SDK_INT<33 || checkSelfPermission(Manifest.permission.READ_MEDIA_VIDEO)==PackageManager.PERMISSION_GRANTED){
+        String[] cols={MediaStore.Video.Media._ID,MediaStore.Video.Media.DATE_TAKEN,
+          MediaStore.Video.Media.DATE_ADDED,MediaStore.Video.Media.DURATION};
+        try(Cursor movies=getContentResolver().query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+              cols,null,null,MediaStore.Video.Media.DATE_TAKEN+" ASC")){
+          if(movies!=null)while(movies.moveToNext()&&videoCount<100000){
+            long vid=movies.getLong(0);
+            long taken=movies.isNull(1)?0L:movies.getLong(1);
+            long added=movies.isNull(2)?0L:movies.getLong(2)*1000L;
+            if(taken<=0 && added<=0)continue;
+            JSONObject item=new JSONObject();
+            item.put("id","v"+vid);
+            item.put("t",taken>0?taken:added);
+            item.put("video",true);
+            item.put("duration",movies.isNull(3)?0L:movies.getLong(3));
+            item.put("approx",taken<=0);
+            batch.put(item);videoCount++;
+            if(batch.length()>=160){
+              jsInvoke("__fjDiaryChunk",request+","+batch.toString()+",false");
+              batch=new JSONArray();
+            }
+          }
+        }catch(Exception e){Log.w("FJ_Diary","Video metadata not accessible; photo-only mode kept",e);}
+      }
       jsInvoke("__fjDiaryChunk",request+","+batch.toString()+",true");
-      Log.i("FJ_Diary","indexed photos="+total);
+      Log.i("FJ_Diary","indexed photos="+total+" videos="+videoCount);
+    });
+  }
+  // In-app native VideoView uses the ORIGINAL MediaStore URI; no MP4 duplicate,
+  // transcode, network request or extra media file is ever created.
+  private void playDiaryVideo(String key){
+    if(key==null||!key.matches("v[0-9]{1,18}")){message("동영상 번호가 올바르지 않습니다.");return;}
+    Uri uri=ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,Long.parseLong(key.substring(1)));
+    ui.post(()->{
+      try{
+        final android.app.Dialog dialog=new android.app.Dialog(this,android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+        android.widget.LinearLayout root=new android.widget.LinearLayout(this);
+        root.setOrientation(android.widget.LinearLayout.VERTICAL);
+        root.setBackgroundColor(android.graphics.Color.BLACK);
+        android.widget.Button close=new android.widget.Button(this);
+        close.setText("‹ 일기로 돌아가기");
+        close.setOnClickListener(v->dialog.dismiss());
+        root.addView(close,new android.widget.LinearLayout.LayoutParams(-1,-2));
+        android.widget.FrameLayout frame=new android.widget.FrameLayout(this);
+        root.addView(frame,new android.widget.LinearLayout.LayoutParams(-1,0,1f));
+        android.widget.VideoView player=new android.widget.VideoView(this);
+        frame.addView(player,new android.widget.FrameLayout.LayoutParams(-1,-1));
+        android.widget.MediaController controls=new android.widget.MediaController(this);
+        controls.setAnchorView(player);
+        player.setMediaController(controls);
+        player.setVideoURI(uri);
+        player.setOnPreparedListener(mp->{player.start();controls.show(3500);});
+        player.setOnErrorListener((mp,what,extra)->{
+          message("이 동영상은 휴대폰 기본 플레이어에서 열어 보세요.");
+          dialog.dismiss();
+          Intent fallback=new Intent(Intent.ACTION_VIEW);
+          fallback.setDataAndType(uri,"video/*");
+          fallback.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+          try{startActivity(fallback);}catch(Exception ignored){}
+          return true;
+        });
+        dialog.setOnDismissListener(x->player.stopPlayback());
+        dialog.setContentView(root);
+        dialog.show();
+      }catch(Exception e){message("동영상 열기 실패: "+e.getClass().getSimpleName());}
+    });
+  }
+  private void shareDiaryVideo(String key){
+    if(key==null||!key.matches("v[0-9]{1,18}"))return;
+    Uri uri=ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,Long.parseLong(key.substring(1)));
+    ui.post(()->{
+      try{
+        Intent send=new Intent(Intent.ACTION_SEND);
+        send.setType("video/*");
+        send.putExtra(Intent.EXTRA_STREAM,uri);
+        send.setClipData(android.content.ClipData.newUri(getContentResolver(),"가족 영상",uri));
+        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(Intent.createChooser(send,"동영상 공유"));
+      }catch(Exception e){message("동영상 공유 실패");}
     });
   }
   private void startVideo(){
@@ -714,6 +812,8 @@ public final class HostActivity extends Activity {
         js("location.reload()");
         break;
       case "diaryIndex":diaryPhotoIndex(p.optInt("id"));break;
+      case "diaryPlayVideo":playDiaryVideo(p.optString("id",""));break;
+      case "diaryShareVideo":shareDiaryVideo(p.optString("id",""));break;
       case "diaryImportPc":pickPcPhotos();break;
       case "thumbs":thumbnails(p);break;
       case "geocode":{
