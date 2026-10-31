@@ -829,6 +829,49 @@ public final class HostActivity extends Activity {
     });
   }
 
+  // The user must tap a diary entry's map control before coordinates leave
+  // our app; Naver's documented /place URL shows an EXACT marker, not a city.
+  private void diaryOpenNaverPlace(JSONObject p){
+    double lat=p.optDouble("lat",Double.NaN),lon=p.optDouble("lon",Double.NaN);
+    if(!Double.isFinite(lat)||!Double.isFinite(lon)||
+        lat<31.43||lat>44.35||lon<122.37||lon>132.00){
+      message("네이버지도 좌표 지원 범위를 벗어났습니다.");return;
+    }
+    String title=p.optString("name","촬영 위치").trim();
+    if(title.length()>80)title=title.substring(0,80);
+    if(title.isEmpty())title="촬영 위치";
+    final String url="nmap://place?lat="+lat+"&lng="+lon+"&name="+
+      Uri.encode(title)+"&appname="+Uri.encode(getPackageName());
+    ui.post(()->{
+      try{
+        Intent open=new Intent(Intent.ACTION_VIEW,Uri.parse(url));
+        open.setPackage("com.nhn.android.nmap");
+        open.addCategory(Intent.CATEGORY_BROWSABLE);
+        startActivity(open);
+      }catch(Exception e){message("네이버지도 앱을 열 수 없습니다.");}
+    });
+  }
+
+  // Only explicit "상세 주소 조회" requests may invoke Android Geocoder.
+  // Never automatically geocode 13,000 private photos at app startup.
+  private void diaryReverseAddress(JSONObject p){
+    final int request=p.optInt("request",0);
+    final double lat=p.optDouble("lat",Double.NaN),lon=p.optDouble("lon",Double.NaN);
+    if(!Double.isFinite(lat)||!Double.isFinite(lon)||lat<-90||lat>90||lon<-180||lon>180)return;
+    bg.execute(()->{
+      JSONObject out=new JSONObject();
+      try{
+        android.location.Geocoder geocoder=new android.location.Geocoder(this,Locale.KOREA);
+        List<android.location.Address> found=geocoder.getFromLocation(lat,lon,1);
+        if(found!=null&&!found.isEmpty()){
+          String address=found.get(0).getAddressLine(0);
+          out.put("address",address==null?"":address);
+        }else out.put("error","no_result");
+      }catch(Exception e){try{out.put("error",e.getClass().getSimpleName());}catch(Exception ignored){}}
+      jsInvoke("__fjDiaryAddressResult",request+","+out.toString());
+    });
+  }
+
   private void startVideo(){
     try{
       if(videoStream!=null)videoStream.close();
@@ -904,6 +947,8 @@ public final class HostActivity extends Activity {
       case "diaryShareVideo":shareDiaryVideo(p.optString("id",""));break;
       case "diaryOpenVideoGallery":openDiaryVideoGallery(p.optString("id",""));break;
       case "diaryMediaLocation":diaryMediaLocation(p);break;
+      case "diaryOpenNaverPlace":diaryOpenNaverPlace(p);break;
+      case "diaryReverseAddress":diaryReverseAddress(p);break;
       case "diaryImportPc":pickPcPhotos();break;
       case "thumbs":thumbnails(p);break;
       case "geocode":{
