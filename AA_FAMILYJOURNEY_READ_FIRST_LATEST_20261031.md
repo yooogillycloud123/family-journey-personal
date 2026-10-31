@@ -1,4 +1,4 @@
-# FamilyJourney 최신 Canonical READ FIRST — 2026-10-31 R25
+# FamilyJourney 최신 Canonical READ FIRST — 2026-10-31 R26
 
 **새 대화에서 모든 분석·소스 변경·APK 빌드 전에 이 파일을 처음부터 끝까지 읽고 가장 최신 체크포인트부터 재개한다.** 본 파일은 이 저장소의 오래된 v0.1/v0.2 시제품 설명이나 R12 이하 인계 문서보다 최신이다. AirPods 별도 프로젝트 지침과 섞지 말 것.
 
@@ -66,3 +66,10 @@ Read `FAMILYJOURNEY_R22_CALENDAR_FAMILY_DIARY_CANONICAL_20261031.md` **in full**
 
 ## 9. LATEST — R25 (2026-10-31)
 **Read `AA_FAMILYJOURNEY_R25_READ_FIRST_20261031.md` from start to end before ANY new FamilyJourney edit.** Latest APK `FamilyJourney_R25_CuratedDefault_PCPhotoImport.apk`; package `com.juhyeon.familyjourne2`, versionCode25, same owner signing certificate. R24 user verified working. New diary initial tab is curated/selected photos, automatic full photo calendar remains second tab. Android native SAF picker explicitly imports PC-origin images or transferred ZIP files into user local Pictures/FamilyJourney PC Imports, preserves EXIF date and original bytes, sha256 dedup, reindexes. No PC direct SMB sync or iOS build yet. R25 on-device importer NOT VERIFIED. No deleting original R24 data, no new app, no regression of map/video/Naversave/zoom/share. SHA256 and code instructions in R25 READ FIRST.
+
+## 11. NEWEST R26 — Android 사진 + 동영상 일기 (2026-10-31)
+**반드시 `AA_FAMILYJOURNEY_R26_VIDEO_DIARY_READ_FIRST_20261031.md`를 처음부터 끝까지 읽어라.** R25 사용자가 설치/업데이트 후 만족한 기준. R26은 기존 사진/PC/지도/여행영상/네이버/일기 엔진을 보호하며 MediaStore **동영상 메타데이터 조회, 선택·날짜별 보기·인앱 원본 재생·공유**만 추가.
+- Latest APK `FamilyJourney_R26_PhotoVideoDiary_ZeroCopy.apk`, package `com.juhyeon.familyjourne2`, versionCode26, SHA256 `396147c63c669827a00fd6981f5cc7f8b2ea49ec4d1e5db73dbedc363968d9cb`, **same signing cert as R25**. Never uninstall existing app, in-place update only.
+- New Android permission `READ_MEDIA_VIDEO`, requested on diary first scan. Deny → legacy photo-only diary. No MP4 copied/transcoded/uploaded. DB photos kept separate from videos, selected-video IDs 'v'+MediaStore ID, no DB schema upgrade. Original photos still photo112 even when video count grows. Small metadata/cache storage increases possible.
+- Native GitHub CI 41191186056 PASS. R25→R26 APK changed four entries: AndroidManifest.xml, classes2.dex, assets/web/family-diary.js and family-diary.css. JS browser synthetic photo+video selection, save and independent count PASS. **Galaxy actual playback/permission STILL UNTESTED**.
+- User specifically instructed **PC Windows and iOS work paused**; no new sync or iOS build in R26. 
