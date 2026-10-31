@@ -1,125 +1,191 @@
 package com.juhyeon.familyjourney;
 
 import android.accessibilityservice.AccessibilityService;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
-import android.content.SharedPreferences;
-import android.util.Log;
 import java.util.ArrayDeque;
+import java.util.Locale;
 
-/**
- * Opt-in one-location NAVER Maps save assistant. It only inspects Naver Maps.
- * It never reads passwords, clipboard, chat apps or other windows. A user must
- * select the exact search result and enable Accessibility manually. Selector
- * behavior requires validation against the installed NAVER Maps version.
- */
+/** User-armed, one-place NAVER Maps address-to-list assistant. No credentials or photos. */
 public final class NaverSaveService extends AccessibilityService {
   static final String STORE="familyjourney_naver_oneshot";
   static final String NAVER="com.nhn.android.nmap";
-  private long lastAction=0L;
-  private String currentJob="";
+  private String running="";
   private int stage=0;
-
-  @Override protected void onServiceConnected(){
-    super.onServiceConnected();
-    Log.i("FJ_Naver","Explicit accessibility bridge active, package restricted to NAVER Maps");
+  private long cooldown=0;
+  private void state(SharedPreferences p,String value,boolean stop){
+    SharedPreferences.Editor e=p.edit().putString("state",value);
+    if(stop)e.putBoolean("armed",false);
+    e.apply();
+    Log.i("FJ_Naver","job_state="+value);
   }
-
-  private void result(SharedPreferences p,String status,boolean stop){
-    SharedPreferences.Editor editor=p.edit().putString("state",status);
-    if(stop)editor.putBoolean("armed",false);
-    editor.apply();
-    Log.i("FJ_Naver","One-shot job: "+status);
-  }
-
   @Override public void onAccessibilityEvent(AccessibilityEvent event){
-    if(event==null||event.getPackageName()==null||!NAVER.contentEquals(event.getPackageName()))return;
+    if(event==null||event.getPackageName()==null||
+       !NAVER.contentEquals(event.getPackageName()))return;
     SharedPreferences p=getSharedPreferences(STORE,MODE_PRIVATE);
     if(!p.getBoolean("armed",false))return;
     String job=p.getString("job","");
-    String expected=p.getString("expectedPoi","").trim();
-    if(job.length()<5||expected.length()<2)return;
+    String address=p.getString("expectedAddress","");
+    if(job.length()<6||address.length()<8)return;
     if(System.currentTimeMillis()-p.getLong("started",0)>180000){
-      result(p,"TIMEOUT",true);return;
+      state(p,"TIMEOUT",true);return;
     }
-    if(!job.equals(currentJob)){currentJob=job;stage=0;lastAction=0;}
-    if(System.currentTimeMillis()-lastAction<1400)return;
-
-    AccessibilityNodeInfo root=getRootInActiveWindow();
-    if(root==null)return;
+    if(!job.equals(running)){running=job;stage=0;cooldown=0;}
+    if(System.currentTimeMillis()-cooldown<1100)return;
+    AccessibilityNodeInfo root=getRootInActiveWindow();if(root==null)return;
     try{
-      // Never select an arbitrary search result. A human opens the correct POI.
-      // Require the exact place name and a native detail-screen action.
-      boolean nameVisible=exact(root,expected);
-      boolean detail=exact(root,"길찾기") || exact(root,"전화") ||
-          exact(root,"리뷰") || exact(root,"거리뷰");
+      boolean detail=exact(root,"길찾기")||exact(root,"거리뷰")||
+          exact(root,"출발")||exact(root,"도착")||exact(root,"전화")||exact(root,"주소");
       if(stage==0){
-        if(!nameVisible || !detail){result(p,"WAITING_EXACT_PLACE",false);return;}
-        if(exact(root,"저장됨")||exact(root,"저장 해제")){
-          result(p,"ALREADY_SAVED",true);return;
+        // Never click the first search hit: owner must open its matching detail.
+        if(!detail || !containsAddress(root,address)){
+          state(p,"WAITING_ADDRESS_RESULT",false);return;
         }
-        AccessibilityNodeInfo save=find(root,new String[]{"저장","저장하기","☆ 저장","장소 저장"});
-        if(save==null){result(p,"WAITING_SAVE_CONTROL",false);return;}
+        if(exact(root,"저장됨")||exact(root,"저장 해제")){
+          stage=2;state(p,"ALREADY_SAVED_NOTE_PENDING",false);return;
+        }
+        AccessibilityNodeInfo save=find(root,"저장","저장하기","장소 저장");
+        if(save==null){state(p,"WAITING_SAVE_CONTROL",false);return;}
         if(click(save)){
-          stage=1;lastAction=System.currentTimeMillis();result(p,"SAVE_CONTROL_CLICKED",false);
+          stage=1;cooldown=System.currentTimeMillis();
+          state(p,"SAVE_CONTROL_CLICKED",false);
         }
       }else if(stage==1){
-        String wanted=p.getString("list","").trim();
-        if(wanted.isEmpty()){result(p,"WAITING_USER_LIST",false);return;}
-        AccessibilityNodeInfo target=find(root,new String[]{wanted});
-        if(target==null){
-          if(exact(root,"저장됨")||exact(root,"저장 완료"))result(p,"VERIFIED",true);
-          else result(p,"WAITING_LIST",false);
+        String list=p.getString("list","내 장소");
+        AccessibilityNodeInfo dest=find(root,list);
+        if(dest==null){
+          if(exact(root,"저장됨")||exact(root,"저장 완료")){
+            stage=2;state(p,"LIST_MAY_BE_SAVED",false);
+          }else state(p,"WAITING_USER_LIST",false);
           return;
         }
-        if(click(target)){
-          stage=2;lastAction=System.currentTimeMillis();result(p,"LIST_CLICKED_UNVERIFIED",false);
+        if(click(dest)){
+          cooldown=System.currentTimeMillis();
+          stage=2;state(p,"LIST_CLICKED_UNVERIFIED",false);
         }
       }else if(stage==2){
-        if(exact(root,"저장됨") || exact(root,"저장 완료") || exact(root,"저장되었어요")){
-          result(p,"VERIFIED",true);return;
+        AccessibilityNodeInfo done=find(root,"완료","저장","적용");
+        if(done!=null && (exact(root,"저장할 리스트")||exact(root,"저장 리스트"))){
+          if(click(done)){cooldown=System.currentTimeMillis();state(p,"COMMIT_CLICKED_UNVERIFIED",false);}
+          return;
         }
-        // Some versions require explicit confirmation after choosing list.
-        AccessibilityNodeInfo commit=find(root,new String[]{"완료","적용"});
-        if(commit!=null&&click(commit)){
-          lastAction=System.currentTimeMillis();stage=3;result(p,"COMMIT_CLICKED_UNVERIFIED",false);
+        // On Naver, nickname / note are user-specific saved-place metadata.
+        // Open that editor only by a clearly labeled memo/alias action.
+        String note=p.getString("memo","").trim();
+        String alias=p.getString("alias","").trim();
+        if(!alias.isEmpty()){note=alias+(note.isEmpty()?"":" · "+note);}
+        if(note.isEmpty()){
+          if(exact(root,"저장됨")||exact(root,"저장 완료")){
+            state(p,"VERIFIED",true);
+          }else state(p,"WAITING_SAVED_CONFIRMATION",false);
+          return;
+        }
+        AccessibilityNodeInfo memoButton=find(root,"메모","메모 추가","메모하기","메모 입력","저장 메모","별명");
+        if(memoButton==null){state(p,"NEEDS_USER_MEMO_EDIT",false);return;}
+        if(click(memoButton)){
+          stage=3;cooldown=System.currentTimeMillis();
+          state(p,"MEMO_EDITOR_OPENED",false);
         }
       }else if(stage==3){
-        if(exact(root,"저장됨")||exact(root,"저장 완료")||exact(root,"저장되었어요"))
-          result(p,"VERIFIED",true);
+        // Avoid entering a note into Naver search/login text boxes. Only edit
+        // when the UI exposes a memo-specific caption next to an editable field.
+        boolean editor=exact(root,"메모")||exact(root,"메모 입력")||
+          exact(root,"저장 메모")||exact(root,"메모 추가")||exact(root,"별명");
+        if(!editor){state(p,"NEEDS_USER_MEMO_EDIT",false);return;}
+        AccessibilityNodeInfo input=findEdit(root);
+        if(input==null){state(p,"NEEDS_USER_MEMO_EDIT",false);return;}
+        String note=p.getString("memo","").trim();
+        String alias=p.getString("alias","").trim();
+        String combined=alias+(note.isEmpty()?"":" · "+note);
+        if(combined.length()>350)combined=combined.substring(0,350);
+        Bundle args=new Bundle();args.putCharSequence(
+          AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,combined);
+        if(input.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,args)){
+          stage=4;cooldown=System.currentTimeMillis();
+          state(p,"MEMO_ENTERED_UNVERIFIED",false);
+        }else state(p,"NEEDS_USER_MEMO_EDIT",false);
+      }else if(stage==4){
+        AccessibilityNodeInfo commit=find(root,"완료","저장");
+        if(commit!=null && click(commit)){
+          stage=5;cooldown=System.currentTimeMillis();
+          state(p,"MEMO_COMMIT_UNVERIFIED",false);
+        }
+      }else if(stage==5){
+        String note=p.getString("memo","").trim();
+        String alias=p.getString("alias","").trim();
+        if(!alias.isEmpty()&&visibleContains(root,alias)){
+          state(p,"VERIFIED",true);
+        }else if(alias.isEmpty()&&!note.isEmpty()&&visibleContains(root,note)){
+          state(p,"VERIFIED",true);
+        }else state(p,"NEEDS_USER_MEMO_VERIFY",false);
       }
-    }catch(Exception e){
-      Log.w("FJ_Naver","NAVER screen semantics changed",e);
-      result(p,"UI_CHANGED_CHECK_MANUALLY",false);
+    }catch(Exception ex){
+      Log.w("FJ_Naver","Naver UI not recognized",ex);
+      state(p,"UI_CHANGED_CHECK_MANUALLY",false);
     }finally{root.recycle();}
   }
-
-  private static boolean exact(AccessibilityNodeInfo root,String needle){
-    if(needle==null||needle.isEmpty())return false;
-    ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int visited=0;
-    while(!q.isEmpty()&&visited++<450){
-      AccessibilityNodeInfo item=q.removeFirst();
-      CharSequence txt=item.getText(),description=item.getContentDescription();
-      if((txt!=null&&needle.equalsIgnoreCase(txt.toString().trim()))||
-          (description!=null&&needle.equalsIgnoreCase(description.toString().trim())))return true;
-      for(int i=0;i<item.getChildCount();i++){AccessibilityNodeInfo ch=item.getChild(i);if(ch!=null)q.add(ch);}
-    }return false;
+  private static String normalize(String s){
+    return s==null?"":s.replaceAll("\\s+","").toLowerCase(Locale.ROOT);
   }
-  private static AccessibilityNodeInfo find(AccessibilityNodeInfo root,String[] names){
-    ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int visited=0;
-    while(!q.isEmpty()&&visited++<450){
-      AccessibilityNodeInfo item=q.removeFirst();
-      CharSequence t=item.getText(),d=item.getContentDescription();
-      String text=t==null?"":t.toString().trim(),desc=d==null?"":d.toString().trim();
-      for(String n:names)if(n.equalsIgnoreCase(text)||n.equalsIgnoreCase(desc))return item;
-      for(int i=0;i<item.getChildCount();i++){AccessibilityNodeInfo ch=item.getChild(i);if(ch!=null)q.add(ch);}
+  private static boolean containsAddress(AccessibilityNodeInfo root,String address){
+    String key=normalize(address).replace("대한민국","")
+      .replace("전라북도","전북").replace("전북특별자치도","전북");
+    // Require a distinctive street/lot number PLUS at least one locality token.
+    String[] tokens=address.trim().split("\\s+");
+    String number="";
+    for(int i=tokens.length-1;i>=0;i--)if(tokens[i].matches(".*\\d.*")){
+      number=normalize(tokens[i]);break;
+    }
+    String locality="";
+    for(String token:tokens)if(token.endsWith("읍")||token.endsWith("면")||
+      token.endsWith("동")||token.endsWith("리")||token.endsWith("길")||
+      token.endsWith("로"))locality=normalize(token);
+    if(number.isEmpty()||locality.isEmpty())return visibleContains(root,address);
+    String visible=allVisibleText(root);
+    return visible.contains(number)&&visible.contains(locality);
+  }
+  private static String allVisibleText(AccessibilityNodeInfo root){
+    StringBuilder sb=new StringBuilder();
+    ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int n=0;
+    while(!q.isEmpty()&&n++<800){
+      AccessibilityNodeInfo v=q.removeFirst();
+      if(v.getText()!=null)sb.append(normalize(v.getText().toString()));
+      if(v.getContentDescription()!=null)sb.append(normalize(v.getContentDescription().toString()));
+      for(int i=0;i<v.getChildCount();i++){AccessibilityNodeInfo c=v.getChild(i);if(c!=null)q.add(c);}
+    }return sb.toString();
+  }
+  private static boolean visibleContains(AccessibilityNodeInfo root,String value){
+    return !value.isEmpty()&&allVisibleText(root).contains(normalize(value));
+  }
+  private static boolean exact(AccessibilityNodeInfo root,String label){
+    return find(root,label)!=null;
+  }
+  private static AccessibilityNodeInfo find(AccessibilityNodeInfo root,String... labels){
+    ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int n=0;
+    while(!q.isEmpty()&&n++<800){
+      AccessibilityNodeInfo v=q.removeFirst();
+      String text=v.getText()==null?"":v.getText().toString().trim();
+      String desc=v.getContentDescription()==null?"":v.getContentDescription().toString().trim();
+      for(String label:labels)if(label.equals(text)||label.equals(desc))return v;
+      for(int i=0;i<v.getChildCount();i++){AccessibilityNodeInfo c=v.getChild(i);if(c!=null)q.add(c);}
     }return null;
   }
-  private static boolean click(AccessibilityNodeInfo node){
-    AccessibilityNodeInfo p=node;
-    for(int i=0;i<5 && p!=null;i++,p=p.getParent())
-      if(p.isClickable()&&p.performAction(AccessibilityNodeInfo.ACTION_CLICK))return true;
-    return false;
+  private static AccessibilityNodeInfo findEdit(AccessibilityNodeInfo root){
+    ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int n=0;
+    while(!q.isEmpty()&&n++<500){
+      AccessibilityNodeInfo v=q.removeFirst();
+      String cls=String.valueOf(v.getClassName());
+      if(v.isEditable()&&cls.contains("EditText")&&!v.isPassword())return v;
+      for(int i=0;i<v.getChildCount();i++){AccessibilityNodeInfo c=v.getChild(i);if(c!=null)q.add(c);}
+    }return null;
+  }
+  private static boolean click(AccessibilityNodeInfo v){
+    for(int i=0;i<5&&v!=null;i++,v=v.getParent()){
+      if(v.isClickable()&&v.performAction(AccessibilityNodeInfo.ACTION_CLICK))return true;
+    }return false;
   }
   @Override public void onInterrupt(){}
 }
