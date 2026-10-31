@@ -26,6 +26,7 @@ public final class NetworkPolicy {
     "www.wikidata.org",
     "map.naver.com",
     "m.map.naver.com",
+    "m.search.naver.com",
     "apis.data.go.kr",
     "korean.visitkorea.or.kr"
   };
