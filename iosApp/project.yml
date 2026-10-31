@@ -1,0 +1,5 @@
+name: FamilyJourney
+options:
+  bundleIdPrefix: com.juhyeon
+  deploymentTarget:
+    iOS: '17.0'
