@@ -1,0 +1,31 @@
+name: FamilyJourney iOS source CI
+on:
+  push:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+jobs:
+  simulator-build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode versions
+        run: xcodebuild -version
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Restore app icon
+        working-directory: ios
+        run: base64 -D -i Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png.b64 -o Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Build for iOS Simulator (unsigned)
+        working-directory: ios
+        run: xcodebuild -project FamilyJourneyIOS.xcodeproj -scheme FamilyJourneyIOS -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || (tail -120 build.log; exit 1)
+      - name: Package source and simulator report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FamilyJourney-iOS-R1-build-log
+          path: ios/build.log
