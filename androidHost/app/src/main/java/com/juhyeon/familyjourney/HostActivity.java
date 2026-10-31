@@ -70,10 +70,16 @@ public final class HostActivity extends Activity {
   private void diagnostics(String source){
     ui.post(()->{
       if(isFinishing()||web==null)return;
-      web.evaluateJavascript("(function(){return JSON.stringify({boot:!!window.__photoMap,ready:typeof window.__nativeFingerprint==='function',photos:typeof window.__nativePhotosEnd==='function',app:!!window.PhotoMapEngine,js:typeof window.__bootPhotoMap,blank:!!document.querySelector('.page[data-page=\\\"0\\\"]:not([hidden])')});})()",reply->{
+      web.evaluateJavascript("(function(){return {boot:!!window.__photoMap,ready:!!window.__nativeFingerprint,photos:!!window.__nativePhotosEnd};})()",reply->{
         String data=reply==null?"":reply;
-        if(data.contains("\\"boot\\":true")){mapBooted=true;return;}
-        if(!readyReceived.get()&&(data.contains("\\"ready\\":true")||data.contains("\\"photos\\":true"))){
+        boolean hasBoot=false,hasBridge=false;
+        try{
+          JSONObject state=new JSONObject(data);
+          hasBoot=state.optBoolean("boot",false);
+          hasBridge=state.optBoolean("ready",false)||state.optBoolean("photos",false);
+        }catch(Exception ignored){}
+        if(hasBoot){mapBooted=true;return;}
+        if(!readyReceived.get()&&hasBridge){
           readyReceived.set(true);
           grantOrScan();
           return;
