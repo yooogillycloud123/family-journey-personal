@@ -16,7 +16,7 @@
 - 기준 실기 사용 승인 APK: `/mnt/data/FamilyJourney_R21_PhotoShare_NaverAutoFlow.apk` package `com.juhyeon.familyjourne2`, versionCode21, signer SHA256 `0d25313c1a6f769d1a9b43ea9d3b7a4626a12924a887062ad25dc69907fbad09`.
 - 기존 public repo `yooogillycloud123/family-journey-personal`, branch main. 네이티브 코드는 공개 가능하나 원본 상용 웹 자산·사진·실제 GPS·키·가족 일기는 공개 금지.
 - 패키지·서명 유지, `versionCode=22`, **R21 위에 덮어쓰기 설치**, 기존 사진/여행/설정 데이터 무삭제.
-- 기존 웹 `app.js`, `native.js`, `tripbuilder.js`, `engine.js`, `render-worker.js`, `fj-naver-favorites.js` 바이트 변경 금지. 신규 `family-diary.js`, `family-diary.css` 및 index.html 참조만 추가.
+- 기존 웹 `app.js`, `native.js`, `tripbuilder.js`, `engine.js`, `render-worker.js` 바이트 변경 금지. `fj-naver-favorites.js`는 기존 전체화면 제스처 뷰어를 재사용하기 위해 공개 API 객체에 `openFullGallery:openInternalFullGallery` **한 항목만 추가**하고 나머지는 바꾸지 않는다. 신규 `family-diary.js`, `family-diary.css` 및 index.html 참조만 추가.
 - Android Java GitHub Actions 빌드 PASS, 앱 ZIP CRC/APK v2/v3 서명 PASS, JS 문법/달력·일기 IndexedDB 저장 회귀 테스트 PASS. 실기 미검증 사항은 명시한다.
 - 네이버 저장 R21는 사용자가 메모/별명·목록/저장 사이 터치가 필요했던 마지막 실기 과제였음. 새 일기 기능 추가하면서 이것을 해결됐다고 주장하거나 저장 메커니즘을 조용히 바꾸지 않는다.
 
