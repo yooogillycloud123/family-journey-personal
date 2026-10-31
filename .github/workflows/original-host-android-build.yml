@@ -24,6 +24,17 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
+      - name: Validate MOA additive UI syntax and icon resource XML
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check androidHost/app/src/main/assets/moa-r32-ui.js
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          for file in ('androidHost/app/src/main/res/values/styles.xml', 'androidHost/app/src/main/res/values-v31/styles.xml', 'androidHost/app/src/main/res/drawable/ic_family_journey_foreground.xml', 'androidHost/app/src/main/AndroidManifest.xml'):
+              ET.parse(file)
+          print('MOA syntax/XML PASS')
+          PY
       - name: Compile native bridge host (no proprietary web)
         run: gradle -p androidHost --no-daemon :app:assembleDebug
       - name: Check signed host
