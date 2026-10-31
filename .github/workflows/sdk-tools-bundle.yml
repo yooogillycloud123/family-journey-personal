@@ -1,0 +1,35 @@
+name: Android SDK Public Tools for Offline Signing
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/sdk-tools-bundle.yml']
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "build-tools;35.0.0"
+      - name: Collect public Android SDK signing and manifest-inspection tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p package
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" package/
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" package/
+          cp "$ANDROID_HOME/build-tools/35.0.0/aapt2" package/
+          cp "$ANDROID_HOME/build-tools/35.0.0/aapt" package/
+          chmod +x package/zipalign package/aapt package/aapt2
+          sha256sum package/* > package/SHA256SUMS
+          ls -lah package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Android-SDK-35-Offline-Tools
+          path: package/
+          if-no-files-found: error
