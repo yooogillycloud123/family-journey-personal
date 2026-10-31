@@ -4,6 +4,10 @@ import android.accessibilityservice.AccessibilityService;
 import android.content.SharedPreferences;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.accessibility.AccessibilityWindowInfo;
+import java.util.List;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -26,6 +30,26 @@ public final class NaverSaveService extends AccessibilityService {
   private String running="";
   private int stage=0; // 0 detail, 1 collapsed save sheet, 2 expanded editor, 3 list, 4 save, 5 verification
   private long lastAction=0L;
+  // A successful programmatic click/text input may emit no new event.
+  // Poll only while a user-authorized Naver job is armed.
+  private final Handler scheduler=new Handler(Looper.getMainLooper());
+  private boolean runningStep=false;
+  private final Runnable pulse=new Runnable(){
+    @Override public void run(){
+      try{step();}catch(Exception e){Log.w("FJ_Naver","save pulse",e);}
+      SharedPreferences pref=getSharedPreferences(STORE,MODE_PRIVATE);
+      scheduler.postDelayed(this,pref.getBoolean("armed",false)?500:2400);
+    }
+  };
+  @Override protected void onServiceConnected(){
+    super.onServiceConnected();
+    scheduler.removeCallbacks(pulse);
+    scheduler.postDelayed(pulse,250);
+  }
+  @Override public void onDestroy(){
+    scheduler.removeCallbacks(pulse);
+    super.onDestroy();
+  }
 
   private void state(SharedPreferences p,String status,boolean stop){
     if(status.equals(p.getString("state",""))&&!stop)return;
@@ -35,8 +59,15 @@ public final class NaverSaveService extends AccessibilityService {
     Log.i("FJ_Naver","naver_save_stage="+status);
   }
   @Override public void onAccessibilityEvent(AccessibilityEvent event) {
-    if(event==null||event.getPackageName()==null||
-        !NAVER.contentEquals(event.getPackageName()))return;
+    if(event!=null&&event.getPackageName()!=null&&
+       NAVER.contentEquals(event.getPackageName()))step();
+  }
+  private synchronized void step() {
+    if(runningStep)return;
+    runningStep=true;
+    try{processStep();}finally{runningStep=false;}
+  }
+  private void processStep() {
     SharedPreferences pref=getSharedPreferences(STORE,MODE_PRIVATE);
     if(!pref.getBoolean("armed",false))return;
     String job=pref.getString("job","");
@@ -48,7 +79,8 @@ public final class NaverSaveService extends AccessibilityService {
     if(!job.equals(running)){running=job;stage=0;lastAction=0;}
     if(System.currentTimeMillis()-lastAction<850)return;
     AccessibilityNodeInfo root=getRootInActiveWindow();
-    if(root==null)return;
+    if(root==null||root.getPackageName()==null||
+       !NAVER.contentEquals(root.getPackageName()))return;
     try{
       final String list=pref.getString("list","내 장소").trim();
       final String memo=trim(pref.getString("memo",""),50);
@@ -99,6 +131,12 @@ public final class NaverSaveService extends AccessibilityService {
         }else state(pref,"MEMO_INPUT_RETRY",false);
       }else if(stage==3){
         if(!sheet){state(pref,"WAITING_SAVE_SHEET",false);return;}
+        if(keyboardIsVisible()){
+          // Screen recording: keyboard obscured the unchecked list/save CTA.
+          // Dismiss only when an actual input method window is present.
+          performGlobalAction(GLOBAL_ACTION_BACK);
+          action();state(pref,"CLOSING_KEYBOARD",false);return;
+        }
         AccessibilityNodeInfo row=findList(root,list);
         if(row==null){
           state(pref,"NEEDS_LIST_SELECTION",false);return;
@@ -211,6 +249,14 @@ public final class NaverSaveService extends AccessibilityService {
     return contains(root,"메모를 남겨주세요")||
       contains(root,"지도 위에 표시될 별명")||
       contains(root,"관련 URL을 추가해주세요");
+  }
+  private boolean keyboardIsVisible(){
+    try{
+      List<AccessibilityWindowInfo> windows=getWindows();
+      if(windows!=null)for(AccessibilityWindowInfo window:windows)
+        if(window!=null&&window.getType()==AccessibilityWindowInfo.TYPE_INPUT_METHOD)return true;
+    }catch(Exception ignored){}
+    return false;
   }
   private static AccessibilityNodeInfo findMemoField(AccessibilityNodeInfo root,boolean note){
     String[] keys=note?new String[]{"메모를 남겨주세요","메모"}:
