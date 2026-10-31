@@ -299,6 +299,9 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:return json_reply(self,{"error":"bad JSON"},400)
         u=urlparse(self.path).path
         try:
+            if u=="/api/quit":
+                threading.Thread(target=self.server.shutdown,daemon=True).start()
+                return json_reply(self,{"ok":True})
             if u=="/api/scan":
                 if STATE["scanning"]:return json_reply(self,{"message":"사진 분석 중"})
                 folder=choose_path(folder=True)
