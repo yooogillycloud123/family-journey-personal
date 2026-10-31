@@ -64,7 +64,8 @@ public final class NaverSaveService extends AccessibilityService {
         if(!detail||!containsAddress(root,address)){
           state(pref,"WAITING_ADDRESS_RESULT",false);return;
         }
-        AccessibilityNodeInfo save=find(root,"저장","저장하기","장소 저장","저장됨");
+        AccessibilityNodeInfo save=find(root,"저장","저장하기","장소 저장","저장됨","즐겨찾기","즐겨찾기 추가");
+        if(save==null)save=findBookmarkControl(root);
         if(save==null){state(pref,"WAITING_SAVE_CONTROL",false);return;}
         if(click(save)){stage=1;action();state(pref,"SAVE_CONTROL_CLICKED",false);}
       }else if(stage==1){
@@ -141,6 +142,19 @@ public final class NaverSaveService extends AccessibilityService {
   private void action(){lastAction=System.currentTimeMillis();}
   private static String trim(String t,int max){
     String s=t==null?"":t.trim();return s.substring(0,Math.min(max,s.length()));
+  }
+  private static AccessibilityNodeInfo findBookmarkControl(AccessibilityNodeInfo root){
+    ArrayDeque<AccessibilityNodeInfo> q=new ArrayDeque<>();q.add(root);int n=0;
+    while(!q.isEmpty()&&n++<700){
+      AccessibilityNodeInfo item=q.removeFirst();
+      String id=item.getViewIdResourceName()==null?"":item.getViewIdResourceName().toLowerCase(Locale.ROOT);
+      String desc=item.getContentDescription()==null?"":item.getContentDescription().toString().toLowerCase(Locale.ROOT);
+      if((id.contains("bookmark")||id.contains("favorite")||id.contains("save_place")||
+          desc.contains("즐겨찾기")||desc.contains("장소 저장"))&&item.isClickable())return item;
+      for(int i=0;i<item.getChildCount();i++){
+        AccessibilityNodeInfo child=item.getChild(i);if(child!=null)q.add(child);
+      }
+    }return null;
   }
   private static boolean isSaveSheet(AccessibilityNodeInfo root){
     return has(root,"새 리스트 만들기")&&
