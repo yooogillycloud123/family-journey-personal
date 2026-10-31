@@ -62,6 +62,34 @@ public final class HostActivity extends Activity {
   private File videoTemp;
   private OutputStream videoStream;
   private int rejected=0;
+  private final AtomicBoolean readyReceived=new AtomicBoolean(false);
+  private volatile String phase="HTML 로딩 대기";
+  private volatile String lastWebError="";
+  private volatile boolean mapBooted=false;
+  private void statusNative(String text) { phase=text; Log.i("FamilyJourney",text); }
+  private void diagnostics(String source){
+    ui.post(()->{
+      if(isFinishing()||web==null)return;
+      web.evaluateJavascript("(function(){return JSON.stringify({boot:!!window.__photoMap,ready:typeof window.__nativeFingerprint==='function',photos:typeof window.__nativePhotosEnd==='function',app:!!window.PhotoMapEngine,js:typeof window.__bootPhotoMap,blank:!!document.querySelector('.page[data-page=\\\"0\\\"]:not([hidden])')});})()",reply->{
+        String data=reply==null?"":reply;
+        if(data.contains("\\"boot\\":true")){mapBooted=true;return;}
+        if(!readyReceived.get()&&(data.contains("\\"ready\\":true")||data.contains("\\"photos\\":true"))){
+          readyReceived.set(true);
+          grantOrScan();
+          return;
+        }
+        if(!readyReceived.get()||phase.startsWith("권한")){
+          new AlertDialog.Builder(HostActivity.this)
+           .setTitle("사진첩 자동 분석을 시작하지 못했습니다")
+           .setMessage("진행 단계: "+phase+"\\n웹 상태: "+data+"\\n"+
+             (lastWebError.isEmpty()?"":"오류: "+lastWebError))
+           .setPositiveButton("사진첩 다시 분석",(d,w)->{readyReceived.set(true);grantOrScan();})
+           .setNeutralButton("앱 권한 확인",(d,w)->handle("openSettings",new JSONObject()))
+           .setNegativeButton("닫기",null).show();
+        }else{statusNative("진행 확인: "+phase);}
+      });
+    });
+  }
 
   private void js(String code){ui.post(()->{if(web!=null)web.evaluateJavascript(code,null);});}
   private void jsInvoke(String name,String payload){js("window."+name+"&&window."+name+"("+payload+");");}
@@ -74,6 +102,15 @@ public final class HostActivity extends Activity {
     s.setAllowFileAccess(false);s.setAllowContentAccess(false);
     s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
     web.addJavascriptInterface(new NativeInterface(),"NativeHost");
+    web.setWebChromeClient(new android.webkit.WebChromeClient(){
+      @Override public boolean onConsoleMessage(android.webkit.ConsoleMessage m){
+        if(m.messageLevel()==android.webkit.ConsoleMessage.MessageLevel.ERROR){
+          lastWebError=m.message()+" @"+m.sourceId()+":"+m.lineNumber();
+          Log.e("FamilyJourneyWeb",lastWebError);
+        }
+        return true;
+      }
+    });
     web.setWebViewClient(new WebViewClient(){
       @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest req){
         Uri uri=req.getUrl();
@@ -86,6 +123,11 @@ public final class HostActivity extends Activity {
           String mime=path.endsWith(".js")?"application/javascript":path.endsWith(".css")?"text/css":path.endsWith(".html")?"text/html":path.endsWith(".json")?"application/json":path.endsWith(".svg")?"image/svg+xml":path.endsWith(".png")?"image/png":"application/octet-stream";
           return new WebResourceResponse(mime,"utf-8",getAssets().open(path));
         }catch(Exception e){Log.e("FamilyJourney","ASSET "+path,e);return new WebResourceResponse("text/plain","utf-8",new java.io.ByteArrayInputStream(new byte[0]));}
+      }
+      @Override public void onPageFinished(WebView view,String url){
+        super.onPageFinished(view,url);
+        statusNative("HTML 완료");
+        ui.postDelayed(()->{if(!mapBooted)diagnostics("page-finished");},12000);
       }
       @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){
         Uri uri=r.getUrl();
@@ -102,18 +144,23 @@ public final class HostActivity extends Activity {
     return checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)==PackageManager.PERMISSION_GRANTED;
   }
   private void grantOrScan(){
-    if(permitted()){fingerprint();return;}
+    statusNative("권한 확인");
+    if(permitted()){statusNative("사진첩 지문 확인");fingerprint();return;}
     ArrayList<String> permissions=new ArrayList<>();
     if(Build.VERSION.SDK_INT>=33)permissions.add(Manifest.permission.READ_MEDIA_IMAGES);
     else permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
     if(Build.VERSION.SDK_INT>=34)permissions.add("android.permission.READ_MEDIA_VISUAL_USER_SELECTED");
     if(Build.VERSION.SDK_INT>=29)permissions.add(Manifest.permission.ACCESS_MEDIA_LOCATION);
+    statusNative("권한 요청");
     requestPermissions(permissions.toArray(new String[0]),REQ);
   }
   @Override public void onRequestPermissionsResult(int rc,String[] permissions,int[] results){
     super.onRequestPermissionsResult(rc,permissions,results);
-    if(rc==REQ&&permitted())fingerprint();
-    else if(rc==REQ)message("모든 사진 접근을 허용해야 자동 분석됩니다. 설정에서 허용해 주세요.");
+    if(rc==REQ&&permitted()){statusNative("사진 접근 승인");fingerprint();}
+    else if(rc==REQ){
+      statusNative("권한 부족: 모든 사진 접근 필요");
+      diagnostics("permission-denied");
+    }
   }
   private void message(String text){ui.post(()->Toast.makeText(this,text,Toast.LENGTH_LONG).show());}
   private static long photoTime(ExifInterface exif,long fallback){
@@ -131,6 +178,7 @@ public final class HostActivity extends Activity {
     }catch(Exception e){return fallback;}
   }
   private void fingerprint(){
+    statusNative("사진첩 상태 확인 중");
     bg.execute(()->{
       try{
         Cursor cursor=getContentResolver().query(
@@ -139,12 +187,14 @@ public final class HostActivity extends Activity {
           null,null,MediaStore.Images.Media.DATE_MODIFIED+" DESC");
         int count=0;long mostRecent=0;
         if(cursor!=null){try{count=cursor.getCount();if(cursor.moveToFirst())mostRecent=cursor.getLong(1);}finally{cursor.close();}}
+        statusNative("사진첩 지문 "+count+"장");
         jsInvoke("__nativeFingerprint",quote(count+"|"+mostRecent));
       }catch(Exception e){Log.e("FamilyJourney","fingerprint",e);message("사진첩 메타데이터를 읽지 못했습니다.");}
     });
   }
   private void scan(){
     if(!loading.compareAndSet(false,true))return;
+    statusNative("EXIF GPS 자동 분석 중");
     bg.execute(()->{
       JSONArray photos=new JSONArray();
       int scanned=0,geo=0;
@@ -274,7 +324,11 @@ public final class HostActivity extends Activity {
   }
   private void handle(String name,JSONObject p){
     switch(name){
-      case "ready": grantOrScan();break;
+      case "ready":
+        if(readyReceived.compareAndSet(false,true)){statusNative("웹 준비됨");grantOrScan();}
+        break;
+      case "watchdog":diagnostics("web-watchdog");break;
+      case "mapBooted":mapBooted=true;statusNative("여행 지도 표시 완료");break;
       case "needPhotos":if(p.optBoolean("need",true))scan();break;
       case "rescan":js("location.reload()");break;
       case "thumbs":thumbnails(p);break;
@@ -299,7 +353,9 @@ public final class HostActivity extends Activity {
       case "openSettings":
         ui.post(()->{Intent i=new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName()));startActivity(i);});break;
       case "log":Log.d("FamilyJourney",p.optString("text",""));break;
-      case "status":Log.i("FamilyJourney",p.optString("text",""));break;
+      case "status":
+        statusNative("웹: "+p.optString("text",""));
+        break;
       case "premiumInfo":
         // Another app's Play billing purchase cannot be queried from this package.
         break;
