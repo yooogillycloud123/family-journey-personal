@@ -147,6 +147,23 @@ public final class HostActivity extends Activity {
       if(cursor==data.length)js(new String(data,StandardCharsets.UTF_8));
     }catch(Exception e){Log.w("FamilyJourney","R28 diary location addon unavailable",e);}
   }
+  // MOA R32 is a pure cosmetic + optional picker-scroll addon.  It never
+  // touches the original diary engine, media IDs, data stores or NAVER handlers.
+  private void injectMoaR32Addons(){
+    try(InputStream in=getAssets().open("moa-r32-brand.css")){
+      ByteArrayOutputStream out=new ByteArrayOutputStream();
+      byte[] buf=new byte[4096];int count;
+      while((count=in.read(buf))!=-1)out.write(buf,0,count);
+      String css=new String(out.toByteArray(),StandardCharsets.UTF_8);
+      js("(function(){if(document.head&&!document.getElementById('moa-r32-css')){var s=document.createElement('style');s.id='moa-r32-css';s.textContent="+quote(css)+";document.head.appendChild(s);}})()");
+    }catch(Exception e){Log.w("MOA","R32 brand style unavailable; original UI preserved",e);}
+    try(InputStream in=getAssets().open("moa-r32-ui.js")){
+      ByteArrayOutputStream out=new ByteArrayOutputStream();
+      byte[] buf=new byte[4096];int count;
+      while((count=in.read(buf))!=-1)out.write(buf,0,count);
+      js(new String(out.toByteArray(),StandardCharsets.UTF_8));
+    }catch(Exception e){Log.w("MOA","R32 additive UI unavailable; original UI preserved",e);}
+  }
   @Override public void onCreate(Bundle state){
     super.onCreate(state);
     web=new WebView(this);
@@ -225,6 +242,7 @@ public final class HostActivity extends Activity {
         super.onPageFinished(view,url);
         statusNative("HTML 완료");
         injectOwnerDiaryLocationAddon();
+        injectMoaR32Addons();
         ui.postDelayed(()->{if(!mapBooted)diagnostics("page-finished");},12000);
       }
       @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){
