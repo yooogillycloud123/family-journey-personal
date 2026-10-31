@@ -62,6 +62,36 @@ public final class HostActivity extends Activity {
   private File videoTemp;
   private OutputStream videoStream;
   private int rejected=0;
+  private volatile String currentFingerprint="";
+  private volatile boolean forcePhotoRescan=false;
+  private static final String PHOTO_CACHE="fj-private-exif-meta-v1.json";
+  private static final String CACHE_PREF="fj-private-exif-cache";
+  private void dispatchPhotos(String serialized) {
+    js("window.__nativePhotosBegin&&window.__nativePhotosBegin()");
+    for(int offset=0;offset<serialized.length();offset+=16000) {
+      String piece=serialized.substring(offset,Math.min(serialized.length(),offset+16000));
+      jsInvoke("__nativePhotosChunk",quote(piece));
+    }
+    js("window.__nativePhotosEnd&&window.__nativePhotosEnd()");
+  }
+  private String privatePhotoCache() {
+    try {
+      java.io.File file=new java.io.File(getFilesDir(),PHOTO_CACHE);
+      if(!file.isFile()||file.length()>15_000_000)return null;
+      byte[] bytes=java.nio.file.Files.readAllBytes(file.toPath());
+      return new String(bytes,java.nio.charset.StandardCharsets.UTF_8);
+    }catch(Exception ignored){return null;}
+  }
+  private void savePrivatePhotoCache(String serialized,String fingerprint) {
+    try {
+      java.io.File tmp=new java.io.File(getFilesDir(),PHOTO_CACHE+".pending");
+      java.io.File dest=new java.io.File(getFilesDir(),PHOTO_CACHE);
+      java.nio.file.Files.write(tmp.toPath(),serialized.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      java.nio.file.Files.move(tmp.toPath(),dest.toPath(),
+         java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+      getSharedPreferences(CACHE_PREF,MODE_PRIVATE).edit().putString("fingerprint",fingerprint).apply();
+    }catch(Exception e){Log.w("FamilyJourney","unable to cache EXIF metadata",e);}
+  }
   private final AtomicBoolean readyReceived=new AtomicBoolean(false);
   private volatile String phase="HTML 로딩 대기";
   private volatile String lastWebError="";
@@ -219,8 +249,9 @@ public final class HostActivity extends Activity {
           null,null,MediaStore.Images.Media.DATE_MODIFIED+" DESC");
         int count=0;long mostRecent=0;
         if(cursor!=null){try{count=cursor.getCount();if(cursor.moveToFirst())mostRecent=cursor.getLong(1);}finally{cursor.close();}}
+        currentFingerprint=count+"|"+mostRecent;
         statusNative("사진첩 지문 "+count+"장");
-        jsInvoke("__nativeFingerprint",quote(count+"|"+mostRecent));
+        jsInvoke("__nativeFingerprint",quote(currentFingerprint));
       }catch(Exception e){Log.e("FamilyJourney","fingerprint",e);message("사진첩 메타데이터를 읽지 못했습니다.");}
     });
   }
@@ -229,6 +260,18 @@ public final class HostActivity extends Activity {
     statusNative("EXIF GPS 자동 분석 중");
     bg.execute(()->{
       JSONArray photos=new JSONArray();
+      boolean forced=forcePhotoRescan;
+      forcePhotoRescan=false;
+      String existingFp=getSharedPreferences(CACHE_PREF,MODE_PRIVATE).getString("fingerprint","");
+      if(!forced && !currentFingerprint.isEmpty() && currentFingerprint.equals(existingFp)) {
+        String cached=privatePhotoCache();
+        if(cached!=null && cached.startsWith("[") && cached.endsWith("]")) {
+          statusNative("EXIF 사진 메타데이터 디스크 캐시 사용");
+          dispatchPhotos(cached);
+          loading.set(false);
+          return;
+        }
+      }
       int scanned=0,geo=0;
       try{
         Uri collection=MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
@@ -266,12 +309,8 @@ public final class HostActivity extends Activity {
           }
         }finally{cursor.close();}}
         String serialized=photos.toString();
-        js("window.__nativePhotosBegin&&window.__nativePhotosBegin()");
-        for(int offset=0;offset<serialized.length();offset+=16000){
-          String part=serialized.substring(offset,Math.min(serialized.length(),offset+16000));
-          jsInvoke("__nativePhotosChunk",quote(part));
-        }
-        js("window.__nativePhotosEnd&&window.__nativePhotosEnd()");
+        savePrivatePhotoCache(serialized,currentFingerprint);
+        dispatchPhotos(serialized);
       }catch(Exception e){Log.e("FamilyJourney","scan failed",e);message("사진 자동 분석 실패: "+e.getMessage());}
       finally{loading.set(false);}
     });
@@ -379,10 +418,16 @@ public final class HostActivity extends Activity {
         if(readyReceived.compareAndSet(false,true)){statusNative("웹 준비됨");grantOrScan();}
         break;
       case "watchdog":diagnostics("web-watchdog");break;
-      case "forceScan":if(permitted())scan();else grantOrScan();break;
+      case "forceScan":
+        forcePhotoRescan=true;
+        if(permitted())scan();else grantOrScan();
+        break;
       case "mapBooted":mapBooted=true;statusNative("여행 지도 표시 완료");break;
       case "needPhotos":if(p.optBoolean("need",true))scan();break;
-      case "rescan":js("location.reload()");break;
+      case "rescan":
+        forcePhotoRescan=true;
+        js("location.reload()");
+        break;
       case "thumbs":thumbnails(p);break;
       case "geocode":{
         int id=p.optInt("id");
