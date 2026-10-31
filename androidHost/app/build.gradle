@@ -1,2 +1,2 @@
 plugins { id 'com.android.application' }
-android { namespace 'com.juhyeon.familyjourney'; compileSdk 35; defaultConfig { applicationId 'com.juhyeon.familyjourne2'; minSdk 29; targetSdk 35; versionCode 26; versionName '1.0.4-video-diary-r26' }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
+android { namespace 'com.juhyeon.familyjourney'; compileSdk 35; defaultConfig { applicationId 'com.juhyeon.familyjourne2'; minSdk 29; targetSdk 35; versionCode 27; versionName '1.0.4-video-diary-cssfix-r27' }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
