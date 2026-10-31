@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <style name="MoaLaunchTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+    <item name="android:windowBackground">@color/moa_cream</item>
+    <item name="android:statusBarColor">@color/moa_cream</item>
+    <item name="android:navigationBarColor">@color/moa_cream</item>
+    <item name="android:windowLightStatusBar">true</item>
+    <item name="android:windowSplashScreenBackground">@color/moa_cream</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_family_journey_foreground</item>
+  </style>
+</resources>
