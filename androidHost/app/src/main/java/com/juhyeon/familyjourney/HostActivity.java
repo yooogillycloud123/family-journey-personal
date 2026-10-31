@@ -55,6 +55,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class HostActivity extends Activity {
   private static final String HOST="familyjourney.local";
   private static final int REQ=2502;
+  // R25: explicit PC photo/ZIP import through the Android system document picker.
+  // The PC itself is not read over the network; user transfers a folder or ZIP.
+  private static final int REQ_PC_PHOTOS=2581;
+  private static final long MAX_PC_PHOTO_BYTES=90L*1024L*1024L;
+  private static final int MAX_PC_PHOTO_COUNT=3500;
+  private final AtomicBoolean pcImportRunning=new AtomicBoolean(false);
   private final Handler ui=new Handler(Looper.getMainLooper());
   private final ExecutorService bg=Executors.newSingleThreadExecutor();
   private final AtomicBoolean loading=new AtomicBoolean(false);
@@ -403,6 +409,202 @@ public final class HostActivity extends Activity {
    * No images are uploaded or copied; this passes IDs and local timestamps.
    * If captured time is absent, mark the MediaStore added-date fallback.
    */
+  // User-controlled picker, no broad storage permission or remote uploader.
+  private void pickPcPhotos(){
+    ui.post(()->{
+      try{
+        Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        pick.addCategory(Intent.CATEGORY_OPENABLE);
+        pick.setType("*/*");
+        pick.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{
+          "image/jpeg","image/png","image/webp","image/heic","image/heif",
+          "application/zip","application/x-zip-compressed","application/octet-stream"});
+        pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
+        startActivityForResult(pick,REQ_PC_PHOTOS);
+      }catch(Exception e){
+        jsInvoke("__fjPcImportStatus",quote("파일 선택기를 열 수 없습니다: "+e.getClass().getSimpleName()));
+      }
+    });
+  }
+  @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+    super.onActivityResult(requestCode,resultCode,data);
+    if(requestCode!=REQ_PC_PHOTOS)return;
+    if(resultCode!=RESULT_OK||data==null){jsInvoke("__fjPcImportStatus",quote("PC 사진 선택을 취소했습니다."));return;}
+    if(!pcImportRunning.compareAndSet(false,true))return;
+    java.util.LinkedHashSet<Uri> selected=new java.util.LinkedHashSet<>();
+    if(data.getData()!=null)selected.add(data.getData());
+    if(data.getClipData()!=null)for(int i=0;i<data.getClipData().getItemCount();i++){
+      Uri u=data.getClipData().getItemAt(i).getUri();if(u!=null)selected.add(u);
+    }
+    if(selected.isEmpty()){pcImportRunning.set(false);return;}
+    final java.util.ArrayList<Uri> files=new java.util.ArrayList<>(selected);
+    bg.execute(()->importPcFiles(files));
+  }
+  private static String pcName(String name){
+    String s=name==null?"":name.replace('\\','/');int at=s.lastIndexOf('/');
+    s=at<0?s:s.substring(at+1);
+    s=s.replaceAll("[^\\p{L}\\p{N} ._()-]","_").trim();
+    return s.isEmpty()?"pc_photo.jpg":s.substring(0,Math.min(s.length(),115));
+  }
+  private static String pcMime(String name){
+    String n=name.toLowerCase(Locale.ROOT);
+    if(n.endsWith(".jpg")||n.endsWith(".jpeg"))return "image/jpeg";
+    if(n.endsWith(".png"))return "image/png";
+    if(n.endsWith(".webp"))return "image/webp";
+    if(n.endsWith(".heic"))return "image/heic";
+    if(n.endsWith(".heif"))return "image/heif";
+    return "";
+  }
+  private static boolean pcZip(String name,String mime){
+    String n=name.toLowerCase(Locale.ROOT);
+    return n.endsWith(".zip")||"application/zip".equals(mime)||
+      "application/x-zip-compressed".equals(mime);
+  }
+  private static final class PcImportTotals {
+    int imported=0,skipped=0,failed=0;
+    long copied=0;
+  }
+  private String getDocumentName(Uri uri){
+    try(Cursor cur=getContentResolver().query(uri,new String[]{
+          android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)){
+      if(cur!=null&&cur.moveToFirst())return pcName(cur.getString(0));
+    }catch(Exception ignored){}
+    return pcName(uri.getLastPathSegment());
+  }
+  private long getDocumentModified(Uri uri){
+    try(Cursor cur=getContentResolver().query(uri,new String[]{
+          android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED},null,null,null)){
+      if(cur!=null&&cur.moveToFirst())return cur.getLong(0);
+    }catch(Exception ignored){}
+    return 0;
+  }
+  private static String hexDigest(byte[] digest){
+    StringBuilder out=new StringBuilder(digest.length*2);
+    for(byte b:digest)out.append(String.format(Locale.ROOT,"%02x",b&255));
+    return out.toString();
+  }
+  /**
+   * Import one original file without recompression, preserve EXIF metadata
+   * and MIME, and keep everything in a user-visible local Pictures folder.
+   * Per-image cap defeats malformed ZIPs and oversized documents. Repeated
+   * imports are identified by SHA-256 in this app's private preferences.
+   */
+  private void importPcImage(InputStream input,String displayName,long modified,
+      PcImportTotals totals) throws Exception {
+    String name=pcName(displayName),mime=pcMime(name);
+    if(mime.isEmpty()){totals.skipped++;return;}
+    if(totals.imported+totals.skipped+totals.failed>=MAX_PC_PHOTO_COUNT){
+      totals.skipped++;return;
+    }
+    File temp=File.createTempFile("fj-pc-photo-",".tmp",getCacheDir());
+    try{
+      java.security.MessageDigest digest=java.security.MessageDigest.getInstance("SHA-256");
+      long size=0;
+      try(OutputStream out=new FileOutputStream(temp)){
+        byte[] buffer=new byte[65536];int n;
+        while((n=input.read(buffer))!=-1){
+          if(n==0)continue;
+          size+=n;
+          if(size>MAX_PC_PHOTO_BYTES||totals.copied+size>2_000_000_000L)
+            throw new java.io.IOException("PC photo import size limit");
+          out.write(buffer,0,n);digest.update(buffer,0,n);
+        }
+      }
+      totals.copied+=size;
+      if(size==0){totals.skipped++;return;}
+      String hash=hexDigest(digest.digest());
+      SharedPreferences dedup=getSharedPreferences("fj-pc-import-sha256",MODE_PRIVATE);
+      if(dedup.contains(hash)){totals.skipped++;return;}
+      long fallback=(modified>=946684800000L&&modified<=System.currentTimeMillis()+86400000L)
+          ? modified:System.currentTimeMillis();
+      long taken=fallback;boolean approximate=true;
+      try{
+        ExifInterface exif=new ExifInterface(temp.getAbsolutePath());
+        String shot=exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL);
+        if(shot==null)shot=exif.getAttribute(ExifInterface.TAG_DATETIME);
+        if(shot!=null&&shot.length()>=19){
+          long found=photoTime(exif,fallback/1000L)*1000L;
+          if(found>946684800000L&&found<=System.currentTimeMillis()+86400000L){
+            taken=found;approximate=false;
+          }
+        }
+      }catch(Exception ignored){}
+      Uri dst=null;
+      try{
+        ContentValues values=new ContentValues();
+        values.put(MediaStore.MediaColumns.DISPLAY_NAME,name);
+        values.put(MediaStore.MediaColumns.MIME_TYPE,mime);
+        values.put(MediaStore.MediaColumns.RELATIVE_PATH,
+            Environment.DIRECTORY_PICTURES+"/FamilyJourney PC Imports/");
+        values.put(MediaStore.Images.Media.DATE_TAKEN,taken);
+        values.put(MediaStore.MediaColumns.IS_PENDING,1);
+        dst=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);
+        if(dst==null)throw new java.io.IOException("Cannot add photo to MediaStore");
+        try(InputStream in=new FileInputStream(temp);
+            OutputStream out=getContentResolver().openOutputStream(dst)){
+          if(out==null)throw new java.io.IOException("Cannot open MediaStore output");
+          byte[] buffer=new byte[65536];int n;
+          while((n=in.read(buffer))!=-1)out.write(buffer,0,n);
+        }
+        ContentValues ready=new ContentValues();
+        ready.put(MediaStore.MediaColumns.IS_PENDING,0);
+        getContentResolver().update(dst,ready,null,null);
+        String mediaId=dst.getLastPathSegment();
+        if(mediaId!=null&&approximate)
+          getSharedPreferences("fj-pc-import-approx",MODE_PRIVATE)
+            .edit().putBoolean(mediaId,true).apply();
+        dedup.edit().putBoolean(hash,true).apply();
+        totals.imported++;
+      }catch(Exception failure){
+        if(dst!=null)try{getContentResolver().delete(dst,null,null);}catch(Exception ignored){}
+        throw failure;
+      }
+    }finally{temp.delete();}
+  }
+  private void importPcFiles(java.util.ArrayList<Uri> selected){
+    PcImportTotals totals=new PcImportTotals();
+    jsInvoke("__fjPcImportStatus",quote("선택한 PC 사진을 기기에 복사하고 촬영일을 확인하는 중…"));
+    try{
+      for(Uri uri:selected){
+        if(totals.imported+totals.skipped+totals.failed>=MAX_PC_PHOTO_COUNT)break;
+        String name=getDocumentName(uri);
+        String mime=getContentResolver().getType(uri);
+        long modified=getDocumentModified(uri);
+        try(InputStream input=getContentResolver().openInputStream(uri)){
+          if(input==null){totals.failed++;continue;}
+          if(pcZip(name,mime)){
+            try(java.util.zip.ZipInputStream zip=new java.util.zip.ZipInputStream(input)){
+              java.util.zip.ZipEntry entry;
+              int visited=0;
+              while((entry=zip.getNextEntry())!=null){
+                if(++visited>MAX_PC_PHOTO_COUNT*3)break;
+                if(!entry.isDirectory()&&!entry.getName().startsWith("__MACOSX/")){
+                  String fn=pcName(entry.getName());
+                  if(!pcMime(fn).isEmpty()&&
+                     totals.imported+totals.skipped+totals.failed<MAX_PC_PHOTO_COUNT){
+                    long m=entry.getTime()>0?entry.getTime():modified;
+                    try{importPcImage(zip,fn,m,totals);}
+                    catch(Exception e){totals.failed++;Log.w("FJ_PC","ZIP image skipped",e);}
+                  }
+                }
+                zip.closeEntry();
+              }
+            }
+          }else importPcImage(input,name,modified,totals);
+        }catch(Exception e){
+          totals.failed++;Log.w("FJ_PC","PC document import skipped",e);
+        }
+      }
+    }finally{
+      JSONObject info=new JSONObject();
+      try{info.put("imported",totals.imported);info.put("skipped",totals.skipped);
+        info.put("failed",totals.failed);}catch(Exception ignored){}
+      jsInvoke("__fjPcImportComplete",info.toString());
+      pcImportRunning.set(false);
+      Log.i("FJ_PC","photos="+totals.imported+" skipped="+totals.skipped+
+          " failed="+totals.failed);
+    }
+  }
   private void diaryPhotoIndex(int request) {
     bg.execute(()->{
       final Uri media=MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
@@ -423,7 +625,9 @@ public final class HostActivity extends Activity {
           JSONObject photo=new JSONObject();
           photo.put("id",Long.toString(id));
           photo.put("t",taken>0?taken:added); // milliseconds since epoch
-          photo.put("approx",taken<=0);
+          boolean importedApprox=getSharedPreferences("fj-pc-import-approx",MODE_PRIVATE)
+            .getBoolean(Long.toString(id),false);
+          photo.put("approx",taken<=0||importedApprox);
           batch.put(photo);total++;
           if(batch.length()>=160){
             jsInvoke("__fjDiaryChunk",request+","+batch.toString()+",false");
@@ -510,6 +714,7 @@ public final class HostActivity extends Activity {
         js("location.reload()");
         break;
       case "diaryIndex":diaryPhotoIndex(p.optInt("id"));break;
+      case "diaryImportPc":pickPcPhotos();break;
       case "thumbs":thumbnails(p);break;
       case "geocode":{
         int id=p.optInt("id");
