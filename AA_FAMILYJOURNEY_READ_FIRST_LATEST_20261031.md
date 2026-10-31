@@ -39,3 +39,11 @@
 - Do NOT remove all features because an external endpoint blocked. Preserve map, picture, film, premium-grade options, independent network.
 - Do NOT use a different package/signing key and break upgrade; no additional helper apps; no R15 rollback.
 - Do NOT claim PC favorites script identified; it was not in available data.
+
+## 6. Latest completed R21 release (signed APK produced)
+- Generated full private APK `/mnt/data/FamilyJourney_R21_PhotoShare_NaverAutoFlow.apk` (3,283,755 bytes, SHA256 `7288fd2651c2c494c4e03664a5cf28d0009d20f04398069705dcfde2719f4e2f`).
+- Same private signer certificate SHA256 `0d25313c1a6f769d1a9b43ea9d3b7a4626a12924a887062ad25dc69907fbad09`, package `com.juhyeon.familyjourne2`, versionCode 21. Signed Android v3 and integrity PASS; builds on R20 without deleting R20 data.
+- Public native CI `41183868443`: completed SUCCESS and artifact downloaded as `/mnt/data/FamilyJourney-R21-NativeHost.zip`.
+- ZIP alternate `/mnt/data/FamilyJourney_R21_PhotoShare_NaverAutoFlow.zip`.
+- Script `/mnt/data/_fj_r21/package_r21.py`; private patched gallery script `/mnt/data/_fj_r21/fj-naver-favorites-r21.js`; `/mnt/data/_fj_r21/test_share_gallery_r21.py` headless Chromium PASS: share selected id 101, gallery open id 101, move and share id 102, back closes dialog, no JS errors. Original map/video cores byte-identical to R20.
+- Phone NAVER favorite auto-tap/list/save and user screenshot/physical keyboard tests still unverified; do not claim end-to-end success.
