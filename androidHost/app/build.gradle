@@ -1,2 +1,2 @@
 plugins { id 'com.android.application' }
-android { namespace 'com.juhyeon.familyjourney'; compileSdk 35; defaultConfig { applicationId 'com.juhyeon.familyjourney'; minSdk 29; targetSdk 35; versionCode 17; versionName '1.0.4-address-note-r17' }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
+android { namespace 'com.juhyeon.familyjourney'; compileSdk 35; defaultConfig { applicationId 'com.juhyeon.familyjourney'; minSdk 29; targetSdk 35; versionCode 18; versionName '1.0.4-naver-save-sheet-r18' }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
