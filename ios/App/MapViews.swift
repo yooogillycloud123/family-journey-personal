@@ -28,6 +28,8 @@ struct JourneyMapView: View {
                     }
                 }.mapStyle(isSatellite ? .imagery : .standard)
                     .frame(height: 390).clipShape(RoundedRectangle(cornerRadius: 20))
+                NavigationLink { RouteMovieView() } label: { Label("지도 여행 영상 만들기", systemImage: "video.fill").frame(maxWidth: .infinity).padding(10) }
+                    .buttonStyle(.borderedProminent)
                 Toggle("위성 지도", isOn: $isSatellite)
                 FamilyCard {
                     Text("최근 다녀온 곳").font(.title3.bold())
