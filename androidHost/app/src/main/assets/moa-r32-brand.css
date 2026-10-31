@@ -1,33 +1,46 @@
-/* MOA R32 — typography and palette only. Existing widget geometry is never changed. */
-:root {
-  --moa-coral: #F56C7C;
-  --moa-peach: #FFA482;
-  --moa-cream: #FFF9F5;
-  --moa-pink: #FFD6D7;
-  --moa-charcoal: #202733;
-  --moa-muted: #818997;
-  --moa-outline: #E9E1DE;
+/* MOA R32: cosmetic-only overlay; no modification to photo/event layout or navigation. */
+:root{
+ --moa-coral:#F86E7C; --moa-peach:#FFA582; --moa-pink:#F8AEC0;
+ --moa-cream:#FFF9F5; --moa-charcoal:#1D2734;
+ --moa-muted:#7E8795; --moa-outline:#EEE3DF;
+ --moa-surface:#FFFDFB;
 }
-#fj-diary-root .moa-r32-action {
-  border: 1px solid var(--moa-outline) !important;
-  border-radius: 11px !important;
-  box-shadow: inset 0 0 0 .5px rgba(255,255,255,.6) !important;
-  background-color: #FFF8F7 !important;
-  color: #485365 !important;
+body.moa-r32{--brand-primary:var(--moa-coral)}
+#fj-diary-root{color:var(--moa-charcoal)}
+/* Draw gentle, consistent borders between actions of successive photos.
+   The original wrapping/grid and hit targets are preserved. */
+#fj-diary-root .moa-r32-action{
+ border:1px solid var(--moa-outline)!important;
+ border-radius:12px!important;
+ box-shadow:inset 0 0 0 .5px rgba(255,255,255,.6)!important;
+ background-color:#FFF8F6!important;
+ color:#845B65!important;
+ margin-bottom:4px!important;
 }
-#fj-diary-root .moa-r32-accent-fill {
-  background-color: var(--moa-coral) !important;
-  color: #FFFFFF !important;
-  border-color: var(--moa-coral) !important;
+#fj-diary-root .moa-r32-action:active{
+ background-color:#FFEAE6!important;border-color:#F2B5AD!important;
 }
-#fj-diary-root .moa-r32-accent-text {
-  color: var(--moa-coral) !important;
+#fj-diary-root .moa-r32-photo-action-row{
+ padding-bottom:7px!important;margin-bottom:8px!important;
+ border-bottom:1px solid rgba(154,124,118,.19)!important;
 }
-#fj-diary-root button:focus-visible,
-#fj-diary-root a:focus-visible {
-  outline: 2px solid var(--moa-coral) !important;
-  outline-offset: 2px;
+/* Actual picker next-page button remains accessible as an optional fallback;
+   JS auto-load invokes the EXISTING action, never new data or permissions. */
+#fj-diary-root .moa-r32-next-photos{
+ border-radius:15px!important;border:1px solid #F0CCC8!important;
+ background-color:#FFF1EE!important;color:#B45E6A!important;
 }
-@media (prefers-reduced-motion: reduce) {
-  #fj-diary-root * { scroll-behavior:auto !important; }
+#fj-diary-root .moa-r32-accent-fill{
+ background:linear-gradient(105deg,var(--moa-coral),var(--moa-peach))!important;
+ color:#FFFFFF!important;border-color:transparent!important;
 }
+#fj-diary-root .moa-r32-accent-text{color:var(--moa-coral)!important}
+#fj-diary-root button:focus-visible,#fj-diary-root a:focus-visible{
+ outline:2px solid var(--moa-coral)!important;outline-offset:2px;
+}
+/* The underlying image/video cards, main map and sticky bottom navigation
+   retain their native sizes/positions. The following classes are future theme
+   tokens only and do not activate until user opts in. */
+body.moa-r32.moa-monotone-light{--moa-coral:#222;--moa-peach:#555;--moa-cream:#FFF;--moa-charcoal:#111}
+body.moa-r32.moa-monotone-dark{--moa-coral:#FEFEFE;--moa-peach:#BBBBBB;--moa-cream:#181818;--moa-charcoal:#FFF}
+@media(prefers-reduced-motion:reduce){#fj-diary-root *{scroll-behavior:auto!important}}
