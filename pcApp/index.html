@@ -1,0 +1,20 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>FamilyJourney · 우리 가족 사진 일기</title><link rel="stylesheet" href="/style.css?token=TOKEN_REPLACED"></head>
+<body><div class="app"><aside class="sidebar"><div class="brand"><div class="logo">FJ</div><div><b>FamilyJourney</b><small>우리 가족의 기록</small></div></div><nav>
+<button class="nav active" data-mode="curated"><span>▦</span> 내가 고른 사진 일기</button>
+<button class="nav" data-mode="automatic"><span>▧</span> 자동 사진 달력</button>
+</nav><div class="note"><b>개인정보 보호</b><p>사진과 일기는 이 PC에 보관됩니다. 서버 업로드는 없습니다.</p><p>Windows 저장 위치:<br>문서 / FamilyJourney</p></div></aside>
+<main><header><div><span class="eyebrow">PRIVATE FAMILY MEMORY</span><h1 id="heading">내가 고른 사진 일기</h1><p>사진과 이야기를 기록하고, 가족의 시간을 되돌아보세요.</p></div><div class="header-actions">
+<button id="scan" class="primary">＋ PC 사진 폴더 가져오기</button></div></header>
+<div class="status" id="status">사진 색인을 확인하고 있습니다…</div>
+<div class="workspace"><section class="calendar-pane"><div class="month"><button id="prev">‹</button><h2 id="monthTitle"></h2><button id="next">›</button></div>
+<div class="weekdays"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div id="calendar" class="calendar"></div>
+<div class="calendar-bottom"><button id="today">오늘</button><button id="import">일기/동기화 파일 가져오기</button><button id="export">PC 동기화 묶음 내보내기</button></div></section>
+<section class="diary-pane"><div class="diary-head"><div><span class="eyebrow" id="dayCaption"></span><h2 id="dayTitle">날짜를 선택하세요</h2></div><span id="dayCount" class="badge">0장</span></div>
+<label>제목<input id="title" placeholder="우리 가족의 오늘을 한 줄로…"></label><label>일기 · 여러 줄 입력<textarea id="body" rows="5" placeholder="오늘 있었던 일과 기억하고 싶은 이야기를 남겨보세요."></textarea></label>
+<div class="two"><label>태그<input id="tags" placeholder="가족, 여행, 생일"></label><label>오늘의 기분<select id="feeling"><option value="">선택하지 않음</option><option>행복</option><option>감사</option><option>설렘</option><option>평온</option><option>피곤</option><option>속상함</option></select></label></div>
+<div class="gallery-head"><h3>이 날짜의 사진</h3><button id="pick">＋ 사진 여러 장 고르기</button></div><div class="photos" id="photos"><div class="empty">사진을 가져오고 날짜를 선택하면 표시돼요.</div></div>
+<div class="actions"><button id="save" class="primary">일기 저장</button><button id="delete" class="danger">이 날짜의 일기 삭제</button></div>
+<p class="footnote">자동 사진 달력과 내가 고른 사진 일기는 서로 독립적으로 저장돼요.</p>
+</section></div></main></div>
+<div id="pickerOverlay" class="modal" hidden><div class="picker-panel"><header class="picker-head"><h2>사진 선택</h2><button id="pickerClose">닫기 ×</button></header><div class="picker-nav"><button id="pPrev">‹</button><b id="pickerMonth"></b><button id="pNext">›</button><b id="selectedCount">선택 0장</b></div><p>촬영 날짜별로 구분돼요. 다른 월에 찍은 사진도 한 날짜의 일기로 묶을 수 있어요.</p><div class="picker-grid" id="pickerGrid"></div><footer><button id="pMore">다음 사진 더보기</button><button id="pickerDone" class="primary">선택한 사진 적용</button></footer></div></div>
+<div id="toast" class="toast" hidden></div><script src="/app.js?token=TOKEN_REPLACED"></script></body></html>
