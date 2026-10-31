@@ -1,2 +1,2 @@
 plugins { id 'com.android.application' }
-android { namespace 'com.juhyeon.familyjourney'; compileSdk 35; defaultConfig { applicationId 'com.juhyeon.familyjourney'; minSdk 29; targetSdk 35; versionCode 8; versionName '1.0.4-independent-host-lab' }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
+android { namespace 'com.juhyeon.familyjourney'; compileSdk 35; defaultConfig { applicationId 'com.juhyeon.familyjourney'; minSdk 29; targetSdk 35; versionCode 9; versionName '1.0.4-host-diagnostic-r9' }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } }
