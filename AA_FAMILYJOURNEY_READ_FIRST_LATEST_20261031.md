@@ -1,4 +1,4 @@
-# FamilyJourney 최신 Canonical READ FIRST — 2026-10-31 R26
+# FamilyJourney 최신 Canonical READ FIRST — 2026-10-31 R27
 
 **새 대화에서 모든 분석·소스 변경·APK 빌드 전에 이 파일을 처음부터 끝까지 읽고 가장 최신 체크포인트부터 재개한다.** 본 파일은 이 저장소의 오래된 v0.1/v0.2 시제품 설명이나 R12 이하 인계 문서보다 최신이다. AirPods 별도 프로젝트 지침과 섞지 말 것.
 
@@ -73,3 +73,11 @@ Read `FAMILYJOURNEY_R22_CALENDAR_FAMILY_DIARY_CANONICAL_20261031.md` **in full**
 - New Android permission `READ_MEDIA_VIDEO`, requested on diary first scan. Deny → legacy photo-only diary. No MP4 copied/transcoded/uploaded. DB photos kept separate from videos, selected-video IDs 'v'+MediaStore ID, no DB schema upgrade. Original photos still photo112 even when video count grows. Small metadata/cache storage increases possible.
 - Native GitHub CI 41191186056 PASS. R25→R26 APK changed four entries: AndroidManifest.xml, classes2.dex, assets/web/family-diary.js and family-diary.css. JS browser synthetic photo+video selection, save and independent count PASS. **Galaxy actual playback/permission STILL UNTESTED**.
 - User specifically instructed **PC Windows and iOS work paused**; no new sync or iOS build in R26. 
+
+## 12. LATEST R27 — R26 사용자 일기 화면 깨짐 CSS 회귀 수정 (2026-10-31)
+**R27을 새 Canonical 최신 Android 결과물로 지정. 반드시 `AA_FAMILYJOURNEY_R27_CSS_REGRESSION_FIX_READ_FIRST_20261031.md`를 전체 읽어라.**
+- User real screenshots prove diary flowed as unstyled text below '나의 지도' after installing R26. Exact root cause extracted from actual R25 and R26 APK: original diary CSS 9,851 bytes accidentally overwritten with only 994-byte video additive rules. `#fj-diary-root{position:fixed}` deleted.
+- R27 CSS = original R25 full 9851 bytes + 994-byte R26 video rules. Difference from R26 APK **only** `AndroidManifest.xml` (versionCode27) and `assets/web/family-diary.css`; all other classes.dex, JS, map/video/Naver features byte-identical.
+- Corrected signed `FamilyJourney_R27_VideoDiary_LayoutRestored.apk` SHA256 `4290cb2a4501e7a867dbf17af4ef09688beeebeeaf4e15303a4abf89ba2b74e9`, same app package/signing cert; install **OVER** existing R26, NEVER uninstall.
+- CI compile `41191969052` success. Browser viewport test confirms fixed overlay and photo112/video1 plus curated independent diary; real Galaxy device R27 visual and video not yet tested.
+- PC Windows and iOS remain frozen. DO NOT repeat a regression by replacing a whole CSS file with only new addon rules. Every subsequent APK must verify baseline CSS and UI computed `position:fixed` in screenshot test.
