@@ -1,4 +1,4 @@
-# FamilyJourney 최신 Canonical READ FIRST — 2026-10-31 R27
+# FamilyJourney 최신 Canonical READ FIRST — 2026-10-31 R29 GOLDEN (Android) + iOS R1 (separate)
 
 **새 대화에서 모든 분석·소스 변경·APK 빌드 전에 이 파일을 처음부터 끝까지 읽고 가장 최신 체크포인트부터 재개한다.** 본 파일은 이 저장소의 오래된 v0.1/v0.2 시제품 설명이나 R12 이하 인계 문서보다 최신이다. AirPods 별도 프로젝트 지침과 섞지 말 것.
 
@@ -88,3 +88,12 @@ Read `FAMILYJOURNEY_R22_CALENDAR_FAMILY_DIARY_CANONICAL_20261031.md` **in full**
 - Public native changes in GitHub `androidHost`: share/gallery buttons in `playDiaryVideo`, new `diaryMediaLocation`, `diaryOpenNaverPlace`, `diaryReverseAddress` handlers, native on-page injection for own location addon, adaptive icon XML and AndroidManifest. Latest native CI run 41194114008 PASS, JS addon syntax PASS.
 - **Incomplete:** private R27 `assets/web/family-diary.js` timeline render must call new `FamilyJourneyDiaryGeo.attach`; private gallery title `[object Object]` must be corrected. No signed R28 produced; don't claim finished. Current runtime lacks private R27 APK and matching signer, and Library raw-byte materialization denied. Do NOT replace installed R27 with publicly compiled host (it has no proprietary web assets and different signer).
 - Do not upload private APK/signing key to public GitHub; keep R27 working and preserve all diary IndexedDB. Resume from available authorized R27 APK, private owner signer, exact source diff, signed build and Galaxy tests. Windows/iOS remain deferred.
+
+## 14. ABSOLUTE NEW GOLDEN: USER-VERIFIED R29 (2026-10-31)
+**Always read `AA_FAMILYJOURNEY_R29_GOLDEN_LOCK_20261031.md` in FULL and use its hard SHA256, package, version, signer.**
+- User explicitly approved **R29 Android** as Golden on 2026-10-31. It is `FamilyJourney_R29_HeartDiary_Updated.apk` SHA256 `95d82324beb1f0293a9bac49be1ff4f35be1931a3b0caf784009411f0446e041`. Backup exists as `/mnt/data/FamilyJourney_R29_GOLDEN_DO_NOT_MODIFY.apk`.
+- R29 package `com.juhyeon.familyjourne3`, versionCode29, signing cert SHA256 `24868e5cdf5c8b6699435981f341752dd3fdae6ea89156eaca552605502e4d0c`. Legacy R27 package `com.juhyeon.familyjourne2` is a different parallel app. Do not mix up signing certs or reset app data.
+- Exact frozen functions: user-accepted maps/diary photo/video/import, separate automatic and chosen-photo calendars, in-app photo viewer + share, video play/share, date cover, NAVER favorites assistance, gradient heart launcher icon. No changes to installed GOLDEN without testing.
+- New direct request: iPhone version for spouse, same feature direction; native original SwiftUI iOS R1 written at `ios/` (XcodeGen) without copying private Android binary/code into public repo. Simulator CI `41198595626` passed. iOS code includes PhotosKit on-device gallery, selected/auto diary, GPS Apple map, Naver marker links, videos and share, heart icon, local JSON. BUT full Android feature parity and device-level sign/deploy NOT yet established. No Android-to-iOS photo sync or automated NAVER favorites account modification.
+- Public macOS workflow `.github/workflows/ios-build.yml` builds unsigned device IPA for local Apple ID signing (Sideloadly/AltStore) plus simulator compile; Apple signing required. Do not tell user unsigned IPA installed by just tapping iPhone.
+- Preserve private user GPS/Photos, R29 APK signing key; never upload to public GitHub.
