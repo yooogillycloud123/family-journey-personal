@@ -1,7 +1,26 @@
-name: Build PC
-on: workflow_dispatch
+name: Build FamilyJourney PC for Windows
+on:
+  workflow_dispatch:
+  push:
+    paths: ['pcApp/**','.github/workflows/build-familyjourney-pc.yml']
 jobs:
-  build:
+  windows:
     runs-on: windows-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PC build dependencies
+        run: python -m pip install --no-input pillow==11.3.0 pyinstaller==6.16.0
+      - name: Check Python
+        run: python -m py_compile pcApp/app.py
+      - name: Package portable Windows EXE
+        run: python -m PyInstaller --clean --noconfirm --onefile --windowed --name FamilyJourney-PC --add-data "pcApp/index.html;." --add-data "pcApp/app.js;." --add-data "pcApp/style.css;." pcApp/app.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FamilyJourney-PC-Windows-Portable
+          path: dist/FamilyJourney-PC.exe
+          if-no-files-found: error
