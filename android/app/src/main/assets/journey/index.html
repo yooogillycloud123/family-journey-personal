@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>우리 가족 여행</title><style>
+*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#19212d;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR","Malgun Gothic",sans-serif}button,input{font:inherit}button{cursor:pointer;touch-action:manipulation}#app{min-height:100vh} .page{padding:28px 21px 130px}.h1{font-size:30px;font-weight:830;letter-spacing:-1.25px;margin:0 0 17px;line-height:1.25}.subtitle{font-size:16px;color:#78818b;line-height:1.6}.section-title{margin:29px 0 14px;font-size:18px;font-weight:800;color:#495566}.mapbox{position:relative;margin-top:23px;border-radius:23px;overflow:hidden;height:460px;background:#eef2f4}.mapbox.studio{height:auto;min-height:320px;aspect-ratio:1 / 1;border:1px solid #e1e5e9}.mapbox.portrait{aspect-ratio:9 / 16}.mapbox.landscape{aspect-ratio:16 / 9;min-height:230px}.tile-layer,.layer{position:absolute;inset:0;overflow:hidden}.tile-layer img{position:absolute;width:256px;height:256px;image-rendering:auto}.tile-shade{position:absolute;inset:0;background:rgba(242,245,249,.17);pointer-events:none}.pins{position:absolute;inset:0}.pin{position:absolute;transform:translate(-50%,-90%);border-radius:20px;padding:6px 10px;white-space:nowrap;font-size:13px;font-weight:800;background:#fff;color:#172432;box-shadow:0 2px 11px #65788b3b;border:1px solid #e8eaef}.pin:before{content:"";position:absolute;bottom:-9px;left:45%;width:11px;height:11px;background:#3388fa;border:3px solid #fff;border-radius:50%;box-shadow:0 1px 5px #365e9459}.pin.main{background:#3288f8;color:white}.pin.main:before{background:#fff;border-color:#3288f8}.map-top{position:absolute;top:15px;right:13px;display:flex;gap:8px}.white-pill{border:none;background:#fff;border-radius:30px;padding:12px 15px;font-weight:750;box-shadow:0 2px 15px #8894a13b}.map-credit{position:absolute;bottom:8px;right:9px;font-size:9px;color:#596674;background:#ffffffb0;padding:3px 5px;border-radius:4px}.countline{margin-top:20px;line-height:1.7;color:#838b93;font-size:14px}.chip-row{display:flex;gap:9px;overflow:auto;scrollbar-width:none;padding:5px 0}.chip{border:0;background:#f1f2f5;color:#626f7d;border-radius:20px;padding:11px 15px;font-weight:700;white-space:nowrap}.chip.active{color:#2985fa;background:#e8f2ff}.cards{display:flex;gap:13px;overflow:auto;padding-bottom:12px}.card{background:#f2f5f7;border-radius:20px;padding:17px;min-width:175px;flex:1}.card .big{font-size:30px;font-weight:850;color:#2d83f2;margin:8px 0 1px}.card .muted{font-size:13px;color:#71808c}.callout{background:#eef5ff;border-radius:20px;padding:18px;margin:20px 0;color:#3569a6;font-size:14px;line-height:1.6}.primary{border:0;border-radius:18px;background:#3388f8;color:white;font-weight:800;padding:16px 18px;min-height:53px}.secondary{border:0;border-radius:18px;background:#f0f1f4;color:#506072;font-weight:750;padding:16px 18px}.wide{width:100%}.action-row{display:flex;gap:10px}.action-row>*{flex:1}.bottom-tabs{position:fixed;bottom:0;left:0;right:0;z-index:99;display:flex;height:82px;background:#fff;border-top:1px solid #e9ecef;box-shadow:0 -4px 12px #00000008}.bottom-tabs button{border:0;background:transparent;flex:1;color:#8e98a6;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;font-size:11px;font-weight:700}.bottom-tabs button.on{color:#2784f6}.bottom-tabs .icon{font-size:26px;line-height:30px}.topline{position:sticky;top:0;z-index:80;background:#fff;padding:22px 20px 15px;display:flex;gap:20px;align-items:center;font-size:18px;font-weight:800}.back{border:0;background:transparent;font-size:24px;width:30px;color:#1b2430}.progress-bar{height:4px;background:#f1f2f5;margin:0}.progress-bar span{display:block;height:4px;background:#318af9;border-radius:4px}.wizard{padding:28px 20px 144px}.wizard h1{font-size:29px;font-weight:830;line-height:1.3;letter-spacing:-1px;margin:0 0 16px}.wizard p{font-size:15px;line-height:1.75;color:#66717b}.option{display:flex;align-items:center;gap:15px;margin:22px 0;padding:12px 2px;border:0;background:transparent;width:100%;text-align:left}.option .badge{min-width:58px;height:58px;border-radius:17px;background:#f2f3f6;display:flex;align-items:center;justify-content:center;font-size:23px;color:#657380}.option .txt{flex:1;min-width:0}.option .name{display:block;font-size:19px;font-weight:780;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.option .detail{display:block;margin-top:6px;color:#9ba3ad;font-size:14px}.radio{width:27px;height:27px;border:3px solid #d3d8dc;border-radius:50%;flex-shrink:0}.radio.checked{border:0;background:#3388fa;position:relative}.radio.checked:after{content:"✓";font-size:19px;font-weight:800;color:#fff;position:absolute;left:6px;top:1px}.input-title{font-size:13px;color:#929aa3;margin:25px 0 10px}.textbox{width:100%;border:0;outline:none;border-radius:18px;background:#f2f3f5;min-height:72px;font-size:19px;padding:18px;color:#172433}.preview-card{background:#f2f3f5;border-radius:22px;padding:27px 17px;margin:15px 0 20px;text-align:center}.preview-inner{background:#fff;border-radius:24px;padding:28px 8px;box-shadow:0 8px 22px #7a8da123}.segmented{background:#f2f3f5;padding:5px;border-radius:15px;display:flex;margin:11px 0 25px;gap:3px}.segmented button{border:0;background:none;border-radius:12px;min-height:43px;flex:1;font-size:15px;font-weight:700;color:#85909c}.segmented button.active{background:#fff;color:#182330;box-shadow:0 2px 10px #7e899a1e}.float-actions{position:fixed;bottom:0;left:0;right:0;display:flex;gap:10px;background:#ffffffed;backdrop-filter:blur(8px);padding:13px 20px 20px;z-index:95}.float-actions>*{flex:1}.studio-plate{font-size:14px;background:#fff;position:absolute;left:9px;top:10px;padding:10px;border-radius:13px;box-shadow:0 3px 12px #83838326}.info-plate{position:absolute;right:10px;top:10px;background:#fff;padding:10px;border-radius:12px;font-size:12px;font-weight:700;box-shadow:0 3px 12px #83838326}.mini-control{display:flex;gap:14px;align-items:center;margin-top:13px}.roundplay{width:53px;height:53px;border:0;border-radius:50%;background:#f1f2f5;font-size:20px}.track{height:5px;background:#e6e9ed;border-radius:4px;flex:1;position:relative}.track i{display:block;background:#3388fa;height:5px;border-radius:4px;width:25%}.note{font-size:12px;color:#788593;line-height:1.65}.view{width:100%}.banner{background:#f2f6ff;border-radius:20px;padding:17px;margin-top:20px}.narrow{font-size:13px;color:#828d98;line-height:1.7}.setting{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f1f2f4;padding:20px 0;font-weight:720}.link{color:#3186f6;font-size:14px;font-weight:700}.empty-icon{font-size:45px;margin:28px 0 7px;text-align:center}.blurb{line-height:1.8;color:#8995a1;font-size:15px}.hide{display:none!important}@media (min-width:650px){.page,.wizard{max-width:760px;margin:auto}.mapbox{height:560px}.bottom-tabs,.float-actions{left:50%;transform:translateX(-50%);max-width:760px}}
+</style></head><body><div id="app"></div><script>
+(function(){
+'use strict';
+var D={trips:[],photos:0,places:0},tab='map',step=0,choice='all',title='우리 가족의 발자국',subtitle='함께한 모든 순간이 여행이 되다',outro='다음 여행도 함께',ratio='square',theme='light',seconds=30,zoom=7,center={lat:36.15,lon:127.85},toastTimer=null,progressText='',demo=false;
+var root=document.getElementById('app'),mapInstance=null;
+function esc(s){return String(s===undefined?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function btn(text,action,klass){return '<button class="'+(klass||'primary')+'" onclick="'+action+'">'+text+'</button>';}
+function footer(){var tabs=[['map','▤','나의 지도'],['suggest','✧','추천'],['battle','♜','대결'],['record','▣','기록'],['settings','⚙','설정']];return '<div class="bottom-tabs">'+tabs.map(function(t){return '<button class="'+(tab===t[0]?'on':'')+'" onclick="App.tab(\''+t[0]+'\')"><span class="icon">'+t[1]+'</span>'+t[2]+'</button>';}).join('')+'</div>';}
+function tripStops(){var arr=[];var ts=choice==='all'?D.trips:D.trips.filter(function(t){return t.id===choice;});ts.forEach(function(t){(t.stops||[]).forEach(function(s){arr.push(s);});});return arr;}
+function allStops(){var arr=[];D.trips.forEach(function(t){(t.stops||[]).forEach(function(s){arr.push(s);});});return arr;}
+function uniqueCities(){return new Set(allStops().map(function(s){return s.name;})).size;}
+function header(titleText,num){return '<header class="topline"><button class="back" onclick="App.back()">‹</button>'+titleText+'</header><div class="progress-bar"><span style="width:'+(num*25)+'%"></span></div>';}
+function actRow(left,right){return '<div class="float-actions">'+btn('이전','App.back()','secondary')+btn(right,'App.next()','primary')+'</div>';}
+function displayMap(stops,kind){return '<div class="mapbox '+(kind||'')+'" id="routeMap"><div class="tile-layer" id="tiles"></div><div class="tile-shade"></div><svg id="pathSvg" class="layer" style="overflow:visible;pointer-events:none"></svg><div class="pins" id="pins"></div><div class="map-credit">© OpenStreetMap contributors</div>'+(kind?'':'<div class="map-top"><button class="white-pill" onclick="App.zoom(1)">＋</button><button class="white-pill" onclick="App.zoom(-1)">−</button></div>')+'</div>';}
+function home(){
+var cnt=D.trips.length;var first=D.trips.length?D.trips[0].start:'2026년';var all=allStops();
+root.innerHTML='<main class="page"><h1 class="h1">나의 지도</h1><div class="subtitle">'+esc(first)+'부터 '+uniqueCities()+'곳 · 여행 '+cnt+'개 · 사진 '+D.photos+'장을 기록했어요</div>'+displayMap(all,'')+'<p class="countline">'+(cnt?'방문한 장소 마커를 눌러 추억을 찾아보세요.':'사진첩을 분석하면 방문 지역과 여행 기록이 지도에 표시돼요.')+'</p><div class="action-row" style="margin:22px 0">'+btn('사진첩 자동 분석','App.scan()','primary')+btn('사진 직접 선택','App.select()','secondary')+'</div><div class="action-row">'+btn('여행 영상 만들기','App.wizard()','primary')+btn('샘플 미리보기','App.sample()','secondary')+'</div><h2 class="section-title">나의 여행 기록</h2><div class="cards"><div class="card"><div class="muted">방문한 도시</div><div class="big">'+uniqueCities()+'</div><div class="muted">GPS 사진 기준</div></div><div class="card"><div class="muted">여행</div><div class="big">'+cnt+'</div><div class="muted">자동 분류됨</div></div><div class="card"><div class="muted">사진</div><div class="big">'+D.photos+'</div><div class="muted">위치정보 있음</div></div></div>'+(cnt?'<div class="callout">지역 이름은 GPS와 가까운 대표 도시를 참고하여 표시해요. 실제 시·군·구 경계 색칠 기능은 개발 중입니다.</div>':'<div class="callout">모든 분석은 기기 안에서 이루어져요. 온라인 지도는 타일 좌표만 지도 서버에 요청합니다.</div>')+'</main>'+footer();
+renderMap(all);
+}
+function choose(){
+var entries=[{id:'all',title:'전체 여정',desc:D.trips.length+'개 여행 · 사진 '+D.photos+'장'}].concat(D.trips.map(function(t){return {id:t.id,title:t.title,desc:t.start+(t.start===t.end?'':' ~ '+t.end)+' · 사진 '+t.photos+'장'};}));
+root.innerHTML=header('여행 선택',1)+'<main class="wizard"><h1>어떤 여행을 만들까요?</h1><p>전체 여정을 한 번에 보여주거나 여행 하나만 골라 짧게 만들 수 있어요.</p>'+entries.map(function(item){return '<button class="option" onclick="App.choice(\''+item.id+'\')"><span class="badge">'+(item.id==='all'?'◉':'♧')+'</span><span class="txt"><span class="name">'+esc(item.title)+'</span><span class="detail">'+esc(item.desc)+'</span></span><span class="radio '+(String(choice)===String(item.id)?'checked':'')+'"></span></button>';}).join('')+'</main>'+actRow('이전','다음');
+}
+function words(){
+root.innerHTML=header('문구',2)+'<main class="wizard"><h1>영상에 들어갈<br>문구를 적어주세요</h1><p>비워 두면 기본 문구가 들어가요.</p><div class="input-title">제목</div><input class="textbox" id="titleText" value="'+esc(title)+'" maxlength="60" oninput="App.word(\'title\',this.value)"><div class="input-title">한 줄 멘트</div><input class="textbox" id="subtitleText" value="'+esc(subtitle)+'" maxlength="90" oninput="App.word(\'subtitle\',this.value)"><div class="input-title">마무리 멘트</div><input class="textbox" id="outroText" value="'+esc(outro)+'" maxlength="90" oninput="App.word(\'outro\',this.value)"><h2 class="section-title">시작 카드 미리보기</h2><div class="preview-card"><div class="preview-inner"><h2 style="font-size:23px">'+esc(title)+'</h2><div style="color:#777">'+esc(subtitle)+'</div><p class="narrow">사진 '+D.photos+'장 · 여행 '+D.trips.length+'개</p></div></div></main>'+actRow('이전','다음');
+}
+function choices(arr,val,method){return '<div class="segmented">'+arr.map(function(v){return '<button class="'+(v[0]===val?'active':'')+'" onclick="App.'+method+'(\''+v[0]+'\')">'+v[1]+'</button>';}).join('')+'</div>';}
+function studio(preview){
+var stops=tripStops();var isFinal=!!preview;
+root.innerHTML=header(isFinal?'영상':'스타일',isFinal?4:3)+'<main class="wizard"><h1>'+(isFinal?'미리보고 저장해요':'어떤 분위기로 만들까요?')+'</h1>'+displayMap(stops,ratio==='square'?'studio':(ratio==='portrait'?'studio portrait':'studio landscape'))+'<div class="mini-control"><button class="roundplay" onclick="App.animate()">▶</button><button class="roundplay" onclick="App.restart()">↺</button><div class="track"><i></i></div><span style="font-size:13px;color:#7c8995">0:00 / 0:'+seconds+'</span></div>'+(isFinal?'<h2 class="section-title">영상 길이</h2>'+choices([[15,'15초'],[30,'30초'],[60,'1분'] ],seconds,'duration'):'<h2 class="section-title">화면</h2>'+choices([['portrait','세로'],['square','정사각'],['landscape','가로']],ratio,'ratio')+'<h2 class="section-title">지도 테마</h2>'+choices([['light','밝은 지도'],['dark','어두운 지도']],theme,'theme'))+'<div class="callout">지도에서 이동 경로를 확인할 수 있어요. 지도 타일이 표시되지 않으면 인터넷 연결을 확인해 주세요.<br>현재 영상 출력은 실험용 6초 좌표 기반 MP4입니다. 미리보기의 실제 지도 스타일·선택한 길이 그대로 인코딩하는 기능은 개발 중입니다.</div>'+(isFinal?'<div class="action-row">'+btn('현재 화면 PNG 저장','App.image()','secondary')+btn('실험용 MP4 저장','App.video()','primary')+'</div>':'')+'</main>'+actRow('이전',isFinal?'처음으로':'다음');
+renderMap(stops);
+}
+function showTab(name){
+if(name==='map'){home();return;}
+var titleMap={suggest:'추천',battle:'대결',record:'기록',settings:'설정'};
+var body='<main class="page"><h1 class="h1">'+titleMap[name]+'</h1>';
+if(name==='record'){
+body+='<p class="subtitle">사진으로 발견한 여행을 날짜순으로 확인해요.</p>'+D.trips.map(function(t){return '<div class="option"><span class="badge">♧</span><span class="txt"><span class="name">'+esc(t.title)+'</span><span class="detail">'+esc(t.start)+' · '+t.photos+'장</span></span></div>';}).join('')+(D.trips.length?'':'<div class="empty-icon">♧</div><p class="blurb">사진을 분석하면 여행 기록이 자동 생성됩니다.</p>');
+}else if(name==='settings'){
+body+='<p class="subtitle">사진·위치 정보는 이 휴대폰 안에서만 분석해요.</p><div class="setting">사진첩 위치정보 분석 <span class="link">로컬</span></div><div class="setting">온라인 지도 <span class="link">OSM</span></div><div class="setting">원본 사진 서버 전송 <span class="link">하지 않음</span></div><div class="setting">앱 버전 <span class="link">0.2.0 실험판</span></div>'+btn('사진첩 다시 분석','App.scan()','primary wide');
+}else if(name==='suggest'){
+body+='<div class="empty-icon">✧</div><h2 style="text-align:center">새로운 가족 여행지 발견</h2><p class="blurb" style="text-align:center">여행 추천·축제 정보는 앞으로 공식 데이터 기반으로 연결합니다. 현재는 실제 추천 데이터가 없어 임의의 행사 정보를 표시하지 않습니다.</p>';
+}else{
+body+='<div class="empty-icon">♜</div><h2 style="text-align:center">가족 여행 기록 비교</h2><p class="blurb" style="text-align:center">링크 공유와 친구 간 방문지역 랭킹은 개인정보 보호 설계를 거쳐 제공할 예정입니다.</p>';
+}
+root.innerHTML=body+'</main>'+footer();
+}
+function world(lat,lon,z){var n=Math.pow(2,z)*256;var clamped=Math.max(-85,Math.min(85,lat))*Math.PI/180;return {x:(lon+180)/360*n,y:(1-Math.log(Math.tan(clamped)+1/Math.cos(clamped))/Math.PI)/2*n};}
+function renderMap(stops){
+var box=document.getElementById('routeMap');if(!box)return;
+var rect=box.getBoundingClientRect(),w=rect.width,h=rect.height;
+var coords=stops.length?stops:[{lat:36.15,lon:127.85}];
+var minLat=90,maxLat=-90,minLon=180,maxLon=-180;
+coords.forEach(function(s){minLat=Math.min(minLat,s.lat);maxLat=Math.max(maxLat,s.lat);minLon=Math.min(minLon,s.lon);maxLon=Math.max(maxLon,s.lon);});
+center={lat:(minLat+maxLat)/2,lon:(minLon+maxLon)/2};
+var span=Math.max(maxLat-minLat,(maxLon-minLon)*.85);
+if(stops.length)zoom=span>8?5:span>4?6:span>1.7?7:span>.7?8:span>.3?9:11;
+else zoom=7;
+drawTiles();
+function drawTiles(){
+var layer=document.getElementById('tiles'),pins=document.getElementById('pins'),svg=document.getElementById('pathSvg');if(!layer||!pins||!svg)return;
+layer.innerHTML='';pins.innerHTML='';svg.innerHTML='';var c=world(center.lat,center.lon,zoom);
+var offX=w/2-c.x,offY=h/2-c.y;
+var x0=Math.floor((c.x-w/2)/256),x1=Math.floor((c.x+w/2)/256);
+var y0=Math.floor((c.y-h/2)/256),y1=Math.floor((c.y+h/2)/256);
+for(var x=x0;x<=x1;x++)for(var y=y0;y<=y1;y++){
+var max=Math.pow(2,zoom);if(y<0||y>=max)continue;
+var im=document.createElement('img');im.alt='지도';im.loading='lazy';
+im.src='https://tile.openstreetmap.org/'+zoom+'/'+((x%max+max)%max)+'/'+y+'.png';
+im.style.left=(x*256+offX)+'px';im.style.top=(y*256+offY)+'px';layer.appendChild(im);
+}
+if(theme==='dark')layer.style.filter='invert(.82) hue-rotate(160deg) brightness(.8)';
+else layer.style.filter='';
+svg.setAttribute('viewBox','0 0 '+w+' '+h);
+var path='';
+coords.forEach(function(s,i){
+if(!stops.length)return;
+var wp=world(s.lat,s.lon,zoom),xx=wp.x+offX,yy=wp.y+offY;
+path+=(i?' L ':'M ')+xx.toFixed(1)+' '+yy.toFixed(1);
+var div=document.createElement('div');div.className='pin'+(i===0?' main':'');
+div.style.left=xx+'px';div.style.top=yy+'px';div.textContent=s.name||'방문지';
+div.onclick=(function(lat,lon){return function(){window.App.place(lat,lon);};})(s.lat,s.lon);
+pins.appendChild(div);
+});
+if(stops.length>1){
+var line=document.createElementNS('http://www.w3.org/2000/svg','path');
+line.setAttribute('d',path);line.setAttribute('fill','none');
+line.setAttribute('stroke','#3189f9');line.setAttribute('stroke-width','3.2');
+line.setAttribute('stroke-linecap','round');line.setAttribute('stroke-linejoin','round');
+svg.appendChild(line);
+}
+}
+window.App.mapZoom=function(d){zoom=Math.max(3,Math.min(14,zoom+d));drawTiles();};
+}
+function notification(t,isError){var old=document.getElementById('toast');if(old)old.remove();var box=document.createElement('div');box.id='toast';box.textContent=t;box.style.cssText='position:fixed;left:20px;right:20px;top:12px;padding:15px 17px;border-radius:17px;background:'+(isError?'#b42331':'#233d58')+';color:white;z-index:300;font-size:14px;box-shadow:0 7px 25px #2224';document.body.appendChild(box);clearTimeout(toastTimer);toastTimer=setTimeout(function(){box.remove();},4300);}
+window.App={
+tab:function(t){tab=t;step=0;showTab(t);},
+wizard:function(){if(!D.trips.length){notification('먼저 GPS 사진을 분석하거나 샘플을 선택하세요.',true);return;}step=1;choose();},
+choice:function(v){choice=v==='all'?'all':Number(v);choose();},
+word:function(k,v){if(k==='title')title=v;else if(k==='subtitle')subtitle=v;else outro=v;},
+ratio:function(v){ratio=v;studio(false);},
+theme:function(v){theme=v;studio(false);},
+duration:function(v){seconds=Number(v);studio(true);},
+next:function(){if(step===4){step=0;tab='map';home();return;}step++;if(step===2)words();else if(step===3)studio(false);else if(step===4)studio(true);},
+back:function(){if(step===0){tab='map';home();return;}step--;if(step===0)home();else if(step===1)choose();else if(step===2)words();else if(step===3)studio(false);},
+scan:function(){if(window.Family)window.Family.scan();},
+select:function(){if(window.Family)window.Family.select();},
+sample:function(){demo=true;if(window.Family)window.Family.sample();},
+video:function(){if(window.Family)window.Family.video();},
+image:function(){if(window.Family)window.Family.image();},
+place:function(lat,lon){if(confirm('이 장소를 네이버지도에서 검색할까요?')){if(window.Family)window.Family.naver(lat,lon);}},
+zoom:function(v){if(window.App.mapZoom)window.App.mapZoom(v);},
+animate:function(){notification('지도 위 이동 경로 영상은 다음 엔진 개선 단계입니다.');},
+restart:function(){notification('다시 미리보기');}
+};
+window.onNative=function(type,payload){
+if(type==='ready'){home();}
+else if(type==='trips'){D=payload;home();}
+else if(type==='progress'){notification(payload);}
+else if(type==='error'){notification(payload,true);}
+else if(type==='saved'){notification(payload);}
+else if(type==='back'){window.App.back();}
+};
+home();
+})();
+</script></body></html>
