@@ -144,6 +144,25 @@ public final class HostActivity extends Activity {
     });
     setContentView(web);
     web.loadUrl("https://"+HOST+"/web/index.html");
+    // Source-proven original bridge handoff: the static "시작하기" CTA remains
+    // until __nativeFingerprint -> __nativePhotos -> geocode -> __bootPhotoMap.
+    // Do not depend exclusively on JS 'ready': WebView may lose that IPC.
+    ui.postDelayed(()->{
+      if(!readyReceived.get() && web!=null){
+        web.evaluateJavascript("typeof window.__nativeFingerprint === 'function'",value->{
+          if("true".equals(value)&&readyReceived.compareAndSet(false,true)){
+            statusNative("웹 ready 신호 누락 → 사진첩 자동 시작");
+            grantOrScan();
+          }
+        });
+      }
+    },3000);
+    ui.postDelayed(()->{
+      if(!mapBooted && web!=null){
+        statusNative("앱 지도 부팅 미완료; 실제 단계 확인");
+        diagnostics("native-18s-watchdog");
+      }
+    },18000);
   }
   private boolean permitted(){
     if(Build.VERSION.SDK_INT>=33)return checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES)==PackageManager.PERMISSION_GRANTED;
