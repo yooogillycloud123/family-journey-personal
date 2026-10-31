@@ -321,26 +321,40 @@ public final class HostActivity extends Activity {
   }
   private void saveVideo(JSONObject p){
     bg.execute(()->{
+      Uri dest=null;
       try{
         if(videoStream!=null){videoStream.close();videoStream=null;}
-        if(videoTemp==null||videoTemp.length()==0)throw new Exception("empty video");
-        String name=p.optString("name","FamilyJourney.mp4");
-        if(!name.endsWith(".mp4")&&!name.endsWith(".webm"))name="FamilyJourney.mp4";
-        name=name.replaceAll("[^a-zA-Z0-9_.-]","_");
+        if(videoTemp==null||videoTemp.length()==0)throw new Exception("empty media");
+        String suggested=p.optString("name","FamilyJourney.mp4");
+        String lower=suggested.toLowerCase(java.util.Locale.ROOT);
+        boolean isPng=lower.endsWith(".png");
+        boolean isJpeg=lower.endsWith(".jpeg")||lower.endsWith(".jpg");
+        boolean isWebp=lower.endsWith(".webp");
+        boolean isImage=isPng||isJpeg||isWebp;
+        boolean isWebm=lower.endsWith(".webm");
+        if(!isImage&&!isWebm&&!lower.endsWith(".mp4"))suggested="FamilyJourney.mp4";
+        String name=suggested.replaceAll("[^a-zA-Z0-9_.-]","_");
+        String mime=isPng?"image/png":isJpeg?"image/jpeg":isWebp?"image/webp":isWebm?"video/webm":"video/mp4";
         ContentValues row=new ContentValues();
         row.put(MediaStore.MediaColumns.DISPLAY_NAME,name);
-        row.put(MediaStore.MediaColumns.MIME_TYPE,name.endsWith(".webm")?"video/webm":"video/mp4");
-        row.put(MediaStore.MediaColumns.RELATIVE_PATH,Environment.DIRECTORY_MOVIES+"/FamilyJourney");
-        Uri dest=getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,row);
+        row.put(MediaStore.MediaColumns.MIME_TYPE,mime);
+        row.put(MediaStore.MediaColumns.RELATIVE_PATH,
+          (isImage?Environment.DIRECTORY_PICTURES:Environment.DIRECTORY_MOVIES)+"/FamilyJourney");
+        Uri collection=isImage?MediaStore.Images.Media.EXTERNAL_CONTENT_URI:MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+        dest=getContentResolver().insert(collection,row);
         if(dest==null)throw new Exception("MediaStore insertion failed");
         try(InputStream source=new FileInputStream(videoTemp);OutputStream target=getContentResolver().openOutputStream(dest)){
           if(target==null)throw new Exception("MediaStore write stream failed");
           byte[] bytes=new byte[65536];int count;
           while((count=source.read(bytes))!=-1)target.write(bytes,0,count);
-        }catch(Exception e){getContentResolver().delete(dest,null,null);throw e;}
+        }
         videoTemp.delete();videoTemp=null;
-        message("가족여행 영상 저장 완료");
-      }catch(Exception e){Log.e("FamilyJourney","video saving failed",e);message("영상 저장 실패: "+e.getMessage());}
+        message(isImage?"가족여행 지도 이미지 저장 완료":"가족여행 영상 저장 완료");
+      }catch(Exception e){
+        if(dest!=null)try{getContentResolver().delete(dest,null,null);}catch(Exception ignored){}
+        Log.e("FamilyJourney","media saving failed",e);
+        message("저장 실패: "+e.getMessage());
+      }
     });
   }
   private void openExternal(String url){
