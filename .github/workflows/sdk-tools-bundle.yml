@@ -25,6 +25,7 @@ jobs:
           cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" package/
           cp "$ANDROID_HOME/build-tools/35.0.0/aapt2" package/
           cp "$ANDROID_HOME/build-tools/35.0.0/aapt" package/
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib64/libc++.so" package/ || true
           chmod +x package/zipalign package/aapt package/aapt2
           sha256sum package/* > package/SHA256SUMS
           ls -lah package
