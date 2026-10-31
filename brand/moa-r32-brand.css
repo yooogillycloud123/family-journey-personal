@@ -1,0 +1,33 @@
+/* MOA R32 — typography and palette only. Existing widget geometry is never changed. */
+:root {
+  --moa-coral: #F56C7C;
+  --moa-peach: #FFA482;
+  --moa-cream: #FFF9F5;
+  --moa-pink: #FFD6D7;
+  --moa-charcoal: #202733;
+  --moa-muted: #818997;
+  --moa-outline: #E9E1DE;
+}
+#fj-diary-root .moa-r32-action {
+  border: 1px solid var(--moa-outline) !important;
+  border-radius: 11px !important;
+  box-shadow: inset 0 0 0 .5px rgba(255,255,255,.6) !important;
+  background-color: #FFF8F7 !important;
+  color: #485365 !important;
+}
+#fj-diary-root .moa-r32-accent-fill {
+  background-color: var(--moa-coral) !important;
+  color: #FFFFFF !important;
+  border-color: var(--moa-coral) !important;
+}
+#fj-diary-root .moa-r32-accent-text {
+  color: var(--moa-coral) !important;
+}
+#fj-diary-root button:focus-visible,
+#fj-diary-root a:focus-visible {
+  outline: 2px solid var(--moa-coral) !important;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  #fj-diary-root * { scroll-behavior:auto !important; }
+}
