@@ -483,60 +483,51 @@ public final class HostActivity extends Activity {
         break;
       }
       case "naverArm":{
-        String expected=p.optString("name","").trim();
-        String placeId=p.optString("key","");
-        String list=p.optString("list","내 장소").trim();
-        if(expected.length()<2||expected.length()>80||placeId.length()>90||placeId.length()<3){
-          jsInvoke("__fjNaverSaveStatus","{\"ok\":false,\"state\":\"INVALID_PLACE\"}");
+        // Address is the Naver search target. The user's nickname/memo must NEVER
+        // be used as the query: "고창 차 안" is not a registered POI.
+        final String address=p.optString("address","").trim();
+        final String alias=p.optString("alias","").trim();
+        final String memo=p.optString("memo","").trim();
+        final String key=p.optString("key","").trim();
+        final String list=p.optString("list","내 장소").trim();
+        if(key.length()<3||key.length()>90||address.length()<8||address.length()>180||
+           alias.length()>100||memo.length()>400||list.length()>70) {
+          jsInvoke("__fjNaverSaveStatus","{\"ok\":false,\"state\":\"ADDRESS_REQUIRED\"}");
           break;
         }
-        // A city name alone is never a verified POI, even if it has GPS photos.
-        if(expected.matches("^(서울|부산|전주|남원|고창|광주|장흥|화순|고양|수원|용인|대구|대전|속초|제주|익산|담양|무안|목포|강릉|여수)$")){
-          jsInvoke("__fjNaverSaveStatus","{\"ok\":false,\"state\":\"CITY_NOT_POI\"}");
-          break;
-        }
-        String enabled=android.provider.Settings.Secure.getString(
-          getContentResolver(),android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-        boolean serviceEnabled=enabled!=null &&
-          enabled.contains(getPackageName())&&enabled.contains("NaverSaveService");
+        String enabled=Settings.Secure.getString(getContentResolver(),
+          Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        boolean serviceEnabled=enabled!=null&&enabled.contains(getPackageName())&&enabled.contains("NaverSaveService");
         if(!serviceEnabled){
           jsInvoke("__fjNaverSaveStatus","{\"ok\":false,\"state\":\"NEEDS_ACCESSIBILITY_CONSENT\"}");
           ui.post(()->new AlertDialog.Builder(this)
             .setTitle("네이버지도 저장 보조 권한")
-            .setMessage("네이버지도에서 장소 저장 버튼만 조작하도록 접근성 서비스를 선택적으로 켭니다. 비밀번호를 읽거나 다른 앱을 검사하지 않습니다. 사용자가 네이버지도에서 정확한 장소를 선택해야 합니다.")
-            .setPositiveButton("접근성 설정 열기",(dialog,which)->{
-              try{startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));}
-              catch(Exception e){message("접근성 설정을 열 수 없습니다.");}
-            })
+            .setMessage("선택한 한 곳의 주소와 메모를 네이버지도에 저장하도록 보조합니다. 사용자가 실제 주소 결과를 선택하고 접근성을 직접 켜야 합니다. 앱이 다른 앱이나 비밀번호를 읽지 않도록 네이버지도 화면만 검사합니다.")
+            .setPositiveButton("접근성 설정",(d,w)->{try{startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));}catch(Exception ignored){}})
             .setNegativeButton("취소",null).show());
           break;
         }
-        SharedPreferences preference=getSharedPreferences(NaverSaveService.STORE,MODE_PRIVATE);
+        SharedPreferences prefs=getSharedPreferences(NaverSaveService.STORE,MODE_PRIVATE);
         String job=java.util.UUID.randomUUID().toString();
-        preference.edit().putString("job",job).putString("key",placeId)
-          .putString("expectedPoi",expected)
-          .putString("list",list.length()>60?"":list)
-          .putLong("started",System.currentTimeMillis())
-          .putString("state","AWAITING_EXACT_PLACE")
-          .putBoolean("armed",true).apply();
+        prefs.edit().putString("job",job).putString("key",key)
+          .putString("expectedAddress",address).putString("expectedPoi",address)
+          .putString("alias",alias).putString("memo",memo).putString("list",list)
+          .putLong("started",System.currentTimeMillis()).putBoolean("armed",true)
+          .putString("state","WAITING_ADDRESS_RESULT").apply();
         JSONObject started=new JSONObject();
-        try{started.put("ok",true);started.put("state","AWAITING_EXACT_PLACE");
-          started.put("key",placeId);started.put("name",expected);}
-        catch(Exception ignored){}
+        try{started.put("ok",true);started.put("key",key);started.put("name",alias);
+          started.put("state","WAITING_ADDRESS_RESULT");}catch(Exception ignored){}
         jsInvoke("__fjNaverSaveStatus",started.toString());
-        // Official Naver Maps URL scheme supports search only, not saved places.
-        final String naverUrl="nmap://search?query="+Uri.encode(expected)+"&appname="+Uri.encode(getPackageName());
-        ui.post(()->{
-          try{
-            Intent intent=new Intent(Intent.ACTION_VIEW,Uri.parse(naverUrl));
-            intent.setPackage(NaverSaveService.NAVER);
-            intent.addCategory(Intent.CATEGORY_BROWSABLE);
-            startActivity(intent);
-          }catch(Exception e){
-            preference.edit().putBoolean("armed",false).putString("state","NAVER_APP_NOT_AVAILABLE").apply();
-            jsInvoke("__fjNaverSaveStatus","{\"ok\":false,\"state\":\"NAVER_APP_NOT_AVAILABLE\"}");
-          }
-        });
+        final String search="nmap://search?query="+Uri.encode(address)+"&appname="+Uri.encode(getPackageName());
+        ui.post(()->{try{
+          Intent intent=new Intent(Intent.ACTION_VIEW,Uri.parse(search));
+          intent.setPackage(NaverSaveService.NAVER);
+          intent.addCategory(Intent.CATEGORY_BROWSABLE);
+          startActivity(intent);
+        }catch(Exception e){
+          prefs.edit().putBoolean("armed",false).putString("state","NAVER_APP_NOT_AVAILABLE").apply();
+          jsInvoke("__fjNaverSaveStatus","{\"ok\":false,\"state\":\"NAVER_APP_NOT_AVAILABLE\"}");
+        }});
         break;
       }
       case "naverStatus":{
@@ -606,9 +597,18 @@ public final class HostActivity extends Activity {
   }
   @Override public void onBackPressed(){
     if(web==null){super.onBackPressed();return;}
-    web.evaluateJavascript("(function(){return window.__photoMapBack?window.__photoMapBack():false})()",value->{
-      if(!"true".equals(value))HostActivity.super.onBackPressed();
-    });
+    web.evaluateJavascript("(function(){try{" +
+      "if(window.__fjBackOverlay&&window.__fjBackOverlay())return true;" +
+      "if(window.__photoMapBack&&window.__photoMapBack())return true;" +
+      "if(window.__photoMap){if(window.__photoMap.tab!=='home'){" +
+      "window.__photoMap.showTab('home');return true;}}}catch(e){}return false;})()",
+      value->{
+        if("true".equals(value))return;
+        new AlertDialog.Builder(HostActivity.this)
+          .setMessage("가족여행 앱을 종료할까요?")
+          .setPositiveButton("종료",(dialog,which)->HostActivity.super.onBackPressed())
+          .setNegativeButton("취소",null).show();
+      });
   }
   @Override public void onDestroy(){
     if(web!=null){web.removeJavascriptInterface("NativeHost");web.destroy();web=null;}
