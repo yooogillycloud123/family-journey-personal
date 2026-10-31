@@ -224,6 +224,8 @@ class Handler(BaseHTTPRequestHandler):
             base=Path(getattr(sys,"_MEIPASS",Path(__file__).parent))
             filename={" /":"index.html","/":"index.html","/app.js":"app.js","/style.css":"style.css"}[u.path]
             content=(base/filename).read_bytes()
+            if filename=="index.html":
+                content=content.replace(b"TOKEN_REPLACED",TOKEN.encode("ascii"))
             self.send_response(200)
             self.send_header("Content-Type",{"index.html":"text/html; charset=utf-8","app.js":"text/javascript; charset=utf-8","style.css":"text/css; charset=utf-8"}[filename])
             self.send_header("Content-Length",str(len(content)));self.end_headers();self.wfile.write(content);return
