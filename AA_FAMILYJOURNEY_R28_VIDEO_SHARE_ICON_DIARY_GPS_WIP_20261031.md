@@ -25,7 +25,7 @@
 - CI `41193632119` success with vector adaptive icon.
 - CI `41194010232` success with NAVER link/address bridge.
 - New asset JS parsed successfully in V8 `new Function`.
-- Check newest CI after injector commit `fabb635b3f4f608858aaccbd02b5c4ebc486d07d`.
+- Injector commit `fabb635b3f4f608858aaccbd02b5c4ebc486d07d` CI `41194114008` **completed SUCCESS**. This only compiles owner-source native host and optional addon, not a complete signed R28 release.
 - No signed R28 APK currently. This sandbox does not mount historical `/mnt/data/_fj_r17/signer` or prior R27 private APK. The R27 binary appears as a Library entry but `files.materialize` returns `This Project file does not have an authorized raw-byte materialization path`. **Do not package a blank host or claim upgrade compatibility from public CI**. Need actual private R27 APK bytes and matching owner signing key in a secure build runtime to deliver user-installable R28.
 
 ## Required before R28 release
