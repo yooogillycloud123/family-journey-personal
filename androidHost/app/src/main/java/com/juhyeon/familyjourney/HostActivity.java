@@ -401,6 +401,33 @@ public final class HostActivity extends Activity {
         break;
       }
       case "videoDone":saveVideo(p);break;
+      case "reverseAddress":{
+        // Explicit user action only: a coordinate may be provided to Android's
+        // Geocoder backend. Never do this for every photo or in the background.
+        final int lookup=p.optInt("id");
+        final double lat=p.optDouble("lat",Double.NaN),lon=p.optDouble("lon",Double.NaN);
+        if(!Double.isFinite(lat)||!Double.isFinite(lon)||lat<33||lat>39||lon<124||lon>132){
+          jsInvoke("__fjNaverAddressResult",lookup+",{error:"+quote("invalid_point")+"}");
+          break;
+        }
+        bg.execute(()->{
+          JSONObject value=new JSONObject();
+          try{
+            android.location.Geocoder decoder=new android.location.Geocoder(this,java.util.Locale.KOREA);
+            java.util.List<android.location.Address> found=decoder.getFromLocation(lat,lon,1);
+            if(found!=null&&!found.isEmpty()){
+              android.location.Address a=found.get(0);
+              value.put("address",a.getAddressLine(0)==null?"":a.getAddressLine(0));
+              value.put("locality",a.getLocality()==null?"":a.getLocality());
+              value.put("subLocality",a.getSubLocality()==null?"":a.getSubLocality());
+              value.put("thoroughfare",a.getThoroughfare()==null?"":a.getThoroughfare());
+              value.put("feature",a.getFeatureName()==null?"":a.getFeatureName());
+            }else value.put("error","no_result");
+          }catch(Exception e){try{value.put("error",e.getClass().getSimpleName());}catch(Exception ignored){}}
+          jsInvoke("__fjNaverAddressResult",lookup+","+value.toString());
+        });
+        break;
+      }
       case "openUrl":openExternal(p.optString("url",""));break;
       case "openSettings":
         ui.post(()->{Intent i=new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName()));startActivity(i);});break;
