@@ -139,6 +139,14 @@ public final class HostActivity extends Activity {
   private void js(String code){ui.post(()->{if(web!=null)web.evaluateJavascript(code,null);});}
   private void jsInvoke(String name,String payload){js("window."+name+"&&window."+name+"("+payload+");");}
   private static String quote(String value){return JSONObject.quote(value);}
+  private void injectOwnerDiaryLocationAddon(){
+    try(InputStream source=getAssets().open("r28-diary-location.js")){
+      byte[] data=new byte[source.available()];
+      int cursor=0;
+      while(cursor<data.length){int n=source.read(data,cursor,data.length-cursor);if(n<0)break;cursor+=n;}
+      if(cursor==data.length)js(new String(data,StandardCharsets.UTF_8));
+    }catch(Exception e){Log.w("FamilyJourney","R28 diary location addon unavailable",e);}
+  }
   @Override public void onCreate(Bundle state){
     super.onCreate(state);
     web=new WebView(this);
@@ -216,6 +224,7 @@ public final class HostActivity extends Activity {
       @Override public void onPageFinished(WebView view,String url){
         super.onPageFinished(view,url);
         statusNative("HTML 완료");
+        injectOwnerDiaryLocationAddon();
         ui.postDelayed(()->{if(!mapBooted)diagnostics("page-finished");},12000);
       }
       @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){
