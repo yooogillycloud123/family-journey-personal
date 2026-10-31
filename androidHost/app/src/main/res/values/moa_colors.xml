@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- MOA brand tokens; intentionally decoupled from layout and media functionality. -->
+  <color name="moa_coral">#F86E7C</color>
+  <color name="moa_peach">#FFA582</color>
+  <color name="moa_pink">#F8AEC0</color>
+  <color name="moa_cream">#FFF8F3</color>
+  <color name="moa_white">#FFFFFF</color>
+  <color name="moa_charcoal">#1D2734</color>
+  <color name="moa_muted">#7E8795</color>
+  <color name="moa_border">#F0E7E3</color>
+  <color name="moa_dark">#171B26</color>
+  <color name="moa_light_ink">#F9FAFC</color>
+</resources>
