@@ -159,6 +159,36 @@ public final class HostActivity extends Activity {
         }
         if(!HOST.equals(uri.getHost()))return super.shouldInterceptRequest(view,req);
         String path=uri.getPath();
+        // Never launch an external viewer for a family's private gallery.
+        // Serve a single permission-checked, resized image to our own local WebView.
+        if(path!=null && path.startsWith("/fj-photo/")){
+          String mediaId=path.substring("/fj-photo/".length()).replace(".jpg","");
+          if(!mediaId.matches("[0-9]{1,18}"))
+            return new WebResourceResponse("text/plain","UTF-8",
+                new java.io.ByteArrayInputStream(new byte[0]));
+          android.net.Uri imageUri=ContentUris.withAppendedId(
+              MediaStore.Images.Media.EXTERNAL_CONTENT_URI,Long.parseLong(mediaId));
+          try{
+            android.graphics.ImageDecoder.Source photoSource=
+                android.graphics.ImageDecoder.createSource(getContentResolver(),imageUri);
+            Bitmap bitmap=android.graphics.ImageDecoder.decodeBitmap(photoSource,(decoder,info,source)->{
+              android.util.Size bounds=info.getSize();
+              double scale=Math.min(1.0,2300.0/Math.max(bounds.getWidth(),bounds.getHeight()));
+              decoder.setTargetSize(Math.max(1,(int)(bounds.getWidth()*scale)),
+                                    Math.max(1,(int)(bounds.getHeight()*scale)));
+              decoder.setAllocator(android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE);
+            });
+            ByteArrayOutputStream bytes=new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG,86,bytes);
+            bitmap.recycle();
+            return new WebResourceResponse("image/jpeg",null,
+                new java.io.ByteArrayInputStream(bytes.toByteArray()));
+          }catch(Exception imageError){
+            Log.w("FamilyJourney","private photo viewer image decode failed",imageError);
+            return new WebResourceResponse("text/plain","UTF-8",
+                new java.io.ByteArrayInputStream(new byte[0]));
+          }
+        }
         if(path==null||path.equals("/"))path="/web/index.html";
         if(path.startsWith("/"))path=path.substring(1);
         if(path.contains("..")||path.contains("\\"))return new WebResourceResponse("text/plain","utf-8",new java.io.ByteArrayInputStream(new byte[0]));
