@@ -23,9 +23,22 @@ jobs:
       - name: Build for iOS Simulator (unsigned)
         working-directory: ios
         run: xcodebuild -project FamilyJourneyIOS.xcodeproj -scheme FamilyJourneyIOS -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || (tail -120 build.log; exit 1)
+      - name: Build unsigned iPhone IPA for personal Apple ID signing
+        working-directory: ios
+        run: |
+          xcodebuild -project FamilyJourneyIOS.xcodeproj -scheme FamilyJourneyIOS -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath ci-derived CODE_SIGNING_ALLOWED=NO build > iphone-build.log 2>&1 || (tail -120 iphone-build.log; exit 1)
+          mkdir -p Payload
+          cp -R ci-derived/Build/Products/Debug-iphoneos/FamilyJourneyIOS.app Payload/
+          zip -qr FamilyJourney_iOS_R1_UNSIGNED_AppleID_Sign_Required.ipa Payload
+          unzip -t FamilyJourney_iOS_R1_UNSIGNED_AppleID_Sign_Required.ipa | tail -1
+      - name: Upload unsigned IPA for signing
+        uses: actions/upload-artifact@v4
+        with:
+          name: FamilyJourney-iOS-R1-UNSIGNED-IPA
+          path: ios/FamilyJourney_iOS_R1_UNSIGNED_AppleID_Sign_Required.ipa
       - name: Package source and simulator report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: FamilyJourney-iOS-R1-build-log
-          path: ios/build.log
+          path: |\n            ios/build.log\n            ios/iphone-build.log
