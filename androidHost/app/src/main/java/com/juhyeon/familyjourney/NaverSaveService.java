@@ -121,6 +121,7 @@ public final class NaverSaveService extends AccessibilityService {
         }
         AccessibilityNodeInfo submit=findBottomSave(root);
         if(submit==null){state(pref,"SAVE_SUBMIT_NOT_FOUND",false);return;}
+        if(!submit.isEnabled()){state(pref,"SAVE_DISABLED_CHECK_LIST",false);return;}
         if(click(submit)){
           stage=5;action();
           state(pref,"SAVE_CLICKED_UNVERIFIED",false);
