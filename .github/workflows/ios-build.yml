@@ -41,4 +41,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FamilyJourney-iOS-R1-build-log
-          path: |\n            ios/build.log\n            ios/iphone-build.log
+          path: |
+            ios/build.log
+            ios/iphone-build.log
