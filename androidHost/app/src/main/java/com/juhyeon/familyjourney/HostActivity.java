@@ -578,6 +578,39 @@ public final class HostActivity extends Activity {
         jsInvoke("__fjNaverSaveStatus","{\"ok\":true,\"state\":\"CANCELLED\"}");
         break;
       }
+      case "sharePhoto":
+      case "openInGallery":{
+        String id=p.optString("id","");
+        final boolean share="sharePhoto".equals(name);
+        if(!id.matches("[0-9]{1,18}")){message("사진 번호가 올바르지 않습니다.");break;}
+        Uri photo=ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,Long.parseLong(id));
+        ui.post(()->{
+          try{
+            if(share){
+              Intent send=new Intent(Intent.ACTION_SEND);
+              send.setType("image/*");
+              send.putExtra(Intent.EXTRA_STREAM,photo);
+              send.setClipData(android.content.ClipData.newUri(getContentResolver(),"사진",photo));
+              send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+              startActivity(Intent.createChooser(send,"사진 공유"));
+            }else{
+              Intent open=new Intent(Intent.ACTION_VIEW);
+              open.setDataAndType(photo,"image/*");
+              open.setPackage("com.sec.android.gallery3d");
+              open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+              try{startActivity(open);}
+              catch(Exception noSamsungGallery){
+                // Only this explicit request may leave the in-app photo viewer.
+                Intent fallback=new Intent(Intent.ACTION_VIEW);
+                fallback.setDataAndType(photo,"image/*");
+                fallback.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(Intent.createChooser(fallback,"갤러리에서 사진 열기"));
+              }
+            }
+          }catch(Exception e){message("사진을 공유하거나 갤러리에서 열 수 없습니다.");}
+        });
+        break;
+      }
       case "openPhoto":{
         String id=p.optString("id","");
         if(!id.matches("[0-9]{1,18}")){message("사진 ID가 올바르지 않습니다.");break;}
