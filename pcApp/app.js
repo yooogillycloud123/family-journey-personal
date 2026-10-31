@@ -30,6 +30,7 @@ $('#prev').onclick=()=>moveMonth(-1);$('#next').onclick=()=>moveMonth(1);
 $('#today').onclick=()=>{month=new Date(now.getFullYear(),now.getMonth(),1);day=now.toLocaleDateString('sv-SE');refresh()};
 $('#save').onclick=save;$('#delete').onclick=remove;$('#pick').onclick=pickerOpen;
 $('#scan').onclick=scan;$('#import').onclick=importFile;$('#export').onclick=exportFile;
+$('#quit').onclick=async()=>{if(confirm('FamilyJourney PC 앱을 종료할까요? 작성 중인 내용은 먼저 저장해 주세요.')){try{await api('/api/quit',{});document.body.innerHTML='<main><h1>FamilyJourney PC 종료됨</h1><p>안전하게 종료했습니다. 이 창을 닫아도 됩니다.</p></main>'}catch(e){alertMsg(e.message)}}};
 $('#pPrev').onclick=()=>shiftPick(-1);$('#pNext').onclick=()=>shiftPick(1);
 $('#pMore').onclick=()=>{pickPage++;drawPicker()};$('#pickerDone').onclick=pickerDone;
 $('#pickerClose').onclick=()=>$('#pickerOverlay').hidden=true;
