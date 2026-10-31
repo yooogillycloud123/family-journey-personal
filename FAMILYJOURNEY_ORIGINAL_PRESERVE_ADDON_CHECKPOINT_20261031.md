@@ -13,3 +13,10 @@
 
 ## Latest state / strict next gate
 Need a way to run additive changes in the original signed installed application without losing purchased account; if not possible, legitimately independent installable runtime must preserve every original native photo/geocode/thumbnail/video/paid feature and demonstrate parity in real Galaxy before delivery. No more v0.1/v0.2 simplified prototypes or speculative "FINAL" labels. User did not approve compromising auto-album or premium.
+
+## 2026-10-31 Galaxy real-device FAIL — do not distribute private re-signed APK
+- User installed the independently re-signed `FamilyJourney_TravelPassport_Original_Engine_Addon_20261031_TEST.apk` and supplied a real screenshot showing **"Something went wrong. Check that Google Play is enabled ... before opening the app"** before original travel UI can render.
+- Local APK inspection verifies `com.juhyeon.familyjourney` was changed from original package `com.hueeng.phototravelmap`, while the modified APK still starts `com.pairip.application.Application` and includes `com.pairip.licensecheck.LicenseActivity`. Its signing certificate is not original Play cert. This is highly consistent with Play installer/signature/integrity/licensing enforcement, not evidence that user's Google Play is actually disabled.
+- Correct regression result: **INSTALLABLE APK ≠ LAUNCH PASS**; screenshot establishes FAIL. Do not ask user to reinstall Google Play or uninstall purchased official app. Do not deliver same re-signed base.apk again.
+- User has ALREADY purchased premium in the original app. The trusted original installed Play-signed package is the only proven way to use purchased entitlements as-is. Exact preserving one-app extension requires cooperation/authorized signed update from owner. Independent full app would require genuine native/photo/map/video/billing replacement, not cosmetic repackage.
+- All v0.1/v0.2 / modified 1.0.4 are NOT completion; invalidate earlier reports claiming candidate user-ready. Preserve purchased original and user photos.
