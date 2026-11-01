@@ -25,3 +25,11 @@ No APK release until these gates PASS.
 - Candidate patch: RAM-capped 18MiB image LRU snapshot, fetch only missing IDs, media-index equality check, transient empty scan preservation, neutral skeletons, retained scroll offset.
 - Verified `node --check` PASS; Node VM synthetic regression PASS for identical indexes, empty intermediate index, avoiding duplicate native thumb request. Real R34 diff, signing, installed-app camera/video cycle test remain **UNVERIFIED**.
 - Never replace the verified user's R34 with a differently signed R31 repack. Exact R34 signed package + owner signing material is a hard prerequisite for compatible R35 update.
+
+## 2026-11-01 current continued session: R31 reference patch verified (NOT R34 installable)
+- Screenshots again show simultaneous broken image placeholders for automatic calendar and curated diary after new camera media, later restoring. This is a visible refresh regression, not evidence original media was erased.
+- Built source-only patch and unified diff using the user-provided R31 APK as the only mounted owner baseline, NOT the installed R34. Private extracted JS is not committed to public GitHub.
+- Patch: capture in-DOM loaded thumbnail data before repaint, reuse in RAM-only 18 MiB capped LRU; skip rerender for matching media index; retain previous index after transient empty scan; show neutral placeholder until freshly requested images load; only fetch cache misses; preserve scroll offset.
+- Verification: node --check PASS and VM synthetic tests PASS for cached images not re-requested, newly added image only requested once, unchanged index skips mutation, empty intermediate response keeps previous media, newly added record indexed.
+- Critical RELEASE BLOCK: exact installed R34 APK + compatible signing material not present in current session; DO NOT call R31-based JS patch a ready R35 APK. Never distribute mismatched-signature replacement as same app.
+- Physical Galaxy camera/video refresh test remains pending. The final APK must be built from the exact R34 user's baseline, preserve old bytes except surgical patch, verify v2/v3 signer and data-preserving upgrade.
