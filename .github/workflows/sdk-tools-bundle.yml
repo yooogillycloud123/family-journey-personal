@@ -21,6 +21,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p package
+          cp "$ANDROID_HOME/platforms/android-35/android.jar" package/
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/d8.jar" package/ || true
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" package/
           cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" package/
           cp "$ANDROID_HOME/build-tools/35.0.0/aapt2" package/
