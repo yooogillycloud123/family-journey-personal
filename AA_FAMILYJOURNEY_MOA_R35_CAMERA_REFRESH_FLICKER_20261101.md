@@ -18,3 +18,10 @@ Immediately after taking a new phone photo/video, existing thumbnails in BOTH th
 Obtain exact installed R34 signed APK and assets/signer from prior build artifact; do not install R31-based patch over R34.
 Diff against R34, update only targeted JS/CSS and any proven native ContentObserver race, preserve same package/version increment/release signature. Then full ZIP/v2 cert check and physical test: start in Oct calendar, take photo, return; existing 31-day thumbnails must stay visible, one new image appears without full gallery blanking. Repeat with video; verify curated/auto independence and widgets.
 No APK release until these gates PASS.
+
+## 2026-11-01 R31 reference-source patch evidence (not R34-ready)
+- Confirmed in R31 APK `assets/web/family-diary.js`: `render()` invokes `S.root.replaceChildren()`, and `thumbs()` loads each image through asynchronous native bridge; newly captured media results in a fresh index commit and whole UI rebuild.
+- Prepared candidate source files and a unified diff from **R31 only**; separate artifact `MOA_R35_Photo_Refresh_Source_Candidate_Not_APK.zip` in the 2026-11-01 ChatGPT conversation. No R34 APK or private owner signer was mounted in this session; do not claim installation/build of R35.
+- Candidate patch: RAM-capped 18MiB image LRU snapshot, fetch only missing IDs, media-index equality check, transient empty scan preservation, neutral skeletons, retained scroll offset.
+- Verified `node --check` PASS; Node VM synthetic regression PASS for identical indexes, empty intermediate index, avoiding duplicate native thumb request. Real R34 diff, signing, installed-app camera/video cycle test remain **UNVERIFIED**.
+- Never replace the verified user's R34 with a differently signed R31 repack. Exact R34 signed package + owner signing material is a hard prerequisite for compatible R35 update.
