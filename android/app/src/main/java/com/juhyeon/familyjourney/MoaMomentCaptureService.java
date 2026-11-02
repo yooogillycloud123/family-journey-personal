@@ -15,7 +15,7 @@ import android.graphics.drawable.Icon;
 import android.app.RemoteInput;
 import org.json.JSONObject;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+// All state is persisted before sending notifications.
 
 /**
  * User-armed, on-device camera-photo and video monitor for MOA.
