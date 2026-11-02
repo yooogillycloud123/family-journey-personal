@@ -32,6 +32,7 @@ public class MoaMomentCaptureService extends Service {
   public static final String NOTESTOP="com.juhyeon.familyjournea.MOMENT_STOP";
   private Handler h; private final Handler ui=new Handler(Looper.getMainLooper());
   private WindowManager overlayManager; private View overlayView;
+  private BroadcastReceiver newPictureHint; private boolean hintRegistered;
   private HandlerThread worker; private ContentObserver observer; private boolean scanning,stopRequested,observerRegistered;
   static SharedPreferences prefs(Context c){return c.getSharedPreferences(PREF,MODE_PRIVATE);}
   static boolean enabled(Context c){return prefs(c).getBoolean("enabled",false);}
@@ -68,6 +69,13 @@ public class MoaMomentCaptureService extends Service {
       }
       schedule();
     }catch(Exception x){prefs(this).edit().putString("lastError","Observer: "+x).apply();}
+    // ACTION_NEW_PICTURE is an optional early signal for already-running apps.
+    // Some Samsung/Android builds don't emit it; MediaStore observer is authoritative.
+    if(!hintRegistered)try {
+      newPictureHint=new BroadcastReceiver(){@Override public void onReceive(Context ctx,Intent in){schedule();}};
+      registerReceiver(newPictureHint,new IntentFilter("android.hardware.action.NEW_PICTURE"),Context.RECEIVER_EXPORTED);
+      hintRegistered=true;
+    }catch(Exception e){prefs(this).edit().putString("hintError",e.toString()).apply();}
     updateTile(this);
     return START_STICKY;
   }
@@ -163,6 +171,7 @@ public class MoaMomentCaptureService extends Service {
     stopRequested=true;if(h!=null)h.removeCallbacksAndMessages(null);
     if(observerRegistered)try{getContentResolver().unregisterContentObserver(observer);}catch(Exception ignored){}
     ui.post(this::removeOptionalCameraOverlay);
+    if(hintRegistered)try{unregisterReceiver(newPictureHint);}catch(Exception ignored){}
     if(worker!=null)worker.quitSafely();
     super.onDestroy();
   }
