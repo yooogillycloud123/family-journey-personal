@@ -26,63 +26,77 @@ public class MoaMomentApplication extends Application implements Application.Act
   private final Handler main=new Handler(Looper.getMainLooper());
   private final WeakHashMap<WebView,Boolean> attached=new WeakHashMap<>();
   @Override public void onCreate(){super.onCreate();registerActivityLifecycleCallbacks(this);}
-  // HostActivity constructs and loads its WebView asynchronously. A fixed
-  // 650/1800ms check misses it on cold starts with a large media library.
-  // Retry until the exact trusted MOA WebView exists; never inject into external pages.
+  // R49: attach the Java bridge to the WebView owned by the original
+  // HostActivity. Do not assume getUrl() has become non-null when the view exists.
+  // WebView can load an asset URL asynchronously; URL-gated injection missed it
+  // on the user's Galaxy. Only the trusted Activity class is eligible.
   private final WeakHashMap<Activity,Boolean> polling=new WeakHashMap<>();
-  private WebView findMoaWebView(View v){
-    if(v instanceof WebView){
-      WebView web=(WebView)v;
-      String url=web.getUrl();
-      if(url!=null&&url.startsWith("https://familyjourney.local/"))return web;
-    }
+  private final WeakHashMap<WebView,Boolean> installed=new WeakHashMap<>();
+  private WebView findWebView(View v){
+    if(v instanceof WebView)return (WebView)v;
     if(v instanceof ViewGroup){
       ViewGroup g=(ViewGroup)v;
       for(int i=0;i<g.getChildCount();i++){
-        WebView w=findMoaWebView(g.getChildAt(i));
+        WebView w=findWebView(g.getChildAt(i));
         if(w!=null)return w;
       }
     }
     return null;
   }
-  private boolean install(Activity a) {
+  private boolean install(Activity a){
     if(a==null||a.isFinishing()||a.isDestroyed())return false;
-    if(!a.getClass().getName().equals("com.juhyeon.familyjourney.HostActivity"))return true;
-    WebView w=findMoaWebView(a.getWindow().getDecorView());
-    if(w==null)return false;
-    if(attached.containsKey(w))return true;
+    if(!"com.juhyeon.familyjourney.HostActivity".equals(a.getClass().getName()))return true;
+    final WebView web=findWebView(a.getWindow().getDecorView());
+    if(web==null)return false;
+    if(installed.containsKey(web))return true;
     try {
-      w.addJavascriptInterface(new CaptureBridge(getApplicationContext()),"MoaMomentNative");
-      attached.put(w,Boolean.TRUE);
-      MoaMomentCaptureService.prefs(this).edit().putString("bridgeDiagnostic","attached; url="+w.getUrl()).apply();
-      // The JS interface is visible only on the NEXT page load.
-      // Reload just once, and never again while notes may be edited.
-      w.reload();
+      // addJavascriptInterface is exposed on the NEXT page load.
+      web.addJavascriptInterface(new CaptureBridge(getApplicationContext()),"MoaMomentNative");
+      installed.put(web,true);
+      String url=web.getUrl();
+      MoaMomentCaptureService.prefs(this).edit().putString(
+        "bridgeDiagnostic","R49 interface registered url="+url+" progress="+web.getProgress()).apply();
+      if(url!=null && !"about:blank".equals(url)) {
+        main.postDelayed(()->{
+          if(!a.isFinishing()&&!a.isDestroyed()){
+            try{web.reload();}
+            catch(Exception e){MoaMomentCaptureService.prefs(this).edit()
+              .putString("bridgeDiagnostic","R49 reload failed: "+e).apply();}
+          }
+        },300L);
+      }
+      // If URL is null, the initial load (which follows addJavascriptInterface)
+      // will expose the interface; no premature reload is necessary.
+      main.postDelayed(()->{
+        try{web.evaluateJavascript(
+          "(function(){return typeof window.MoaMomentNative==='object' && typeof window.MoaMomentNative.setEnabled==='function'})()",
+          result->MoaMomentCaptureService.prefs(this).edit().putString(
+            "bridgeDiagnostic","R49 JS check="+result+" url="+web.getUrl()).apply());
+        }catch(Exception e){MoaMomentCaptureService.prefs(this).edit()
+          .putString("bridgeDiagnostic","R49 JS check failed: "+e).apply();}
+      },2500L);
       return true;
-    } catch(Exception error) {
-      MoaMomentCaptureService.prefs(this).edit().putString("bridgeDiagnostic","attach failed: "+error).apply();
+    }catch(Throwable e){
+      MoaMomentCaptureService.prefs(this).edit().putString(
+        "bridgeDiagnostic","R49 injection failed: "+e).apply();
       return false;
     }
   }
-  private void ensureBridge(Activity a){
+  private void ensureBridge(Activity a) {
     if(a==null||a.isFinishing()||a.isDestroyed())return;
-    if(!a.getClass().getName().equals("com.juhyeon.familyjourney.HostActivity"))return;
+    if(!"com.juhyeon.familyjourney.HostActivity".equals(a.getClass().getName()))return;
     if(Boolean.TRUE.equals(polling.get(a)))return;
-    polling.put(a,Boolean.TRUE);
+    polling.put(a,true);
     final int[] tries={0};
-    final Runnable[] next=new Runnable[1];
-    next[0]=()->{
+    final Runnable[] task=new Runnable[1];
+    task[0]=()->{
       if(a.isFinishing()||a.isDestroyed()){polling.remove(a);return;}
       if(install(a)){polling.remove(a);return;}
-      tries[0]++;
-      if(tries[0]<120)main.postDelayed(next[0],1000L);
-      else {
-        MoaMomentCaptureService.prefs(this).edit().putString("bridgeDiagnostic",
-          "MOA WebView not found after "+tries[0]+" attempts").apply();
-        polling.remove(a);
-      }
+      if(++tries[0]<120) main.postDelayed(task[0],750L);
+      else{polling.remove(a);MoaMomentCaptureService.prefs(this).edit()
+        .putString("bridgeDiagnostic","R49 no WebView in HostActivity after retry").apply();}
     };
-    main.postDelayed(next[0],220L);
+    main.postDelayed(task[0],100L);
   }
   @Override public void onActivityCreated(Activity a,Bundle s){ensureBridge(a);}
   @Override public void onActivityResumed(Activity a){ensureBridge(a);}
