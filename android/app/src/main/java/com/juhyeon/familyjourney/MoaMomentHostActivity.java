@@ -40,7 +40,10 @@ public final class MoaMomentHostActivity extends HostActivity {
     if(injected==web)return;
     web.addJavascriptInterface(new CaptureBridge(getApplicationContext()),"MoaMomentNative");
     injected=web;
-    if(reload)web.reload(); // JS interface only becomes visible after next page load.
+    // addJavascriptInterface is exposed on the NEXT load only. The old version
+    // marked the WebView injected without ever reloading if install(false) won.
+    // Reload once when the MOA web app has already loaded; no reload loop.
+    if(u!=null && u.startsWith("https://familyjourney.local/")) web.reload();
     if(checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES)!=PackageManager.PERMISSION_GRANTED ||
        checkSelfPermission(Manifest.permission.READ_MEDIA_VIDEO)!=PackageManager.PERMISSION_GRANTED ||
        checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){
