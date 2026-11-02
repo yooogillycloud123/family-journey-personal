@@ -13,6 +13,11 @@ import android.service.quicksettings.TileService;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Icon;
 import android.app.RemoteInput;
+import android.provider.Settings;
+import android.graphics.Color;
+import android.graphics.PixelFormat;
+import android.view.*;
+import android.widget.*;
 import org.json.JSONObject;
 import java.util.*;
 // All state is persisted before sending notifications.
@@ -23,20 +28,27 @@ import java.util.*;
  * Native drafts survive process loss and are acknowledged only after WebView IndexedDB commits.
  */
 public class MoaMomentCaptureService extends Service {
-  public static final String PREF="moa_camera_native_v1", CH="moa_moment_captures", ACT="com.juhyeon.familyjournea.MOMENT";
+  public static final String PREF="moa_camera_native_v1", CH="moa_moment_monitor", CH_EVENT="moa_moment_capture_alerts_v2", ACT="com.juhyeon.familyjournea.MOMENT";
   public static final String NOTESTOP="com.juhyeon.familyjournea.MOMENT_STOP";
-  private Handler h; private ContentObserver observer; private boolean scanning,stopRequested;
+  private Handler h; private final Handler ui=new Handler(Looper.getMainLooper());
+  private WindowManager overlayManager; private View overlayView;
+  private BroadcastReceiver newPictureHint; private boolean hintRegistered;
+  private HandlerThread worker; private ContentObserver observer; private boolean scanning,stopRequested,observerRegistered;
   static SharedPreferences prefs(Context c){return c.getSharedPreferences(PREF,MODE_PRIVATE);}
   static boolean enabled(Context c){return prefs(c).getBoolean("enabled",false);}
   static void switchTo(Context c, boolean on) {
+    if(on && (c.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES)!=PackageManager.PERMISSION_GRANTED || c.checkSelfPermission(Manifest.permission.READ_MEDIA_VIDEO)!=PackageManager.PERMISSION_GRANTED || c.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)) {
+      prefs(c).edit().putString("lastError","모아 설정에서 사진·영상 전체 접근과 알림 권한이 필요합니다.").apply();return;
+    }
     prefs(c).edit().putBoolean("enabled",on).putLong("armedAt",on?System.currentTimeMillis():0).apply();
     Intent i=new Intent(c,MoaMomentCaptureService.class).setAction(on?"START":"STOP");
     if(on) {try{c.startForegroundService(i);}catch(Exception x){prefs(c).edit().putString("lastError",x.toString()).apply();}}
-    else {try{c.startService(i);}catch(Exception ignored){}}
+    else {try{c.stopService(i);}catch(Exception ignored){}}
   }
-  @Override public void onCreate(){super.onCreate();h=new Handler(Looper.getMainLooper());
+  @Override public void onCreate(){super.onCreate();worker=new HandlerThread("MOA-Camera-Observer");worker.start();h=new Handler(worker.getLooper());
     NotificationManager n=getSystemService(NotificationManager.class);
-    n.createNotificationChannel(new NotificationChannel(CH,"모아 순간 기록",NotificationManager.IMPORTANCE_HIGH));
+    n.createNotificationChannel(new NotificationChannel(CH,"모아 기록 감시 상태",NotificationManager.IMPORTANCE_LOW));
+    n.createNotificationChannel(new NotificationChannel(CH_EVENT,"모아 촬영 즉시 기록",NotificationManager.IMPORTANCE_HIGH));
     observer=new ContentObserver(h){@Override public void onChange(boolean self,Uri uri){schedule();}@Override public void onChange(boolean self){schedule();}};
   }
   @Override public int onStartCommand(Intent intent,int flags,int startId){
@@ -50,10 +62,20 @@ public class MoaMomentCaptureService extends Service {
       startForeground(42101,live);
     }catch(Exception x){prefs(this).edit().putString("lastError","Foreground: "+x).apply();stopSelf();return START_NOT_STICKY;}
     try {
-      getContentResolver().registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,true,observer);
-      getContentResolver().registerContentObserver(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,true,observer);
+      if(!observerRegistered){
+        getContentResolver().registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,true,observer);
+        getContentResolver().registerContentObserver(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,true,observer);
+        observerRegistered=true;
+      }
       schedule();
     }catch(Exception x){prefs(this).edit().putString("lastError","Observer: "+x).apply();}
+    // ACTION_NEW_PICTURE is an optional early signal for already-running apps.
+    // Some Samsung/Android builds don't emit it; MediaStore observer is authoritative.
+    if(!hintRegistered)try {
+      newPictureHint=new BroadcastReceiver(){@Override public void onReceive(Context ctx,Intent in){schedule();}};
+      registerReceiver(newPictureHint,new IntentFilter("android.hardware.action.NEW_PICTURE"),Context.RECEIVER_EXPORTED);
+      hintRegistered=true;
+    }catch(Exception e){prefs(this).edit().putString("hintError",e.toString()).apply();}
     updateTile(this);
     return START_STICKY;
   }
@@ -68,7 +90,10 @@ public class MoaMomentCaptureService extends Service {
   private void poll(Uri uri,boolean video){
     if(checkSelfPermission(video?Manifest.permission.READ_MEDIA_VIDEO:Manifest.permission.READ_MEDIA_IMAGES)!=PackageManager.PERMISSION_GRANTED)return;
     String[] projection={"_id","datetaken","date_added","relative_path","is_pending","_size"};
-    try(Cursor c=getContentResolver().query(uri,projection,null,null,"_id DESC LIMIT 60")){
+    Bundle args=new Bundle();
+    args.putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER,MediaStore.MediaColumns._ID+" DESC");
+    args.putString(ContentResolver.QUERY_ARG_SQL_LIMIT,"80");
+    try(Cursor c=getContentResolver().query(uri,projection,args,null)){
       if(c==null)return;
       long armed=prefs(this).getLong("armedAt",0L);
       while(c.moveToNext()){
@@ -95,17 +120,59 @@ public class MoaMomentCaptureService extends Service {
     PendingIntent pi=PendingIntent.getBroadcast(this,key.hashCode(),reply,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_MUTABLE);
     RemoteInput input=new RemoteInput.Builder("note").setLabel("지금 기억나는 상황을 입력하거나 키보드 마이크로 말하세요").build();
     Notification.Action action=new Notification.Action.Builder(null,"바로 메모",pi).addRemoteInput(input).build();
-    Notification n=new Notification.Builder(this,CH)
+    Notification n=new Notification.Builder(this,CH_EVENT)
       .setSmallIcon(android.R.drawable.ic_menu_edit).setContentTitle("방금 촬영한 사진·영상 · 모아 기록")
       .setContentText("여기를 눌러 즉시 기록하거나, 바로 메모에서 입력하세요.")
       .setAutoCancel(true).setContentIntent(tap).addAction(action).setCategory(Notification.CATEGORY_REMINDER)
       .setPriority(Notification.PRIORITY_HIGH).build();
     getSystemService(NotificationManager.class).notify(43000+(key.hashCode()&0x7fff),n);
+    showOptionalCameraOverlay(tap);
+  }
+  /** Optional explicit overlay: a small non-focusable banner over Samsung Camera.
+   *  Requires user-granted Draw over other apps; no automatic permission grant.
+   *  No fake 'camera callback': displayed only after an actual new MediaStore row.
+   */
+  private void showOptionalCameraOverlay(PendingIntent target){
+    if(!Settings.canDrawOverlays(this))return;
+    ui.post(()->{
+      try{
+        removeOptionalCameraOverlay();
+        overlayManager=(WindowManager)getSystemService(WINDOW_SERVICE);
+        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setPadding(18,8,18,8);card.setBackgroundColor(0xeef9f6f1);
+        TextView label=new TextView(this);label.setText("모아 · 사진 촬영됨");label.setTextSize(15);
+        label.setTextColor(Color.rgb(33,48,63));
+        card.addView(label,new LinearLayout.LayoutParams(0,-2,1));
+        Button note=new Button(this);note.setText("바로 기록");card.addView(note);
+        note.setOnClickListener(v->{
+          removeOptionalCameraOverlay();
+          try{target.send();}catch(PendingIntent.CanceledException e){
+            prefs(this).edit().putString("lastError","사진 기록 팝업 열기 실패: "+e).apply();
+          }
+        });
+        WindowManager.LayoutParams p=new WindowManager.LayoutParams(
+          WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.WRAP_CONTENT,
+          WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+          WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+          PixelFormat.TRANSLUCENT);
+        p.gravity=Gravity.TOP;p.y=130;
+        overlayManager.addView(card,p);overlayView=card;
+        ui.postDelayed(()->{if(overlayView==card)removeOptionalCameraOverlay();},8500L);
+      }catch(Exception e){prefs(this).edit().putString("lastError","Overlay: "+e).apply();}
+    });
+  }
+  private void removeOptionalCameraOverlay(){
+    if(overlayManager!=null && overlayView!=null)
+      try{overlayManager.removeView(overlayView);}catch(Exception ignored){}
+    overlayView=null;
   }
   @Override public android.os.IBinder onBind(Intent intent){return null;}
   @Override public void onDestroy(){
     stopRequested=true;if(h!=null)h.removeCallbacksAndMessages(null);
-    try{getContentResolver().unregisterContentObserver(observer);}catch(Exception ignored){}
+    if(observerRegistered)try{getContentResolver().unregisterContentObserver(observer);}catch(Exception ignored){}
+    ui.post(this::removeOptionalCameraOverlay);
+    if(hintRegistered)try{unregisterReceiver(newPictureHint);}catch(Exception ignored){}
+    if(worker!=null)worker.quitSafely();
     super.onDestroy();
   }
   public static void updateTile(Context c){
