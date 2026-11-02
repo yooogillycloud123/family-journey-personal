@@ -1,0 +1,60 @@
+name: Build MOA HiClass accessibility DEX (source validation only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/java/com/familyjourney/personal/HiClassBackupService.java'
+      - '.github/workflows/android-hiclass-dex.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile class and DEX only
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p android --no-daemon :app:compileDebugJavaWithJavac
+          mkdir -p /tmp/hcclass /tmp/hcdex build/hiclass_automation
+          find android/app/build -type f -name 'HiClassBackupService*.class' -print -exec cp '{}' /tmp/hcclass/ \;
+          test -s /tmp/hcclass/HiClassBackupService.class
+          "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/hcdex /tmp/hcclass/*.class
+          python3 - <<'PY'
+          import pathlib,zlib,base64,hashlib,json
+          b=pathlib.Path('/tmp/hcdex/classes.dex').read_bytes()
+          out=pathlib.Path('build/hiclass_automation/HiClassBackupService.dex.z.b64')
+          out.write_text(base64.b64encode(zlib.compress(b,9)).decode('ascii')+'\n')
+          pathlib.Path('build/hiclass_automation/manifest.txt').write_text(json.dumps({'sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b)},indent=2))
+          PY
+      - name: Preserve generated DEX-only source output
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build/hiclass_automation/
+          if ! git diff --cached --quiet; then
+            git commit -m "Compile HiClass service dex (independent verified build input)"
+            git push origin HEAD:main
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HiClass-AccessibilityService-DEX-only
+          path: build/hiclass_automation/
