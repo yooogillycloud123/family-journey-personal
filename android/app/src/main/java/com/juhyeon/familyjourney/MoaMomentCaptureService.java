@@ -87,7 +87,7 @@ public class MoaMomentCaptureService extends Service {
     scanning=true;try{poll(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,false);poll(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,true);}
     catch(Exception x){prefs(this).edit().putString("lastError","Scan: "+x).apply();}
     finally{scanning=false;
-      if(enabled(this)&&!stopRequested){prefs(this).edit().putLong("heartbeat",System.currentTimeMillis()).apply();h.postDelayed(scan,6000L);}
+      if(enabled(this)&&!stopRequested){prefs(this).edit().putLong("heartbeat",System.currentTimeMillis()).apply();h.postDelayed(this::schedule,6000L);}
     }
   };
   private void schedule(){if(h==null)return;h.removeCallbacks(scan);h.postDelayed(scan,1100);}
