@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MOA R44: merge THESE entries into the ACTUAL installed R43 manifest.
+     Do not replace the existing app manifest or package / assets / diary. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+  <application>
+    <!-- Existing MAIN/LAUNCHER com.juhyeon.familyjourney.HostActivity must be
+         replaced by MoaMomentHostActivity with original intent filters retained.
+         The actual HostActivity class from R43 DEX remains present. -->
+    <activity android:name="com.juhyeon.familyjourney.MoaMomentMemoActivity"
+       android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+    <service android:name="com.juhyeon.familyjourney.MoaMomentCaptureService"
+       android:exported="false" android:foregroundServiceType="specialUse">
+      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+          android:value="User-enabled, short-latency observation of new on-device camera photos and videos for immediate photo diary notes, with persistent user-visible notification and Quick Settings OFF control"/>
+    </service>
+    <service android:name="com.juhyeon.familyjourney.MoaMomentCaptureService$QuickTile"
+       android:label="모아 기록" android:icon="@android:drawable/ic_menu_camera"
+       android:exported="true"
+       android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+      <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+      <meta-data android:name="android.service.quicksettings.ACTIVE_TILE" android:value="true"/>
+    </service>
+    <receiver android:name="com.juhyeon.familyjourney.MoaMomentCaptureService$Commands"
+       android:exported="false"/>
+  </application>
+</manifest>
