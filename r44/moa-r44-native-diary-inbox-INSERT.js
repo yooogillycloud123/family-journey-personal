@@ -10,7 +10,7 @@ function mnSafeDrafts() {
   const b = mnBridge(); if (!b) return [];
   try {
     const a = JSON.parse(b.drafts() || '[]');
-    return Array.isArray(a) ? a.filter(d => d && /^(?:v)?\\d{1,19}$/.test(String(d.id)) &&
+    return Array.isArray(a) ? a.filter(d => d && /^(?:v)?\d{1,19}$/.test(String(d.id)) &&
        Number.isFinite(+d.at) && +d.at > 0).sort((a,b)=> +a.at - +b.at) : [];
   } catch (e) { console.warn('MOA moment native inbox parse:', e); return []; }
 }
