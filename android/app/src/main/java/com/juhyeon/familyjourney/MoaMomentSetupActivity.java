@@ -51,7 +51,7 @@ public final class MoaMomentSetupActivity extends Activity {
     String err=MoaMomentCaptureService.prefs(this).getString("lastError","");
     message.setText("사진·영상 전체 접근: "+(mediaGranted()?"허용":"확인 필요")+
       "\n카메라 위 작은 기록 버튼: "+(overlayGranted()?"허용":"허용 필요")+
-      "\n현재 기록 모드: "+(MoaMomentCaptureService.enabled(this)?"ON":"OFF")+
+      "\n현재 기록 모드: "+(MoaMomentCaptureService.isRunning(this)?"실행 중":(MoaMomentCaptureService.enabled(this)?"시작 중 또는 오류":"OFF"))+
       (err.isEmpty()?"":"\n진단: "+err));
   }
   private void checkPermissions(boolean requested){
