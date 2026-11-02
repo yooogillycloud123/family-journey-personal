@@ -10,10 +10,10 @@
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
-  <application>
-    <!-- Existing MAIN/LAUNCHER com.juhyeon.familyjourney.HostActivity must be
-         replaced by MoaMomentHostActivity with original intent filters retained.
-         The actual HostActivity class from R43 DEX remains present. -->
+  <application android:name="com.juhyeon.familyjourney.MoaMomentApplication">
+    <!-- Existing MAIN/LAUNCHER HostActivity stays entirely UNMODIFIED.
+         R43 verified HostActivity is FINAL, so subclassing it is invalid.
+         MoaMomentApplication observes lifecycle and attaches the bridge once. -->
     <activity android:name="com.juhyeon.familyjourney.MoaMomentMemoActivity"
        android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
     <service android:name="com.juhyeon.familyjourney.MoaMomentCaptureService"
