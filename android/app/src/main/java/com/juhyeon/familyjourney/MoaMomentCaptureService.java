@@ -36,13 +36,14 @@ public class MoaMomentCaptureService extends Service {
   private HandlerThread worker; private ContentObserver observer; private boolean scanning,stopRequested,observerRegistered;
   static SharedPreferences prefs(Context c){return c.getSharedPreferences(PREF,MODE_PRIVATE);}
   static boolean enabled(Context c){return prefs(c).getBoolean("enabled",false);}
+  static boolean isRunning(Context c){return enabled(c)&&System.currentTimeMillis()-prefs(c).getLong("heartbeat",0)<12000L;}
   static void switchTo(Context c, boolean on) {
     if(on && (c.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES)!=PackageManager.PERMISSION_GRANTED || c.checkSelfPermission(Manifest.permission.READ_MEDIA_VIDEO)!=PackageManager.PERMISSION_GRANTED || c.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)) {
       prefs(c).edit().putString("lastError","모아 설정에서 사진·영상 전체 접근과 알림 권한이 필요합니다.").apply();return;
     }
     prefs(c).edit().putBoolean("enabled",on).putLong("armedAt",on?System.currentTimeMillis():0).apply();
     Intent i=new Intent(c,MoaMomentCaptureService.class).setAction(on?"START":"STOP");
-    if(on) {try{c.startForegroundService(i);}catch(Exception x){prefs(c).edit().putString("lastError",x.toString()).apply();}}
+    if(on) {try{c.startForegroundService(i);}catch(Exception x){prefs(c).edit().putBoolean("enabled",false).putLong("heartbeat",0).putString("lastError","시작 실패: "+x).apply();}}
     else {try{c.stopService(i);}catch(Exception ignored){}}
   }
   @Override public void onCreate(){super.onCreate();worker=new HandlerThread("MOA-Camera-Observer");worker.start();h=new Handler(worker.getLooper());
@@ -60,7 +61,8 @@ public class MoaMomentCaptureService extends Service {
         .setContentTitle("모아 순간 기록 ON").setContentText("삼성 카메라로 찍으면 바로 기록 알림이 나옵니다.")
         .setOngoing(true).addAction(new Notification.Action.Builder(null,"끄기",stopPi).build()).build();
       startForeground(42101,live);
-    }catch(Exception x){prefs(this).edit().putString("lastError","Foreground: "+x).apply();stopSelf();return START_NOT_STICKY;}
+      prefs(this).edit().putLong("heartbeat",System.currentTimeMillis()).remove("lastError").apply();
+    }catch(Exception x){prefs(this).edit().putBoolean("enabled",false).putLong("heartbeat",0).putString("lastError","Foreground: "+x).apply();stopSelf();return START_NOT_STICKY;}
     try {
       if(!observerRegistered){
         getContentResolver().registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,true,observer);
@@ -84,7 +86,9 @@ public class MoaMomentCaptureService extends Service {
     if(scanning){h.postDelayed(this::schedule,1000);return;}
     scanning=true;try{poll(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,false);poll(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,true);}
     catch(Exception x){prefs(this).edit().putString("lastError","Scan: "+x).apply();}
-    finally{scanning=false;}
+    finally{scanning=false;
+      if(enabled(this)&&!stopRequested){prefs(this).edit().putLong("heartbeat",System.currentTimeMillis()).apply();h.postDelayed(scan,6000L);}
+    }
   };
   private void schedule(){if(h==null)return;h.removeCallbacks(scan);h.postDelayed(scan,1100);}
   private void poll(Uri uri,boolean video){
@@ -173,13 +177,15 @@ public class MoaMomentCaptureService extends Service {
     ui.post(this::removeOptionalCameraOverlay);
     if(hintRegistered)try{unregisterReceiver(newPictureHint);}catch(Exception ignored){}
     if(worker!=null)worker.quitSafely();
+    prefs(this).edit().putLong("heartbeat",0L).apply();
+    updateTile(this);
     super.onDestroy();
   }
   public static void updateTile(Context c){
     try{TileService.requestListeningState(c,new ComponentName(c,QuickTile.class));}catch(Exception ignored){}
   }
   public static final class QuickTile extends TileService {
-    @Override public void onStartListening(){super.onStartListening();Tile t=getQsTile();if(t!=null){t.setLabel("모아 기록");t.setState(enabled(this)?Tile.STATE_ACTIVE:Tile.STATE_INACTIVE);t.updateTile();}}
+    @Override public void onStartListening(){super.onStartListening();Tile t=getQsTile();if(t!=null){t.setLabel("모아 기록");t.setState(isRunning(this)?Tile.STATE_ACTIVE:Tile.STATE_INACTIVE);t.updateTile();}}
     @Override public void onClick(){
       super.onClick();
       if(enabled(this)) switchTo(this,false);
