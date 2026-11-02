@@ -64,7 +64,7 @@ public class MoaMomentApplication extends Application implements Application.Act
   public static final class CaptureBridge {
     private final Context c;
     public CaptureBridge(Context c){this.c=c;}
-    @JavascriptInterface public boolean enabled(){return MoaMomentCaptureService.enabled(c);}
+    @JavascriptInterface public boolean enabled(){return MoaMomentCaptureService.isRunning(c);}
     @JavascriptInterface public void openSetup(){
       android.content.Intent i=new android.content.Intent(c,MoaMomentSetupActivity.class);
       i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
