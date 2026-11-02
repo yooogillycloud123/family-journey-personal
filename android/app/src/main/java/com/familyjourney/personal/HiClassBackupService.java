@@ -53,7 +53,7 @@ public final class HiClassBackupService extends AccessibilityService {
   }
   @Override public void onAccessibilityEvent(AccessibilityEvent event) {
     if(event == null) return;
-    targetVisible = TARGET.contentEquals(event.getPackageName());
+    targetVisible = TARGET.equals(String.valueOf(event.getPackageName()));
     if(targetVisible) { ensureOverlay(); if(active && !busy) schedule(600); }
     else { removeOverlay(); if(active) {active=false; busy=false; phase=0;} }
   }
