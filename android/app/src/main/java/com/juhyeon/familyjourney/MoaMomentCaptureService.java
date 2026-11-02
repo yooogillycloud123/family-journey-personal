@@ -13,6 +13,11 @@ import android.service.quicksettings.TileService;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Icon;
 import android.app.RemoteInput;
+import android.provider.Settings;
+import android.graphics.Color;
+import android.graphics.PixelFormat;
+import android.view.*;
+import android.widget.*;
 import org.json.JSONObject;
 import java.util.*;
 // All state is persisted before sending notifications.
@@ -25,7 +30,9 @@ import java.util.*;
 public class MoaMomentCaptureService extends Service {
   public static final String PREF="moa_camera_native_v1", CH="moa_moment_monitor", CH_EVENT="moa_moment_capture_alerts_v2", ACT="com.juhyeon.familyjournea.MOMENT";
   public static final String NOTESTOP="com.juhyeon.familyjournea.MOMENT_STOP";
-  private Handler h; private HandlerThread worker; private ContentObserver observer; private boolean scanning,stopRequested,observerRegistered;
+  private Handler h; private final Handler ui=new Handler(Looper.getMainLooper());
+  private WindowManager overlayManager; private View overlayView;
+  private HandlerThread worker; private ContentObserver observer; private boolean scanning,stopRequested,observerRegistered;
   static SharedPreferences prefs(Context c){return c.getSharedPreferences(PREF,MODE_PRIVATE);}
   static boolean enabled(Context c){return prefs(c).getBoolean("enabled",false);}
   static void switchTo(Context c, boolean on) {
@@ -111,11 +118,51 @@ public class MoaMomentCaptureService extends Service {
       .setAutoCancel(true).setContentIntent(tap).addAction(action).setCategory(Notification.CATEGORY_REMINDER)
       .setPriority(Notification.PRIORITY_HIGH).build();
     getSystemService(NotificationManager.class).notify(43000+(key.hashCode()&0x7fff),n);
+    showOptionalCameraOverlay(tap);
+  }
+  /** Optional explicit overlay: a small non-focusable banner over Samsung Camera.
+   *  Requires user-granted Draw over other apps; no automatic permission grant.
+   *  No fake 'camera callback': displayed only after an actual new MediaStore row.
+   */
+  private void showOptionalCameraOverlay(PendingIntent target){
+    if(!Settings.canDrawOverlays(this))return;
+    ui.post(()->{
+      try{
+        removeOptionalCameraOverlay();
+        overlayManager=(WindowManager)getSystemService(WINDOW_SERVICE);
+        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setPadding(18,8,18,8);card.setBackgroundColor(0xeef9f6f1);
+        TextView label=new TextView(this);label.setText("모아 · 사진 촬영됨");label.setTextSize(15);
+        label.setTextColor(Color.rgb(33,48,63));
+        card.addView(label,new LinearLayout.LayoutParams(0,-2,1));
+        Button note=new Button(this);note.setText("바로 기록");card.addView(note);
+        note.setOnClickListener(v->{
+          removeOptionalCameraOverlay();
+          try{target.send();}catch(PendingIntent.CanceledException e){
+            prefs(this).edit().putString("lastError","사진 기록 팝업 열기 실패: "+e).apply();
+          }
+        });
+        WindowManager.LayoutParams p=new WindowManager.LayoutParams(
+          WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.WRAP_CONTENT,
+          WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+          WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+          PixelFormat.TRANSLUCENT);
+        p.gravity=Gravity.TOP;p.y=130;
+        overlayManager.addView(card,p);overlayView=card;
+        ui.postDelayed(()->{if(overlayView==card)removeOptionalCameraOverlay();},8500L);
+      }catch(Exception e){prefs(this).edit().putString("lastError","Overlay: "+e).apply();}
+    });
+  }
+  private void removeOptionalCameraOverlay(){
+    if(overlayManager!=null && overlayView!=null)
+      try{overlayManager.removeView(overlayView);}catch(Exception ignored){}
+    overlayView=null;
   }
   @Override public android.os.IBinder onBind(Intent intent){return null;}
   @Override public void onDestroy(){
     stopRequested=true;if(h!=null)h.removeCallbacksAndMessages(null);
     if(observerRegistered)try{getContentResolver().unregisterContentObserver(observer);}catch(Exception ignored){}
+    ui.post(this::removeOptionalCameraOverlay);
     if(worker!=null)worker.quitSafely();
     super.onDestroy();
   }
