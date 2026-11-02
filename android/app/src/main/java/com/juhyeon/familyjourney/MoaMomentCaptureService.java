@@ -46,7 +46,7 @@ public class MoaMomentCaptureService extends Service {
       PendingIntent stopPi=PendingIntent.getBroadcast(this,24,stop,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
       Notification live=new Notification.Builder(this,CH).setSmallIcon(android.R.drawable.ic_menu_camera)
         .setContentTitle("모아 순간 기록 ON").setContentText("삼성 카메라로 찍으면 바로 기록 알림이 나옵니다.")
-        .setOngoing(true).setSilent(true).addAction(new Notification.Action.Builder(null,"끄기",stopPi).build()).build();
+        .setOngoing(true).addAction(new Notification.Action.Builder(null,"끄기",stopPi).build()).build();
       startForeground(42101,live);
     }catch(Exception x){prefs(this).edit().putString("lastError","Foreground: "+x).apply();stopSelf();return START_NOT_STICKY;}
     try {
