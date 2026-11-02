@@ -26,36 +26,66 @@ public class MoaMomentApplication extends Application implements Application.Act
   private final Handler main=new Handler(Looper.getMainLooper());
   private final WeakHashMap<WebView,Boolean> attached=new WeakHashMap<>();
   @Override public void onCreate(){super.onCreate();registerActivityLifecycleCallbacks(this);}
-  private WebView find(View v){
-    if(v instanceof WebView)return (WebView)v;
+  // HostActivity constructs and loads its WebView asynchronously. A fixed
+  // 650/1800ms check misses it on cold starts with a large media library.
+  // Retry until the exact trusted MOA WebView exists; never inject into external pages.
+  private final WeakHashMap<Activity,Boolean> polling=new WeakHashMap<>();
+  private WebView findMoaWebView(View v){
+    if(v instanceof WebView){
+      WebView web=(WebView)v;
+      String url=web.getUrl();
+      if(url!=null&&url.startsWith("https://familyjourney.local/"))return web;
+    }
     if(v instanceof ViewGroup){
       ViewGroup g=(ViewGroup)v;
       for(int i=0;i<g.getChildCount();i++){
-        WebView r=find(g.getChildAt(i));if(r!=null)return r;
+        WebView w=findMoaWebView(g.getChildAt(i));
+        if(w!=null)return w;
       }
     }
     return null;
   }
-  private void install(Activity a) {
-    if(a==null||a.isFinishing())return;
-    WebView w=find(a.getWindow().getDecorView());
-    if(w==null)return;
-    String url=w.getUrl();
-    if(url==null||!url.startsWith("https://familyjourney.local/"))return;
-    if(attached.containsKey(w))return;
-    w.addJavascriptInterface(new CaptureBridge(getApplicationContext()),"MoaMomentNative");
-    attached.put(w,true);
-    // Only once: injected JavascriptInterfaces become available on the next load.
-    w.reload();
+  private boolean install(Activity a) {
+    if(a==null||a.isFinishing()||a.isDestroyed())return false;
+    if(!a.getClass().getName().equals("com.juhyeon.familyjourney.HostActivity"))return true;
+    WebView w=findMoaWebView(a.getWindow().getDecorView());
+    if(w==null)return false;
+    if(attached.containsKey(w))return true;
+    try {
+      w.addJavascriptInterface(new CaptureBridge(getApplicationContext()),"MoaMomentNative");
+      attached.put(w,Boolean.TRUE);
+      MoaMomentCaptureService.prefs(this).edit().putString("bridgeDiagnostic","attached; url="+w.getUrl()).apply();
+      // The JS interface is visible only on the NEXT page load.
+      // Reload just once, and never again while notes may be edited.
+      w.reload();
+      return true;
+    } catch(Exception error) {
+      MoaMomentCaptureService.prefs(this).edit().putString("bridgeDiagnostic","attach failed: "+error).apply();
+      return false;
+    }
   }
-  @Override public void onActivityCreated(Activity a,Bundle s){
-    main.postDelayed(()->install(a),650);
-    main.postDelayed(()->install(a),1800);
+  private void ensureBridge(Activity a){
+    if(a==null||a.isFinishing()||a.isDestroyed())return;
+    if(!a.getClass().getName().equals("com.juhyeon.familyjourney.HostActivity"))return;
+    if(Boolean.TRUE.equals(polling.get(a)))return;
+    polling.put(a,Boolean.TRUE);
+    final int[] tries={0};
+    final Runnable[] next=new Runnable[1];
+    next[0]=()->{
+      if(a.isFinishing()||a.isDestroyed()){polling.remove(a);return;}
+      if(install(a)){polling.remove(a);return;}
+      tries[0]++;
+      if(tries[0]<120)main.postDelayed(next[0],1000L);
+      else {
+        MoaMomentCaptureService.prefs(this).edit().putString("bridgeDiagnostic",
+          "MOA WebView not found after "+tries[0]+" attempts").apply();
+        polling.remove(a);
+      }
+    };
+    main.postDelayed(next[0],220L);
   }
-  @Override public void onActivityResumed(Activity a){
-    main.postDelayed(()->install(a),250);
-    main.postDelayed(()->install(a),950);
-  }
+  @Override public void onActivityCreated(Activity a,Bundle s){ensureBridge(a);}
+  @Override public void onActivityResumed(Activity a){ensureBridge(a);}
   @Override public void onActivityStarted(Activity a){}
   @Override public void onActivityPaused(Activity a){}
   @Override public void onActivityStopped(Activity a){}
