@@ -1,0 +1,67 @@
+name: MOA moment native bridge DEX
+on:
+  push:
+    branches:
+      - feature/moa-r43-native-capture
+    paths:
+      - 'android/app/src/main/java/com/juhyeon/familyjourney/**'
+      - '.github/workflows/moa-moment-native-dex.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  dex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile Java, then only new native classes to DEX
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p android --no-daemon :app:compileDebugJavaWithJavac
+          mkdir -p build/moa-moment-r43
+          CLASSES="$(find android/app/build -name MoaMomentCaptureService.class -printf '%h\n' | head -1)"
+          test -n "$CLASSES"
+          test -s "$CLASSES/MoaMomentHostActivity.class"
+          test -s "$CLASSES/MoaMomentMemoActivity.class"
+          mkdir -p /tmp/nativeout
+          find "$CLASSES" -maxdepth 1 -name 'MoaMoment*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/nativeout
+          test -s /tmp/nativeout/classes.dex
+          python3 - <<'PY'
+          import pathlib,hashlib,base64,zlib,json
+          b=pathlib.Path('/tmp/nativeout/classes.dex').read_bytes()
+          assert b'MoaMomentCaptureService' in b and b'MoaMomentHostActivity' in b and b'MoaMomentMemoActivity' in b
+          assert b'Lcom/juhyeon/familyjourney/HostActivity;' in b
+          p=pathlib.Path('build/moa-moment-r43')
+          (p/'native.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+          (p/'manifest.json').write_text(json.dumps({'sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b)},indent=2))
+          PY
+      - name: Commit compiled DEX base64 as verified artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f build/moa-moment-r43/native.dex.z.b64 build/moa-moment-r43/manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Verified R43 native DEX toolchain output"
+            git push origin HEAD:feature/moa-r43-native-capture
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R43-native-classes-Dex
+          path: build/moa-moment-r43
