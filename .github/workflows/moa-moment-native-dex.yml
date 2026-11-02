@@ -40,7 +40,7 @@ jobs:
           test -s "$CLASSES/MoaMomentSetupActivity.class"
           test -s "$CLASSES/MoaMomentMemoActivity.class"
           mkdir -p /tmp/nativeout
-          find "$CLASSES" -maxdepth 1 -name 'MoaMoment*.class' ! -name 'MoaMomentHostActivity.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/nativeout
+          find "$CLASSES" -maxdepth 1 -name 'MoaMoment*.class' ! -name 'MoaMomentHostActivity*' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/nativeout
           test -s /tmp/nativeout/classes.dex
           python3 - <<'PY'
           import pathlib,hashlib,base64,zlib,json
