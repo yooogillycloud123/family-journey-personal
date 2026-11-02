@@ -36,15 +36,16 @@ jobs:
           mkdir -p build/moa-moment-r43
           CLASSES="$(find android/app/build -name MoaMomentCaptureService.class -printf '%h\n' | head -1)"
           test -n "$CLASSES"
-          test -s "$CLASSES/MoaMomentHostActivity.class"
+          test -s "$CLASSES/MoaMomentApplication.class"
+          test -s "$CLASSES/MoaMomentSetupActivity.class"
           test -s "$CLASSES/MoaMomentMemoActivity.class"
           mkdir -p /tmp/nativeout
-          find "$CLASSES" -maxdepth 1 -name 'MoaMoment*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/nativeout
+          find "$CLASSES" -maxdepth 1 -name 'MoaMoment*.class' ! -name 'MoaMomentHostActivity.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/nativeout
           test -s /tmp/nativeout/classes.dex
           python3 - <<'PY'
           import pathlib,hashlib,base64,zlib,json
           b=pathlib.Path('/tmp/nativeout/classes.dex').read_bytes()
-          assert b'MoaMomentCaptureService' in b and b'MoaMomentHostActivity' in b and b'MoaMomentMemoActivity' in b
+          assert b'MoaMomentCaptureService' in b and b'MoaMomentApplication' in b and b'MoaMomentMemoActivity' in b and b'MoaMomentSetupActivity' in b
           assert b'Lcom/juhyeon/familyjourney/HostActivity;' in b
           p=pathlib.Path('build/moa-moment-r43')
           (p/'native.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
