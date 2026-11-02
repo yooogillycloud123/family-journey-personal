@@ -65,6 +65,17 @@ public class MoaMomentApplication extends Application implements Application.Act
     private final Context c;
     public CaptureBridge(Context c){this.c=c;}
     @JavascriptInterface public boolean enabled(){return MoaMomentCaptureService.enabled(c);}
+    @JavascriptInterface public void openSetup(){
+      android.content.Intent i=new android.content.Intent(c,MoaMomentSetupActivity.class);
+      i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+      c.startActivity(i);
+    }
+    @JavascriptInterface public boolean permissionsReady(){
+      return c.checkSelfPermission(android.Manifest.permission.READ_MEDIA_IMAGES)==android.content.pm.PackageManager.PERMISSION_GRANTED
+        && c.checkSelfPermission(android.Manifest.permission.READ_MEDIA_VIDEO)==android.content.pm.PackageManager.PERMISSION_GRANTED
+        && c.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)==android.content.pm.PackageManager.PERMISSION_GRANTED
+        && android.provider.Settings.canDrawOverlays(c);
+    }
     @JavascriptInterface public void setEnabled(boolean on) {MoaMomentCaptureService.switchTo(c,on);MoaMomentCaptureService.updateTile(c);}
     @JavascriptInterface public String error(){return MoaMomentCaptureService.prefs(c).getString("lastError","");}
     @JavascriptInterface public String drafts(){
