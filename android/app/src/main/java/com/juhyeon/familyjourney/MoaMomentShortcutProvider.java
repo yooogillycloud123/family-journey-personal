@@ -19,7 +19,7 @@ public final class MoaMomentShortcutProvider extends Activity {
   private static final String TOGGLE =
     "com.juhyeon.familyjournea.TOGGLE_MOMENT_MONITOR";
   private static final String HOST =
-    "com.juhyeon.familyjourney.HostActivity";
+    "com.juhyeon.familyjourney.MoaMomentToggleActivity";
 
   @Override protected void onCreate(Bundle state) {
     super.onCreate(state);
