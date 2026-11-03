@@ -33,6 +33,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The R50 bridge targets a separately patched final HostActivity field.
+          # It is NOT compiled into the MoaMoment DEX; omit it from this scratch
+          # CI checkout rather than modifying legacy R50 or user Golden code.
+          mv android/app/src/main/java/com/juhyeon/familyjourney/MoaR50Bridge.java /tmp/MoaR50Bridge.java.exclude-from-native-dex
           gradle -p android --no-daemon :app:compileDebugJavaWithJavac
           mkdir -p build/moa-moment-r43
           CLASSES="$(find android/app/build -name MoaMomentCaptureService.class -printf '%h\n' | head -1)"
