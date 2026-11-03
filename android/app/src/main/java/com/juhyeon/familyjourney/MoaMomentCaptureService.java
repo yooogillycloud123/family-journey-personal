@@ -193,7 +193,7 @@ public class MoaMomentCaptureService extends Service {
         boolean allowed=checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES)==PackageManager.PERMISSION_GRANTED
           && checkSelfPermission(Manifest.permission.READ_MEDIA_VIDEO)==PackageManager.PERMISSION_GRANTED
           && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)==PackageManager.PERMISSION_GRANTED;
-        if(!allowed||!Settings.canDrawOverlays(this)) {
+        if(!allowed) {
           Intent setup=new Intent(this,MoaMomentSetupActivity.class);
           setup.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
           if(Build.VERSION.SDK_INT>=34){
