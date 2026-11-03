@@ -1,0 +1,61 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"></head><body><script>
+(function(){'use strict';
+ const ORIGIN='https://familyjourney.local', DB='familyjourney-diary-v1';
+ const pad=n=>String(n).padStart(2,'0');
+ const dayOf=t=>{const d=new Date(t);if(!Number.isFinite(d.getTime()))throw Error('BAD_CAPTURE_AT');return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+ function openDiary(){return new Promise((yes,no)=>{
+  const r=indexedDB.open(DB,2);
+  r.onupgradeneeded=()=>{
+   const db=r.result,tx=r.transaction;
+   const entries=db.objectStoreNames.contains('entries')?tx.objectStore('entries'):db.createObjectStore('entries',{keyPath:'day'});
+   if(!db.objectStoreNames.contains('meta'))db.createObjectStore('meta');
+   const curated=db.objectStoreNames.contains('curated')?tx.objectStore('curated'):db.createObjectStore('curated',{keyPath:'day'});
+   entries.openCursor().onsuccess=e=>{const cursor=e.target.result;if(!cursor)return;
+    const x=cursor.value;if(x&&(x.selectionMode==='manual'||(x.selectionMode===undefined&&Array.isArray(x.photoIds)&&x.photoIds.length>0))){
+     curated.put(Object.assign({},x,{selectionMode:'manual',migratedFrom:'R23'}));
+     if(x.selectionMode==='manual')cursor.delete();
+    }cursor.continue();};
+  };
+  r.onsuccess=()=>yes(r.result);r.onerror=()=>no(Error('IDB_OPEN_ERROR'));r.onblocked=()=>no(Error('IDB_BLOCKED'));
+ });}
+ function readBack(db,day){return new Promise((yes,no)=>{const tx=db.transaction('curated','readonly');const req=tx.objectStore('curated').get(day);req.onsuccess=()=>yes(req.result||null);req.onerror=()=>no(Error('READBACK_ERROR'))})}
+ async function saveOne(db,raw){
+  const id=String(raw.id||''),at=Number(raw.at),note=String(raw.note||'').trim().slice(0,2000);
+  if(!/^(?:v[0-9]{1,18}|[0-9]{1,19})$/.test(id))throw Error('BAD_MEDIA_ID');
+  if(!Number.isSafeInteger(at)||at<946684800000||at>Date.now()+86400000)throw Error('BAD_MEDIA_TIME');
+  if(!note && raw.memoSaved!==true)throw Error('NOT_USER_SAVED');
+  const day=dayOf(at);let removed=false;
+  await new Promise((yes,no)=>{
+   const tx=db.transaction('curated','readwrite'),s=tx.objectStore('curated'),get=s.get(day);
+   tx.oncomplete=yes;tx.onerror=()=>no(Error('IDB_TRANSACTION_ERROR'));tx.onabort=()=>no(Error('IDB_TRANSACTION_ABORT'));
+   get.onerror=()=>{try{tx.abort()}catch(e){}};
+   get.onsuccess=()=>{try{
+    const existing=get.result||{day,photoIds:[],selectionMode:'manual',title:'',body:'',tags:[],feeling:'',activities:{},moments:[],source:'moment-capture'};
+    if((existing.removedMediaIds||[]).map(String).includes(id)){removed=true;return;}
+    const photoIds=[...new Set([...(existing.photoIds||[]).map(String),id])];
+    const moments=Array.isArray(existing.moments)?existing.moments.map(m=>Object.assign({},m,{photoIds:[...(m.photoIds||[])]})):[];
+    let target=moments.find(m=>(m.photoIds||[]).some(x=>String(x)===id));
+    if(!target){target={uid:'native-'+id,at,photoIds:[id],note:'',createdAt:Date.now()};moments.push(target);}
+    const old=String(target.note||'').trim();
+    if(note && !old.includes(note)){target.note=old?old+'\n'+note:note;target.updatedAt=Date.now();}
+    s.put(Object.assign({},existing,{day,photoIds,moments,updatedAt:Date.now()}));
+   }catch(e){try{tx.abort()}catch(_){} }};
+  });
+  if(!removed){const doc=await readBack(db,day);
+   if(!doc||(doc.photoIds||[]).map(String).indexOf(id)<0 || !(doc.moments||[]).some(m=>(m.photoIds||[]).map(String).includes(id)&&(!note||String(m.note||'').includes(note))))throw Error('IDB_READBACK_MISMATCH');
+  }
+  return id;
+ }
+ async function main(){
+  let packet=null;try{packet=JSON.parse(MoaNativeDiary.pull());}catch(e){throw Error('NATIVE_PACKET_BAD')}
+  const token=String(packet.token||'');if(!/^[a-f0-9]{32}$/.test(token)||!Array.isArray(packet.drafts)||packet.drafts.length>40)throw Error('BAD_PACKET');
+  if(location.origin!==ORIGIN)throw Error('ORIGIN_MISMATCH');
+  if(!indexedDB)throw Error('INDEXEDDB_UNAVAILABLE');
+  const db=await openDiary();const acked=[],failed=[];
+  try{for(const raw of packet.drafts){try{acked.push(await saveOne(db,raw));}catch(e){failed.push({id:String(raw.id||'').slice(0,20),reason:String(e.message||e).slice(0,70)});}}}
+  finally{db.close()}
+  MoaNativeDiary.done(JSON.stringify({token,origin:location.origin,store:DB,acked,failed}));
+ }
+ main().catch(e=>{try{MoaNativeDiary.done(JSON.stringify({error:String(e.message||e).slice(0,120)}));}catch(_){}});
+})();
+</script></body></html>
