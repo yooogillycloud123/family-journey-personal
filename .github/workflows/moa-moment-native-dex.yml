@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - main
-      - fix/moa-r64-thumb-prompt-oho-toggle-20261103
+      - fix/moa-r66-thumb-editor-pinned-5min-20261103
     paths:
       - 'android/app/src/main/java/com/juhyeon/familyjourney/**'
       - '.github/workflows/moa-moment-native-dex.yml'
