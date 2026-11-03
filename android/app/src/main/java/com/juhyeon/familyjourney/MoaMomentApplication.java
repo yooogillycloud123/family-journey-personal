@@ -61,10 +61,13 @@ public class MoaMomentApplication extends Application implements Application.Act
         "SHORTCUT_UNAVAILABLE "+e.getClass().getSimpleName()).apply();
     }
   }
-  private boolean toggleFromShortcut(Activity a){
+  private boolean isToggleShortcut(Activity a){
     if(a==null||!"com.juhyeon.familyjourney.HostActivity".equals(a.getClass().getName()))return false;
     Intent intent=a.getIntent();
-    if(intent==null||!MOA_TOGGLE_SHORTCUT_ACTION.equals(intent.getAction()))return false;
+    return intent!=null&&MOA_TOGGLE_SHORTCUT_ACTION.equals(intent.getAction());
+  }
+  private boolean toggleFromShortcut(Activity a){
+    if(!isToggleShortcut(a))return false;
     if(Boolean.TRUE.equals(toggledByShortcut.get(a)))return true;
     toggledByShortcut.put(a,true);
     try{
@@ -180,8 +183,10 @@ public class MoaMomentApplication extends Application implements Application.Act
     };
     main.postDelayed(task[0],100L);
   }
-  @Override public void onActivityCreated(Activity a,Bundle s){if(toggleFromShortcut(a))return;ensureBridge(a);}
+  @Override public void onActivityCreated(Activity a,Bundle s){if(isToggleShortcut(a))return;ensureBridge(a);}
   @Override public void onActivityResumed(Activity a){
+    // Android 14+ only allows foreground-service launch once Activity has resumed.
+    // Toggle here, not from onActivityCreated (which may still be background).
     if(toggleFromShortcut(a))return;
     ensureBridge(a);
     // R59: This class (not MoaMomentSyncApplication) is the actual
