@@ -51,7 +51,7 @@ public class MoaMomentApplication extends Application implements Application.Act
       ShortcutManager sm=getSystemService(ShortcutManager.class);
       if(sm==null)return;
       Intent toggle=new Intent(MOA_TOGGLE_SHORTCUT_ACTION);
-      toggle.setComponent(new ComponentName(this,"com.juhyeon.familyjourney.HostActivity"));
+      toggle.setComponent(new ComponentName(this,"com.juhyeon.familyjourney.MoaMomentToggleActivity"));
       toggle.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_MULTIPLE_TASK
         |Intent.FLAG_ACTIVITY_NO_ANIMATION);
       ShortcutInfo item=new ShortcutInfo.Builder(this,"moa-recording-toggle")
@@ -81,7 +81,7 @@ public class MoaMomentApplication extends Application implements Application.Act
       if(MoaMomentCaptureService.prefs(this).getBoolean("moaPinOfferR66",false))return;
       MoaMomentCaptureService.prefs(this).edit().putBoolean("moaPinOfferR66",true).apply();
       Intent launch=new Intent(MOA_TOGGLE_SHORTCUT_ACTION);
-      launch.setComponent(new ComponentName(this,"com.juhyeon.familyjourney.HostActivity"));
+      launch.setComponent(new ComponentName(this,"com.juhyeon.familyjourney.MoaMomentToggleActivity"));
       launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_MULTIPLE_TASK|Intent.FLAG_ACTIVITY_NO_ANIMATION);
       ShortcutInfo shortcut=new ShortcutInfo.Builder(this,"moa-recording-toggle")
         .setShortLabel("모아 기록 전환")
