@@ -3,6 +3,13 @@ package com.juhyeon.familyjourney;
 import android.Manifest;
 import android.app.Activity;
 import android.app.Application;
+import android.content.Intent;
+import android.content.ComponentName;
+import android.content.pm.ShortcutInfo;
+import android.content.pm.ShortcutManager;
+import android.graphics.drawable.Icon;
+import android.widget.Toast;
+import java.util.Collections;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -25,7 +32,61 @@ import java.util.WeakHashMap;
 public class MoaMomentApplication extends Application implements Application.ActivityLifecycleCallbacks {
   private final Handler main=new Handler(Looper.getMainLooper());
   private final WeakHashMap<WebView,Boolean> attached=new WeakHashMap<>();
-  @Override public void onCreate(){super.onCreate();registerActivityLifecycleCallbacks(this);MoaMomentDirectDiaryStore.requestSync(this);}
+  private final WeakHashMap<Activity,Boolean> toggledByShortcut=new WeakHashMap<>();
+  private static final String MOA_TOGGLE_SHORTCUT_ACTION="com.juhyeon.familyjournea.TOGGLE_MOMENT_MONITOR";
+  @Override public void onCreate(){super.onCreate();registerActivityLifecycleCallbacks(this);MoaMomentDirectDiaryStore.requestSync(this);publishMomentToggleShortcut();}
+  /**
+   * OHO+ can select ordinary launcher shortcuts from its "Home screen shortcuts"
+   * gesture action. Do NOT create a new app icon or a new privileged TileService.
+   * Reuse the exact QuickTile state setter with one single user swipe.
+   */
+  private void publishMomentToggleShortcut(){
+    try{
+      ShortcutManager sm=getSystemService(ShortcutManager.class);
+      if(sm==null)return;
+      Intent toggle=new Intent(MOA_TOGGLE_SHORTCUT_ACTION);
+      toggle.setComponent(new ComponentName(this,"com.juhyeon.familyjourney.HostActivity"));
+      toggle.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+        |Intent.FLAG_ACTIVITY_NO_ANIMATION);
+      ShortcutInfo item=new ShortcutInfo.Builder(this,"moa-recording-toggle")
+        .setShortLabel("모아 기록 전환")
+        .setLongLabel("모아 순간 기록 ON/OFF")
+        .setActivity(new ComponentName(this,"com.juhyeon.familyjourney.HostActivity"))
+        .setIcon(Icon.createWithResource("android",android.R.drawable.ic_menu_camera))
+        .setIntent(toggle)
+        .build();
+      sm.addDynamicShortcuts(Collections.singletonList(item));
+    }catch(Throwable e){
+      MoaMomentCaptureService.prefs(this).edit().putString("shortcutPublishDiagnostic",
+        "SHORTCUT_UNAVAILABLE "+e.getClass().getSimpleName()).apply();
+    }
+  }
+  private boolean toggleFromShortcut(Activity a){
+    if(a==null||!"com.juhyeon.familyjourney.HostActivity".equals(a.getClass().getName()))return false;
+    Intent intent=a.getIntent();
+    if(intent==null||!MOA_TOGGLE_SHORTCUT_ACTION.equals(intent.getAction()))return false;
+    if(Boolean.TRUE.equals(toggledByShortcut.get(a)))return true;
+    toggledByShortcut.put(a,true);
+    try{
+      boolean turnOn=!MoaMomentCaptureService.enabled(a);
+      MoaMomentCaptureService.switchTo(a,turnOn);
+      MoaMomentCaptureService.updateTile(a);
+      boolean actual=MoaMomentCaptureService.enabled(a);
+      if(turnOn&&!actual){
+        Toast.makeText(a,"모아 기록을 켜려면 사진·영상·알림 권한을 허용하세요.",Toast.LENGTH_SHORT).show();
+        Intent setup=new Intent(a,MoaMomentSetupActivity.class);
+        a.startActivity(setup);
+      }else{
+        Toast.makeText(a,actual?"모아 순간 기록 켜짐":"모아 순간 기록 꺼짐",Toast.LENGTH_SHORT).show();
+      }
+    }catch(Throwable e){
+      Toast.makeText(a,"모아 기록 전환 실패 · 설정에서 확인해 주세요.",Toast.LENGTH_SHORT).show();
+    }finally{
+      a.finish();
+      a.overridePendingTransition(0,0);
+    }
+    return true;
+  }
   // R49: attach the Java bridge to the WebView owned by the original
   // HostActivity. Do not assume getUrl() has become non-null when the view exists.
   // WebView can load an asset URL asynchronously; URL-gated injection missed it
@@ -119,8 +180,9 @@ public class MoaMomentApplication extends Application implements Application.Act
     };
     main.postDelayed(task[0],100L);
   }
-  @Override public void onActivityCreated(Activity a,Bundle s){ensureBridge(a);}
+  @Override public void onActivityCreated(Activity a,Bundle s){if(toggleFromShortcut(a))return;ensureBridge(a);}
   @Override public void onActivityResumed(Activity a){
+    if(toggleFromShortcut(a))return;
     ensureBridge(a);
     // R59: This class (not MoaMomentSyncApplication) is the actual
     // AndroidManifest application in the shipped R57/R58 APK.
