@@ -1,0 +1,23 @@
+# MOA R59 — R58 user-device regression recovery (mandatory latest)
+
+**READ BEFORE ANY NEW MOA BUILD:** also read `MOA_ABSOLUTE_READ_FIRST_20261103.md`, `MOA_WIP_CHECKPOINT_CURRENT.md`, `MOA_R57_GOLDEN_ISSUES_READ_FIRST_20261103.md`, `MOA_R58_ONE_SAVE_SINGLE_NATIVE_READ_FIRST_20261103.md`. Never remove or clear the original R37 (`com.juhyeon.familyjourne8`) or the latest R58/R59 (`com.juhyeon.familyjournea`).
+
+## Definitive source + screen recording evidence
+User 2026-11-03 screenshots `18231.png`, `18233.png`, 21.59-second `18235.mp4` establish:
+- Samsung Camera captured a photo, native capture notification did fire, native memo page and Google Korean voice recognition did work, and saving produced a local pending/sync toast. The native camera alert path was NOT completely dead.
+- On entering MOA, diary still showed no new recorded note; the web button falsely showed `촬영 즉시 기록 OFF` and produced `MoaMomentNative` bridge-missing alert. Therefore concrete regression = **native saved memo not reaching WebView IndexedDB**, plus falsely unavailable web ON/OFF, not necessarily camera JPG missing from storage.
+- Native source `MoaMomentInboxSync.java` is compiled in shipped R57/R58 `classes4.dex`, and independently delivers local SharedPreferences drafts to host WebView `__moaNativeSync`, verifies IndexedDB commit by token, removes draft only on exact ACK. But actual R58 Android manifest uses `MoaMomentApplication`, whose `onActivityResumed` called only `ensureBridge(a)` and **never called `MoaMomentInboxSync.onResume(a)`**. The alternative `MoaMomentSyncApplication` does call InboxSync, but is not manifest-selected. This proves the independent backup sync path was dormant; combined with user-observed missing JS interface explains lost UI diary link.
+
+## R59 tested changes (static only)
+- PR #3 `feature/moa-r59-native-inbox-failsafe`, GitHub head `39325740a7247b8d6dec9dc655ea2767e9a17e97` contains the surgical Java edit to `MoaMomentApplication.java`: on HostActivity resume call both existing JS bridge ensure and `MoaMomentInboxSync.onResume(a)`. If a WebView finished loading but interface is still absent, guard a one-time safe reload only when diary not editing. No rewrites of the Camera service, native memo Activity, Korean speech recognizer, or original HostActivity.
+- Native compiler: GitHub Actions Android Java/SDK/D8 workflow `41606313301` SUCCESS, artifact `13216034030`. Output `classes.dex` is assembled into APK as `classes4.dex`, SHA/DEX verified.
+- In web diary, preserve R58's single native capture and R42 duplicate-popup hard guard; missing JS bridge now displays *unknown / use QS tile* instead of falsely saying OFF and showing a blocking error. Native inbox works independently of the JS interface.
+- Signed R59 APK: `MOA_R59_네이티브저장복구_중복팝업차단_동일앱업데이트.apk`, SHA256 `c2c3014f83fe0408b11eac5e7828d5c8a803e4adbfb2733901a0ff10f136a855`, package `com.juhyeon.familyjournea`, versionCode 59, same R57/R58 private-key certificate SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+- Changed APK items **exactly 3**: AndroidManifest version, `assets/web/family-diary.js`, `classes4.dex`. Remaining 50 entries byte-identical, including HostActivity, all original map/gallery and diary assets, widget. No new app or signature. R39 existing signer reused privately (never publish credential/secret).
+- Independent APK static gate **95/95 PASS**: APK v2 RSA/contents digest, original cert identity, ZIP+4 DEX checksums, correct manifest version and package, protected files exact match, JS syntax, R42 popup prevention, JS native-ACK failure/retry and no-bridge UI model.
+
+## Gate/status: NOT final
+**No R59 Samsung physical confirmation yet.** Only compiled Java/static APK gate success. Crucial next test: update over R58 with no uninstall/clear. Before new capture, inspect whether R58 previously saved pending memo appears in November 3 diary on first R59 launch (recovery). Ensure QS `모아 기록` ON (not inferred from web missing bridge). Samsung Camera 1 photo → actual native overlay or notification → type/speak note once → native save → open MOA → timeline at shot time shows note exactly once → no additional R42 modal → exit/reenter persists. If still fails collect precise native `inboxSyncDiagnostic`, `bridgeDiagnostic`, IndexedDB sync status via read-only diagnostics; don't blindly change anything else or generate more app packages.
+
+## Private evidence
+`/모아_프로젝트_근거_20261103/` — R57/R58 rollback, signed R59 APK, independent verification JSON, R59 source/test ZIP and readme. Never delete keys, original R37, or saved media.
