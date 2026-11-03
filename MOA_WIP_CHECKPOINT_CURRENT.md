@@ -111,3 +111,6 @@ R42 source and local verification artifacts re-read. Build remains gated on orig
 - R54 대비 APK 내부 변경은 `assets/web/family-diary.js`(ACCEPTED와 진짜 IndexedDB commit ACK 구분, 실패 자동 재시도, 미작성 메모 보존)와 `AndroidManifest.xml`의 versionCode/name **2개뿐**. 네이티브 카메라 감시/오버레이/Google 음성 DEX **완전 동일**, 나머지 원본 자산 100% 동일.
 - 독립 APK 서명·ZIP·DEX·Manifest·web 원본·JS async test **92/92 PASS**, 새 APK Android 실기기 테스트 **NOT RUN**. R37 원본 별도 앱 `com.juhyeon.familyjourne8`은 R55로 업데이트되지 않고 데이터 별도, 절대 삭제 금지.
 - 결과물·검증 JSON·재현 빌드 스크립트는 사용자 private Library `/모아_프로젝트_근거_20261103/` 보관. 다음 단계: 사용자의 R55 실제 테스트(촬영 2회→각각 음성/문자 입력→일기 즉시 반영→종료/재실행 후 지속 확인). 웹 일기 마이크 not-allowed는 별도 미완 항목.
+
+## R57 (2026-11-03) built and verified — device test pending
+Read [MOA_R57_GOLDEN_ISSUES_READ_FIRST_20261103.md](MOA_R57_GOLDEN_ISSUES_READ_FIRST_20261103.md) first. User video identified duplicate R42 popup, persistent native memo alert and missing per-photo/video diary removal. R57 signed APK preserves package and certificate of R55 (version 57). CI Android D8 native DEX build PASS (PR #2), independent static gate 102/102 PASS. Original camera capture and native Korean speech must remain GOLDEN. No R57 Samsung device PASS yet; original R37 data stays untouched. Current artifact in user's private MOA Library.
