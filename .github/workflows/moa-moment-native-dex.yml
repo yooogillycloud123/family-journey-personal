@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - main
-      - fix/moa-r68-visible-shortcut-sticky-editor-20261103
+      - fix/moa-r70-direct-toggle-activity-20261104
     paths:
       - 'android/app/src/main/java/com/juhyeon/familyjourney/**'
       - '.github/workflows/moa-moment-native-dex.yml'
