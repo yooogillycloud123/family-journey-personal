@@ -96,3 +96,10 @@ R42 source and local verification artifacts re-read. Build remains gated on orig
 - R54 APK 실제 `assets/web/family-diary.js` 636행 부근 핵심 신뢰성 결함 직접 확인: native `drafts()` → `__moaNativeSync()`가 `ACCEPTED`(비동기 작업 **접수**만 의미)를 즉시 반환했을 뿐인데 `lastPayload=key`로 설정하여 해당 내용이 실제 IndexedDB에 저장 실패/편집충돌해도 **같은 payload 자동 재시도를 차단**. 실제 저장 완료는 `__moaNativeAckByToken[token].acked/failed`에 비동기로 기록됨. `lastPayload`를 오직 ACK 검증 후 갱신하고, 실패 시 재시도 및 디버그 상태 제공하는 게 정확한 우선 수정.
 - R54에 `native.ack(id)` 호출이 없으므로 Android SharedPreferences 초안이 계속 남는 점은 R49 감시가 다시 알림을 일으키는 결함에 대한 임시 방지책이었음. 이에 따른 '알림 메모는 저장했는데 여전히 남음'은 **네이티브 보류 큐 vs IndexedDB 완료의 상태 불일치** 가능성이 큼; 실제 기기 로그로 확인할 것.
 - 판정: **카메라 촬영 직후 기록 버튼과 네이티브 음성은 성공**. 문제 초점은 확실히 **네이티브 임시기록 → WebView IndexedDB 원자적 저장 → 완료 확인/중복 방지 → 화면 즉시 갱신**이다. 앞으로 이미 성공한 촬영 감지부터 갈아엎지 말 것. 기존 R37 보존·R54 별도 패키지 문제는 여전히 해결 필요.
+
+## 2026-11-03 R55 저장 완결성 검증 코드 작성 (사용자 동영상 근거)
+- R54 실제 `family-diary.js`에서 **`ACCEPTED`를 저장 완료로 오인**하고 `lastPayload=key`를 즉시 기록하던 문제 확인. 비동기 IndexedDB 저장에 실패해 `__moaNativeAckByToken[token].failed`로 돌아와도 동일 payload는 재시도되지 않았음. 사용자가 '여러 번 나갔다 들어와야 반영'한다고 경험한 증상에 부합하는 **확정 코드 결함**. 이것만이 모든 잔여 증상의 원인이라는 뜻은 아님.
+- R55 패치 `r54_native_bridge_commit_ack_fix.js`: `window.__moaNativeAckByToken[token]`로 **진짜 commit ACK** 완료 후에만 payload 중복 제거 상태 갱신. 실패/미응답은 데이터 삭제 없이 2초 후 재시도; 사용자가 메모를 저장하지 않은 초안은 보존; 네이티브 브리지 없으면 대기. `window.__moaNativeSyncStatus`로 상태 `PENDING_COMMIT / COMMITTED / RETRY_PENDING / NO_SAVED_MEMO / WAIT_NATIVE_BRIDGE` 진단 제공.
+- 실제 R54 APK에서 추출한 JS에만 치환한 `R55_family-diary_candidate.js`: `node --check` PASS, 원래 R42 폴백/Diary 경로 유지. Node VM 독립 테스트 4개 PASS: ACK 전 완료 표시 금지; 승인 후 중복전송 금지; 실패 후 동일 payload 재시도; 미기록 초안/브리지 부재시 보존.
+- **패치 자체는 개발/단위테스트 PASS이지 기기 배포/실기기 저장 성공이 아니다.** 원본 R37과 R54 별도 패키지 문제 그대로. 기존 사용자 설치 앱 삭제/데이터 초기화 금지. R54 네이티브 DEX에 seen tombstone이 반영될 때까지 native.ack 제거 사용 금지.
+- 동영상에서 Android 네이티브 음성 입력이 **실제로 성공**했고 `not-allowed` 오류는 별도 웹 일기 입력에서만 발생한다. 성공한 촬영 알림/네이티브 음성 경로를 다시 교체하지 말 것.
