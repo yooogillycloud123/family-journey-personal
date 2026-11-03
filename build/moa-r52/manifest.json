@@ -1,0 +1,8 @@
+{
+  "sha256": "223ac012106a3810054a4e01b12dbcdb7e9de10d9df2e601e5ecb8e242502da9",
+  "bytes": 41380,
+  "format": "dex",
+  "abi": "Android API 26+",
+  "exact_host": "com.juhyeon.familyjourney.HostActivity",
+  "bridge": "MoaMomentBridgeHostActivity"
+}
