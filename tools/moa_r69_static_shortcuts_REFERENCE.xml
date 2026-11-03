@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R69 signed APK contains AXML compiled from this logically equivalent declaration.
+     Must attach <meta-data android:name="android.app.shortcuts" android:resource="@xml/moa_shortcuts"/>
+     under the signed APK's MAIN+LAUNCHER HostActivity. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+  <shortcut
+      android:shortcutId="moa_recording_toggle"
+      android:enabled="true"
+      android:icon="@android:drawable/ic_menu_camera"
+      android:shortcutShortLabel="@string/moa_shortcut_short"
+      android:shortcutLongLabel="@string/moa_shortcut_long">
+    <intent
+        android:action="com.juhyeon.familyjournea.TOGGLE_MOMENT_MONITOR"
+        android:targetPackage="com.juhyeon.familyjournea"
+        android:targetClass="com.juhyeon.familyjourney.HostActivity" />
+  </shortcut>
+</shortcuts>
