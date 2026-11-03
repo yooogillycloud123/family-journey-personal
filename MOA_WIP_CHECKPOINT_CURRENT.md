@@ -65,3 +65,9 @@ R42 source and local verification artifacts re-read. Build remains gated on orig
 - 로컬 R42 additive inbox JS v2: 기존 R42 `mmFlush`와 네이티브 Inbox 작업을 하나의 Promise 큐로 직렬화하여 동시 `dbGet/dbPut` 덮어쓰기 가능성 감소. 이미 있는 '내가 고른 사진 일기'의 기존 `selectionMode`도 유지하도록 수정. 자동 회귀 테스트 **9건 PASS**, Node 구문 PASS, R51의 bare `async` 오류 재현 PASS.
 - 정확히 제한할 Gate: Android SDK/D8 없음(local), GitHub Actions 컴파일 산출물 미확보, 실제 사용자 정상 모아 서명/패키지 확인 미완, Galaxy S26 Ultra 실기기 테스트 불가. **최종 업데이트 APK 미완성**, 미검증 앱 설치를 사용자에게 요구하지 않음.
 - 로컬 실측 코드: `/mnt/data/moa_r52_dev/` (새 채팅에서 해당 경로가 자동 존재한다고 가정하지 말고 Library 보관본을 열 것).
+
+## R52 검증 업데이트 (2026-11-03)
+- R42 native inbox v2: 원본 R42 JS 해시 고정, mmFlush↔native 동시 쓰기 큐 직렬화, 기존 selected/automatic selectionMode 보존, ACK 메모리 한도. Node.js 9건 PASS, R51 `ReferenceError: async is not defined` 재현·한 줄 수정 시 일기 객체 등록 PASS.
+- Android 네이티브 inbox/app 라이프사이클 Java 소스는 자바 17 + 테스트 더블(최소 Android API stub) 타입 검증 **PASS (class 19개)**. **이 검사는 실제 Android SDK 35 + D8 컴파일 결과가 아님.**
+- `moa-r50-native-dex.yml`을 R52 inbox 5개 Java 소스만 컴파일하도록 좁히고 DEX 아티팩트 경로를 R52로 변경. GitHub workflow run 확인 결과 없음, 실제 Android DEX artifact 여전히 미확보.
+- 원래 사용자 정상 앱 private signer와 실제 active package 검증 미완. 결과: **완성 APK 미배포**; 사용자에게 또 다른 미검증 APK 설치하지 않음.
