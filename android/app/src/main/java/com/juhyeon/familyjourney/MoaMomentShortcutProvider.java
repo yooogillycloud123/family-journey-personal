@@ -42,7 +42,7 @@ public final class MoaMomentShortcutProvider extends Activity {
           new ShortcutInfo.Builder(this, "moa-recording-toggle");
         builder.setShortLabel("모아 기록 전환")
           .setLongLabel("모아 순간 기록 켜기/끄기")
-          .setActivity(new ComponentName(this,HOST))
+          .setActivity(new ComponentName(this,"com.juhyeon.familyjourney.HostActivity"))
           .setIntent(launch);
         if (icon != 0) builder.setIcon(
           android.graphics.drawable.Icon.createWithResource(this,icon));
