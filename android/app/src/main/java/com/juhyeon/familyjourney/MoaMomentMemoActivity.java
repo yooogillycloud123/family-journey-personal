@@ -36,7 +36,9 @@ public final class MoaMomentMemoActivity extends Activity {
     Button save=new Button(this);save.setText("모아 일기에 메모 저장");l.addView(save);
     save.setOnClickListener(v->{
       try{String previous=MoaMomentCaptureService.prefs(this).getString("m:"+id,"");if(previous.isEmpty()){Toast.makeText(this,"사진 기록을 찾지 못했습니다.",Toast.LENGTH_LONG).show();return;}
-        String note=text.getText().toString().trim();\n        if(note.isEmpty()){Toast.makeText(this,"메모를 입력하거나 음성으로 말한 뒤 저장해 주세요.",Toast.LENGTH_LONG).show();return;}\n        JSONObject data=new JSONObject(previous);data.put("note",note);data.put("memoSaved",true);data.put("updatedAt",System.currentTimeMillis());
+        String note=text.getText().toString().trim();
+        if(note.isEmpty()){Toast.makeText(this,"메모를 입력하거나 음성으로 말한 뒤 저장해 주세요.",Toast.LENGTH_LONG).show();return;}
+        JSONObject data=new JSONObject(previous);data.put("note",note);data.put("memoSaved",true);data.put("updatedAt",System.currentTimeMillis());
         if(!MoaMomentCaptureService.prefs(this).edit().putString("m:"+id,data.toString()).commit())throw new Exception("저장 오류");
         // Overlay-opened memo does not auto-cancel its event notification.
         // Dismiss ONLY this media item after the native draft commits.
