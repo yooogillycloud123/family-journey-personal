@@ -103,3 +103,11 @@ R42 source and local verification artifacts re-read. Build remains gated on orig
 - 실제 R54 APK에서 추출한 JS에만 치환한 `R55_family-diary_candidate.js`: `node --check` PASS, 원래 R42 폴백/Diary 경로 유지. Node VM 독립 테스트 4개 PASS: ACK 전 완료 표시 금지; 승인 후 중복전송 금지; 실패 후 동일 payload 재시도; 미기록 초안/브리지 부재시 보존.
 - **패치 자체는 개발/단위테스트 PASS이지 기기 배포/실기기 저장 성공이 아니다.** 원본 R37과 R54 별도 패키지 문제 그대로. 기존 사용자 설치 앱 삭제/데이터 초기화 금지. R54 네이티브 DEX에 seen tombstone이 반영될 때까지 native.ack 제거 사용 금지.
 - 동영상에서 Android 네이티브 음성 입력이 **실제로 성공**했고 `not-allowed` 오류는 별도 웹 일기 입력에서만 발생한다. 성공한 촬영 알림/네이티브 음성 경로를 다시 교체하지 말 것.
+
+## 2026-11-03 GOLDEN R54 → R55 실제 업데이트 APK 완성 (정적)
+- **새 채팅 필독:** [MOA_R54_R55_GOLDEN_READ_FIRST.md](MOA_R54_R55_GOLDEN_READ_FIRST.md).
+- R54 삼성 카메라 촬영 직후 오버레이·Android 네이티브 한국어 음성은 사용자 영상 **실기기 PASS**로 고정. R54 일기 동기화는 불규칙하여 아직 PASS 아님.
+- R55 APK `MOA_R55_골든보정_기존R54업데이트_저장동기화.apk`, package `com.juhyeon.familyjournea`, versionCode **55**(R54=54), **동일 인증서** `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`, APK SHA256 `6a9ecd2d0b26b97dfbecbabbcfc26f16eb04aef30a2787b093dc271711b5bdc3`. R54 위에 덮어쓰기: **R54 아이콘 1개 그대로, 새로운 앱 추가 없음**.
+- R54 대비 APK 내부 변경은 `assets/web/family-diary.js`(ACCEPTED와 진짜 IndexedDB commit ACK 구분, 실패 자동 재시도, 미작성 메모 보존)와 `AndroidManifest.xml`의 versionCode/name **2개뿐**. 네이티브 카메라 감시/오버레이/Google 음성 DEX **완전 동일**, 나머지 원본 자산 100% 동일.
+- 독립 APK 서명·ZIP·DEX·Manifest·web 원본·JS async test **92/92 PASS**, 새 APK Android 실기기 테스트 **NOT RUN**. R37 원본 별도 앱 `com.juhyeon.familyjourne8`은 R55로 업데이트되지 않고 데이터 별도, 절대 삭제 금지.
+- 결과물·검증 JSON·재현 빌드 스크립트는 사용자 private Library `/모아_프로젝트_근거_20261103/` 보관. 다음 단계: 사용자의 R55 실제 테스트(촬영 2회→각각 음성/문자 입력→일기 즉시 반영→종료/재실행 후 지속 확인). 웹 일기 마이크 not-allowed는 별도 미완 항목.
