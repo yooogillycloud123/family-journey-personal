@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the following ACTIVITY is added to the actual R69 signed APK
+     <application>. All other components and user data are unchanged.
+     The real APK manifest is the canonical binary source, not the
+     separate Gradle sample application manifest in this repository.
+-->
+<activity xmlns:android="http://schemas.android.com/apk/res/android"
+    android:name="com.juhyeon.familyjourney.MoaMomentToggleActivity"
+    android:exported="true"
+    android:theme="@android:style/Theme.Translucent.NoTitleBar" />
