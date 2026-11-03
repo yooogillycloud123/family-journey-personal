@@ -1,0 +1,3 @@
+# MOA R68 user follow-up
+
+R63 remains the immutable, user-verified photo-memo Golden. R66 OHO+ shortcut does not appear in Samsung chooser. R68 adds an exported ACTION_CREATE_SHORTCUT Activity and an always-visible diary editor action bar. R68 is built and signed but Samsung OHO+ runtime is not yet verified. Future photo English learning will derive separate bilingual lessons from curated photo IDs, capture timestamps and Korean notes without changing the original diary.
