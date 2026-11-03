@@ -1,3 +1,8 @@
+# 2026-11-03 R64 UX BETA / R65 Golden-code return (not new physical Golden)
+- After user R63 physical success, separately compiled **R64** thumb-zone single app-overlay / quiet backup notification / Samsung OHO+ dynamic `모아 기록 전환` shortcut toggling native `switchTo`. CI run `41646577961` **SUCCESS**; APK `MOA_R64_Thumb_OHO_BETA_Install.apk` SHA256 `50facd37f4c6e1e6156f220cb1dd1298ccbd5960d6874308b5c1618de2cf2321`, versionCode64, cert unchanged, 2/54 entries changed (Manifest+classes4.dex), golden diary JS + direct-IDB HTML byte-identical. **No Galaxy R64 UX device PASS yet.** Frozen R63 remains Golden.
+- Separate code-return same-package v65 `MOA_R65_GOLDEN_CORE_RESTORE_ONLY.apk` SHA256 `e7e7f3e438dbb909ac1e09aa157b1fefa3f031e2e04e3b99bdf781ed29fb3b7d`, exact Golden 53/54 member bytes including native DEX and diary JS, only higher version manifest. For recovery from optional R64 test only; no uninstall/cache clear and not full physical rollback proof.
+- Full [MOA_R64_THUMB_PROMPT_OHO_GESTURE_BETA_20261103.md](MOA_R64_THUMB_PROMPT_OHO_GESTURE_BETA_20261103.md); **R63 physical Golden lock ALWAYS prevails**.
+
 # ✅ 2026-11-03 최신 실기기 확정 — MOA R63 GOLDEN (기존 미검증 기록 무효화)
 - **User PHYSICAL PASS:** Samsung Galaxy screenshot shows selected photo diary “사진·영상으로 보는 하루” at `22:23~22:24`, `3장`, memo lines `22:23 저장`, `22:23 율리`, `22:24 오케이 그러면 이제 문제가`. User explicitly declares GOLDEN. Media card slots visible; thumbnail image pixels pale/blank, separately to assess. Subsequent restarts not separately proven.
 - Locked APK SHA-256 `64b1b730478a2a50976961cc2dc4cf511182a75495f2d02159f091167f646024`, 3,422,752B, package `com.juhyeon.familyjournea`, code 63, signer `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
