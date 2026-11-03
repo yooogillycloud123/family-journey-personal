@@ -98,8 +98,8 @@ public class MoaMomentApplication extends Application implements Application.Act
     };
     main.postDelayed(task[0],100L);
   }
-  @Override public void onActivityCreated(Activity a,Bundle s){ensureBridge(a);}
-  @Override public void onActivityResumed(Activity a){ensureBridge(a);}
+  @Override public void onActivityCreated(Activity a,Bundle s){ensureBridge(a);MoaMomentInboxSync.onResume(a);}
+  @Override public void onActivityResumed(Activity a){ensureBridge(a);MoaMomentInboxSync.onResume(a);}
   @Override public void onActivityStarted(Activity a){}
   @Override public void onActivityPaused(Activity a){}
   @Override public void onActivityStopped(Activity a){}
