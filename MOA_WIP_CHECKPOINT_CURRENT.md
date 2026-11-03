@@ -59,3 +59,9 @@ E. 동일 앱 서명/패키지·업그레이드 가능한 경로를 검증한 **
 
 ## 2026-11-03 new inspection
 R42 source and local verification artifacts re-read. Build remains gated on original package signer and real device verification.
+
+## 2026-11-03 현재 진행: R42 보존 통합 코드 및 독립 감시 엔진 수정
+- 실제 GitHub main 변경: `MoaMomentInboxSync.java`(호스트 WebView 직접 JS 평가/IndexedDB ACK 후 동일 바이트의 native draft 삭제), `MoaMomentSyncApplication.java`(별도 Activity 또는 브리지 리로드 없이 콜백 전달), `MoaMomentSetupActivity.java`(화면 위 표시 권한은 선택사항; 알림 감시 자체를 차단하지 않음), `MoaMomentCaptureService.java`(빠른 설정 ON 시 오버레이 미허용이라도 사진/영상/알림 권한이 있으면 시작 가능).
+- 로컬 R42 additive inbox JS v2: 기존 R42 `mmFlush`와 네이티브 Inbox 작업을 하나의 Promise 큐로 직렬화하여 동시 `dbGet/dbPut` 덮어쓰기 가능성 감소. 이미 있는 '내가 고른 사진 일기'의 기존 `selectionMode`도 유지하도록 수정. 자동 회귀 테스트 **9건 PASS**, Node 구문 PASS, R51의 bare `async` 오류 재현 PASS.
+- 정확히 제한할 Gate: Android SDK/D8 없음(local), GitHub Actions 컴파일 산출물 미확보, 실제 사용자 정상 모아 서명/패키지 확인 미완, Galaxy S26 Ultra 실기기 테스트 불가. **최종 업데이트 APK 미완성**, 미검증 앱 설치를 사용자에게 요구하지 않음.
+- 로컬 실측 코드: `/mnt/data/moa_r52_dev/` (새 채팅에서 해당 경로가 자동 존재한다고 가정하지 말고 Library 보관본을 열 것).
