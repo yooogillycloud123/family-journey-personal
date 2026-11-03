@@ -171,7 +171,7 @@ public class MoaMomentCaptureService extends Service {
         card.addView(handle);
         Button note=new Button(this);
         note.setText("바로 기록");
-        note.setTextAllCaps(false);
+        note.setAllCaps(false);
         note.setTextSize(14);
         note.setMinimumWidth(dp(92));
         note.setMinHeight(dp(45));
