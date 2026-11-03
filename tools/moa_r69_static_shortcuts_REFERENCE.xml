@@ -12,6 +12,6 @@
     <intent
         android:action="com.juhyeon.familyjournea.TOGGLE_MOMENT_MONITOR"
         android:targetPackage="com.juhyeon.familyjournea"
-        android:targetClass="com.juhyeon.familyjourney.HostActivity" />
+        android:targetClass="com.juhyeon.familyjourney.MoaMomentToggleActivity" />
   </shortcut>
 </shortcuts>
