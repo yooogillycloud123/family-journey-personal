@@ -64,3 +64,9 @@
 6. 각 세션의 중요한 수정·증거·실패·잔여 단계는 `MOA_WIP_CHECKPOINT_CURRENT.md`에 **실제 수행한 사실만** 업데이트한다.
 
 **현재 판정 (2026-11-03): 통합 완성 APK 부재. R42=기능 복원 기준, R37=사진 일기 기존 기능 참고, R44 이후 교체 방식은 퇴행. 원본 모아 앱 데이터 보존이 최우선.**
+
+## 6. 재현용 자동 회귀 게이트 (2026-11-03 추가)
+- 상세 정적 근거 영구 보존: [MOA_EVIDENCE_R37_R51_20261103.md](MOA_EVIDENCE_R37_R51_20261103.md).
+- 재사용 검사: `python tools/moa_apk_regression_gate.py --baseline MOA_R42_Moment_Timeline_Memo_Voice_Compat_BETA.apk --candidate <새APK>`.
+- 이 게이트는 R42에 존재한 **귀환 후 촬영 감지, 사진·영상, 타임라인 메모, ON/OFF**와 APK 패키지/서명 연속성의 정적 보존 여부를 검사한다. 직접 R42 APK(기준)와 R44 APK(퇴행)를 대조한 로컬 동등 스크립트에서 R42 PASS / R44 `R44_hard_disabled_fallback_absent` FAIL을 재현. GitHub 커밋 버전도 다음 세션에서 반드시 실행 검증.
+- 이 검사 PASS는 앱 실행·실제 기기·일기 저장 PASS가 아니다. 기존 정상 모아 앱 패키지/서명과 달라도 R42 기준만 통과하면 된다는 의미가 **아님**.
