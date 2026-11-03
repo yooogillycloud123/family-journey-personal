@@ -1,0 +1,50 @@
+name: MOA R57 native notification cleanup DEX
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile-native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile Android classes and run D8
+        run: |
+          set -euo pipefail
+          LIB="$ANDROID_HOME/platforms/android-35/android.jar"
+          test -s "$LIB"
+          SRC=android/app/src/main/java/com/juhyeon/familyjourney
+          mkdir -p /tmp/moar57/classes /tmp/moar57/dex
+          javac --release 17 -encoding UTF-8 -cp "$LIB" -d /tmp/moar57/classes \
+            "$SRC/MoaMomentCaptureService.java" \
+            "$SRC/MoaMomentMemoActivity.java" \
+            "$SRC/MoaMomentSetupActivity.java" \
+            "$SRC/MoaMomentApplication.java" \
+            "$SRC/MoaMomentInboxSync.java" \
+            "$SRC/MoaMomentSyncApplication.java"
+          find /tmp/moar57/classes -type f -name '*.class' > /tmp/moar57/allclasses.txt
+          "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 26 --lib "$LIB" --output /tmp/moar57/dex @/tmp/moar57/allclasses.txt
+          test -s /tmp/moar57/dex/classes.dex
+      - name: Confirm DEX checksums and class names
+        run: |
+          python3 - <<'PY'
+          import hashlib,struct,zlib
+          from pathlib import Path
+          d=Path('/tmp/moar57/dex/classes.dex').read_bytes()
+          assert d[:4]==b'dex\n'
+          assert hashlib.sha1(d[32:]).digest()==d[12:32]
+          assert zlib.adler32(d[12:])&0xffffffff==struct.unpack_from('<I',d,8)[0]
+          for n in [b'MoaMomentCaptureService',b'MoaMomentMemoActivity',b'MoaMomentApplication',b'MoaMomentInboxSync']:
+            assert n in d,n
+          print('DEX_PASS',hashlib.sha256(d).hexdigest(),len(d))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r57-native-notification-dex
+          path: /tmp/moar57/dex/classes.dex
