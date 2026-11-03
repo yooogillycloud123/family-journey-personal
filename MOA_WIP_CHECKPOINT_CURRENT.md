@@ -71,3 +71,10 @@ R42 source and local verification artifacts re-read. Build remains gated on orig
 - Android 네이티브 inbox/app 라이프사이클 Java 소스는 자바 17 + 테스트 더블(최소 Android API stub) 타입 검증 **PASS (class 19개)**. **이 검사는 실제 Android SDK 35 + D8 컴파일 결과가 아님.**
 - `moa-r50-native-dex.yml`을 R52 inbox 5개 Java 소스만 컴파일하도록 좁히고 DEX 아티팩트 경로를 R52로 변경. GitHub workflow run 확인 결과 없음, 실제 Android DEX artifact 여전히 미확보.
 - 원래 사용자 정상 앱 private signer와 실제 active package 검증 미완. 결과: **완성 APK 미배포**; 사용자에게 또 다른 미검증 APK 설치하지 않음.
+
+## 2026-11-03 R54 동일 패키지 APK 실제 패키징·서명 검증
+- 사용자 업로드 R42 APK SHA256 `40835356c6c7f4bdbfaf3f07763f99e49fc817dfd9dbd2ba28e2a4094b19cba1`를 기준으로 전체 52개 ZIP 항목 중 `AndroidManifest.xml`과 `assets/web/family-diary.js`만 교체하고, 기존 R49에 실재했던 Android SDK/D8 컴파일 native `classes5.dex` 1개를 `classes4.dex`로 추가. 기타 50개 항목 내용은 byte-for-byte 동일.
+- R42 귀환 후 감지·ON/OFF·메모·일기/지도·위젯 기능 원본 보호. R53 native inbox JS의 기존 일기 보존·중복 방지·메모 미저장 보류 로직과 R49 `MoaMomentNative.drafts()` 연결을 추가. 기존 R49 native DEX가 인정된 ACK 이후 동일 사진을 재알림할 수 있어, **R54에서는 native ACK를 호출하지 않고 초안을 보존** (차기 native DEX에 'seen' 영속 마커 구현 후 변경). 음성은 기존 R49 MemoActivity의 Android native STT 경로 활용(갤럭시 실제 검증 미완).
+- 생성 `MOA_R54_기존모아_촬영즉시기록_통합검증용.apk`: **package `com.juhyeon.familyjournea`, versionCode 54, 원본 R39/R42 인증서 SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`, APK SHA256 `36d536fbed05e5787bf051318bfcc3be14d272c8ec4da045129b1e9fc9943f9a`**. RSA v2 checksum/signature 내용 검증 PASS, ZIP CRC PASS, XML components PASS, DEX checksum/class duplicate PASS, original source-preservation PASS, total static checks 121 PASS.
+- Node JS R54 native bridge consumer simulated event tests PASS, R53 diary storage behavior 12 PASS, model checks 7 PASS. **Android 실기기 설치, 삼성 기본 카메라 즉시 UI, 실제 모아 일기 저장 end-to-end PASS는 미확인**. R54은 검증용 후보이며 FINAL 아님. 현재 사용자 기기에서 `com.juhyeon.familyjournea`가 정말 운영 앱인지 확인 전 업데이트를 보장할 수 없음. 앱 삭제/데이터 초기화 금지.
+- 서명키를 새로 만들거나 사용자에게 재업로드 요청하지 않았음. R39 개인 키는 개인 Library에만 보관하며 GitHub에는 공개하지 않음.
