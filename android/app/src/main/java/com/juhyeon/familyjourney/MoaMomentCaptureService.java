@@ -16,6 +16,7 @@ import android.app.RemoteInput;
 import android.provider.Settings;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.graphics.drawable.GradientDrawable;
 import android.view.*;
 import android.widget.*;
 import org.json.JSONObject;
@@ -28,7 +29,7 @@ import java.util.*;
  * Native drafts survive process loss and are acknowledged only after WebView IndexedDB commits.
  */
 public class MoaMomentCaptureService extends Service {
-  public static final String PREF="moa_camera_native_v1", CH="moa_moment_monitor", CH_EVENT="moa_moment_capture_alerts_v2", ACT="com.juhyeon.familyjournea.MOMENT";
+  public static final String PREF="moa_camera_native_v1", CH="moa_moment_monitor", CH_EVENT="moa_moment_capture_alerts_v2", CH_EVENT_QUIET="moa_moment_capture_quiet_thumb_v1", ACT="com.juhyeon.familyjournea.MOMENT";
   public static final String NOTESTOP="com.juhyeon.familyjournea.MOMENT_STOP";
   private Handler h; private final Handler ui=new Handler(Looper.getMainLooper());
   private WindowManager overlayManager; private View overlayView;
@@ -50,6 +51,8 @@ public class MoaMomentCaptureService extends Service {
     NotificationManager n=getSystemService(NotificationManager.class);
     n.createNotificationChannel(new NotificationChannel(CH,"모아 기록 감시 상태",NotificationManager.IMPORTANCE_LOW));
     n.createNotificationChannel(new NotificationChannel(CH_EVENT,"모아 촬영 즉시 기록",NotificationManager.IMPORTANCE_HIGH));
+    // The thumb-zone overlay is the visible action; leave a silent tray backup.
+    n.createNotificationChannel(new NotificationChannel(CH_EVENT_QUIET,"모아 촬영 기록 보관 알림",NotificationManager.IMPORTANCE_LOW));
     observer=new ContentObserver(h){@Override public void onChange(boolean self,Uri uri){schedule();}@Override public void onChange(boolean self){schedule();}};
   }
   @Override public int onStartCommand(Intent intent,int flags,int startId){
@@ -127,11 +130,14 @@ public class MoaMomentCaptureService extends Service {
     PendingIntent pi=PendingIntent.getBroadcast(this,key.hashCode(),reply,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_MUTABLE);
     RemoteInput input=new RemoteInput.Builder("note").setLabel("지금 기억나는 상황을 입력하거나 키보드 마이크로 말하세요").build();
     Notification.Action action=new Notification.Action.Builder(null,"바로 메모",pi).addRemoteInput(input).build();
-    Notification n=new Notification.Builder(this,CH_EVENT)
+    // A system heads-up always appears near the TOP and cannot be repositioned by an app.
+    // Show only ONE immediately visible capture UI when the thumb overlay is allowed.
+    boolean thumbOverlay=Settings.canDrawOverlays(this);
+    Notification n=new Notification.Builder(this,thumbOverlay?CH_EVENT_QUIET:CH_EVENT)
       .setSmallIcon(android.R.drawable.ic_menu_edit).setContentTitle("방금 촬영한 사진·영상 · 모아 기록")
       .setContentText("여기를 눌러 즉시 기록하거나, 바로 메모에서 입력하세요.")
       .setAutoCancel(true).setContentIntent(tap).addAction(action).setCategory(Notification.CATEGORY_REMINDER)
-      .setPriority(Notification.PRIORITY_HIGH).build();
+      .setPriority(thumbOverlay?Notification.PRIORITY_LOW:Notification.PRIORITY_HIGH).build();
     getSystemService(NotificationManager.class).notify(43000+(key.hashCode()&0x7fff),n);
     showOptionalCameraOverlay(tap);
   }
@@ -139,33 +145,98 @@ public class MoaMomentCaptureService extends Service {
    *  Requires user-granted Draw over other apps; no automatic permission grant.
    *  No fake 'camera callback': displayed only after an actual new MediaStore row.
    */
+  private int dp(float value){return (int)(getResources().getDisplayMetrics().density*value+0.5f);}
   private void showOptionalCameraOverlay(PendingIntent target){
     if(!Settings.canDrawOverlays(this))return;
     ui.post(()->{
       try{
         removeOptionalCameraOverlay();
         overlayManager=(WindowManager)getSystemService(WINDOW_SERVICE);
-        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.HORIZONTAL);
-        card.setPadding(18,8,18,8);card.setBackgroundColor(0xeef9f6f1);
-        TextView label=new TextView(this);label.setText("모아 · 사진 촬영됨");label.setTextSize(15);
-        label.setTextColor(Color.rgb(33,48,63));
-        card.addView(label,new LinearLayout.LayoutParams(0,-2,1));
-        Button note=new Button(this);note.setText("바로 기록");card.addView(note);
+        LinearLayout card=new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(dp(9),dp(3),dp(8),dp(3));
+        GradientDrawable pill=new GradientDrawable();
+        pill.setColor(0xfaf9f6f1);
+        pill.setCornerRadius(dp(30));
+        pill.setStroke(dp(1),0xffd8cdc6);
+        card.setBackground(pill);
+        card.setElevation(dp(8));
+
+        TextView handle=new TextView(this);
+        handle.setText("모아");
+        handle.setTextSize(14);
+        handle.setTextColor(0xff21303f);
+        handle.setPadding(dp(6),dp(8),dp(4),dp(8));
+        card.addView(handle);
+        Button note=new Button(this);
+        note.setText("바로 기록");
+        note.setTextAllCaps(false);
+        note.setTextSize(14);
+        note.setMinimumWidth(dp(92));
+        note.setMinHeight(dp(45));
+        card.addView(note);
         note.setOnClickListener(v->{
           removeOptionalCameraOverlay();
           try{target.send();}catch(PendingIntent.CanceledException e){
             prefs(this).edit().putString("lastError","사진 기록 팝업 열기 실패: "+e).apply();
           }
         });
+
+        int side=prefs(this).getInt("thumbOverlaySide",1); // 0:left 1:right
+        int distance=prefs(this).getInt("thumbOverlayBottomDp",310);
         WindowManager.LayoutParams p=new WindowManager.LayoutParams(
-          WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.WRAP_CONTENT,
+          WindowManager.LayoutParams.WRAP_CONTENT,WindowManager.LayoutParams.WRAP_CONTENT,
           WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
           WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
           PixelFormat.TRANSLUCENT);
-        p.gravity=Gravity.TOP;p.y=130;
+        p.gravity=(side==0?Gravity.START:Gravity.END)|Gravity.BOTTOM;
+        p.x=dp(12);
+        p.y=dp(Math.max(180,Math.min(530,distance)));
+        // Drag the MOA handle up/down; tap the handle to move the pill to other thumb.
+        final float[] startY={0f};
+        final int[] startBottom={0};
+        handle.setOnTouchListener((v,e)->{
+          if(e.getAction()==MotionEvent.ACTION_DOWN){
+            startY[0]=e.getRawY(); startBottom[0]=p.y; return true;
+          }
+          if(e.getAction()==MotionEvent.ACTION_MOVE){
+            p.y=Math.max(dp(180),Math.min(dp(530),
+              startBottom[0]-(int)(e.getRawY()-startY[0])));
+            try{if(overlayView==card)overlayManager.updateViewLayout(card,p);}catch(Exception ignored){}
+            return true;
+          }
+          if(e.getAction()==MotionEvent.ACTION_UP){
+            float delta=Math.abs(e.getRawY()-startY[0]);
+            if(delta<dp(12)){
+              int next=prefs(this).getInt("thumbOverlaySide",1)==0?1:0;
+              prefs(this).edit().putInt("thumbOverlaySide",next).apply();
+              p.gravity=(next==0?Gravity.START:Gravity.END)|Gravity.BOTTOM;
+            }else{
+              prefs(this).edit().putInt("thumbOverlayBottomDp",
+                Math.round(p.y/getResources().getDisplayMetrics().density)).apply();
+            }
+            try{if(overlayView==card)overlayManager.updateViewLayout(card,p);}catch(Exception ignored){}
+            return true;
+          }
+          return true;
+        });
         overlayManager.addView(card,p);overlayView=card;
         ui.postDelayed(()->{if(overlayView==card)removeOptionalCameraOverlay();},8500L);
-      }catch(Exception e){prefs(this).edit().putString("lastError","Overlay: "+e).apply();}
+      }catch(Exception e){
+        prefs(this).edit().putString("lastError","Overlay: "+e).apply();
+        // Fail open: retain standard top heads-up if an overlay was blocked unexpectedly.
+        try{
+          Notification fallback=new Notification.Builder(this,CH_EVENT)
+            .setSmallIcon(android.R.drawable.ic_menu_edit)
+            .setContentTitle("방금 촬영한 사진·영상 · 모아 기록")
+            .setContentText("여기를 눌러 바로 기록하세요.")
+            .setAutoCancel(true).setContentIntent(target)
+            .setPriority(Notification.PRIORITY_HIGH).build();
+          getSystemService(NotificationManager.class)
+            .notify(43000+(String.valueOf(target.hashCode()).hashCode()&0x7fff),fallback);
+        }catch(Exception ignored){}
+      }
     });
   }
   private void removeOptionalCameraOverlay(){
