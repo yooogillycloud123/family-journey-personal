@@ -25,7 +25,10 @@ import java.util.WeakHashMap;
 public class MoaMomentApplication extends Application implements Application.ActivityLifecycleCallbacks {
   private final Handler main=new Handler(Looper.getMainLooper());
   private final WeakHashMap<WebView,Boolean> attached=new WeakHashMap<>();
-  @Override public void onCreate(){super.onCreate();registerActivityLifecycleCallbacks(this);}
+  @Override public void onCreate(){super.onCreate();registerActivityLifecycleCallbacks(this);
+    // Foreground app entry can reconcile pending notes without a JS interface.
+    MoaMomentDirectDiaryStore.requestSync(this);
+  }
   // R49: attach the Java bridge to the WebView owned by the original
   // HostActivity. Do not assume getUrl() has become non-null when the view exists.
   // WebView can load an asset URL asynchronously; URL-gated injection missed it
