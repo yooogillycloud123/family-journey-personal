@@ -1,3 +1,10 @@
+# ✅ 2026-11-03 최신 실기기 확정 — MOA R63 GOLDEN (기존 미검증 기록 무효화)
+- **User PHYSICAL PASS:** Samsung Galaxy screenshot shows selected photo diary “사진·영상으로 보는 하루” at `22:23~22:24`, `3장`, memo lines `22:23 저장`, `22:23 율리`, `22:24 오케이 그러면 이제 문제가`. User explicitly declares GOLDEN. Media card slots visible; thumbnail image pixels pale/blank, separately to assess. Subsequent restarts not separately proven.
+- Locked APK SHA-256 `64b1b730478a2a50976961cc2dc4cf511182a75495f2d02159f091167f646024`, 3,422,752B, package `com.juhyeon.familyjournea`, code 63, signer `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+- Freeze source branch `golden/moa-r63-20261103-user-device-pass-do-not-modify`, commit `bdc6003577ba062c7100e43e334ef9a4d834f431` and exact APK. **Root successful path:** native Save -> `MoaMomentDirectDiaryStore` -> private same-origin hidden WebView -> original IndexedDB `familyjourney-diary-v1/curated` transaction/readback -> per-media ACK; selected diary loads fresh `dbAll('curated')` on opening/focus. No R42 second popup.
+- **User's immediate UX requests:** screenshot confirms two top surfaces for each shot: HIGH priority heads-up notification + app `Gravity.TOP,y=130` overlay (not two separate journals). Need **one small thumb-accessible movable/left-right bottom pill** using same PendingIntent, silent tray notification and heads-up fallback only if overlay unavailable. Add **OHO+ gesture one-swipe ON/OFF** via home-screen-app shortcut to tiny toggle Activity using original `MoaMomentCaptureService.switchTo`, no extra icon/helper. Keep original QS tile. All changes new branch, Golden never modified. Not yet delivered/physically verified.
+- HIGHEST PRIORITY: [MOA_R63_USER_DEVICE_GOLDEN_LOCK_20261103.md](MOA_R63_USER_DEVICE_GOLDEN_LOCK_20261103.md) COMPLETE. Earlier current-checkpoint R63 “device NOT TESTED” superseded by this user screenshot.
+
 # MOA 현재 체크포인트 / 새 채팅 이어받기
 **기록 시각 기준: 2026-11-03** — 변경 시 날짜와 실제 검증 근거를 갱신.
 
