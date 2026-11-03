@@ -82,7 +82,7 @@ public class MoaMomentApplication extends Application implements Application.Act
       MoaMomentCaptureService.prefs(this).edit().putBoolean("moaPinOfferR66",true).apply();
       Intent launch=new Intent(MOA_TOGGLE_SHORTCUT_ACTION);
       launch.setComponent(new ComponentName(this,"com.juhyeon.familyjourney.HostActivity"));
-      launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_NO_ANIMATION);
+      launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_MULTIPLE_TASK|Intent.FLAG_ACTIVITY_NO_ANIMATION);
       ShortcutInfo shortcut=new ShortcutInfo.Builder(this,"moa-recording-toggle")
         .setShortLabel("모아 기록 전환")
         .setLongLabel("모아 순간 기록 ON/OFF")
