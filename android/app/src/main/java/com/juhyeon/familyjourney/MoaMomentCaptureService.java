@@ -107,11 +107,11 @@ public class MoaMomentCaptureService extends Service {
         if(pending!=0||size<=0)continue;
         if(Math.max(time,added)<armed-1500L||added>System.currentTimeMillis()+60000L)continue;
         String key=(video?"v":"")+id;
-        if(prefs(this).contains("m:"+key))continue;
+        if(prefs(this).contains("m:"+key)||prefs(this).getBoolean("seen:"+key,false))continue;
         try {
           JSONObject obj=new JSONObject();obj.put("id",key);obj.put("at",time>0?time:added);
-          obj.put("video",video);obj.put("note","");obj.put("capturedAt",System.currentTimeMillis());
-          if(!prefs(this).edit().putString("m:"+key,obj.toString()).commit())continue;
+          obj.put("video",video);obj.put("note","");obj.put("memoSaved",false);obj.put("capturedAt",System.currentTimeMillis());
+          if(!prefs(this).edit().putString("m:"+key,obj.toString()).putBoolean("seen:"+key,true).commit())continue;
           showCapture(key,obj.optLong("at"));
         }catch(Exception ignored){}
       }
@@ -216,7 +216,7 @@ public class MoaMomentCaptureService extends Service {
       if(q==null)return;
       try {
         String prev=prefs(c).getString("m:"+key,"");if(prev.isEmpty())return;
-        JSONObject data=new JSONObject(prev);data.put("note",q.toString().trim());data.put("updatedAt",System.currentTimeMillis());
+        JSONObject data=new JSONObject(prev);data.put("note",q.toString().trim());data.put("memoSaved",true);data.put("updatedAt",System.currentTimeMillis());
         prefs(c).edit().putString("m:"+key,data.toString()).commit();
         getManager(c).cancel(43000+(key.hashCode()&0x7fff));
       }catch(Exception ignored){}
