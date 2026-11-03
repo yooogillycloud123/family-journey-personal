@@ -32,6 +32,7 @@ public class MoaMomentApplication extends Application implements Application.Act
   // on the user's Galaxy. Only the trusted Activity class is eligible.
   private final WeakHashMap<Activity,Boolean> polling=new WeakHashMap<>();
   private final WeakHashMap<WebView,Boolean> installed=new WeakHashMap<>();
+  private final WeakHashMap<WebView,Boolean> retried=new WeakHashMap<>();
   private WebView findWebView(View v){
     if(v instanceof WebView)return (WebView)v;
     if(v instanceof ViewGroup){
@@ -70,8 +71,28 @@ public class MoaMomentApplication extends Application implements Application.Act
       main.postDelayed(()->{
         try{web.evaluateJavascript(
           "(function(){return typeof window.MoaMomentNative==='object' && typeof window.MoaMomentNative.setEnabled==='function'})()",
-          result->MoaMomentCaptureService.prefs(this).edit().putString(
-            "bridgeDiagnostic","R49 JS check="+result+" url="+web.getUrl()).apply());
+          result->{
+            MoaMomentCaptureService.prefs(this).edit().putString(
+              "bridgeDiagnostic","R59 JS check="+result+" url="+web.getUrl()).apply();
+            // One guarded retry during the initial WebView bootstrap only.
+            // Do not reload a user editing a diary or every time the app resumes.
+            if(!"true".equals(result) && !Boolean.TRUE.equals(retried.get(web))
+                && web.getUrl()!=null && web.getUrl().startsWith("https://familyjourney.local")
+                && web.getProgress()==100) {
+              retried.put(web,true);
+              main.postDelayed(()->{
+                if(a.isFinishing()||a.isDestroyed())return;
+                try {
+                  web.evaluateJavascript(
+                    "(function(){return !!(window.FamilyJourneyDiary&&window.FamilyJourneyDiary.state&&window.FamilyJourneyDiary.state.editing)})()",
+                    editing->{
+                      if(!"true".equals(editing))
+                        try{web.reload();}catch(Exception ignored){}
+                    });
+                }catch(Exception ignored){}
+              },200L);
+            }
+          });
         }catch(Exception e){MoaMomentCaptureService.prefs(this).edit()
           .putString("bridgeDiagnostic","R49 JS check failed: "+e).apply();}
       },2500L);
@@ -98,8 +119,17 @@ public class MoaMomentApplication extends Application implements Application.Act
     };
     main.postDelayed(task[0],100L);
   }
-  @Override public void onActivityCreated(Activity a,Bundle s){ensureBridge(a);MoaMomentInboxSync.onResume(a);}
-  @Override public void onActivityResumed(Activity a){ensureBridge(a);MoaMomentInboxSync.onResume(a);}
+  @Override public void onActivityCreated(Activity a,Bundle s){ensureBridge(a);}
+  @Override public void onActivityResumed(Activity a){
+    ensureBridge(a);
+    // R59: This class (not MoaMomentSyncApplication) is the actual
+    // AndroidManifest application in the shipped R57/R58 APK.
+    // The standalone reliable inbox path compiled into the DEX was never
+    // registered. Run it whenever the original HostActivity resumes.
+    // It synchronizes native SharedPreferences memo drafts through the
+    // token-ACK IndexedDB path even if addJavascriptInterface never appears.
+    MoaMomentInboxSync.onResume(a);
+  }
   @Override public void onActivityStarted(Activity a){}
   @Override public void onActivityPaused(Activity a){}
   @Override public void onActivityStopped(Activity a){}
