@@ -56,3 +56,6 @@ E. 동일 앱 서명/패키지·업그레이드 가능한 경로를 검증한 **
 - 업로드 확인: 사용자 원본 실물 APK **R37, R41, R42, R44, R45, R47, R49, R50**, R48 APK 예비 ZIP, 이전 생성된 R51 APK, 정적 증거·테스트·새채팅 읽기 ZIP. 공개 저장소에는 사용자 설치 APK·사적인 파일·개인 서명키 업로드하지 않음.
 - 새 채팅에서 이 Library 폴더를 **먼저 Files 검색**하고 실제 접근·해시를 재확인하라. 이전 채팅의 `/mnt/data` 경로는 새 세션에서 보존된다고 가정하지 말 것.
 - GitHub main 코드가 실제 기기에 설치된 모아 APK와 동일하다고 가정하지 말 것. R42 기준/실제 설치 본 데이터는 분리해야 한다.
+
+## 2026-11-03 new inspection
+R42 source and local verification artifacts re-read. Build remains gated on original package signer and real device verification.
