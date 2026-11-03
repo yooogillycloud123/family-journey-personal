@@ -60,8 +60,20 @@ public final class MoaMomentBridgeHostActivity extends HostActivity {
   }
   private void ensure(){
     if(isFinishing()||isDestroyed()||verified)return;
-    WebView w=find(getWindow().getDecorView());
-    if(w==null){retry("R50 no WebView in HostActivity view hierarchy");return;}
+    WebView w=null;
+    // Verified from the original R38 classes2.dex field table: HostActivity
+    // owns a private android.webkit.WebView field named "web". Reading this
+    // actual field avoids relying only on view-tree timing.
+    try {
+      java.lang.reflect.Field f=HostActivity.class.getDeclaredField("web");
+      f.setAccessible(true);
+      Object value=f.get(this);
+      if(value instanceof WebView) w=(WebView)value;
+    } catch(Throwable reflectionError) {
+      diag("R50 field lookup web failed: "+reflectionError);
+    }
+    if(w==null)w=find(getWindow().getDecorView());
+    if(w==null){retry("R50 HostActivity.web and view-tree WebView both absent");return;}
     String url=w.getUrl();
     if(url!=null && !(url.startsWith("https://familyjourney.local/")||url.equals("https://familyjourney.local"))){
       retry("R50 unexpected WebView URL (no JS bridge injected): "+url);
