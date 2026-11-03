@@ -40,6 +40,12 @@ public class MoaMomentApplication extends Application implements Application.Act
    * gesture action. Do NOT create a new app icon or a new privileged TileService.
    * Reuse the exact QuickTile state setter with one single user swipe.
    */
+  private Icon toggleShortcutIcon(){
+    int resource=getResources().getIdentifier("ic_launcher","mipmap",getPackageName());
+    if(resource==0)resource=getResources().getIdentifier("ic_launcher","drawable",getPackageName());
+    if(resource!=0)return Icon.createWithResource(this,resource);
+    return Icon.createWithResource("android",android.R.drawable.ic_menu_camera);
+  }
   private void publishMomentToggleShortcut(){
     try{
       ShortcutManager sm=getSystemService(ShortcutManager.class);
@@ -52,7 +58,7 @@ public class MoaMomentApplication extends Application implements Application.Act
         .setShortLabel("모아 기록 전환")
         .setLongLabel("모아 순간 기록 ON/OFF")
         .setActivity(new ComponentName(this,"com.juhyeon.familyjourney.HostActivity"))
-        .setIcon(Icon.createWithResource(this,R.mipmap.ic_launcher))
+        .setIcon(toggleShortcutIcon())
         .setIntent(toggle)
         .build();
       sm.addDynamicShortcuts(Collections.singletonList(item));
@@ -81,7 +87,7 @@ public class MoaMomentApplication extends Application implements Application.Act
         .setShortLabel("모아 기록 전환")
         .setLongLabel("모아 순간 기록 ON/OFF")
         .setActivity(new ComponentName(this,"com.juhyeon.familyjourney.HostActivity"))
-        .setIcon(Icon.createWithResource(this,R.mipmap.ic_launcher))
+        .setIcon(toggleShortcutIcon())
         .setIntent(launch).build();
       manager.requestPinShortcut(shortcut,null);
     }catch(Throwable t){
