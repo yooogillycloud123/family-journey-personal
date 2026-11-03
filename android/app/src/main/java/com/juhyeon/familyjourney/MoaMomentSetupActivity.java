@@ -62,14 +62,7 @@ public final class MoaMomentSetupActivity extends Activity {
       }
       update();return;
     }
-    if(!overlayGranted()){
-      Intent i=new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-       Uri.parse("package:"+getPackageName()));
-      try{startActivityForResult(i,RC_OVERLAY);}catch(Exception e){
-        Toast.makeText(this,"설정에서 '다른 앱 위에 표시'를 허용해 주세요",Toast.LENGTH_LONG).show();
-      }
-      update();return;
-    }
+    // Overlay is optional; notification-based capture must still work without it.
     if(userRequestedStart){
       MoaMomentCaptureService.switchTo(this,true);
       userRequestedStart=false;
