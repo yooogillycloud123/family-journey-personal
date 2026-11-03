@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - fix/moa-r63-direct-idb-on-native-save-20261103
     paths:
       - 'android/app/src/main/java/com/juhyeon/familyjourney/**'
       - '.github/workflows/moa-moment-native-dex.yml'
@@ -60,7 +61,7 @@ jobs:
           git add -f build/moa-moment-r43/native.dex.z.b64 build/moa-moment-r43/manifest.json
           if ! git diff --cached --quiet; then
             git commit -m "Verified R43 native DEX toolchain output"
-            git push origin HEAD:main || echo 'Concurrent commit detected: compiled DEX remains available as workflow artifact'
+            git push origin HEAD:"$GITHUB_REF_NAME" || echo 'Concurrent commit detected: compiled DEX remains available as workflow artifact'
           fi
       - uses: actions/upload-artifact@v4
         with:
