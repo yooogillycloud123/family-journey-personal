@@ -1,0 +1,26 @@
+# MOA R69 — VERIFIED AA AirPods shortcut mechanism parity (2026-11-03)
+
+## User evidence
+- **R68 Samsung One Hand Operation+ still has no MOA / 모아 기록 전환 entry. R68 device OHO+ FAIL**; R64/R66 OHO+ were also physically missing. Earlier statements that dynamic / pinned / `CREATE_SHORTCUT` alone made the entry visible were incorrect. No more user blaming or claiming success from compiler/static results.
+- User screenshot earlier shows **AA AirPods: AirPods ON**, **AA AirPods: 기본 출력** and other external shortcut entries inside this exact OHO+ picker. Thus compare with the **real user-uploaded AA AirPods APK**, not a generic hypothetical API.
+- Examined user-uploaded `AA_AirPods_v152_EXACT_FIX_FINAL(1).apk` and `AA_AirPods_v1831_EVIDENCE_FIRST_SAFE_FORENSIC_FINAL(2).apk`: BOTH have `res/xml/shortcuts.xml`, and their `MAIN/LAUNCHER` Activity has `<meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts"/>`. Actual XML has **manifest-declared STATIC shortcuts** `airpods_on`, `airpods_restore`, `airpods_auto` directed to an action Activity. Neither AA APK needs `ACTION_CREATE_SHORTCUT`. The Android official static shortcuts guide confirms this construction.
+- Contrasted exact `MOA_R68_Install.apk`: **NO `res/xml/shortcuts.xml`**, **NO `android.app.shortcuts`** in launcher Activity. R68's exported `ACTION_CREATE_SHORTCUT` provider alone was different from the working OHO+ examples. This is the verified implementation omission underlying previous failed hypotheses (still Samsung runtime behavior must be tested).
+
+## R69 exact implementation
+- Begin with exact **R68 user-installed same-app** candidate SHA256 `4e74ab1ace5101466c3b4b647ea2c44e8d10076667add5e3385ab3e9f7fdf182`.
+- Add one compiled `res/xml/moa_shortcuts.xml` based on the binary XML **structure of actual AA AirPods shortcut XML**, with static shortcut id `moa_recording_toggle`, short label `모아 기록 전환`, long label `모아 순간 기록 켜기/끄기`, and explicit existing action `com.juhyeon.familyjournea.TOGGLE_MOMENT_MONITOR` to existing exported `com.juhyeon.familyjourney.HostActivity`. R66/R68 Java `MoaMomentApplication.onActivityResumed` handles that action, calling the **existing** `MoaMomentCaptureService.switchTo` + `updateTile` to toggle actual monitor state. No new helper app, no separate service, no editor/diary modification.
+- Add existing launcher HostActivity `<meta-data android:name="android.app.shortcuts" android:resource="@xml/moa_shortcuts"/>` **as a child of real MAIN/LAUNCHER activity**, not application-level metadata. Keep earlier `CREATE_SHORTCUT` provider for compatibility.
+- Safely append new resource IDs to original tiny compiled ARSC while preserving all original type/key indices: `@string/moa_shortcut_short = 0x7f050003`, `@string/moa_shortcut_long = 0x7f050004`, `@xml/moa_shortcuts = 0x7f060003`. No original string, widget, NAVER resource or original ID replaced. Verify AXML balanced and resource references.
+- **No Java DEX or web JS changed from R68**. Existing R63 Golden direct IndexedDB writer, photo/video/timestamp and diary UI remain byte-identical; all NAVER files and their classes2.dex remain byte-identical.
+
+## APK and checks
+- `MOA_R69_Install.apk` = `MOA_R69_Static_OHO_Shortcut_Install.apk`; package `com.juhyeon.familyjournea`, versionCode 69, same original signing certificate.\n- **Accurate certificate SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`**.
+- APK bytes **3,429,328**, SHA-256 **`2a7a31364de205d9c6b3acfa7767715bb34a49544a4d2325fd5bff2434ae50dd`**. APK v2 certificate/signature PASS, ZIP CRC PASS, all AXML balanced, explicit launcher metadata+shortcut XML target confirmed, resources.arsc IDs/resolution verified with independent parser. **Changed existing entries only** `AndroidManifest.xml`, `resources.arsc`; **added** `res/xml/moa_shortcuts.xml`. The other **52 existing R68 entries** are EXACT bytes, incl classes4.dex native save and OHO handler, classes2.dex NAVER and `assets/web/family-diary.js`, golden HTML.
+- Private persistent Library `/모아_프로젝트_근거_20261103/MOA_R69_STATIC_SHORTCUT_AA_PARITY_BETA.apk` and source/verification ZIP retained with no private keys.
+- Source branch `fix/moa-r69-static-shortcut-AA-parity-20261103` holds matching declarative reference XMLs. Compiled binary resource patch scripts shipped in nonsecret source ZIP.
+- Status: **new evidence-based static shortcut implementation VERIFIED; Samsung R69 real OHO+ picker and toggle not yet tested**. R63 remains immutable original physical Golden SHA256 `64b1b730478a2a50976961cc2dc4cf511182a75495f2d02159f091167f646024`. DO NOT label R69 Golden.
+
+## Minimal actual check
+- Update existing R68→R69 in place, no app deletion/data clear.
+- In Samsung OHO+ > 홈 화면 바로가기, check under label **모아 · 모아 기록 전환**. If appears, select and test ON→OFF→ON while watching original quick-setting tile state. An optional independent check: long-press MOA app launcher icon; a registered static shortcut may appear in One UI shortcut menu.
+- If still not listed, **STOP making another speculative APK**. Inspect Android's read-only `dumpsys shortcut` or `cmd shortcut` query for package `com.juhyeon.familyjournea` to distinguish installed package parsed shortcut vs OHO+ chooser filtering. No new photo or memo necessary, don't disturb Golden data.
