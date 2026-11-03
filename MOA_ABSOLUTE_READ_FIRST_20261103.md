@@ -1,3 +1,7 @@
+
+## 2026-11-03 R61 latest real-video root cause (mandatory)
+Read [MOA_R61_DIRECT_NATIVE_INBOX_REAL_ROOT_CAUSE_READ_FIRST_20261103.md](MOA_R61_DIRECT_NATIVE_INBOX_REAL_ROOT_CAUSE_READ_FIRST_20261103.md) **before any further MOA modification**. User video 18264.mp4 proves R60 `Native bridge NOT EXPOSED; Java inbox last packet null; WAIT_NATIVE_BRIDGE`. Actual R60 manifest runs `MoaMomentApplication`, which did not call `MoaMomentInboxSync.onResume` (the one that did was unused `MoaMomentSyncApplication`). R61 wires the real Application callback to the existing Java direct inbox, reusing IndexedDB save without duplicate modal, source Android D8 41620956715 SUCCESS, signed APK SHA256 4b60d0230801a48e2cf5f3da334e4d8e37a5738adb219e9a7be0513c4a028ba1, package com.juhyeon.familyjournea versionCode61, cert 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15 unchanged. **Device R61 proof is pending; do not assert success yet.** R37 independent package/data and successful camera/STT source are protected. Never uninstall/clear data.
+
 # 모아(MOA) 최상위 READ FIRST — 기존 기능 보존 + 삼성 카메라 순간 기록 통합
 > 기준일: 2026-11-03. **새 채팅·새 작업·새 모델은 이 문서를 처음부터 끝까지 읽고 작업할 것.**
 > 이 문서가 모아 관련 R37~R51 관찰 결과·사용자 목표의 기준이다. 별도 AirPods/Jelly/여행여권 지침과 충돌시키지 않는다.
