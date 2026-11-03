@@ -52,7 +52,7 @@ def get_package(b):
 
 
 def get_cert_sha256(apk_bytes):
-    b=apk_bytes;end=b.rfind(b'PK\\x05\\x06')
+    b=apk_bytes;end=b.rfind(b'PK\x05\x06')
     if end<0:raise ValueError('ZIP EOCD missing')
     cd=u32(b,end+16)
     if b[cd-16:cd]!=b'APK Sig Block 42':raise ValueError('APK v2 signature block missing')
