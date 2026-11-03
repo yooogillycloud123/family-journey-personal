@@ -118,7 +118,7 @@ public class MoaMomentApplication extends Application implements Application.Act
       return c.checkSelfPermission(android.Manifest.permission.READ_MEDIA_IMAGES)==android.content.pm.PackageManager.PERMISSION_GRANTED
         && c.checkSelfPermission(android.Manifest.permission.READ_MEDIA_VIDEO)==android.content.pm.PackageManager.PERMISSION_GRANTED
         && c.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)==android.content.pm.PackageManager.PERMISSION_GRANTED
-        && android.provider.Settings.canDrawOverlays(c);
+        ; // Overlay is optional; notification and MediaStore foreground monitor remain available.
     }
     @JavascriptInterface public void setEnabled(boolean on) {MoaMomentCaptureService.switchTo(c,on);MoaMomentCaptureService.updateTile(c);}
     @JavascriptInterface public String error(){return MoaMomentCaptureService.prefs(c).getString("lastError","");}
