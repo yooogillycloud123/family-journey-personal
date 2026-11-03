@@ -139,14 +139,14 @@ public class MoaMomentCaptureService extends Service {
       .setAutoCancel(true).setContentIntent(tap).addAction(action).setCategory(Notification.CATEGORY_REMINDER)
       .setPriority(thumbOverlay?Notification.PRIORITY_LOW:Notification.PRIORITY_HIGH).build();
     getSystemService(NotificationManager.class).notify(43000+(key.hashCode()&0x7fff),n);
-    showOptionalCameraOverlay(tap);
+    showOptionalCameraOverlay(tap,43000+(key.hashCode()&0x7fff));
   }
   /** Optional explicit overlay: a small non-focusable banner over Samsung Camera.
    *  Requires user-granted Draw over other apps; no automatic permission grant.
    *  No fake 'camera callback': displayed only after an actual new MediaStore row.
    */
   private int dp(float value){return (int)(getResources().getDisplayMetrics().density*value+0.5f);}
-  private void showOptionalCameraOverlay(PendingIntent target){
+  private void showOptionalCameraOverlay(PendingIntent target,int notificationId){
     if(!Settings.canDrawOverlays(this))return;
     ui.post(()->{
       try{
@@ -234,7 +234,7 @@ public class MoaMomentCaptureService extends Service {
             .setAutoCancel(true).setContentIntent(target)
             .setPriority(Notification.PRIORITY_HIGH).build();
           getSystemService(NotificationManager.class)
-            .notify(43000+(String.valueOf(target.hashCode()).hashCode()&0x7fff),fallback);
+            .notify(notificationId,fallback);
         }catch(Exception ignored){}
       }
     });
