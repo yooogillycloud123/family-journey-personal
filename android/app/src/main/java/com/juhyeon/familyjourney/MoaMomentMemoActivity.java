@@ -1,6 +1,7 @@
 package com.juhyeon.familyjourney;
 
 import android.app.Activity;
+import android.app.NotificationManager;
 import android.os.Bundle;
 import android.content.Intent;
 import android.speech.RecognizerIntent;
@@ -39,9 +40,12 @@ public final class MoaMomentMemoActivity extends Activity {
         if(note.isEmpty()){Toast.makeText(this,"메모를 입력하거나 음성으로 말한 뒤 저장해 주세요.",Toast.LENGTH_LONG).show();return;}
         JSONObject data=new JSONObject(previous);data.put("note",note);data.put("memoSaved",true);data.put("updatedAt",System.currentTimeMillis());
         if(!MoaMomentCaptureService.prefs(this).edit().putString("m:"+id,data.toString()).commit())throw new Exception("저장 오류");
-        // Direct same-origin IndexedDB save, independent of MOA HostActivity callbacks.
         MoaMomentDirectDiaryStore.requestSync(this);
-        Toast.makeText(this,"기록 저장됨 · 모아에서 해당 시간대 확인",Toast.LENGTH_SHORT).show();finish();
+        // Overlay-opened memo does not auto-cancel its event notification.
+        // Dismiss ONLY this media item after the native draft commits.
+        try{NotificationManager nm=getSystemService(NotificationManager.class);
+          if(nm!=null)nm.cancel(43000+(id.hashCode()&0x7fff));}catch(Exception ignored){}
+        Toast.makeText(this,"메모 임시 저장 완료 · 모아 일기 동기화 대기",Toast.LENGTH_SHORT).show();finish();
       }catch(Exception x){Toast.makeText(this,"저장 실패 "+x,Toast.LENGTH_LONG).show();}
     });
     ScrollView sc=new ScrollView(this);sc.addView(l);setContentView(sc);
