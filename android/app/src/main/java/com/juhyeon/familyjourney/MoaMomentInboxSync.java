@@ -29,7 +29,7 @@ public final class MoaMomentInboxSync {
   private static final Handler MAIN=new Handler(Looper.getMainLooper());
   private static final String HOST="com.juhyeon.familyjourney.HostActivity";
   private static final String ORIGIN="https://familyjourney.local/";
-  private static final long MAX_WAIT_MS=60000L;
+  private static final long MAX_WAIT_MS=90000L;
   private MoaMomentInboxSync(){}
 
   private static boolean host(Activity a){
@@ -61,6 +61,7 @@ public final class MoaMomentInboxSync {
   }
   public static void onResume(Activity a){
     if(!host(a))return;
+    diagnostic(a,"R61_HOST_RESUMED");
     final long start=System.currentTimeMillis();
     MAIN.postDelayed(()->attempt(a,start),200L);
   }
@@ -69,18 +70,30 @@ public final class MoaMomentInboxSync {
     if(System.currentTimeMillis()-start>MAX_WAIT_MS){
       diagnostic(a,"INBOX_WAIT_TIMEOUT");return;
     }
+    // R61: WebView.getUrl() may still be null/lagging during the original
+    // HostActivity transition. Probe the LIVE document origin instead of
+    // treating that cached Java URL as an authority or requiring JS bridge.
     final WebView w=web(a);
-    final String url=w==null?null:w.getUrl();
-    if(w==null||url==null||!url.startsWith(ORIGIN)){
+    if(w==null){
+      diagnostic(a,"R61_WAIT_WEBVIEW");
       MAIN.postDelayed(()->attempt(a,start),700L);return;
     }
     try{
-      w.evaluateJavascript("(function(){return typeof window.__moaNativeSync==='function'?'READY':'NOT_READY'})()",ready->{
+      w.evaluateJavascript("(function(){try{var o=location.origin;"+
+        "if(o!=='https://familyjourney.local')return 'NOT_OWNER_ORIGIN';"+
+        "return typeof window.__moaNativeSync==='function'?'READY':'WAIT_DIARY_JS'"+
+        "}catch(e){return 'JS_PROBE_ERROR'}})()",ready->{
         if(!host(a))return;
         if("\"READY\"".equals(ready))deliver(a,w);
-        else MAIN.postDelayed(()->attempt(a,start),850L);
+        else {
+          diagnostic(a,"R61_WAIT_CONSUMER "+String.valueOf(ready)+" url="+w.getUrl());
+          MAIN.postDelayed(()->attempt(a,start),850L);
+        }
       });
-    }catch(Exception e){diagnostic(a,"INBOX_JS_READY_ERROR "+e);}
+    }catch(Exception e){
+      diagnostic(a,"R61_JS_PROBE_THROW "+e);
+      MAIN.postDelayed(()->attempt(a,start),900L);
+    }
   }
   private static void deliver(Activity a,WebView w){
     SharedPreferences p=MoaMomentCaptureService.prefs(a);
@@ -93,6 +106,8 @@ public final class MoaMomentInboxSync {
         JSONObject item=new JSONObject((String)row.getValue());
         String id=item.optString("id","");
         if(!id.matches("v?[0-9]{1,19}"))continue;
+        // Never import an unedited capture as an intentional diary selection.
+        if(!item.optBoolean("memoSaved",false)&&item.optString("note","").trim().isEmpty())continue;
         drafts.put(item);snapshot.put(id,(String)row.getValue());
       }
       if(drafts.length()==0){diagnostic(a,"INBOX_EMPTY");return;}
@@ -102,7 +117,8 @@ public final class MoaMomentInboxSync {
       w.evaluateJavascript("window.__moaNativeSync("+JSONObject.quote(packet.toString())+")",answer->{
         if(!host(a))return;
         if(!"\"ACCEPTED\"".equals(answer)){
-          diagnostic(a,"INBOX_JS_REJECTED "+answer);return;
+          diagnostic(a,"R61_JS_REJECTED "+answer);
+          MAIN.postDelayed(()->onResume(a),4000L);return;
         }
         awaitAck(a,w,token,snapshot,0);
       });
@@ -110,7 +126,10 @@ public final class MoaMomentInboxSync {
   }
   private static void awaitAck(Activity a,WebView w,String token,Map<String,String> snapshot,int tries){
     if(!host(a))return;
-    if(tries>20){diagnostic(a,"INBOX_NO_ACK");return;}
+    if(tries>30){
+      diagnostic(a,"R61_NO_COMMIT_ACK_KEEP_DRAFTS");
+      MAIN.postDelayed(()->onResume(a),4500L);return;
+    }
     String encoded=JSONObject.quote(token);
     String js="(function(){var a=window.__moaNativeAckByToken;"
       +"return a&&a["+encoded+"]?JSON.stringify(a["+encoded+"]):''})()";
@@ -133,7 +152,10 @@ public final class MoaMomentInboxSync {
               SharedPreferences state=MoaMomentCaptureService.prefs(a);
               if(sent.equals(state.getString("m:"+id,null))&&state.edit().remove("m:"+id).commit())saved++;
             }
-            diagnostic(a,"INBOX_ACK_COMMITTED "+saved);
+            diagnostic(a,"R61_INDEXEDDB_ACK_COMMITTED "+saved);
+            // Reload-free refresh: existing R42 diary JS owns its render path.
+            // The native SharedPreferences drafts have been removed ONLY
+            // for exact token acknowledgments and unchanged source bytes.
           }catch(Exception e){diagnostic(a,"INBOX_ACK_ERROR "+e);}
         });
       }catch(Exception e){diagnostic(a,"INBOX_EVALUATE_ERROR "+e);}
