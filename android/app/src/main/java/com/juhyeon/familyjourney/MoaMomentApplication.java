@@ -52,13 +52,41 @@ public class MoaMomentApplication extends Application implements Application.Act
         .setShortLabel("모아 기록 전환")
         .setLongLabel("모아 순간 기록 ON/OFF")
         .setActivity(new ComponentName(this,"com.juhyeon.familyjourney.HostActivity"))
-        .setIcon(Icon.createWithResource("android",android.R.drawable.ic_menu_camera))
+        .setIcon(Icon.createWithResource(this,R.mipmap.ic_launcher))
         .setIntent(toggle)
         .build();
       sm.addDynamicShortcuts(Collections.singletonList(item));
     }catch(Throwable e){
       MoaMomentCaptureService.prefs(this).edit().putString("shortcutPublishDiagnostic",
         "SHORTCUT_UNAVAILABLE "+e.getClass().getSimpleName()).apply();
+    }
+  }
+  // OHO+ "Home screen shortcuts" selects PINNED launcher shortcuts on
+  // several Samsung builds; an app-level dynamic shortcut alone is not enough.
+  // Ask the real launcher to pin the very same toggle action once on R66.
+  private void offerPinnedToggleShortcut(Activity activity){
+    if(activity==null||activity.isFinishing()||activity.isDestroyed())return;
+    if(!"com.juhyeon.familyjourney.HostActivity".equals(activity.getClass().getName()))return;
+    try{
+      ShortcutManager manager=getSystemService(ShortcutManager.class);
+      if(manager==null||!manager.isRequestPinShortcutSupported())return;
+      for(ShortcutInfo item:manager.getPinnedShortcuts())
+        if("moa-recording-toggle".equals(item.getId()))return;
+      if(MoaMomentCaptureService.prefs(this).getBoolean("moaPinOfferR66",false))return;
+      MoaMomentCaptureService.prefs(this).edit().putBoolean("moaPinOfferR66",true).apply();
+      Intent launch=new Intent(MOA_TOGGLE_SHORTCUT_ACTION);
+      launch.setComponent(new ComponentName(this,"com.juhyeon.familyjourney.HostActivity"));
+      launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_NO_ANIMATION);
+      ShortcutInfo shortcut=new ShortcutInfo.Builder(this,"moa-recording-toggle")
+        .setShortLabel("모아 기록 전환")
+        .setLongLabel("모아 순간 기록 ON/OFF")
+        .setActivity(new ComponentName(this,"com.juhyeon.familyjourney.HostActivity"))
+        .setIcon(Icon.createWithResource(this,R.mipmap.ic_launcher))
+        .setIntent(launch).build();
+      manager.requestPinShortcut(shortcut,null);
+    }catch(Throwable t){
+      MoaMomentCaptureService.prefs(this).edit()
+        .putString("shortcutPinDiagnostic","PIN_REQUEST_ERROR "+t.getClass().getSimpleName()).apply();
     }
   }
   private boolean isToggleShortcut(Activity a){
@@ -196,6 +224,8 @@ public class MoaMomentApplication extends Application implements Application.Act
     // It synchronizes native SharedPreferences memo drafts through the
     // token-ACK IndexedDB path even if addJavascriptInterface never appears.
     MoaMomentInboxSync.onResume(a);
+    if("com.juhyeon.familyjourney.HostActivity".equals(a.getClass().getName()))
+      main.postDelayed(()->{if(!a.isFinishing()&&!a.isDestroyed())offerPinnedToggleShortcut(a);},900L);
   }
   @Override public void onActivityStarted(Activity a){}
   @Override public void onActivityPaused(Activity a){}
