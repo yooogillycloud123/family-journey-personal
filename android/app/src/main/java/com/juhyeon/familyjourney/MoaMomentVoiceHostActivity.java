@@ -26,7 +26,7 @@ public final class MoaMomentVoiceHostActivity extends HostActivity {
   private int generation=0;
   private boolean installed=false;
 
-  @Override protected void onCreate(Bundle state){
+  @Override public void onCreate(Bundle state){
     super.onCreate(state);
     bindOriginalWebView();
   }
@@ -47,7 +47,7 @@ public final class MoaMomentVoiceHostActivity extends HostActivity {
     ++generation;
     super.onPause();
   }
-  @Override protected void onDestroy(){
+  @Override public void onDestroy(){
     foreground=false;++generation;
     super.onDestroy();
   }
