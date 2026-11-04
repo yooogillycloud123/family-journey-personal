@@ -76,6 +76,9 @@ public final class MoaMomentVoiceHostActivity extends HostActivity {
         // A new JavascriptInterface appears after the next document load,
         // but our native onJsPrompt hook is available immediately.
         web.addJavascriptInterface(voice,"MoaVoiceNative");
+        web.addJavascriptInterface(new MoaMomentApplication.CaptureBridge(getApplicationContext()),"MoaMomentNative");
+        try{web.addJavascriptInterface(new MoaMomentQuickThumb(getApplicationContext(),web),"MoaQuickThumb");}
+        catch(Throwable optionalThumb){}
         installed=true;
       }
       WebChromeClient previous=web.getWebChromeClient();
