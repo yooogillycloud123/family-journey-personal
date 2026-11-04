@@ -19,6 +19,7 @@ public final class MoaMomentVoice {
   public interface Listener {
     void onListening();
     void onText(String text);
+    default void onPartialText(String text){}
     void onFailure(String description);
     void onFinished();
   }
@@ -53,7 +54,16 @@ public final class MoaMomentVoice {
         @Override public void onRmsChanged(float rms){}
         @Override public void onBufferReceived(byte[] buffer){}
         @Override public void onEndOfSpeech(){}
-        @Override public void onPartialResults(Bundle partial){}
+        @Override public void onPartialResults(Bundle partial){
+          if(completed||partial==null)return;
+          ArrayList<String> parts=partial.getStringArrayList(
+            SpeechRecognizer.RESULTS_RECOGNITION);
+          if(parts!=null&&!parts.isEmpty()){
+            String current=parts.get(0);
+            if(current!=null&&!current.trim().isEmpty())
+              listener.onPartialText(current.trim());
+          }
+        }
         @Override public void onEvent(int eventType,Bundle params){}
         @Override public void onResults(Bundle results){
           if(completed)return;
@@ -89,6 +99,7 @@ public final class MoaMomentVoice {
       i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
       i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"ko-KR");
       i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,1);
+      i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,true);
       if(onDevice)i.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,true);
       recognizer.startListening(i);
       listener.onListening();
