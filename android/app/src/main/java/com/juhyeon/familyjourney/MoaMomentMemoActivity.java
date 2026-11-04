@@ -20,6 +20,11 @@ public final class MoaMomentMemoActivity extends Activity {
   @Override protected void onCreate(Bundle b){
     super.onCreate(b);id=getIntent().getStringExtra("id");
     if(id==null||!id.matches("v?\\d{1,19}")){finish();return;}
+    // A user TAP on the capture notification may come from Samsung secure
+    // camera over keyguard. Show this one intended input Activity in front of
+    // keyguard; never automatically dismiss authentication or bypass unlock.
+    android.app.KeyguardManager guard=getSystemService(android.app.KeyguardManager.class);
+    if(guard!=null&&guard.isKeyguardLocked())setShowWhenLocked(true);
     LinearLayout l=new LinearLayout(this);l.setPadding(32,28,32,24);l.setOrientation(LinearLayout.VERTICAL);l.setBackgroundColor(Color.WHITE);
     TextView title=new TextView(this);title.setText("방금 찍은 사진·영상 · 모아 시간대별 메모");title.setTextSize(20);title.setTextColor(0xff243140);title.setTypeface(null,Typeface.BOLD);
     l.addView(title);
