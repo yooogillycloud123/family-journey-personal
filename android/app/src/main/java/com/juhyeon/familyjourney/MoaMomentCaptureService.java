@@ -96,7 +96,11 @@ public class MoaMomentCaptureService extends Service {
         h.postDelayed(this::schedule,6000L);}
     }
   };
-  private void schedule(){if(h==null)return;h.removeCallbacks(scan);h.postDelayed(scan,1100);}
+  // Coalesce rapid Samsung MediaStore notifications WITHOUT restarting the timer.
+  // R71 used removeCallbacks()+1100ms debounce; repeated camera writes could
+  // postpone the thumb overlay for several seconds. Preserve pending/size
+  // safety checks and the existing 6s missed-observer fallback.
+  private void schedule(){if(h==null)return;if(!h.hasCallbacks(scan))h.postDelayed(scan,300L);}
   private void poll(Uri uri,boolean video){
     if(checkSelfPermission(video?Manifest.permission.READ_MEDIA_VIDEO:Manifest.permission.READ_MEDIA_IMAGES)!=PackageManager.PERMISSION_GRANTED)return;
     String[] projection={"_id","datetaken","date_added","relative_path","is_pending","_size"};
