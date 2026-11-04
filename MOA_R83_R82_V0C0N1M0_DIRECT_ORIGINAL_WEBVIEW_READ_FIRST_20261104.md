@@ -13,12 +13,12 @@
 - Foreground-only loop 320ms, stopped onPause/destroy, without forcing a WebView reload or saving an incomplete diary.
 - Existing quick thumbnail `MoaQuickThumb`, capture `MoaMomentNative` and original `NativeHost` preserved in same WebView.
 - **R63 memo-to-diary sync parity:** `MoaMomentInboxSync.host()` accepts original or R83 exact subclass and reads original `HostActivity.web`, protecting user-confirmed native memo → IndexedDB token/ACK path.
-- Original `HostActivity` kept as separate non-exported manifest activity for existing explicit shortcuts and navigation. New launcher alone inherits MAIN/LAUNCHER filter. This is NOT an extra app.
+- Original `HostActivity` kept as separate manifest activity with its **original exported=true** setting, preserving existing OHO+/launcher explicit shortcuts and navigation. Only the new subclass has the MAIN/LAUNCHER intent filter. New launcher alone inherits MAIN/LAUNCHER filter. This is NOT an extra app.
 - Original `classes2.dex` method code entirely byte-for-byte unchanged; the one non-header byte modified is the **public FINAL access flag of HostActivity: 0x11→0x01** to permit subclassing. DEX SHA1 and Adler headers recomputed. This is more invasive than R79–R82 and requires real-device gate.
 
 ## Actual build, signing and tests
 - GitHub Actions `41809388814` completed **SUCCESS**; Android Java compile+D8 succeeded after patching R80→R81→R82→R83 and correcting public lifecycle override visibility.
-- R83 APK `MOA_R83_DIRECT_HOST_NATIVE_VOICE_Install.apk`: **3,486,468 bytes**, SHA256 `2d044ce41d4904b39e386e627c72a5e0b40e877a81c3d3da3ecd4787e10badbc`.
+- R83 APK `MOA_R83_DIRECT_HOST_NATIVE_VOICE_Install.apk`: **3,486,468 bytes**, SHA256 `221488ba5e1c6fb225c99837070cdad6028f1798aba396c05e73a763bb4e2d78`.
 - Package `com.juhyeon.familyjournea`; versionCode **83**; same R82 signer SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
 - Verified APK v2 RSA SHA256 signed digest and signature; ZIP CRC; all four DEX SHA1/Adler; AXML original nonexported HostActivity + new exported MAIN/LAUNCHER; new DEX class parent is original HostActivity, lifecycle flags public 0x1 for onCreate/onDestroy; JS syntax and previous R82 mock partial/final/guard tests all PASS.
 - R82→R83 changed exactly four of 55 decompressed ZIP entries: `AndroidManifest.xml`, `classes2.dex` (class-final bit only), `classes4.dex`, `assets/web/family-diary.js`; other **51/55 byte-identical**.
