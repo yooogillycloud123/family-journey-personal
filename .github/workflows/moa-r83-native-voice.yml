@@ -1,0 +1,74 @@
+name: MOA R83 original HostActivity direct-host native voice compile
+on:
+  push:
+    branches: [speech-r83-original-webview-direct-host]
+    paths:
+      - 'tools/moa_r83_patch_direct_host_trust.py'
+      - 'android/app/src/main/java/com/juhyeon/familyjourney/MoaMomentVoiceHostActivity.java'
+      - '.github/workflows/moa-r83-native-voice.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-and-dex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          S="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$S" --licenses >/dev/null || true
+          "$S" "platforms;android-35" "build-tools;35.0.0"
+      - name: Patch R80 voice only then harden Chrome lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT=android/app/src/main/java/com/juhyeon/familyjourney
+          sha256sum "$ROOT/MoaMomentCaptureService.java" "$ROOT/MoaMomentDirectDiaryStore.java" > /tmp/golden-before.sha256
+          python3 tools/moa_r80_patch_native.py
+          python3 tools/moa_r81_patch_voice_bridge.py
+          python3 tools/moa_r82_patch_host_webview_bind.py
+          python3 tools/moa_r83_patch_direct_host_trust.py
+          sha256sum -c /tmp/golden-before.sha256
+          grep -q 'hostWebView' "$ROOT/MoaMomentApplication.java"
+          grep -q 'r82VoiceBind' "$ROOT/MoaMomentApplication.java"
+          grep -q 'MoaMomentVoiceHostActivity' "$ROOT/MoaMomentVoiceBridge.java"
+          test -s "$ROOT/MoaMomentVoiceHostActivity.java"
+          grep -q 'sameTrustedOrigin' "$ROOT/MoaMomentVoiceChrome.java"
+          grep -q '__moaR81VoiceChromeLiveAt' "$ROOT/MoaMomentApplication.java"
+      - name: Compile Java and isolated DEX
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv android/app/src/main/java/com/juhyeon/familyjourney/MoaR50Bridge.java /tmp/MoaR50Bridge.java.exclude
+          gradle -p android --no-daemon :app:compileDebugJavaWithJavac
+          CLASSES="$(find android/app/build -type f -name MoaMomentCaptureService.class -printf '%h\n' | head -1)"
+          test -n "$CLASSES"
+          mkdir -p /tmp/r83dex build/moa-r83
+          find "$CLASSES" -maxdepth 1 -name 'MoaMoment*.class' ! -name 'MoaMomentHostActivity*' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r83dex
+          test -s /tmp/r83dex/classes.dex
+          python3 - <<'PY'
+          import pathlib,hashlib,zlib,base64,json
+          b=pathlib.Path('/tmp/r83dex/classes.dex').read_bytes()
+          for name in [b'MoaMomentVoice',b'MoaMomentVoiceBridge',b'MoaMomentVoiceChrome',b'MoaMomentMemoActivity',b'MoaMomentVoiceHostActivity',b'MoaMomentCaptureService']:
+              assert name in b,name
+          assert b'MoaMomentHostActivity' not in b
+          out=pathlib.Path('build/moa-r83')
+          (out/'classes4.dex').write_bytes(b)
+          (out/'native.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+          (out/'verification.json').write_text(json.dumps({'dex_sha256':hashlib.sha256(b).hexdigest(),'dex_bytes':len(b),'golden_original_host_untouched':True,'launcher':'original HostActivity subclass direct original WebView binding 320ms'},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R83-native-voice-DEX
+          path: build/moa-r83/
+          if-no-files-found: error
