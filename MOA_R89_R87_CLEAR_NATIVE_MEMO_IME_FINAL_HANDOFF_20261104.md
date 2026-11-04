@@ -1,3 +1,5 @@
+> **CURRENT STATUS UPDATE 2026-11-04 — R89 USER PHYSICAL GOLDEN:** New screenshots 18777.png, 18779.png, 18781.png, 18783.png and explicit user success confirmation promote R89 (code89 SHA256 `2b52826fc0dd8653a70d3c503d3654ae33071bfc4ec075753ec4464a1e2dc493`) to user-confirmed physical GOLDEN for native capture memo keyboard-aware Mic/Clear/Save, STT + typing, clear confirmation and native temporary-save toast. The older 'physical untested' wording below is a historical status, superseded for these specific observations. Camera temp-save toast is not standalone proof of final R89-specific IndexedDB synchronization. Read `MOA_R89_USER_DEVICE_GOLDEN_LOCK_20261104.md` first. Signed original frozen in private Library and `golden/moa-r89-20261104-user-device-pass-do-not-modify`; enhancements code>=91, new branch, same signer, no data wipe; R90 is older R87 recovery, not Gold.
+
 # MOA R89 — COMPLETE R87 DIARY CLEAR + NATIVE PHOTO MEMO CLEAR / IME-AWARE FOOTER (2026-11-04)
 
 ## Current status and proof
