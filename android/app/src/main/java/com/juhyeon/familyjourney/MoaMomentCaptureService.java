@@ -224,11 +224,25 @@ public class MoaMomentCaptureService extends Service {
 
         int side=prefs(this).getInt("thumbOverlaySide",1); // 0:left 1:right
         int distance=prefs(this).getInt("thumbOverlayBottomDp",310);
+        // R77: GB4PC's open-source secure-camera overlay uses these two
+        // window flags; old MOA had neither. This experiment ONLY applies
+        // them while an actual keyguard is showing. It does not wake,
+        // unlock, replace or interrupt Samsung Camera.
+        android.app.KeyguardManager guard=getSystemService(android.app.KeyguardManager.class);
+        boolean onKeyguard=guard!=null&&guard.isKeyguardLocked();
+        int flags=WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+          |WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
+        if(onKeyguard){
+          flags|=WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+            |WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN;
+        }
         WindowManager.LayoutParams p=new WindowManager.LayoutParams(
           WindowManager.LayoutParams.WRAP_CONTENT,WindowManager.LayoutParams.WRAP_CONTENT,
           WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-          WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-          PixelFormat.TRANSLUCENT);
+          flags,PixelFormat.TRANSLUCENT);
+        prefs(this).edit().putBoolean("r77LastOverlayKeyguard",onKeyguard)
+          .putInt("r77LastOverlayFlags",flags)
+          .putLong("r77LastOverlayAttemptAt",System.currentTimeMillis()).apply();
         p.gravity=(side==0?Gravity.START:Gravity.END)|Gravity.BOTTOM;
         p.x=dp(12);
         p.y=dp(Math.max(180,Math.min(530,distance)));
