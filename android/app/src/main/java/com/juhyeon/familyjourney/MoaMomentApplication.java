@@ -247,6 +247,25 @@ public class MoaMomentApplication extends Application implements Application.Act
     // Toggle here, not from onActivityCreated (which may still be background).
     if(toggleFromShortcut(a))return;
     ensureBridge(a);
+    // R80: refresh editor voice availability after the real page is visible.
+    for(int delay:new int[]{200,950,2400}){
+      main.postDelayed(()->{
+        if(a.isFinishing()||a.isDestroyed())return;
+        WebView w=findWebView(a.getWindow().getDecorView());
+        if(w==null||w.getUrl()==null||
+          !w.getUrl().startsWith("https://familyjourney.local/"))return;
+        try{
+          android.webkit.WebChromeClient chrome=w.getWebChromeClient();
+          if(!(chrome instanceof MoaMomentVoiceChrome))
+            w.setWebChromeClient(new MoaMomentVoiceChrome(chrome,
+              new MoaMomentVoiceBridge(a,w)));
+          w.evaluateJavascript("window.__moaR79VoicePromptReady=true",null);
+        }catch(Throwable e){
+          MoaMomentCaptureService.prefs(this).edit().putString(
+            "r80VoiceAttachError",e.getClass().getSimpleName()).apply();
+        }
+      },delay);
+    }
     // R59: This class (not MoaMomentSyncApplication) is the actual
     // AndroidManifest application in the shipped R57/R58 APK.
     // The standalone reliable inbox path compiled into the DEX was never
