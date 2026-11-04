@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - main
-      - fix/moa-r74-stable-thumbnails-dismissible-camera-pill-20261104
+      - fix/moa-r75-fast-day-thumbs-lockscreen-capture-20261104
     paths:
       - 'android/app/src/main/java/com/juhyeon/familyjourney/**'
       - '.github/workflows/moa-moment-native-dex.yml'
