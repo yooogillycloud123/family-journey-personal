@@ -78,6 +78,10 @@ public final class MoaMomentMemoActivity extends Activity {
     final String beforeSpeech=text.getText().toString().trim();
     speech=new MoaMomentVoice(this,new MoaMomentVoice.Listener(){
       @Override public void onListening(){micButton.setText("🎙 듣는 중…");micButton.setEnabled(false);}
+      @Override public void onPartialText(String interim){
+        String live=beforeSpeech.isEmpty()?interim:beforeSpeech+" "+interim;
+        text.setText(live);text.setSelection(text.length());
+      }
       @Override public void onText(String recognized){
         String next=beforeSpeech.isEmpty()?recognized:beforeSpeech+" "+recognized;
         text.setText(next);text.setSelection(text.length());
