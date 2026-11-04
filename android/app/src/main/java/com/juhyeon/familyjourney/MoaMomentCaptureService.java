@@ -180,6 +180,23 @@ public class MoaMomentCaptureService extends Service {
         note.setMinimumWidth(dp(92));
         note.setMinHeight(dp(45));
         card.addView(note);
+        // R74: dismiss ONLY this photo's floating prompt. No global
+        // monitoring toggle, no deletion of the captured file or saved memo.
+        TextView dismiss=new TextView(this);
+        dismiss.setText("×");
+        dismiss.setContentDescription("이번 촬영 바로 기록 알림 닫기");
+        dismiss.setTextSize(22);
+        dismiss.setTextColor(0xff657080);
+        dismiss.setGravity(Gravity.CENTER);
+        dismiss.setMinWidth(dp(42));
+        dismiss.setMinHeight(dp(46));
+        dismiss.setOnClickListener(v->{
+          if(overlayView==card)removeOptionalCameraOverlay();
+          // This specific capture's quiet notification is optional as well.
+          try{getSystemService(NotificationManager.class).cancel(notificationId);}
+          catch(Exception ignored){}
+        });
+        card.addView(dismiss);
         note.setOnClickListener(v->{
           removeOptionalCameraOverlay();
           try{target.send();}catch(PendingIntent.CanceledException e){
