@@ -155,8 +155,27 @@ public class MoaMomentApplication extends Application implements Application.Act
       // existing memo/toggle bridge and NEVER replace NativeHost.
       try{web.addJavascriptInterface(new MoaMomentQuickThumb(
         getApplicationContext(),web),"MoaQuickThumb");}catch(Throwable ignored){}
-      web.addJavascriptInterface(new MoaMomentVoiceBridge(a,web),"MoaVoiceNative");
+      MoaMomentVoiceBridge voice=new MoaMomentVoiceBridge(a,web);
+      web.addJavascriptInterface(voice,"MoaVoiceNative");
+      // R79: The WebView's JS interface only becomes visible after reload.
+      // Independently bridge a same-origin JS prompt so editor dictation can
+      // reach the ALREADY WORKING native SpeechRecognizer even in that state.
+      // Preserve HostActivity's original console/WebChrome handlers.
+      try{
+        web.setWebChromeClient(new MoaMomentVoiceChrome(web.getWebChromeClient(),voice));
+      }catch(Throwable chromeError){
+        MoaMomentCaptureService.prefs(this).edit().putString(
+          "r79VoiceChromeError",chromeError.getClass().getSimpleName()).apply();
+      }
       installed.put(web,true);
+      main.postDelayed(()->{
+        if(!a.isDestroyed()&&!a.isFinishing()
+          &&web.getUrl()!=null&&web.getUrl().startsWith("https://familyjourney.local/")
+          &&web.getWebChromeClient() instanceof MoaMomentVoiceChrome){
+          try{web.evaluateJavascript("window.__moaR79VoicePromptReady=true",null);}
+          catch(Exception ignored){}
+        }
+      },900L);
       String url=web.getUrl();
       MoaMomentCaptureService.prefs(this).edit().putString(
         "bridgeDiagnostic","R49 interface registered url="+url+" progress="+web.getProgress()).apply();
