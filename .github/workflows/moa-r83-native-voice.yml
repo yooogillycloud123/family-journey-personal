@@ -4,6 +4,7 @@ on:
     branches: [speech-r83-original-webview-direct-host]
     paths:
       - 'tools/moa_r83_patch_direct_host_trust.py'
+      - 'tools/moa_r83_patch_inbox_parity.py'
       - 'android/app/src/main/java/com/juhyeon/familyjourney/MoaMomentVoiceHostActivity.java'
       - '.github/workflows/moa-r83-native-voice.yml'
   workflow_dispatch:
@@ -38,11 +39,13 @@ jobs:
           python3 tools/moa_r81_patch_voice_bridge.py
           python3 tools/moa_r82_patch_host_webview_bind.py
           python3 tools/moa_r83_patch_direct_host_trust.py
+          python3 tools/moa_r83_patch_inbox_parity.py
           sha256sum -c /tmp/golden-before.sha256
           grep -q 'hostWebView' "$ROOT/MoaMomentApplication.java"
           grep -q 'r82VoiceBind' "$ROOT/MoaMomentApplication.java"
           grep -q 'MoaMomentVoiceHostActivity' "$ROOT/MoaMomentVoiceBridge.java"
           test -s "$ROOT/MoaMomentVoiceHostActivity.java"
+          grep -q 'MoaMomentVoiceHostActivity' "$ROOT/MoaMomentInboxSync.java"
           grep -q 'sameTrustedOrigin' "$ROOT/MoaMomentVoiceChrome.java"
           grep -q '__moaR81VoiceChromeLiveAt' "$ROOT/MoaMomentApplication.java"
       - name: Compile Java and isolated DEX
