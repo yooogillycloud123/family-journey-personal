@@ -134,16 +134,29 @@ public class MoaMomentCaptureService extends Service {
     PendingIntent pi=PendingIntent.getBroadcast(this,key.hashCode(),reply,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_MUTABLE);
     RemoteInput input=new RemoteInput.Builder("note").setLabel("지금 기억나는 상황을 입력하거나 키보드 마이크로 말하세요").build();
     Notification.Action action=new Notification.Action.Builder(null,"바로 메모",pi).addRemoteInput(input).build();
-    // A system heads-up always appears near the TOP and cannot be repositioned by an app.
-    // Show only ONE immediately visible capture UI when the thumb overlay is allowed.
-    boolean thumbOverlay=Settings.canDrawOverlays(this);
-    Notification n=new Notification.Builder(this,thumbOverlay?CH_EVENT_QUIET:CH_EVENT)
-      .setSmallIcon(android.R.drawable.ic_menu_edit).setContentTitle("방금 촬영한 사진·영상 · 모아 기록")
-      .setContentText("여기를 눌러 즉시 기록하거나, 바로 메모에서 입력하세요.")
-      .setAutoCancel(true).setContentIntent(tap).addAction(action).setCategory(Notification.CATEGORY_REMINDER)
-      .setPriority(thumbOverlay?Notification.PRIORITY_LOW:Notification.PRIORITY_HIGH).build();
+    // Samsung's secure lockscreen camera may cover TYPE_APPLICATION_OVERLAY
+    // even though the capture ContentObserver works. Never send a quiet
+    // notification into an invisible overlay on the KEYGUARD. Use a visible
+    // actionable SYSTEM notification instead; it may still be hidden by user
+    // lockscreen notification settings, which we must respect.
+    android.app.KeyguardManager km=getSystemService(android.app.KeyguardManager.class);
+    boolean locked=km!=null&&km.isKeyguardLocked();
+    boolean thumbOverlay=Settings.canDrawOverlays(this)&&!locked;
+    prefs(this).edit().putBoolean("lastCaptureKeyguardShowing",locked)
+      .putLong("lastCaptureNotificationAt",System.currentTimeMillis()).apply();
+    Notification.Builder builder=new Notification.Builder(this,thumbOverlay?CH_EVENT_QUIET:CH_EVENT)
+      .setSmallIcon(android.R.drawable.ic_menu_edit)
+      .setContentTitle(locked?"방금 촬영했어요 · 모아 바로 기록":"방금 촬영한 사진·영상 · 모아 기록")
+      .setContentText(locked?"눌러서 사진의 순간을 메모하세요.":"여기를 눌러 즉시 기록하거나, 바로 메모에서 입력하세요.")
+      .setVisibility(Notification.VISIBILITY_PUBLIC)
+      .setAutoCancel(true).setContentIntent(tap).addAction(action)
+      .setCategory(Notification.CATEGORY_REMINDER)
+      .setPriority(thumbOverlay?Notification.PRIORITY_LOW:Notification.PRIORITY_HIGH);
+    if(locked)builder.addAction(new Notification.Action.Builder(
+      null,"바로 기록",tap).build());
+    Notification n=builder.build();
     getSystemService(NotificationManager.class).notify(43000+(key.hashCode()&0x7fff),n);
-    showOptionalCameraOverlay(tap,43000+(key.hashCode()&0x7fff));
+    if(thumbOverlay)showOptionalCameraOverlay(tap,43000+(key.hashCode()&0x7fff));
   }
   /** Optional explicit overlay: a small non-focusable banner over Samsung Camera.
    *  Requires user-granted Draw over other apps; no automatic permission grant.
