@@ -1,0 +1,3 @@
+# MOA R80 branch build pointer
+
+R79 actual Samsung editor mic FAIL: ready bridge not found. R77 camera popup and R78 native photo memo STT actual PASS. R80 patched native Java through `tools/moa_r80_patch_native.py` at GitHub Actions 41796811658 SUCCESS; DEX SHA256 aef7c90606eb439ed0e331c9ef371c3e286c10dfa92c9d257b9e9ea97d307b6d. Diary source patch `tools/moa_r80_patch_diary_voice.py` applies to byte-exact private R79 JS. **R80 apk signed and present in private Library**, SHA256 4b15c43724a9023adeb237bd09e35f9c490dec858664497955519906d804a2f7, version80, same package/cert. Actual Galaxy recognition pending. Complete main handoff: MOA_R80_VOICE_PARTIAL_RECOVERY_READ_FIRST_20261104.md. Never modify AA AirPods or R63 Golden.
