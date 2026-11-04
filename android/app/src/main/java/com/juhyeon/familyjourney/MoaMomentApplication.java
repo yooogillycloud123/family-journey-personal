@@ -151,6 +151,10 @@ public class MoaMomentApplication extends Application implements Application.Act
     try {
       // addJavascriptInterface is exposed on the NEXT page load.
       web.addJavascriptInterface(new CaptureBridge(getApplicationContext()),"MoaMomentNative");
+      // Optional R75 fast thumbnail worker: isolate failures from the
+      // existing memo/toggle bridge and NEVER replace NativeHost.
+      try{web.addJavascriptInterface(new MoaMomentQuickThumb(
+        getApplicationContext(),web),"MoaQuickThumb");}catch(Throwable ignored){}
       installed.put(web,true);
       String url=web.getUrl();
       MoaMomentCaptureService.prefs(this).edit().putString(
