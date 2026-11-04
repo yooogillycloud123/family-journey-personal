@@ -29,7 +29,7 @@ import java.util.*;
  * Native drafts survive process loss and are acknowledged only after WebView IndexedDB commits.
  */
 public class MoaMomentCaptureService extends Service {
-  public static final String PREF="moa_camera_native_v1", CH="moa_moment_monitor", CH_EVENT="moa_moment_capture_alerts_v2", CH_EVENT_QUIET="moa_moment_capture_quiet_thumb_v1", ACT="com.juhyeon.familyjournea.MOMENT";
+  public static final String PREF="moa_camera_native_v1", CH="moa_moment_monitor", CH_EVENT="moa_moment_capture_alerts_v2", CH_EVENT_QUIET="moa_moment_capture_quiet_thumb_v1", CH_EVENT_LOCK="moa_moment_secure_camera_v1", ACT="com.juhyeon.familyjournea.MOMENT";
   public static final String NOTESTOP="com.juhyeon.familyjournea.MOMENT_STOP";
   private Handler h; private final Handler ui=new Handler(Looper.getMainLooper());
   private WindowManager overlayManager; private View overlayView;
@@ -53,6 +53,12 @@ public class MoaMomentCaptureService extends Service {
     n.createNotificationChannel(new NotificationChannel(CH_EVENT,"모아 촬영 즉시 기록",NotificationManager.IMPORTANCE_HIGH));
     // The thumb-zone overlay is the visible action; leave a silent tray backup.
     n.createNotificationChannel(new NotificationChannel(CH_EVENT_QUIET,"모아 촬영 기록 보관 알림",NotificationManager.IMPORTANCE_LOW));
+    // Separate, user-configurable HIGH channel for explicitly requested secure
+    // camera captures. Channel visibility is still controlled by One UI/user.
+    NotificationChannel secureCapture=new NotificationChannel(CH_EVENT_LOCK,
+      "모아 잠금화면 촬영 바로 기록",NotificationManager.IMPORTANCE_HIGH);
+    secureCapture.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+    n.createNotificationChannel(secureCapture);
     observer=new ContentObserver(h){@Override public void onChange(boolean self,Uri uri){schedule();}@Override public void onChange(boolean self){schedule();}};
   }
   @Override public int onStartCommand(Intent intent,int flags,int startId){
@@ -142,9 +148,19 @@ public class MoaMomentCaptureService extends Service {
     android.app.KeyguardManager km=getSystemService(android.app.KeyguardManager.class);
     boolean locked=km!=null&&km.isKeyguardLocked();
     boolean thumbOverlay=Settings.canDrawOverlays(this)&&!locked;
+    // NON-PERSONAL diagnostics: these values help distinguish "notification
+    // blocked by settings" from "overlay drawn but hidden by secure camera".
+    NotificationManager nm=getSystemService(NotificationManager.class);
+    NotificationChannel activeLock=nm.getNotificationChannel(CH_EVENT_LOCK);
+    prefs(this).edit().putBoolean("lastCaptureDeviceLocked",km!=null&&km.isDeviceLocked())
+      .putBoolean("lastCaptureOverlayGranted",Settings.canDrawOverlays(this))
+      .putInt("lastCaptureLockChannelImportance",
+        activeLock==null?-1:activeLock.getImportance())
+      .putBoolean("lastCaptureNotificationAllowed",nm.areNotificationsEnabled())
+      .apply();
     prefs(this).edit().putBoolean("lastCaptureKeyguardShowing",locked)
       .putLong("lastCaptureNotificationAt",System.currentTimeMillis()).apply();
-    Notification.Builder builder=new Notification.Builder(this,thumbOverlay?CH_EVENT_QUIET:CH_EVENT)
+    Notification.Builder builder=new Notification.Builder(this,locked?CH_EVENT_LOCK:(thumbOverlay?CH_EVENT_QUIET:CH_EVENT))
       .setSmallIcon(android.R.drawable.ic_menu_edit)
       .setContentTitle(locked?"방금 촬영했어요 · 모아 바로 기록":"방금 촬영한 사진·영상 · 모아 기록")
       .setContentText(locked?"눌러서 사진의 순간을 메모하세요.":"여기를 눌러 즉시 기록하거나, 바로 메모에서 입력하세요.")
@@ -155,7 +171,14 @@ public class MoaMomentCaptureService extends Service {
     if(locked)builder.addAction(new Notification.Action.Builder(
       null,"바로 기록",tap).build());
     Notification n=builder.build();
-    getSystemService(NotificationManager.class).notify(43000+(key.hashCode()&0x7fff),n);
+    try{
+      getSystemService(NotificationManager.class).notify(43000+(key.hashCode()&0x7fff),n);
+      prefs(this).edit().putString("lastLockAlertDiagnostic",
+        locked?"POSTED_TO_LOCK_CHANNEL":"POSTED_STANDARD").apply();
+    }catch(Exception alertFailure){
+      prefs(this).edit().putString("lastLockAlertDiagnostic",
+        "POST_FAILED_"+alertFailure.getClass().getSimpleName()).apply();
+    }
     // Keep R74's existing overlay lifecycle too: on Samsung secure camera
     // it may be hidden behind keyguard and then become visible on unlock.
     // The HIGH notification is the additional lockscreen-safe route, not a
