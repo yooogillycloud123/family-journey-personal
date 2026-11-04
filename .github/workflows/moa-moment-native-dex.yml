@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - main
-      - speech-ui-r78
+      - speech-r79-editor-bridge
     paths:
       - 'android/app/src/main/java/com/juhyeon/familyjourney/**'
       - '.github/workflows/moa-moment-native-dex.yml'
