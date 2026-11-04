@@ -155,6 +155,7 @@ public class MoaMomentApplication extends Application implements Application.Act
       // existing memo/toggle bridge and NEVER replace NativeHost.
       try{web.addJavascriptInterface(new MoaMomentQuickThumb(
         getApplicationContext(),web),"MoaQuickThumb");}catch(Throwable ignored){}
+      web.addJavascriptInterface(new MoaMomentVoiceBridge(a,web),"MoaVoiceNative");
       installed.put(web,true);
       String url=web.getUrl();
       MoaMomentCaptureService.prefs(this).edit().putString(
