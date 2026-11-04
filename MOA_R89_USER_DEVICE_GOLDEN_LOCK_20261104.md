@@ -23,6 +23,10 @@ This supersedes the earlier R89 **PHYSICAL UNTESTED** language in `MOA_R89_R87_C
 - R87→R89 member diff independently rechecked using the actual two APKs: 55 ZIP entries, ONLY **`AndroidManifest.xml`** (version) and **`classes4.dex`** (native capture memo UI) changed; **53 unchanged**, including the previously physically successful R87 whole-field-clear `assets/web/family-diary.js`, original native launcher class in `classes2.dex`, original IDB `assets/web/moa-direct-diary-commit.html`, and unrelated photos/maps/OHO assets.
 - Preserve exact frozen R89 bytes; do not repack, patch, resign or overwrite this APK or the protected branch.
 
+## Ready-to-use next-work branch (no code changes yet)
+- NEW working branch: `develop/moa-from-r89-golden-next`, created directly from the frozen R89 Golden source anchor. Implement future features here or on a feature branch based on it, NEVER on the frozen Gold branch.
+- The exact signed APK snapshot remains private Library's SHA256-verified R89; new compilation must reproduce protected behavior and compare original members before release code >=91.
+
 ## Nonnegotiable future expansion rules
 1. Before work, read the AA project canonical as instructed, then this R89 Golden lock, the R83 native speech Golden lock and R89 original handoff; check current private Library and runtime checkpoint first.
 2. **Start each new experiment on a NEW branch from the R89 Golden anchor** and package it as a new code **>=91**. R90 was already issued as a rollback-forward to older R87 behavior (it lacks the R89 keyboard/clear improvements). R90 is **NOT** a Golden replacement. Never silently revert to R83/R87/R90 for new features.
