@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - main
-      - fix/moa-r77-secure-camera-flag-parity-20261104
+      - speech-ui-r78
     paths:
       - 'android/app/src/main/java/com/juhyeon/familyjourney/**'
       - '.github/workflows/moa-moment-native-dex.yml'
