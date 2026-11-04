@@ -156,7 +156,12 @@ public class MoaMomentCaptureService extends Service {
       null,"바로 기록",tap).build());
     Notification n=builder.build();
     getSystemService(NotificationManager.class).notify(43000+(key.hashCode()&0x7fff),n);
-    if(thumbOverlay)showOptionalCameraOverlay(tap,43000+(key.hashCode()&0x7fff));
+    // Keep R74's existing overlay lifecycle too: on Samsung secure camera
+    // it may be hidden behind keyguard and then become visible on unlock.
+    // The HIGH notification is the additional lockscreen-safe route, not a
+    // replacement that would regress the user's unlock fallback.
+    if(Settings.canDrawOverlays(this))
+      showOptionalCameraOverlay(tap,43000+(key.hashCode()&0x7fff));
   }
   /** Optional explicit overlay: a small non-focusable banner over Samsung Camera.
    *  Requires user-granted Draw over other apps; no automatic permission grant.
