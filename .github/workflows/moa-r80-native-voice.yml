@@ -1,0 +1,70 @@
+name: MOA R80 native partial speech bridge isolated compile
+on:
+  push:
+    branches: [speech-r80-partial-bridge]
+    paths:
+      - 'tools/moa_r80_patch_native.py'
+      - '.github/workflows/moa-r80-native-voice.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-and-dex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          S="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$S" --licenses >/dev/null || true
+          "$S" "platforms;android-35" "build-tools;35.0.0"
+      - name: Patch ONLY isolated voice classes; protect Golden sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT=android/app/src/main/java/com/juhyeon/familyjourney
+          sha256sum "$ROOT/MoaMomentCaptureService.java" "$ROOT/MoaMomentDirectDiaryStore.java" > /tmp/golden-source-before.sha256
+          python3 tools/moa_r80_patch_native.py
+          sha256sum -c /tmp/golden-source-before.sha256
+          grep -q 'EXTRA_PARTIAL_RESULTS,true' "$ROOT/MoaMomentVoice.java"
+          grep -q 'onPartial' "$ROOT/MoaMomentVoiceBridge.java"
+          grep -q 'rearmVoiceChrome' "$ROOT/MoaMomentApplication.java"
+          grep -q 'paintVoice' "$ROOT/MoaMomentMemoActivity.java"
+      - name: Compile Java and DEX without recompiling original HostActivity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv android/app/src/main/java/com/juhyeon/familyjourney/MoaR50Bridge.java /tmp/MoaR50Bridge.java.exclude
+          gradle -p android --no-daemon :app:compileDebugJavaWithJavac
+          CLASSES="$(find android/app/build -type f -name MoaMomentCaptureService.class -printf '%h\n' | head -1)"
+          test -n "$CLASSES"
+          for F in MoaMomentVoice.class MoaMomentVoiceBridge.class MoaMomentVoiceChrome.class MoaMomentMemoActivity.class MoaMomentCaptureService.class; do test -s "$CLASSES/$F"; done
+          mkdir -p /tmp/r80dex build/moa-r80
+          find "$CLASSES" -maxdepth 1 -name 'MoaMoment*.class' ! -name 'MoaMomentHostActivity*' -print0 |
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r80dex
+          test -s /tmp/r80dex/classes.dex
+          python3 - <<'PY'
+          import pathlib,hashlib,zlib,base64,json
+          b=pathlib.Path('/tmp/r80dex/classes.dex').read_bytes()
+          for name in [b'MoaMomentVoice',b'MoaMomentVoiceBridge',b'MoaMomentVoiceChrome',b'MoaMomentMemoActivity',b'MoaMomentCaptureService']:
+              assert name in b,name
+          assert b'MoaMomentHostActivity' not in b
+          out=pathlib.Path('build/moa-r80')
+          (out/'classes4.dex').write_bytes(b)
+          (out/'native.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+          (out/'verification.json').write_text(json.dumps({'dex_sha256':hashlib.sha256(b).hexdigest(),'dex_bytes':len(b),'golden_original_host_untouched':True},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R80-native-voice-DEX
+          path: build/moa-r80/
+          if-no-files-found: error
