@@ -1,3 +1,6 @@
+## 2026-11-04 R79 latest — actual R78 editor speech FAILED not-allowed; R78 native lockscreen memo voice PASSED
+The R78 screenshot 18675.png shows `familyjourney.local` browser alert `음성 입력 실패: not-allowed` when using diary-editor microphone. Root source: missing/exposed-late `MoaVoiceNative` causes R78 to fall back to blocked Web Speech in WebView. R79 eliminates Web Speech fallback and routes editor dictation to SAME already-working native SpeechRecognizer via direct bridge or same-origin `WebChromeClient.onJsPrompt` fallback without reloading dirty diary. Signed R79 APK SHA256 211d3b1501c4f451261f9358ef2f2f3ebc7b7154f13bdc4eedaf13b74a50943a, code79, 3454131 bytes, same package/signer; 3/55 member changes only. R77 keyguard popup & R78 native photo memo speech/ R63 IDB writer byte-preserved. CI 41786151324 + APK/JS/IDB/deletion/thumb tests PASS; **R79 Samsung editor voice PHYSICAL UNTESTED**. Read MOA_R79_R78_DIARY_VOICE_NOT_ALLOWED_NATIVE_PROMPT_BRIDGE_READ_FIRST_20261104.md first.
+
 ## R78 NEWEST — 2026-11-04
 R77 locked-camera popup actual Galaxy PASS; R78 Android SpeechRecognizer for memo and diary fields static PASS only. Full details: MOA_R78_R77_LOCKSCREEN_GOLDEN_NATIVE_STT_EDITOR_VOICE_READ_FIRST_20261104.md.
 
