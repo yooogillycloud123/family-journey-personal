@@ -16,7 +16,7 @@ import java.util.Locale;
 
 /** Single-photo native input shown on tapping the capture notification. */
 public final class MoaMomentMemoActivity extends Activity {
-  private String id; private EditText text;
+  private String id; private EditText text; private MoaMomentVoice speech; private Button micButton;
   @Override protected void onCreate(Bundle b){
     super.onCreate(b);id=getIntent().getStringExtra("id");
     if(id==null||!id.matches("v?\\d{1,19}")){finish();return;}
@@ -32,12 +32,8 @@ public final class MoaMomentMemoActivity extends Activity {
     text=new EditText(this);text.setMinLines(4);text.setMaxLines(7);text.setGravity(48);text.setHint("지금 무슨 일이 있었나요?");
     text.setTextSize(17);l.addView(text);
     try{JSONObject j=new JSONObject(MoaMomentCaptureService.prefs(this).getString("m:"+id,"{}"));text.setText(j.optString("note",""));}catch(Exception ignored){}
-    Button mic=new Button(this);mic.setText("🎙 음성으로 말하기");mic.setOnClickListener(v->{
-      try{Intent recog=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-      recog.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-      recog.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"ko-KR");recog.putExtra(RecognizerIntent.EXTRA_PROMPT,"사진을 찍은 순간의 이야기를 말해 주세요.");
-      startActivityForResult(recog,91);}catch(Exception x){Toast.makeText(this,"음성 인식 앱이 없어 키보드 마이크를 사용하세요.",Toast.LENGTH_LONG).show();}
-    });
+    Button mic=new Button(this);micButton=mic;mic.setText("🎙 음성으로 말하기");
+    mic.setOnClickListener(v->beginInlineVoice());
     Button save=new Button(this);save.setText("모아 일기에 메모 저장");
     save.setOnClickListener(v->{
       try{String previous=MoaMomentCaptureService.prefs(this).getString("m:"+id,"");if(previous.isEmpty()){Toast.makeText(this,"사진 기록을 찾지 못했습니다.",Toast.LENGTH_LONG).show();return;}
@@ -70,6 +66,37 @@ public final class MoaMomentMemoActivity extends Activity {
     root.addView(footer,new LinearLayout.LayoutParams(-1,-2));
     setContentView(root);
     getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+  }
+  // R78: microphone stays INSIDE this Activity (also on the secure lockscreen).
+  private void beginInlineVoice(){
+    if(!MoaMomentVoice.hasPermission(this)){
+      Toast.makeText(this,"마이크 권한을 허용한 후 음성으로 기록할 수 있습니다.",Toast.LENGTH_SHORT).show();
+      requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},7801);
+      return;
+    }
+    if(speech!=null){speech.stop();speech=null;}
+    speech=new MoaMomentVoice(this,new MoaMomentVoice.Listener(){
+      @Override public void onListening(){micButton.setText("🎙 듣는 중…");micButton.setEnabled(false);}
+      @Override public void onText(String recognized){
+        String previous=text.getText().toString().trim();
+        String next=previous.isEmpty()?recognized:previous+" "+recognized;
+        text.setText(next);text.setSelection(text.length());
+      }
+      @Override public void onFailure(String message){Toast.makeText(MoaMomentMemoActivity.this,message,Toast.LENGTH_LONG).show();}
+      @Override public void onFinished(){micButton.setText("🎙 음성으로 말하기");micButton.setEnabled(true);}
+    });
+    speech.start();
+  }
+  @Override public void onRequestPermissionsResult(int code,String[] permissions,int[] results){
+    super.onRequestPermissionsResult(code,permissions,results);
+    if(code==7801){
+      if(results.length>0&&results[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)beginInlineVoice();
+      else Toast.makeText(this,"마이크 권한을 허용해야 음성 기록이 가능합니다.",Toast.LENGTH_LONG).show();
+    }
+  }
+  @Override protected void onDestroy(){
+    if(speech!=null){speech.stop();speech=null;}
+    super.onDestroy();
   }
   @Override protected void onActivityResult(int code,int result,Intent data){
     super.onActivityResult(code,result,data);
