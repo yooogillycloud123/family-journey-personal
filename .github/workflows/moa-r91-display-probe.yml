@@ -46,6 +46,19 @@ jobs:
           cp example/build/outputs/apk/debug/example-debug.apk "$GITHUB_WORKSPACE/r91_artifact/MOA_R91_HIDDEN_DISPLAY_READONLY_PROBE.apk"
           sha256sum "$GITHUB_WORKSPACE/r91_artifact/MOA_R91_HIDDEN_DISPLAY_READONLY_PROBE.apk" > "$GITHUB_WORKSPACE/r91_artifact/SHA256.txt"
           echo "R91_DIAGNOSTIC_BUILD=PASS" > "$GITHUB_WORKSPACE/r91_artifact/STATUS.txt"
+      - name: Verify experimental APK package, signer and ZIP integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$GITHUB_WORKSPACE/r91_artifact/MOA_R91_HIDDEN_DISPLAY_READONLY_PROBE.apk"
+          unzip -t "$APK" | tail -n 2
+          signer="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          test -n "$signer"
+          test -n "$aapt"
+          "$signer" verify --verbose "$APK"
+          "$aapt" dump badging "$APK" | head -n 3
+          sha256sum "$APK"
       - uses: actions/upload-artifact@v4
         with:
           name: MOA-R91-READONLY-HEADLESS-DIAGNOSTIC
