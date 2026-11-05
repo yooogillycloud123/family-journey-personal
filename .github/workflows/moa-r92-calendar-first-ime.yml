@@ -1,0 +1,85 @@
+name: MOA R92 R89 Golden memo-first-keyboard native DEX
+on:
+  push:
+    branches: [feature/moa-r92-auto-ime-calendar-first-20261105]
+    paths:
+      - 'tools/moa_r92_auto_ime_patch.py'
+      - 'tools/moa_r92_calendar_first_patch.py'
+      - '.github/workflows/moa-r92-calendar-first-ime.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile-isolated-golden-dex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install Android SDK 35 for identical R89 build toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          S="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$S" --licenses >/dev/null || true
+          "$S" "platforms;android-35" "build-tools;35.0.0"
+      - name: Reconstruct proven R89 native DEX from frozen sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT=android/app/src/main/java/com/juhyeon/familyjourney
+          sha256sum "$ROOT/MoaMomentCaptureService.java" "$ROOT/MoaMomentDirectDiaryStore.java" > /tmp/golden-core.sha256
+          python3 tools/moa_r80_patch_native.py
+          python3 tools/moa_r81_patch_voice_bridge.py
+          python3 tools/moa_r82_patch_host_webview_bind.py
+          python3 tools/moa_r83_patch_direct_host_trust.py
+          python3 tools/moa_r83_patch_inbox_parity.py
+          python3 tools/moa_r87_patch_memo_clear_ime.py
+          sha256sum -c /tmp/golden-core.sha256
+          cp "$ROOT/MoaMomentMemoActivity.java" /tmp/r89_memo_before_r92.java
+          mv "$ROOT/MoaR50Bridge.java" /tmp/MoaR50Bridge.java.exclude
+          gradle -p android --no-daemon :app:compileDebugJavaWithJavac
+          CLASSES="$(find android/app/build -type f -name MoaMomentCaptureService.class -printf '%h\n' | head -1)"
+          test -n "$CLASSES"
+          mkdir -p /tmp/r89dex
+          find "$CLASSES" -maxdepth 1 -name 'MoaMoment*.class' ! -name 'MoaMomentHostActivity*' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r89dex
+          sha256sum /tmp/r89dex/classes.dex
+          echo 'f1513f5be8741a401943d2654665460b78dbfa6a8acdc463039e54c59b0ae608  /tmp/r89dex/classes.dex' | sha256sum --check
+      - name: Patch initial keyboard only and compile R92 DEX
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT=android/app/src/main/java/com/juhyeon/familyjourney
+          sha256sum "$ROOT"/MoaMomentVoice*.java "$ROOT/MoaMomentCaptureService.java" "$ROOT/MoaMomentDirectDiaryStore.java" "$ROOT/MoaMomentInboxSync.java" > /tmp/r89-other-sources.sha256
+          python3 tools/moa_r92_auto_ime_patch.py
+          sha256sum -c /tmp/r89-other-sources.sha256
+          grep -q 'SOFT_INPUT_STATE_ALWAYS_VISIBLE' "$ROOT/MoaMomentMemoActivity.java"
+          grep -q 'onWindowFocusChanged' "$ROOT/MoaMomentMemoActivity.java"
+          gradle -p android --no-daemon :app:compileDebugJavaWithJavac
+          CLASSES="$(find android/app/build -type f -name MoaMomentCaptureService.class -printf '%h\n' | head -1)"
+          mkdir -p /tmp/r92dex build/moa-r92
+          find "$CLASSES" -maxdepth 1 -name 'MoaMoment*.class' ! -name 'MoaMomentHostActivity*' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r92dex
+          cp /tmp/r92dex/classes.dex build/moa-r92/classes4.dex
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          b=Path('build/moa-r92/classes4.dex').read_bytes()
+          for marker in [b'MoaMomentMemoActivity',b'MoaMomentVoiceHostActivity',b'MoaMomentDirectDiaryStore',b'onWindowFocusChanged']:
+              assert marker in b,marker
+          assert b'MoaMomentHostActivity' not in b
+          Path('build/moa-r92/verification.json').write_text(json.dumps({
+            'release':'R92 keyboard focus only, R89 DEX baseline rebuilt EXACT',
+            'baseline_r89_dex':'f1513f5be8741a401943d2654665460b78dbfa6a8acdc463039e54c59b0ae608',
+            'r92_dex_sha256':hashlib.sha256(b).hexdigest(),'r92_dex_bytes':len(b),
+            'same_r89_voice_code':True,'device_pass':False},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R92-R89-GOLDEN-NATIVE-DEX
+          path: build/moa-r92/
+          if-no-files-found: error
