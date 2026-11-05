@@ -1,3 +1,9 @@
+# CRITICAL 2026-11-05: APK LINK DELIVERY FAILURE — READ BEFORE ANY RELEASE
+
+**USER-REPORTED ERROR STILL OPEN:** ChatGPT Android app displayed **"Library file not found"** when trying to open MOA R92 and R94/R95 APK sandbox/Library links (18843, 18845, 18860 screenshots). **No user-verified successful download yet.** Before announcing any new APK delivery, read [MOA_RELEASE_DOWNLOAD_LINK_RELIABILITY_CRITICAL_RULE_20261105.md](MOA_RELEASE_DOWNLOAD_LINK_RELIABILITY_CRITICAL_RULE_20261105.md) IN FULL. Do not claim a link is accessible merely because the APK was signed, present in /mnt/data, uploaded to Library, or renamed. These are NOT recipient accessibility checks. Independent download route + recipient confirmation required. User explicitly stated further broken downloads could lead to cancellation of the paid plan. Prioritize resolving delivery over additional unrelated feature work. R89 Golden unchanged; R91 NAVER on hold.
+
+---
+
 ## 2026-11-05 NO-SHIZUKU NAVER R91 — NEXT CHAT READ FIRST
 R89 remains the USER-PROVEN immutable Golden. Current user goal: first native NAVER save→only on verified success automatically Back to MOA; separately test no-Shizuku hidden private VirtualDisplay+Presentation+NAVER mobile WEB while user uses other apps. **Do not offer Shizuku or a second helper app.** Repo `feature/moa-r91-naver-return-no-shizuku` contains already written source and CI run 41983346964 Java compile PASS; **NOT R89 signed APK/device PASS**, legacy `androidHost` package differs from live R89. BEFORE changes read `MOA_R91_NO_SHIZUKU_NEW_CHAT_HANDOFF_20261105.md` in main, then current R89 Golden lock, and inspect actual R89 APK/DEX. Do not revert to old R87/R90 or change user data. Any next installable APK same package/signer code>=91. Note: Hidden WebView does not equal native NAVER app and no actual hidden bookmark write has been verified.
 
