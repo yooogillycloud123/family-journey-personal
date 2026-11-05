@@ -71,29 +71,31 @@ class MainActivity : AppCompatActivity() {
             var runtime: HeadlessRuntime? = null
             var session: HeadlessSession? = null
             try {
-                runtime = HeadlessAutomation.start(applicationContext)
-                if (!runtime.isAuthorized()) {
-                    val ok = runtime.requestAuthorization()
+                val liveRuntime = HeadlessAutomation.start(applicationContext)
+                runtime = liveRuntime
+                if (!liveRuntime.isAuthorized()) {
+                    val ok = liveRuntime.requestAuthorization()
                     if (!ok) {
                         log("결과: SHIZUKU_NOT_AUTHORIZED — 권한이 승인되지 않았습니다.")
                         return@launch
                     }
                 }
-                session = withContext(Dispatchers.IO) { runtime.createSession() }
-                val id = session.displayId
+                val liveSession = withContext(Dispatchers.IO) { liveRuntime.createSession() }
+                session = liveSession
+                val id = liveSession.displayId
                 if (id <= 0) {
                     log("결과: DISPLAY_ZERO_REFUSED — 안전 중단")
                     return@launch
                 }
-                withContext(Dispatchers.IO) { session.launch(target) }
+                withContext(Dispatchers.IO) { liveSession.launch(target) }
                 delay(2200L)
-                val placed = withContext(Dispatchers.IO) { session.isAppOnDisplay(target) }
-                val zero = withContext(Dispatchers.IO) { session.checkDisplayZero() }
+                val placed = withContext(Dispatchers.IO) { liveSession.isAppOnDisplay(target) }
+                val zero = withContext(Dispatchers.IO) { liveSession.checkDisplayZero() }
                 if (!placed || zero.isContaminated) {
                     log("결과: ISOLATION_FAIL display=$id hidden=$placed zeroSafe=${!zero.isContaminated}; 작업 중단")
                     return@launch
                 }
-                val treeReadable = withContext(Dispatchers.IO) { session.compactUi() != null }
+                val treeReadable = withContext(Dispatchers.IO) { liveSession.compactUi() != null }
                 log("결과: HIDDEN_DISPLAY_PASS target=$target display=$id zeroSafe=true treeReadable=$treeReadable\n즐겨찾기 저장은 실행하지 않았습니다.")
             } catch (e: Throwable) {
                 log("결과: FAIL_${e.javaClass.simpleName}: ${(e.message ?: "").take(220)}")
