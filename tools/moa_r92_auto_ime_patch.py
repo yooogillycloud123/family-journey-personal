@@ -17,7 +17,7 @@ new="""    setContentView(root);
     getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);"""
 assert s.count(old)==1,("R89 keyboard state anchor",s.count(old))
 s=s.replace(old,new)
-anchor="  // R78: microphone stays INSIDE this Activity (also on the secure lockscreen)."
+anchor="  private void paintVoice(String words,boolean finalText){"
 insert="""  // Samsung IME sometimes ignores state flags until this Activity owns focus.
   // Request only ONCE per Activity, never reopen IME after the user hides it.
   @Override public void onWindowFocusChanged(boolean hasFocus){
