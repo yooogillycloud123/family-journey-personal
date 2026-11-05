@@ -1,0 +1,59 @@
+name: MOA R91 no-Shizuku NAVER verified-return + hidden-web proof
+on:
+  push:
+    branches: [feature/moa-r91-naver-return-no-shizuku]
+    paths:
+      - 'tools/moa_r91_naver_auto_return_patch.py'
+      - 'androidHost/app/src/main/java/com/juhyeon/familyjourney/MoaNaverHiddenWebProbe.java'
+      - '.github/workflows/moa-r91-no-shizuku-nav.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          M="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$M" --licenses >/dev/null || true
+          "$M" "platforms;android-35" "build-tools;35.0.0"
+      - name: Patch existing NAVER one-shot ONLY and freeze other source
+        shell: bash
+        run: |
+          set -euo pipefail
+          find androidHost/app/src/main -type f ! -name HostActivity.java ! -name NaverSaveService.java ! -name MoaNaverHiddenWebProbe.java -print0 | sort -z | xargs -0 sha256sum > /tmp/frozen-before.txt
+          python3 tools/moa_r91_naver_auto_return_patch.py
+          sha256sum --check /tmp/frozen-before.txt
+          grep -q 'returnAfterSave(job,0)' androidHost/app/src/main/java/com/juhyeon/familyjourney/NaverSaveService.java
+          grep -q 'returnAfterVerified",true' androidHost/app/src/main/java/com/juhyeon/familyjourney/HostActivity.java
+          grep -q 'VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY' androidHost/app/src/main/java/com/juhyeon/familyjourney/MoaNaverHiddenWebProbe.java
+          ! grep -R -E '(shizuku|Shizuku)' androidHost/app/src/main/java/com/juhyeon/familyjourney/MoaNaverHiddenWebProbe.java
+      - name: Compile proof (existing host package, NOT MOA R89)
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p androidHost --no-daemon :app:compileDebugJavaWithJavac
+          CLASSES="$(find androidHost/app/build -type f -name NaverSaveService.class -printf '%h\n' | head -1)"
+          test -n "$CLASSES"
+          test -s "$CLASSES/MoaNaverHiddenWebProbe.class"
+          javap -p "$CLASSES/NaverSaveService.class" | grep -q returnAfterSave
+          mkdir -p build/r91_nav_source
+          printf '%s\n' "R91_NOSHIZUKU_JAVA_COMPILE=PASS" "R89_GOLDEN_APK=NOT_TOUCHED" "NAVER_REAL_SAVE_ON_DEVICE=NOT_TESTED" > build/r91_nav_source/STATUS.txt
+          sha256sum "$CLASSES/NaverSaveService.class" "$CLASSES/MoaNaverHiddenWebProbe.class" > build/r91_nav_source/CLASS_SHA256.txt
+          cp tools/moa_r91_naver_auto_return_patch.py build/r91_nav_source/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R91-NOSHIZUKU-NAVER-SOURCE-PROOF
+          path: build/r91_nav_source/
+          if-no-files-found: error
