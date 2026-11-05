@@ -35,6 +35,8 @@ jobs:
           grep -q 'com.headless.moa.r91probe' example/build.gradle
           grep -q 'MOA R91' example/src/main/java/com/headless/example/MainActivity.kt
           test -s example/src/main/AndroidManifest.xml
+          sed -i 's/android:allowBackup="true"/android:allowBackup="false"/' example/src/main/AndroidManifest.xml
+          sed -i '/android:name=".ControlService"/,+2 s/android:exported="true"/android:exported="false" android:enabled="false"/' example/src/main/AndroidManifest.xml
       - name: Compile temporary diagnostic APK
         shell: bash
         run: |
