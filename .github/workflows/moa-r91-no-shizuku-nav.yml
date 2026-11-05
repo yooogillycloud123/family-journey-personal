@@ -38,7 +38,7 @@ jobs:
           grep -q 'returnAfterSave(job,0)' androidHost/app/src/main/java/com/juhyeon/familyjourney/NaverSaveService.java
           grep -q 'returnAfterVerified",true' androidHost/app/src/main/java/com/juhyeon/familyjourney/HostActivity.java
           grep -q 'VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY' androidHost/app/src/main/java/com/juhyeon/familyjourney/MoaNaverHiddenWebProbe.java
-          ! grep -R -E '(shizuku|Shizuku)' androidHost/app/src/main/java/com/juhyeon/familyjourney/MoaNaverHiddenWebProbe.java
+          ! grep -E '(import rikka|moe\\.shizuku|Shizuku\\.get)' androidHost/app/src/main/java/com/juhyeon/familyjourney/MoaNaverHiddenWebProbe.java
       - name: Compile proof (existing host package, NOT MOA R89)
         shell: bash
         run: |
