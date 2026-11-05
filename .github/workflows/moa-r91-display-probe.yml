@@ -59,7 +59,10 @@ jobs:
           test -n "$signer"
           test -n "$aapt"
           "$signer" verify --verbose "$APK"
-          "$aapt" dump badging "$APK" | head -n 3
+          pkg="$("$aapt" dump badging "$APK" 2>/dev/null | grep -m1 "^package:" || true)"
+          test -n "$pkg"
+          echo "$pkg" | grep -q "com.headless.moa.r91probe"
+          echo "$pkg"
           sha256sum "$APK"
       - uses: actions/upload-artifact@v4
         with:
