@@ -42,3 +42,13 @@ User provided screenshot 18860.png, where tapping the R94 APK or R95 recovery li
 - Also reference this document at the TOP of the project read-first file so that every new chat reads it BEFORE claiming artifact delivery.
 
 **Status as recorded: USER ACCESS FAILURE. A successful third-party download has NOT been established.**
+
+
+## 2026-11-06 R109 REPEATED IN-CHAT DOWNLOAD FAILURE — DO NOT REPEAT
+- User-provided screenshot 19007 confirms **another** `Library file not found` error tapping the R109 `sandbox:/mnt/data/MOA_R109_CHAT_DIRECT_HOME_ICON_FIX.apk` link in the ChatGPT Android native app. The link was freshly created using a local-file tool and the exact APK existed and passed hashes: local existence is **NOT** recipient accessibility.
+- Previous attempts of copying/renaming the same APK inside /mnt/data and emitting new `sandbox:` links failed. **Do not claim this delivery method has been fixed or re-send a newly named sandbox link as proof of repair.**
+- A separate Library file also exists and is verified: `/모아_프로젝트_근거_20261103/MOA_R109_ADAPTIVE_ICON_HOME_SHARPNESS_BETA_Install.apk`, size 5,486,325 bytes, SHA-256 `e32c0036a5f177c14f84f50404233247c29a0f798259f59201f50406583e8d5c`. This proves storage only.
+- **NO EMAIL**: user explicitly prohibits email sending, Gmail drafts, and email attachments even as a fallback. See `MOA_DELIVERY_CHAT_ONLY_NO_EMAIL_RULE_20261106.md`. Never use Gmail, never propose email.
+- The user wants the APK available directly inside the *same ChatGPT conversation*. Because the ChatGPT Android native app's sandbox/Library link is not resolving, one potential in-chat workaround is opening the same conversation on `chatgpt.com` in a mobile browser and using its attachment there; this is unverified until recipient confirms. Do not assert it works beforehand. Do not publish signed MOA builds publicly or use external delivery without explicit user consent.
+- Required release statuses: APK built, verified, stored, linked, **mobile-recipient-opened**, installed, runtime feature passed. None of these imply the next. User already downloaded R103/R107 successfully by a different snapshot; do not conflate version histories.
+- Upon another delivery error, stop duplicate link attempts and explain the platform-resolver limitation accurately, with practical in-conversation workaround or formally available alternative. Preserve original user data; no uninstall.
