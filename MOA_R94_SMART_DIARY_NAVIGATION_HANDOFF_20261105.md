@@ -1,3 +1,5 @@
+> **URGENT DOWNLOAD CORRECTION (2026-11-05):** User screenshot 18860.png shows **"Library file not found"** for R94/R95 APK links. The earlier handoff's APK build/signature verification does NOT prove the user could open ChatGPT links. **R94 DOWNLOAD DELIVERY NOT CONFIRMED.** Do NOT claim download success. Read [MOA_RELEASE_DOWNLOAD_LINK_RELIABILITY_CRITICAL_RULE_20261105.md](MOA_RELEASE_DOWNLOAD_LINK_RELIABILITY_CRITICAL_RULE_20261105.md) first. Provide a separately reachable verified delivery route instead of repeating the same broken sandbox link. R89 Golden stays frozen; no feature regressions or data wipe.
+
 # MOA R94 — Quick-jump diary navigator (2026-11-05)
 
 ## User request and attached screenshots
