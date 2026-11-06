@@ -95,3 +95,13 @@ If a bug is discovered after release, append a correction with new timestamp and
 - **Evidence boundary:** The user provided a general real-device completion report; they did not enumerate results for every diary, photo, calendar, voice, shortcut, OHO, individual icon variant or data-recovery path. Treat overall acceptance as PASS, specific detailed test evidence **not itemized**. Don't fabricate per-feature outcomes.
 - Original signed Golden APK and all 103 member SHA hashes frozen in private Library; earlier R63/R83/R89/R96 reference Goldens unchanged.
 - Any new feature code >=117, keep exact signer and package, never uninstall/clear app. Before and after modifications, run binary/resource/signature/static and device regression gates; append FAIL/root cause/fix to this ledger for every future experiment.
+
+
+### 2026-11-06 — R117 — Diary-first / compact settings / icon-linked UI theme (SIGNED BETA, DEVICE UNTESTED)
+- Request: 첫 실행 일기·하단 일기→지도→기록→설정; redundant premium row hide; source/help/theme/advanced fold groups; old quick-nav arrow › unify; auto icon color and optional Peach/Pink/Black/White palettes.
+- Base = exact R115 user-device Golden `1118bdc249e2d941a899518e58be0185b120a887ff2c371c8f5a01037a5002a8`. **R115 NOT MODIFIED.**
+- R117 SHA256 **`667e6caa97ffc76b10df15594d5be0672ea892ae0be2692b293161eba94dfdb0`**, 5,412,356 bytes, code117, package `com.juhyeon.familyjournea`, original signer cert same as R115. Private Library `MOA_R117_DIARY_FIRST_SETTINGS_THEME_BETA_Install.apk`.
+- Exactly 3 changed old members: binary Manifest(version), `assets/web/app.js`(startup tab), `assets/web/index.html`(2 CSS/JS references); 2 new UI CSS/JS modules. Other 100/103 old entries byte-identical, all native DEX, old diary, photo index, map and UI icon assets unchanged.
+- Signed APK v2 RSA, content digest, signer fingerprint, ZIP integrity, stored alignment, JS syntax, limited Chromium DOM-mock navigation/grouping/theme interaction PASS. User Galaxy install/UI/legacy regression **NOT YET TESTED**. See [R117 handoff](MOA_R117_DIARY_FIRST_COMPACT_SETTINGS_ICON_LINKED_UI_HANDOFF_20261106.md).
+- R118 private emergency-only restore-forward based on exact R115 (manifest only, code118, signed same cert), SHA `462a30d3a18406f56bd3ad884210b8919af277e3e887ea08fdb6091213361361`; no routine install. Following normal update code >=119.
+- Delivery strictly in current ChatGPT conversation, Gmail forbidden; actual mobile open and physical test only when user confirms. R115 remains Golden pending R117 acceptance.
