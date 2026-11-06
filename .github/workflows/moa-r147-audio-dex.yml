@@ -1,0 +1,55 @@
+name: MOA R147 native audio host DEX
+on:
+  push:
+    branches: [main]
+    paths:
+      - android/app/src/main/java/com/juhyeon/familyjourney/MoaMomentAudioHostActivity.java
+      - .github/workflows/moa-r147-audio-dex.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  dex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile standalone DEX with original native voice host stub
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+          mkdir -p /tmp/r147/stub/com/juhyeon/familyjourney /tmp/r147/out /tmp/r147/dex build/moa-r147
+          cat > /tmp/r147/stub/com/juhyeon/familyjourney/MoaMomentVoiceHostActivity.java <<'STUB'
+          package com.juhyeon.familyjourney;
+          public class MoaMomentVoiceHostActivity extends android.app.Activity {}
+          STUB
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/r147/out \
+            /tmp/r147/stub/com/juhyeon/familyjourney/MoaMomentVoiceHostActivity.java \
+            android/app/src/main/java/com/juhyeon/familyjourney/MoaMomentAudioHostActivity.java
+          rm /tmp/r147/out/com/juhyeon/familyjourney/MoaMomentVoiceHostActivity.class
+          find /tmp/r147/out -name 'MoaMomentAudioHostActivity*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r147/dex
+          python3 - <<'PY'
+          import pathlib, hashlib, base64, zlib, json
+          d=pathlib.Path('/tmp/r147/dex/classes.dex').read_bytes()
+          assert b'MoaMomentAudioHostActivity' in d and b'MoaMomentVoiceHostActivity' in d
+          o=pathlib.Path('build/moa-r147')
+          (o/'audio-host.dex.z.b64').write_text(base64.b64encode(zlib.compress(d,9)).decode()+'\n')
+          (o/'manifest.json').write_text(json.dumps({'sha256':hashlib.sha256(d).hexdigest(),'bytes':len(d)}))
+          PY
+      - name: Commit compiled DEX compressed base64
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f build/moa-r147/audio-host.dex.z.b64 build/moa-r147/manifest.json
+          if ! git diff --cached --quiet; then git commit -m 'Compile R147 original STT-preserving audio capture bridge'; git push origin HEAD:main; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r147-native-audio-dex
+          path: build/moa-r147/
