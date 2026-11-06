@@ -27,10 +27,10 @@ import java.util.UUID;
  * Original STT UI calls a separate native SpeechRecognizer; original audio is
  * recorded with Android MediaRecorder, not WebView getUserMedia.
  */
-public final class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
+public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
  private static final int MIC_REQUEST=4949;
  private final Handler main=new Handler(Looper.getMainLooper());
- private WebView web; private boolean interfaceAdded=false, reloadIssued=false;
+ private WebView web; private boolean interfaceAdded=false, reloadIssued=false; private volatile boolean trustedPage=false;
  private MediaRecorder recorder; private MediaPlayer player; private File currentFile;
  private long recordStart=0; private String recordDay="",pendingDay="",pendingSpeech="";
  private SpeechRecognizer recognizer; private String recognitionToken="";
@@ -51,7 +51,7 @@ public final class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity
  private void attach(){
   if(isFinishing()||isDestroyed())return;
   WebView w=find(getWindow().getDecorView());if(w==null)return;
-  if(w!=web){web=w;interfaceAdded=false;reloadIssued=false;}
+  if(w!=web){web=w;interfaceAdded=false;reloadIssued=false;} trustedPage=trusted();
   if(!interfaceAdded){w.addJavascriptInterface(new LocalBridge(),"MoaLocalAudio");interfaceAdded=true;}
   // Android addJavascriptInterface normally becomes visible after navigation.
   main.postDelayed(()->{
@@ -166,7 +166,7 @@ public final class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity
   @JavascriptInterface public void speechStop(String token){runOnUiThread(()->{if(recognizer!=null)recognizer.stopListening();});}
   @JavascriptInterface public void speechCancel(){runOnUiThread(()->cancelSpeech());}
   @JavascriptInterface public String list(String day){
-   JSONArray a=new JSONArray();if(!trusted()||!validDay(day))return a.toString();
+   JSONArray a=new JSONArray();if(!trustedPage||!validDay(day))return a.toString();
    File[] files=dayDir(day).listFiles();if(files==null)return a.toString();
    java.util.Arrays.sort(files,(l,r)->Long.compare(r.lastModified(),l.lastModified()));
    for(File f:files)if(f.isFile()&&validId(f.getName())){
@@ -174,7 +174,7 @@ public final class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity
    }
    return a.toString();
   }
-  @JavascriptInterface public void play(String day,String id){runOnUiThread(()->play(day,id));}
+  @JavascriptInterface public void play(String day,String id){runOnUiThread(()->MoaMomentAudioHostActivity.this.play(day,id));}
   @JavascriptInterface public void delete(String day,String id){runOnUiThread(()->{if(!trusted()||!validDay(day)||!validId(id))return;
     File f=new File(dayDir(day),id);send("delete",f.delete()?"삭제되었습니다.":"삭제하지 못했습니다.");});}
  }
