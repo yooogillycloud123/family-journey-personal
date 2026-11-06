@@ -84,3 +84,5 @@ If a bug is discovered after release, append a correction with new timestamp and
 - Public GitHub `tools/moa_golden_release_guard.py` added: original baseline intact PASS, R113 negative diff test correctly FAILED on 2 expected members. Pure member SHA/ZIP guard; APK v2/device verification is separate.
 - New mandatory read-first, Golden Lock, failures/regressions, architecture/test map, append-only ledger committed; README, Absolute Read First, WIP, Master Golden header updated to point to **R115 CURRENT**.
 - No app function modified, no new build installed, no signer secrets published. Next regular release versionCode >=117; R116 reserved for emergency recovery.
+
+- Frozen GitHub **documentation/test snapshot branch**: `golden/moa-r115-20261106-visual-user-approved-do-not-modify` (created from latest main; metadata/source anchor only). **This branch does NOT embed or reproduce the exact signed R115 APK**; actual unmodified 5,406,744-byte release remains in private Library.
