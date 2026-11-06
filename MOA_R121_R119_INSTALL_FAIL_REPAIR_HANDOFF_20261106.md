@@ -21,3 +21,9 @@
 
 ## Next chat
 Read AirPods canonical as required without changing AA, then R115/R117 handoffs, release ledger, this R121 handoff; check actual MOA files. Continue from confirmed user's R121 install result. No speculative new version until failure evidence or explicit feature request.
+
+## 2026-11-06 durable private Library archive (confirmed)
+- Binary `/모아_프로젝트_근거_20261103/MOA_R121_INSTALL_REPAIR_BETA.apk` uploaded successfully via Files Library API, exact archived filename/size/hash as documented above; distinct from the current chat direct-download file.
+- QA source zip `/모아_프로젝트_근거_20261103/MOA_R121_SOURCE_QA_NO_KEYS.zip` and JSON `/모아_프로젝트_근거_20261103/MOA_R121_QA_REPORT.json` uploaded successfully. Private signing archive was not uploaded to public repository or chat.
+- `MOA_GLOBEMARK_TIMETREE_ARCHITECTURE_AND_PHASED_ROADMAP_20261106.md` is independent package research/roadmap; no extension functions were added to R121.
+- Archive success != user Android download/install/feature PASS.
