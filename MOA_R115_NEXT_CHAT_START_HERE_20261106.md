@@ -1,3 +1,5 @@
+> **2026-11-06 USER DEVICE CONFIRMATION:** User has now expressly reported R115 real-device verification complete and approved this exact R115 as the ongoing Golden for future improvements. STATUS: **USER-REPORTED REAL-DEVICE TEST PASS / ACTIVE R115 GOLDEN**. Individual optional feature-level checklists were not supplied, so do not invent them. The exact signed R115 APK/sha remains unchanged. Older "pending" statements below are historical before this confirmation.
+
 # MOA — NEXT NEW CHAT: START HERE, 2026-11-06
 **ACTIVE HIGHEST-PRIORITY MOA ENTRY POINT. Do not start from R63/R89/R96/R99 or historical "LATEST" sections.**
 
