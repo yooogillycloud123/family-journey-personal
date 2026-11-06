@@ -1,3 +1,7 @@
+> **2026-11-06 USER STATUS UPDATE — R115 VISUAL GOLDEN:** After receiving the R115 in-chat APK (initial ChatGPT `Library file not found` delivery error required a fresh attachment), the user said **"오케이 이 버전을 골든버전에 추가해놓고"**. Therefore exact R115 SHA256 `1118bdc249e2d941a899518e58be0185b120a887ff2c371c8f5a01037a5002a8` is now separately frozen as **USER-APPROVED VISUAL GOLDEN** in private Library `MOA_R115_USER_APPROVED_VISUAL_GOLDEN_20261106_DO_NOT_MODIFY.apk`. This supersedes the prior *visual acceptance not tested* status for the **user's Golden designation**, but does **NOT** establish that every old photo/diary/calendar/voice feature was retested. Read `MOA_R115_NEXT_CHAT_START_HERE_20261106.md` and `MOA_R115_USER_APPROVED_VISUAL_GOLDEN_LOCK_20261106.md` before changes. R89/R83/R63 Goldens remain untouched. No app binary or code changed by this documentation update.
+
+---
+
 # MOA R115 — start-screen pop-up / oversized image flash repair — 2026-11-06
 
 ## Real device evidence
