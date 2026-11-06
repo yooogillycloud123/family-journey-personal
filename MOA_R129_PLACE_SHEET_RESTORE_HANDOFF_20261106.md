@@ -1,0 +1,25 @@
+# MOA R129 — restore original place photo sheet + continuous scrolling
+**2026-11-06 · status: APK_SIGNED_STATIC_PASS + CHROMIUM_MOCK_PASS; Galaxy R129 install/behavior PENDING.**
+
+## User-verified baseline and precise correction
+User reports R127 installed on Galaxy and remaining fixes generally normal. The ONLY requested correction is that the Map's date/location photo list overlay must stay visible **exactly as the original white rounded bottom sheet with 3-column thumbnail grid above the dimmed map**. User wants to scroll within THAT sheet to display all photos, not press `사진 더 보기` repeatedly. Remove `네이버지도에서 장소 보기` from the **place sheet** only; retain per-photo Naver link and other existing functionality. The previous R127 mistakenly converted the place sheet into a fullscreen opaque page, changed header and inserted redundant extra Close; this is a regression. User attached screenshots `19128.png`/`19138.png` for direct comparison.
+
+## Source root and exact change
+- Existing `assets/web/app.js::openPlace` builds original sheet and loads first 30 via `morePhotos()`; `morePhotos` loads the next 30 thumbnail IDs and binds the original viewer. The original DOM in `assets/web/index.html` includes `#place-root > .dim` and `.sheet.place > .handle/.place-head/#place-visits/#place-photos/#place-note/#place-more/#place-close`.
+- R127 `assets/web/moa-r127-fixes.css` contained `#place-root:not([hidden]) > .sheet.place {position:absolute;inset:0;height:100%;max-height:100%;border-radius:0}` and hid `.dim` and `.handle`; R127 JS injected another top Close and extra paging status. That changed visual behavior beyond the user's request.
+- R129 restores original rounded 80dvh bottom sheet over a visible dark map dim, original title/visit/chips/grid/one Close. The `#place-more` and sheet `#fj-place-map` remain attached to their old handlers but are hidden **only in this sheet**. R127 `updateSheet()` still invokes original hidden More button `click()` when a user scrolls near the bottom and batches complete, without changing the `app.js` PhotoMap data pipeline. R129 JS no longer inserts extra Close or paging-status nodes. Avoids rewriting index, renderer, bitmap/source loading, or database code.
+- All other R127 fixes (calendar month overlap, stable photo metadata viewport, Diary default/back) are byte-for-byte preserved within R129 JS/CSS except these narrowly scoped sheet changes.
+
+## Exact signed binary
+- Base: original installed candidate `MOA_R127_UI_STABILITY_BACK_DIARY_BETA.apk`, versionCode 127, SHA256 `29604d2ae37a1c66477e05d14f6a906842c9b9210ba3c5a6677ea8ca17e62171`.
+- **R129** `MOA_R129_ORIGINAL_PLACE_SHEET_SCROLL_FIX_BETA.apk`, versionCode 129, **5,427,709 B**, SHA256 **`54d0323e6ea7ab8be8bc1323a8a24ff364cb04ea643a7535ce7e78e173d16579`**. Package `com.juhyeon.familyjournea`; exact original signer certificate SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+- Original R127 **112 ZIP entries** → R129 **112**, changed **3 only**: `AndroidManifest.xml` typed versionCode 127→129, `assets/web/moa-r127-fixes.css`, `assets/web/moa-r127-fixes.js`. Original **109/112 members byte-identical**, including `assets/web/index.html`, `app.js`, `family-diary.js/css`, `fj-naver-favorites.js`, `moa-r121-ui.js`, `moa-r125-calendar.js/css`, all 5 native DEX, resources, theme/icon files. No new permissions or data schema migrations.
+- Signature v2 independent RSA PKCS#1 SHA256 signed-data, full content digest, same certificate, ZIP CRC, 37 stored alignment, DEX SHA1 and Adler32 PASS. `node --check` PASS.
+- Chromium 393×852 mock with original CSS: bottom sheet top=170.4px, sheet height=681.6px (80vh), 22px top rounding, visible dim, original Close, 3 columns, no `사진 더 보기`/NAVER button, **scroll loads 30→60→90→120→141 (5 calls) without button**, original Close hides overlay. Mock uses fake colored photos, not actual family data. Real Android scroll/latency/photos unverified.
+- User data, original photos, photo locations, calendar/diary native writer and R115 frozen Golden unchanged.
+
+## Recovery/continuity
+- R128 from R125 exists but is lower code than R129; not usable as normal forward install.
+- Separate **emergency-only R130** is exact R127 original APK contents with a higher code 130 for same-cert forward restore if needed (would restore R127's bad fullscreen sheet). Keep it private, not normal update, and never claim full data rollback.
+- Next independent feature version should be **>=131** (5th Family Schedule tab + separate offline event database). R129 is a narrow regression fix, NOT the previously planned Family Calendar. Loglog Supabase sync/TimeTree and globe remain later stages.
+- Deliver APK inside current chat only, never email, never ask user to uninstall or clear data, and mark recipient download/device results as PENDING until user reports.
