@@ -86,3 +86,12 @@ If a bug is discovered after release, append a correction with new timestamp and
 - No app function modified, no new build installed, no signer secrets published. Next regular release versionCode >=117; R116 reserved for emergency recovery.
 
 - Frozen GitHub **documentation/test snapshot branch**: `golden/moa-r115-20261106-visual-user-approved-do-not-modify` (created from latest main; metadata/source anchor only). **This branch does NOT embed or reproduce the exact signed R115 APK**; actual unmodified 5,406,744-byte release remains in private Library.
+
+
+### 2026-11-06 — R115 — USER REAL-DEVICE VERIFICATION CONFIRMED (status-only update)
+- User reports R115 installed and practical device validation **completed successfully**, and directs that this exact version be kept as the Golden for future development. Overall evidence type: **USER-REPORTED DEVICE TEST PASS**, not independent tester logs.
+- Current Golden now **R115 USER-CONFIRMED DEVICE GOLDEN**, superseding the earlier *visual-only Golden / overall device test pending* headline; historical entries above remain as dated evidence.
+- Exact APK unchanged: package `com.juhyeon.familyjournea`, versionCode115, size 5,406,744 bytes, SHA256 `1118bdc249e2d941a899518e58be0185b120a887ff2c371c8f5a01037a5002a8`. No APK rebuild, no data migration, no new installation in this documentation step.
+- **Evidence boundary:** The user provided a general real-device completion report; they did not enumerate results for every diary, photo, calendar, voice, shortcut, OHO, individual icon variant or data-recovery path. Treat overall acceptance as PASS, specific detailed test evidence **not itemized**. Don't fabricate per-feature outcomes.
+- Original signed Golden APK and all 103 member SHA hashes frozen in private Library; earlier R63/R83/R89/R96 reference Goldens unchanged.
+- Any new feature code >=117, keep exact signer and package, never uninstall/clear app. Before and after modifications, run binary/resource/signature/static and device regression gates; append FAIL/root cause/fix to this ledger for every future experiment.
