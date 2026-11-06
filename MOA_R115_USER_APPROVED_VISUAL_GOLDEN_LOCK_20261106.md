@@ -65,3 +65,11 @@ User intends to test original functions **after** visual baseline is locked. Tes
 7. Append every future change/failure/recovery to `MOA_RELEASE_LEDGER_CURRENT.md`, and update `MOA_WIP_CHECKPOINT_CURRENT.md`, `MOA_ABSOLUTE_READ_FIRST_20261103.md` headers, and this active Golden pointer if a new Golden is specifically user-approved.
 
 **Golden never means "all features passed": avoid that exact repeat failure.**
+
+
+## 8. Immutable freeze supporting materials — completed 2026-11-06
+- **Actual frozen APK** uploaded and SHA checked under private Library path given in section 1; original signed R115 retained separately.
+- **Complete member hash inventory**: `MOA_R115_GOLDEN_LOCK_MANIFEST_20261106.json` (all 103 members, R113 diff, protected member hashes) and `MOA_R115_GOLDEN.sha256`.
+- **No-keys engineering snapshot**: `/모아_프로젝트_근거_20261103/MOA_R115_GOLDEN_NO_KEYS_ENGINEERING_SNAPSHOT_20261106.zip`; SHA256 **`65dacf44688f4eeb45e91b20e3e83693ec1913d22c8015b5abbc2ecd36b93e13`**, bytes **1,935,084**. Includes exact signed-R115 WebView UI/diary/9-splash/icon XML+PNG resources, R113→R115 HTML patch, visual/browser QA, two verification JSONs, Golden manifest and helper test; **NOT** complete runnable source or a substitute for the signed APK.
+- **Regression member-diff tool**: GitHub `tools/moa_golden_release_guard.py` (public, no keys); private copy `MOA_R115_GOLDEN_RELEASE_GUARD_NO_KEYS.py`. Golden-vs-Golden PASS; R113-vs-Golden correctly FAIL for `AndroidManifest.xml` and `assets/web/index.html`. This checks only ZIP/member diff; separate official Android signer/package/runtime tests remain mandatory.
+- **No-keys tool selftests**: `MOA_R115_GUARD_SELFTEST_PASS.json` and `MOA_R115_GUARD_NEGATIVE_TEST_R113.json` in private Library. Never publish signer backups.
