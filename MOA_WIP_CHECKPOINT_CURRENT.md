@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-11-06 MOA R115 ACTIVE CHECKPOINT — AFTER USER'S GOLDEN FREEZE REQUEST
+
+**Frozen current:** R115 user-approved VISUAL Golden; package `com.juhyeon.familyjournea`, code115, APK 5,406,744 bytes, SHA256 `1118bdc249e2d941a899518e58be0185b120a887ff2c371c8f5a01037a5002a8`, original signer `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`. Private immutable Library `MOA_R115_USER_APPROVED_VISUAL_GOLDEN_20261106_DO_NOT_MODIFY.apk` (actual Library read-back hash PASS). The public GitHub documentation/test freeze branch `golden/moa-r115-20261106-visual-user-approved-do-not-modify` does **NOT** contain/rebuild the native signed APK.
+
+**Completed 2026-11-06:** freeze signed APK, full member hash manifest, SHA file, no-keys engineering snapshot (SHA256 `65dacf44688f4eeb45e91b20e3e83693ec1913d22c8015b5abbc2ecd36b93e13`), keyless guard selftests, failure ledger R100–R115, architecture/QA map, append-only change log, mandatory next-chat read-first, GitHub pointers. R113→R115 EXACT diff: only `AndroidManifest.xml` + `assets/web/index.html`; 101/103 unchanged. SDK v2 and ZIP checks previously PASS; local Library read-back SHA/ZIP PASS.
+
+**Not yet proven:** exhaustive R115 diary/photos/calendar/STT/IndexedDB/shortcuts/OHO physical regression; user explicitly plans to test. Never mark as PASS by association with older R63/R83/R89 Golden device tests. No other app feature/source code changes in the freeze/documentation step.
+
+**Next legitimate action:** user supplies device test results or a new explicit change request. Before new work read [R115 NEXT CHAT](MOA_R115_NEXT_CHAT_START_HERE_20261106.md), [Golden Lock](MOA_R115_USER_APPROVED_VISUAL_GOLDEN_LOCK_20261106.md), [Failure Gates](MOA_RELEASE_FAILURE_LEDGER_AND_BUILD_GATES_20261106.md), [Architecture QA](MOA_ARCHITECTURE_EXTENSION_AND_QA_MAP_20261106.md), [Release Ledger](MOA_RELEASE_LEDGER_CURRENT.md). Next normal code >=117; 116 emergency R113 restore only. No uninstall/data clear, no Gmail. Always log actual FAIL cause and fix.
+
+---
 > **CURRENT STATUS UPDATE 2026-11-04 — R89 USER PHYSICAL GOLDEN:** New screenshots 18777.png, 18779.png, 18781.png, 18783.png and explicit user success confirmation promote R89 (code89 SHA256 `2b52826fc0dd8653a70d3c503d3654ae33071bfc4ec075753ec4464a1e2dc493`) to user-confirmed physical GOLDEN for native capture memo keyboard-aware Mic/Clear/Save, STT + typing, clear confirmation and native temporary-save toast. The older 'physical untested' wording below is a historical status, superseded for these specific observations. Camera temp-save toast is not standalone proof of final R89-specific IndexedDB synchronization. Read `MOA_R89_USER_DEVICE_GOLDEN_LOCK_20261104.md` first. Signed original frozen in private Library and `golden/moa-r89-20261104-user-device-pass-do-not-modify`; enhancements code>=91, new branch, same signer, no data wipe; R90 is older R87 recovery, not Gold.
 
 ## 2026-11-04 최신 R80 — R79 편집 음성 연결 실패 실기기 증거 반영. R80 네이티브 부분 전사 및 Chrome 재연결, 동일 서명 APK v80 CI/정적 검사 PASS, 실기기 음성 미검증. 필독: MOA_R80_VOICE_PARTIAL_RECOVERY_READ_FIRST_20261104.md. R77 잠금 팝업과 R78 사진 메모 음성 성공 및 R63 일기 저장 골든 보존.\n\n## 2026-11-04 R79 latest — actual R78 editor speech FAILED not-allowed; R78 native lockscreen memo voice PASSED
