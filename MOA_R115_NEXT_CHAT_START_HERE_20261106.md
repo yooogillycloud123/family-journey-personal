@@ -69,3 +69,9 @@ No need to force the user to reshoot/rewrite old entries; prioritize read-only n
 - Keep WIP `MOA_WIP_CHECKPOINT_CURRENT.md` as historical verbose timeline, but this entry point controls *current state*. Never destroy historic logs.
 
 **Next action now: collect R115 legacy feature tests if/when user supplies results, or implement the next expressly requested feature from this exact R115 Golden.**
+
+
+## 7. Frozen engineering snapshot / guard available now
+- Private Library `MOA_R115_GOLDEN_NO_KEYS_ENGINEERING_SNAPSHOT_20261106.zip`, 1,935,084 bytes, SHA256 `65dacf44688f4eeb45e91b20e3e83693ec1913d22c8015b5abbc2ecd36b93e13`. This is selected R115 exact source/resource extract + verification + R113 HTML diff, **not** a complete native build project. The full signed Golden APK is separate.
+- Public keyless guard: `tools/moa_golden_release_guard.py` and private inventory `MOA_R115_GOLDEN_LOCK_MANIFEST_20261106.json` are ready. Execute before any new APK release with an explicit changed-member allowlist. Pass/fail of this tool does **not** prove v2 signing, PackageManager installation or user device feature tests.
+- Guard self-tests archived: frozen R115 against itself PASS; R113 intentionally fails due to its 2 changed members. No need to recalculate these from scratch unless source or tool changes.
