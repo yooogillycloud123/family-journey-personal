@@ -1,0 +1,39 @@
+# MOA R127 — 2026-11-06 user Galaxy R125 feedback → minimal UI fix
+
+**Status: APK_SIGNED_STATIC_PASS + ISOLATED_CHROMIUM_MOCK_PASS, R127_DEVICE_INSTALL/FEATURE_TEST_PENDING.** Never claim phone success before user verifies.
+
+## 1. User evidence; precise R125 failures
+
+- User explicitly confirmed **R125 installed/applied** on Galaxy and provided `19128.png`, `19126.mp4` (17.01s), `19127.mp4` (8.95s), `19130.mp4` (11.93s).
+- Video 19126 shows year/month text colliding around the centered calendar label after using year wheel; CSS root cause: R123 selector `> .fd23-month button {width:38px;height:38px}` also applies to nested year and month buttons introduced by R125. It was not restricted to the two top-level arrow buttons.
+- Photo swipe video 19127 shows the photo content/letterboxing changes when navigating, and metadata address/time layout may change asynchronously; R121 photo-info CSS had only **min-height 57px**, not a fixed height, thus increases/decreases stage (flex:1) as GPS address and NAVER button appear/disappear. Do not claim this is the only source of all animation jitter.
+- Screenshot `19128.png` shows a `나의 지도` place photo sheet whose last `사진 더 보기` and injected `네이버지도에서 장소 보기` button consume space and an underlying photo/map strip is visible outside the shorter sheet. Exact source: original `app.js` `openPlace/morePhotos` pages 30 thumbnails at a time behind `#place-more`; `family-addon.js` appends `#fj-place-map`, while `.sheet.place` max-height is 80vh. This is **not** the full-screen photo viewer's GPS/NAVER button.
+- Video 19130: pressing Back from various app pages leads to Map rather than default Diary. Original `family-diary.js` contains `close(true)` → `__photoMap.showTab('home')`; original `__fjBackOverlay` and `__photoMapBack` return to older map-first default.
+
+## 2. Exact immutable baselines
+
+- R115 user Golden SHA256 `1118bdc249e2d941a899518e58be0185b120a887ff2c371c8f5a01037a5002a8` (code115), separate R117 user tested SHA `667e6caa97ffc76b10df15594d5be0672ea892ae0be2692b293161eba94dfdb0`; leave both untouched.
+- Latest actual installed base **R125** `MOA_R125_VIEWER_CALENDAR_BACKUP_BETA.apk`, 5,424,044 bytes, code125, SHA256 `eb2e2660f361bd125c669b0bc4f2d512ce176cc0ea938fe9d8aea36447d30540`; new defects are not old R123 Golden symptoms. Package `com.juhyeon.familyjournea`.
+- **R127 BETA** `MOA_R127_UI_STABILITY_BACK_DIARY_BETA.apk`, versionCode127, 5,427,950 bytes, SHA256 `29604d2ae37a1c66477e05d14f6a906842c9b9210ba3c5a6677ea8ca17e62171`; original signer certificate SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+- Exact 110 original R125 ZIP entries: **108 byte-identical**; changed only `AndroidManifest.xml` one-byte typed versionCode (125→127) and `assets/web/index.html` links. New `assets/web/moa-r127-fixes.css` and `assets/web/moa-r127-fixes.js`; none removed. **Unchanged**: `app.js`, `family-diary.js/css`, `fj-naver-favorites.js`, `family-addon.js`, `moa-r121-ui.js`, `moa-r123-ui.css`, `moa-r125-calendar.js/css`, original five DEX, `resources.arsc`, launcher/splash/theme, media IDs and user databases.
+
+## 3. Narrow UI behavior
+
+- Year/month controls now occupy a stable CSS grid between 38px original arrow cells; nested year/month buttons explicitly override inherited 38px width. Playwright at 393px reported non-overlap with separate year and month hit areas, no change to original year/month picker JS.
+- Original diary root paints an opaque surface behind the bottom navigation (`bottom:0`, z18 below tabbar z20) to eliminate prior tab's sliver without removing calendar items.
+- Existing original full-screen photo viewer gets an **exact 96px** GPS/date information area; address async result/button visibility cannot resize the flex photo stage. Long address clamped to 2 lines. Original zoom, swipe thresholds, image sources, map link command, video handling and share remain **unchanged**. Real Android motion still needs testing.
+- Original `#place-root .sheet.place` becomes full-height opaque scroll surface, keeping original photo cards/gallery actions; added an accessible top `닫기 ×` that calls existing close button. Only this sheet's `#fj-place-map` button is CSS-hidden; full-gallery per-photo NAVER link stays. `#place-more` visually hidden; original 30-photo batch handler is invoked automatically as the sheet scrolls near the bottom, with throttle and no changes to original photo ordering or storage. It is NOT preloading 13,000 media at once.
+- Native Back hooks `__fjBackOverlay` and `__photoMapBack` are wrapped **after** originals load. Inner photo/place/map and Diary day/edit/navigation are delegated first. At top-level return home, reopens **Diary**, not Map. Back on Diary calendar consumes the action rather than reopening Map; real Android back priority remains untested.
+
+## 4. Verifications and limits
+
+- Independent RSA APK v2 certificate signature, APK v2 content digest, original cert, ZIP CRC, 37 STORED 4-byte aligned entries, 5 DEX SHA1/Adler, all original member diff whitelist: **PASS**.
+- Node syntax **PASS**, isolated Chromium 393×852 test **PASS**: year/month button rects nonoverlapping, original nested back not called on Diary root, top-level back opens Diary, map view auto-loaded 90 thumbnails from original mocked 30-card batches and hides injected NAVER, sheet fills its fixed root, gallery stage **613px before/after reverse-geocode and next photo**, photo metadata reserved **96px** throughout. Mock uses fabricated blank photo IDs and fake coordinates only; **NO user's media used**. Browser fixture ≠ real Galaxy/WebView/IndexedDB/native back tests.
+- Existing R125 diary JSON backup and original GPS source limitations remain unchanged and are NOT newly validated by R127. Do not call a snapshot a full photo/video export. No private photos or account information are shipped in source QA.
+
+## 5. Recovery, delivery, next phases
+
+- **R128 emergency only**, created by signing exact R125 content with ONLY manifest versionCode128 (all remaining 109 old ZIP members identical), same cert; exact hash `fe74ee8804856e12b1a24336b8b366e3d6888b94f01d360f5642d0250a7eedae`. This restores R125 **including known R125 UI faults**, not a confirmed safety recovery from an unbacked-up account. Keep private Library only, do not install as routine update. No uninstall or data clear.
+- R127 physical regression requirements: (1) year/month controls no overlap in both calendars; (2) no underlying tab/photo strip; (3) map place sheet scroll 100+ images without button/NAVER; (4) photo GPS metadata arrival + 10+ successive swipes without stage height changes; (5) hardware Back from Record, Settings, Map, photo viewer returns Diary after closing overlays; (6) ordinary diary save, voice, native capture, Naver link preserved. Report failed test separately before any Golden label.
+- **Next independently scoped regular release *after* R127 hardware gate**: proposed code >=129 (128 reserved), fifth main `가족 일정` tab with local-only CRUD + separate IndexedDB and month/week/day views, not under Record. Then repeat/reminders, opt-in Supabase family/Windows real-time with RLS and durable outbox, Google Drive opt-in backups, 3D globe as optional mode in original Map. Loglog 1.0.10 evidence = Capacitor/Supabase subscriptions/outbox, **NOT** proven 0.1-second guaranteed phone↔Windows time. No sync service/accounts configured by R127. These are **planned milestones, not a background job or an implementation claim**.
+- No Gmail/email, no public signer keys, no AirPods code touched. All delivery must occur in current ChatGPT conversation; file existence or Library upload does not prove Android download success.
