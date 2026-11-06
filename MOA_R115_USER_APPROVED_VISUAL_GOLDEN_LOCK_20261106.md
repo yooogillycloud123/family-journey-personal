@@ -1,3 +1,5 @@
+> **2026-11-06 MOA R115 USER DEVICE GOLDEN CONFIRMATION:** User has now reported completing R115 real-device verification and explicitly accepts it as the ongoing development Golden. **STATUS: R115 USER-CONFIRMED DEVICE GOLDEN (overall user-reported PASS)**, superseding earlier provisional **visual-only / functional verification pending** labels *as a general acceptance status*. Exact APK remains unchanged: versionCode115, SHA256 `1118bdc249e2d941a899518e58be0185b120a887ff2c371c8f5a01037a5002a8`, same installed package and signer, frozen private Library APK. The user's statement is evidence of their overall real-device validation; no individual test-case log was provided, so do **not** claim independently measured photo/diary/STT/OHO/9-theme results or fabricated screenshots. Preserve R63/R83/R89/R96 historical Goldens. Future regular code >=117. Always read `MOA_R115_NEXT_CHAT_START_HERE_20261106.md` and the append-only release ledger first. 
+
 # MOA R115 — USER-APPROVED VISUAL GOLDEN LOCK (2026-11-06)
 **CURRENT ACTIVE MOA BASELINE. READ FIRST FOR EVERY NEW CHAT / EVERY NEW FEATURE.**
 
