@@ -75,3 +75,12 @@ If a bug is discovered after release, append a correction with new timestamp and
 
 ## 5. Source references
 `MOA_RELEASE_FAILURE_LEDGER_AND_BUILD_GATES_20261106.md`; `MOA_R115_USER_APPROVED_VISUAL_GOLDEN_LOCK_20261106.md`; `MOA_ARCHITECTURE_EXTENSION_AND_QA_MAP_20261106.md`; R99, R102, R107, R109, R111, R113, R115 individual handoffs; private verified binary files and manifests.
+
+
+### 2026-11-06 — R115 GOLDEN FREEZE & ENGINEERING ARCHIVE (documentation action, NOT a new APK)
+- User explicitly designated R115 as Golden and requested all failures, causes, fixes, reproducibility, new-chat read-first steps and future release history. Visual/UX Golden accepted; pre-existing full feature regression remains PENDING.
+- Frozen signed APK copied byte-identically (5,406,744 B; SHA256 `1118bdc249e2d941a899518e58be0185b120a887ff2c371c8f5a01037a5002a8`) into `MOA_R115_USER_APPROVED_VISUAL_GOLDEN_20261106_DO_NOT_MODIFY.apk` in private Library. All 103 member SHA digests stored in `MOA_R115_GOLDEN_LOCK_MANIFEST_20261106.json`.
+- No-keys source/testing/archive ZIP (1,935,084 B, SHA256 `65dacf44688f4eeb45e91b20e3e83693ec1913d22c8015b5abbc2ecd36b93e13`) saved to private Library. Exact UI/launcher/splash source plus diff and QA; full native build source not claimed.
+- Public GitHub `tools/moa_golden_release_guard.py` added: original baseline intact PASS, R113 negative diff test correctly FAILED on 2 expected members. Pure member SHA/ZIP guard; APK v2/device verification is separate.
+- New mandatory read-first, Golden Lock, failures/regressions, architecture/test map, append-only ledger committed; README, Absolute Read First, WIP, Master Golden header updated to point to **R115 CURRENT**.
+- No app function modified, no new build installed, no signer secrets published. Next regular release versionCode >=117; R116 reserved for emergency recovery.
