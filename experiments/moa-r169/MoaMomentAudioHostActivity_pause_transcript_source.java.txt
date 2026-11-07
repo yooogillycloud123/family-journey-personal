@@ -33,6 +33,119 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
  private WebView web; private boolean interfaceAdded=false, reloadIssued=false; private volatile boolean trustedPage=false;
  private MediaRecorder recorder; private MediaPlayer player; private File currentFile;
  private String activePlayback="";
+
+ // R171: render native media IN THE EXISTING WebView gallery Activity.
+ private android.widget.FrameLayout videoOverlay;
+ private android.widget.VideoView videoWidget;
+ private android.media.MediaPlayer preparedVideo;
+ private android.widget.SeekBar videoSeek;
+ private android.widget.TextView videoTime;
+ private android.widget.Button videoPlay,videoMute;
+ private String videoActiveId="";
+ private boolean videoReady=false,videoMuted=true,videoSeeking=false;
+ private int vdp(float d){return (int)(d*getResources().getDisplayMetrics().density+.5f);}
+ private String vtime(long m){long n=Math.max(0,m)/1000;return String.format(java.util.Locale.US,"%02d:%02d",n/60,n%60);}
+ private void videoEvent(String type,String id){
+  try{if(web!=null)web.evaluateJavascript("window.MoaNativeInline&&window.MoaNativeInline.onState("+org.json.JSONObject.quote(id)+","+org.json.JSONObject.quote(type)+")",null);}catch(Exception ignored){}
+ }
+ private final Runnable vTicker=new Runnable(){
+  public void run(){if(!videoReady||videoWidget==null)return;
+   try{int t=videoWidget.getCurrentPosition(),d=Math.max(1,videoWidget.getDuration());
+    if(videoSeek!=null&&!videoSeeking){videoSeek.setMax(d);videoSeek.setProgress(t);}
+    if(videoTime!=null)videoTime.setText(vtime(t)+" / "+vtime(d));
+    if(videoPlay!=null)videoPlay.setText(videoWidget.isPlaying()?"Ⅱ":"▶");
+   }catch(Exception ignored){}
+   main.postDelayed(this,350);
+  }
+ };
+ private android.widget.Button vb(String label){
+  android.widget.Button b=new android.widget.Button(this);b.setAllCaps(false);b.setText(label);
+  b.setMinWidth(0);b.setMinimumWidth(0);b.setMinHeight(0);b.setMinimumHeight(0);
+  b.setTextSize(12);b.setTextColor(-1);b.setPadding(vdp(2),0,vdp(2),0);
+  b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xb5252b37));return b;
+ }
+ private void closeVideoOverlay(){
+  main.removeCallbacks(vTicker);
+  android.widget.VideoView v=videoWidget;videoWidget=null;videoReady=false;videoSeeking=false;
+  if(v!=null)try{v.stopPlayback();}catch(Exception ignored){}
+  preparedVideo=null;videoActiveId="";
+  android.widget.FrameLayout l=videoOverlay;videoOverlay=null;
+  if(l!=null&&l.getParent() instanceof android.view.ViewGroup)
+   ((android.view.ViewGroup)l.getParent()).removeView(l);
+ }
+ private void openVideoOverlay(String id,float x,float y,float w,float h,float viewportWidth){
+  if(isFinishing()||isDestroyed()||web==null)return;
+  android.net.Uri uri=safeVideoUri(id);
+  android.widget.FrameLayout root=findViewById(android.R.id.content);
+  if(uri==null||root==null||viewportWidth<=0){videoEvent("error",id);return;}
+  closeVideoOverlay();
+  try{
+   int[] a=new int[2],b=new int[2];web.getLocationOnScreen(a);root.getLocationOnScreen(b);
+   float factor=web.getWidth()/viewportWidth;
+   if(!Float.isFinite(factor)||factor<.1f||factor>10)throw new IllegalArgumentException("scale");
+   int left=Math.max(0,a[0]-b[0]+Math.round(x*factor));
+   int top=Math.max(0,a[1]-b[1]+Math.round(y*factor));
+   int width=Math.min(Math.round(w*factor),root.getWidth()-left);
+   int height=Math.min(Math.round(h*factor),root.getHeight()-top);
+   if(width<vdp(100)||height<vdp(120))throw new IllegalArgumentException("bounds");
+   android.widget.FrameLayout l=new android.widget.FrameLayout(this);l.setBackgroundColor(0xff080808);
+   android.widget.FrameLayout.LayoutParams pos=new android.widget.FrameLayout.LayoutParams(width,height);
+   pos.leftMargin=left;pos.topMargin=top;root.addView(l,pos);videoOverlay=l;videoActiveId=id;videoMuted=true;
+   android.widget.VideoView v=new android.widget.VideoView(this);videoWidget=v;
+   l.addView(v,new android.widget.FrameLayout.LayoutParams(-1,-1));
+   final float[] touch=new float[2];
+   v.setOnTouchListener((view,e)->{
+    if(e.getActionMasked()==android.view.MotionEvent.ACTION_DOWN){touch[0]=e.getX();touch[1]=e.getY();return true;}
+    if(e.getActionMasked()==android.view.MotionEvent.ACTION_UP){
+     float dx=e.getX()-touch[0],dy=e.getY()-touch[1];
+     if(Math.abs(dx)>vdp(55)&&Math.abs(dx)>Math.abs(dy)*1.4f)videoEvent(dx<0?"next":"prev",id);
+     else if(videoReady&&videoWidget==v){if(v.isPlaying())v.pause();else v.start();}
+     return true;
+    }return true;
+   });
+   android.widget.LinearLayout panel=new android.widget.LinearLayout(this);
+   panel.setOrientation(android.widget.LinearLayout.VERTICAL);
+   panel.setPadding(vdp(6),vdp(5),vdp(6),vdp(6));panel.setBackgroundColor(0x990a0a14);
+   android.widget.LinearLayout controls=new android.widget.LinearLayout(this);
+   controls.setGravity(android.view.Gravity.CENTER_VERTICAL);
+   android.widget.Button prev=vb("‹"),play=vb("▶"),next=vb("›"),mute=vb("소리 켜기"),still=vb("장면 저장");
+   videoPlay=play;videoMute=mute;
+   prev.setOnClickListener(view->videoEvent("prev",id));
+   next.setOnClickListener(view->videoEvent("next",id));
+   play.setOnClickListener(view->{if(videoWidget==v&&videoReady){if(v.isPlaying())v.pause();else v.start();main.removeCallbacks(vTicker);main.post(vTicker);}});
+   mute.setOnClickListener(view->{videoMuted=!videoMuted;
+    try{if(preparedVideo!=null)preparedVideo.setVolume(videoMuted?0:1,videoMuted?0:1);}catch(Exception ignored){}
+    mute.setText(videoMuted?"소리 켜기":"음소거");});
+   still.setOnClickListener(view->{if(videoWidget==v&&videoReady)captureVideoFrame(id,v.getCurrentPosition());});
+   controls.addView(prev,new android.widget.LinearLayout.LayoutParams(0,vdp(41),.6f));
+   controls.addView(play,new android.widget.LinearLayout.LayoutParams(0,vdp(41),.75f));
+   controls.addView(next,new android.widget.LinearLayout.LayoutParams(0,vdp(41),.6f));
+   controls.addView(mute,new android.widget.LinearLayout.LayoutParams(0,vdp(41),1.15f));
+   controls.addView(still,new android.widget.LinearLayout.LayoutParams(0,vdp(41),1.35f));
+   android.widget.LinearLayout seeking=new android.widget.LinearLayout(this);
+   seeking.setGravity(android.view.Gravity.CENTER_VERTICAL);
+   android.widget.TextView time=new android.widget.TextView(this);
+   videoTime=time;time.setTextSize(11);time.setTextColor(-1);time.setText("00:00 / 00:00");
+   android.widget.SeekBar bar=new android.widget.SeekBar(this);videoSeek=bar;bar.setMax(1000);
+   bar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener(){
+    public void onStartTrackingTouch(android.widget.SeekBar s){videoSeeking=true;}
+    public void onStopTrackingTouch(android.widget.SeekBar s){if(videoWidget==v&&videoReady)v.seekTo(s.getProgress());videoSeeking=false;}
+    public void onProgressChanged(android.widget.SeekBar s,int progress,boolean fromUser){}
+   });
+   seeking.addView(time,new android.widget.LinearLayout.LayoutParams(vdp(85),vdp(35)));
+   seeking.addView(bar,new android.widget.LinearLayout.LayoutParams(0,vdp(35),1f));
+   panel.addView(controls);panel.addView(seeking);
+   l.addView(panel,new android.widget.FrameLayout.LayoutParams(-1,-2,android.view.Gravity.BOTTOM));
+   v.setOnErrorListener((mp,what,extra)->{if(videoWidget==v){closeVideoOverlay();videoEvent("error",id);}return true;});
+   v.setOnPreparedListener(mp->{if(videoWidget!=v)return;
+    videoReady=true;preparedVideo=mp;mp.setVolume(0,0);v.start();
+    videoEvent("started",id);main.removeCallbacks(vTicker);main.post(vTicker);
+   });
+   v.setOnCompletionListener(mp->{if(videoWidget==v){play.setText("▶");videoEvent("ended",id);}});
+   v.setVideoURI(uri);v.requestFocus();
+  }catch(Exception e){closeVideoOverlay();videoEvent("error",id);}
+ }
+
  private long recordStart=0; private String recordDay="",pendingDay="",pendingSpeech="";
  private SpeechRecognizer recognizer; private String recognitionToken="";
  private static boolean validDay(String s){return s!=null&&s.matches("[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])");}
@@ -159,8 +272,8 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
         if(!t.isEmpty()){speechEvent(t,"마이크 권한이 거부되었습니다.","permission");speechEvent(t,"","finished");}}
   }
  }
- @Override protected void onPause(){if(recorder!=null)stopRecord();cancelSpeech();endFileSpeech();super.onPause();}
- @Override protected void onDestroy(){endFileSpeech();if(recorder!=null)stopRecord();cancelSpeech();if(player!=null){try{player.release();}catch(Exception ignored){}player=null;}super.onDestroy();}
+ @Override protected void onPause(){closeVideoOverlay();if(recorder!=null)stopRecord();cancelSpeech();endFileSpeech();super.onPause();}
+ @Override protected void onDestroy(){closeVideoOverlay();endFileSpeech();if(recorder!=null)stopRecord();cancelSpeech();if(player!=null){try{player.release();}catch(Exception ignored){}player=null;}super.onDestroy();}
 
  // Optional recorded-file speech recognition. Never touches the working microphone recorder or live STT.
  private android.speech.SpeechRecognizer fileSpeech;
@@ -357,6 +470,11 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
    return null;
   }
   /** Optional HTML5 video source. Browser may reject a content:// URL, so JS must fallback safely. */
+  @JavascriptInterface public boolean openInlineVideo(String id,float x,float y,float w,float h,float viewportW){
+   if(!trusted()||safeVideoUri(id)==null)return false;
+   runOnUiThread(()->openVideoOverlay(id,x,y,w,h,viewportW));return true;
+  }
+  @JavascriptInterface public void closeInlineVideo(){runOnUiThread(()->closeVideoOverlay());}
   @JavascriptInterface public String videoUri(String videoId){
    android.net.Uri uri=safeVideoUri(videoId);return uri==null?"":uri.toString();
   }
@@ -437,6 +555,10 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
    }catch(Exception ignored){}
    return found.toString();
   }
+  @JavascriptInterface public boolean openInlineVideo(String id,float x,float y,float w,float h,float viewportW){
+   return MoaMomentAudioHostActivity.this.openInlineVideo(id,x,y,w,h,viewportW);
+  }
+  @JavascriptInterface public void closeInlineVideo(){MoaMomentAudioHostActivity.this.closeInlineVideo();}
   @JavascriptInterface public void delete(String day,String id){runOnUiThread(()->{if(!trusted()||!validDay(day)||!validId(id))return;
     File f=new File(dayDir(day),id);send("delete",f.delete()?"삭제되었습니다.":"삭제하지 못했습니다.");});}
  }
