@@ -1,11 +1,13 @@
+> **CURRENT AS OF 2026-11-07: R163 USER DEVICE BASIC-OPERATION GOLDEN, superseding the historical R115-as-latest header and table below.** Exact signed code163 / 5,540,517B / SHA256 `f789a3a579102bfb34a77da11be9b99b18b54906527c428603885bbd130e68e1`; original signer and independent v2/ZIP PASS. User reported real-device install/basic function PASS, not independent per-feature regression. Frozen Library APK, all 128 member hashes and QA; source-only branch `golden/moa-r163-20261107-user-device-basic-pass-do-not-modify`. Next normal >=165 (164 emergency), old R115/R89/R83/R63 Goldens remain frozen. First read [R163 Golden Lock](MOA_R163_USER_DEVICE_GOLDEN_LOCK_READ_FIRST_20261107.md). NO email, no uninstall or user data reset. 
+
 # MOA — CURRENT RELEASE REGISTRY / APPEND-ONLY CHANGELOG
-**Latest checkpoint 2026-11-06: R115 USER-APPROVED VISUAL GOLDEN.**
+**Latest checkpoint 2026-11-07: R163 USER DEVICE BASIC-OPERATION GOLDEN. R115 was prior Golden; details below are historical.**
 *This document is an append-only chronology. On every future change, create a new dated entry (including failed experiments) and also update the ACTIVE READ-FIRST pointers. Do not delete failed versions to make the history look successful.*
 
-## 0. Exact live baseline
+## 0. Historical R115 baseline snapshot (now superseded by R163 as current; preserved verbatim)
 | Item | Value |
 |---|---|
-| User-selected current Golden | **MOA R115 — VISUAL/LAUNCHER/SPLASH USER-APPROVED**; full legacy feature regression **PENDING** |
+| User-selected previous Golden on 2026-11-06 | **MOA R115 — VISUAL/LAUNCHER/SPLASH USER-APPROVED**; full legacy feature regression **PENDING** |
 | Package | `com.juhyeon.familyjournea` |
 | VersionCode | `115` (reserve 116 for R113-based recovery, future feature code **>=117**) |
 | Golden APK SHA256 | `1118bdc249e2d941a899518e58be0185b120a887ff2c371c8f5a01037a5002a8` |
@@ -356,3 +358,11 @@ If a bug is discovered after release, append a correction with new timestamp and
 - **New:** native IME inset padding, stop/play button state and MM:SS, SpeechRecognizer partial file-text preview with safe final replace+timeout rollback, reduced artificial PCM pacing, two in-app play-poster overlays softly styled. Video `diaryPlayVideo` invocation unchanged; external video player NOT replaced.
 - **QA:** isolated native compile job PASS, DEX ABI PASS, v2 certificate RSA/content digest and ZIP PASS; older unrelated workflow Java job FAIL; **R163 real-device tests and user-download success PENDING**.
 - **Library:** exact APK and backup in `/에어팟안드로이드/`, source/QA/handoff in `/모아_프로젝트_근거_20261103/`. No email, no data wipe, R161 preserved. See `MOA_R163_CAPTURE_IME_PLAYER_STT_VIDEO_HANDOFF_20261107.md`.
+
+## 2026-11-07 R163 — user device Golden acceptance and freeze (append-only)
+- User expressly confirmed R163 real-device testing completed and app generally works, and requested registering **R163 as Golden** while retaining history. **Installed/basic operation USER PASS** only; user did not send per-feature screenshots or quantitative voice latency/accuracy logs for this final R163.
+- **Exact immutable signed APK** `MOA_R163_USER_DEVICE_GOLDEN_20261107_DO_NOT_MODIFY.apk`, 5,540,517B, SHA256 `f789a3a579102bfb34a77da11be9b99b18b54906527c428603885bbd130e68e1`, `com.juhyeon.familyjournea` versionCode163, original cert SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+- Private Library freeze copy, all-128-entry SHA manifest, complete R163 Golden Lock, strict APK v2 signature/RSA+digest + ZIP CRC/alignment reverify JSON, SHA file, and R163 keyless QA source zip all uploaded. Golden source anchor `golden/moa-r163-20261107-user-device-basic-pass-do-not-modify` was created from R163 feature work; it is not a full reproducible signed APK source.
+- Historical chain R157 M4A recording/dictation → R159 post-save file auto-text → R161 native camera quick record M4A+Diary photo link with user complaints keyboard hides buttons/no state/slow text (private 19348.mp4, reference 19341.mp4) → R163 IME insets, visible timer/play-pause, partial STT preview/final safe draft, ~3× file PCM pacing, softer in-app poster play overlays; external video playback unchanged. R163 R161 delta exactly 6 entries; 122/128 untouched.
+- This overrides **prior R163 BETA DEVICE PENDING statements** for overall user-reported on-device installation/basic use; it **does not claim** per-function keyboard rotation, raw M4A transcription fidelity, STT speed, all video playback/seek controls, or complete legacy app regression PASS.
+- Freeze all historic Golden R115/R89/R83/R63 and R161 separately, use R163 as latest protected behavioral baseline for future changes on **new branch** only. Reserve 164 for emergency rollback-forward; normal features code>=165. No uninstall/clear/email/secrets/AirPods edits.
