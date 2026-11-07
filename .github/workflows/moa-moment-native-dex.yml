@@ -96,15 +96,45 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
-      - name: Compile isolated R161 new Activity
+      - name: Compile isolated R161 new Activity against verified on-device signatures
         continue-on-error: true
         run: |
           set -euo pipefail
-          gradle -p android --no-daemon :app:compileDebugJavaWithJavac > build/moa-r161-native/compile.log 2>&1 || { tail -80 build/moa-r161-native/compile.log; exit 1; }
-          C="$(find android/app/build -type f -name 'MoaMomentMemoRecorderActivity.class' -printf '%h\n' | head -1)"
-          test -n "$C"
-          mkdir -p /tmp/moa-r161-dex build/moa-r161-native
-          find "$C" -maxdepth 1 -name 'MoaMomentMemoRecorderActivity*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa-r161-dex
+          mkdir -p /tmp/moa-r161-stubs/com/juhyeon/familyjourney /tmp/moa-r161-classes /tmp/moa-r161-dex build/moa-r161-native
+          cat > /tmp/moa-r161-stubs/com/juhyeon/familyjourney/MoaMomentCompileStubs.java <<'JAVA'
+          package com.juhyeon.familyjourney;
+          import android.content.Context;
+          import android.content.SharedPreferences;
+          import android.app.Activity;
+          class MoaMomentCaptureService {
+            static SharedPreferences prefs(Context c) { throw new UnsupportedOperationException(); }
+          }
+          class MoaMomentDirectDiaryStore {
+            static void requestSync(Context c) { throw new UnsupportedOperationException(); }
+          }
+          class MoaMomentVoice {
+            interface Listener {
+              void onListening();
+              void onText(String text);
+              void onFailure(String error);
+              void onFinished();
+            }
+            MoaMomentVoice(Activity a,Listener l){}
+            static boolean hasPermission(Context c){return true;}
+            void start(){}
+            void stop(){}
+          }
+          JAVA
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -sourcepath /tmp/moa-r161-stubs \
+            -d /tmp/moa-r161-classes \
+            android/app/src/main/java/com/juhyeon/familyjourney/MoaMomentMemoRecorderActivity.java \
+            /tmp/moa-r161-stubs/com/juhyeon/familyjourney/MoaMomentCompileStubs.java \
+            > build/moa-r161-native/compile.log 2>&1 || { tail -100 build/moa-r161-native/compile.log; exit 1; }
+          find /tmp/moa-r161-classes -type f -name 'MoaMomentMemoRecorderActivity*.class' -print0 |
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa-r161-dex \
+            >> build/moa-r161-native/compile.log 2>&1 || { tail -100 build/moa-r161-native/compile.log; exit 1; }
           python3 - <<'PY'
           import pathlib,base64,zlib,json,hashlib
           b=pathlib.Path('/tmp/moa-r161-dex/classes.dex').read_bytes()
