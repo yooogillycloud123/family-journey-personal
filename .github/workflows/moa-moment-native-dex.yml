@@ -143,7 +143,7 @@ jobs:
           assert b'MoaMomentMemoActivity;' not in b
           d=pathlib.Path('build/moa-r161-native')
           (d/'memo-recorder.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
-          (d/'manifest.json').write_text(json.dumps({'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest()},indent=2))
+          (d/'manifest.json').write_text(json.dumps({'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'source_sha256':hashlib.sha256(pathlib.Path('android/app/src/main/java/com/juhyeon/familyjourney/MoaMomentMemoRecorderActivity.java').read_bytes()).hexdigest()},indent=2))
           PY
       - name: Save R161 compiler diagnosis
         if: always()
