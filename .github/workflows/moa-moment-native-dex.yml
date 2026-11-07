@@ -1,4 +1,4 @@
-name: MOA moment native bridge DEX
+name: MOA moment native bridge DEX and R161 capture voice-list sync
 on:
   push:
     branches:
