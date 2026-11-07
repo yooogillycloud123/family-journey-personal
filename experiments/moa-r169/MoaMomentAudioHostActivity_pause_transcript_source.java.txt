@@ -1,0 +1,388 @@
+package com.juhyeon.familyjourney;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+import android.content.Intent;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
+import android.view.View;
+import android.view.ViewGroup;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.UUID;
+
+/** R149: Legacy host remains intact. No WebChromeClient replacement.
+ * Original STT UI calls a separate native SpeechRecognizer; original audio is
+ * recorded with Android MediaRecorder, not WebView getUserMedia.
+ */
+public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
+ private static final int MIC_REQUEST=4949;
+ private final Handler main=new Handler(Looper.getMainLooper());
+ private WebView web; private boolean interfaceAdded=false, reloadIssued=false; private volatile boolean trustedPage=false;
+ private MediaRecorder recorder; private MediaPlayer player; private File currentFile;
+ private String activePlayback="";
+ private long recordStart=0; private String recordDay="",pendingDay="",pendingSpeech="";
+ private SpeechRecognizer recognizer; private String recognitionToken="";
+ private static boolean validDay(String s){return s!=null&&s.matches("[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])");}
+ private static boolean validId(String s){return s!=null&&s.matches("[0-9a-zA-Z_-]{8,90}\\.m4a");}
+ @Override protected void onCreate(Bundle b){super.onCreate(b);schedule();}
+ @Override protected void onResume(){super.onResume();schedule();}
+ private void schedule(){main.postDelayed(this::attach,60);main.postDelayed(this::attach,300);main.postDelayed(this::attach,1000);}
+ private static WebView find(View v){if(v instanceof WebView)return(WebView)v;
+  if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++){WebView w=find(g.getChildAt(i));if(w!=null)return w;}}
+  return null;
+ }
+ private boolean trusted(){try{
+   if(web==null)return false;Uri u=Uri.parse(web.getUrl());
+   return u!=null && "https".equalsIgnoreCase(u.getScheme()) &&
+     "familyjourney.local".equalsIgnoreCase(u.getHost()) && (u.getPort()==-1||u.getPort()==443);
+  }catch(Exception e){return false;}}
+ private void attach(){
+  if(isFinishing()||isDestroyed())return;
+  WebView w=find(getWindow().getDecorView());if(w==null)return;
+  if(w!=web){web=w;interfaceAdded=false;reloadIssued=false;} trustedPage=trusted();
+  if(!interfaceAdded){w.addJavascriptInterface(new LocalBridge(),"MoaLocalAudio");interfaceAdded=true;}
+  // Android addJavascriptInterface normally becomes visible after navigation.
+  main.postDelayed(()->{
+   if(web!=w||reloadIssued||!trusted())return;
+   w.evaluateJavascript("!!window.MoaLocalAudio",result->{
+    if(web==w&&!reloadIssued&&"false".equals(result)&&trusted()){
+      reloadIssued=true;w.reload();
+    }
+   });
+  },400);
+ }
+ private void send(String event,String message){try{
+  JSONObject o=new JSONObject().put("event",event).put("message",message==null?"":message);
+  String code="window.__moaNativeAudioEvent&&window.__moaNativeAudioEvent("+o.toString()+")";
+  if(web!=null)web.evaluateJavascript(code,null);
+ }catch(Exception ignored){}}
+ private void speechEvent(String token,String payload,String phase){
+  if(web==null)return;
+  String code="window.__moaVoiceNativeResult&&window.__moaVoiceNativeResult("+JSONObject.quote(token)+","+JSONObject.quote(payload==null?"":payload)+","+JSONObject.quote(phase)+")";
+  web.evaluateJavascript(code,null);
+ }
+ private File dayDir(String day){File d=new File(getFilesDir(),"moa-original-audio/"+day);if(!d.exists())d.mkdirs();return d;}
+ private void record(String day){
+  if(!trusted()||!validDay(day)){send("record_error","내부 일기 날짜가 유효하지 않습니다.");return;}
+  if(recorder!=null){send("record_error","이미 녹음 중입니다.");return;}
+  cancelSpeech();
+  File f=new File(dayDir(day),System.currentTimeMillis()+"-"+UUID.randomUUID().toString().replace("-","")+".m4a");
+  MediaRecorder r=null;
+  try{
+   r=new MediaRecorder();r.setAudioSource(MediaRecorder.AudioSource.MIC);
+   r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+   r.setAudioEncodingBitRate(96000);r.setAudioSamplingRate(44100);r.setOutputFile(f.getAbsolutePath());
+   r.prepare();r.start();recorder=r;currentFile=f;recordStart=System.currentTimeMillis();recordDay=day;
+   send("record_started","녹음 중입니다. 종료·저장을 눌러 주세요.");
+  }catch(Exception e){
+   try{if(r!=null)r.release();}catch(Exception ignored){}
+   if(f.exists())f.delete();
+   recorder=null;currentFile=null;send("record_error","Android 녹음 시작 실패: "+e.getClass().getSimpleName()+": "+e.getMessage());
+  }
+ }
+ private void stopRecord(){
+  MediaRecorder r=recorder;File f=currentFile;
+  recorder=null;currentFile=null;
+  if(r==null){send("record_error","진행 중인 녹음이 없습니다.");return;}
+  boolean valid=false;try{r.stop();valid=f!=null&&f.exists()&&f.length()>0;}catch(RuntimeException e){send("record_error","녹음 종료 실패: "+e.getMessage());}
+  finally{try{r.reset();r.release();}catch(Exception ignored){}}
+  if(!valid){if(f!=null)f.delete();send("record_error","음성파일이 비어 저장하지 못했습니다.");return;}
+  send("record_saved","날짜별 음성파일 저장 완료 · "+((System.currentTimeMillis()-recordStart)/1000)+"초");
+ }
+ private void play(String day,String id){
+  if(!validDay(day)||!validId(id)||!trusted())return;
+  File f=new File(dayDir(day),id);if(!f.exists())return;
+  try{
+   if(player!=null){try{player.stop();}catch(Exception ignored){}player.release();player=null;}
+    activePlayback="";
+   MediaPlayer p=new MediaPlayer();p.setDataSource(f.getAbsolutePath());
+   p.setOnCompletionListener(mp->{mp.release();if(player==mp){player=null;activePlayback="";}send("play_finished","재생 완료");});
+   p.prepare();p.start();player=p;activePlayback=day+"/"+id;send("play_started","녹음 재생 중");
+  }catch(Exception e){send("play_error","재생 실패: "+e.getMessage());}
+ }
+ private void togglePlayback(String day,String id){
+   if(!trusted()||!validDay(day)||!validId(id))return;
+   if(player==null||!(day+"/"+id).equals(activePlayback)){play(day,id);return;}
+   try{
+    if(player.isPlaying()){player.pause();send("play_paused","원본 녹음 일시정지");}
+    else{player.start();send("play_resumed","원본 녹음 이어듣기");}
+   }catch(Exception e){send("play_error","일시정지·재개 실패: "+e.getMessage());}
+  }
+  private void startSpeech(String token){
+  if(!trusted()||token==null||token.length()>128)return;
+  cancelSpeech();recognitionToken=token;
+  if(!SpeechRecognizer.isRecognitionAvailable(this)){speechEvent(token,"기기 음성인식 서비스가 없습니다.","error");speechEvent(token,"","finished");return;}
+  try{
+   recognizer=SpeechRecognizer.createSpeechRecognizer(this);
+   recognizer.setRecognitionListener(new RecognitionListener(){
+    public void onReadyForSpeech(Bundle params){speechEvent(token,"","listening");}
+    public void onBeginningOfSpeech(){}
+    public void onRmsChanged(float rms){}
+    public void onBufferReceived(byte[] buf){}
+    public void onEndOfSpeech(){}
+    public void onError(int error){speechEvent(token,"음성 인식 오류 "+error,"error");speechEvent(token,"","finished");cancelSpeech();}
+    private void publish(Bundle b,String phase){
+     ArrayList<String> a=b==null?null:b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+     if(a!=null&&!a.isEmpty())speechEvent(token,a.get(0),phase);
+    }
+    public void onResults(Bundle results){publish(results,"success");speechEvent(token,"","finished");cancelSpeech();}
+    public void onPartialResults(Bundle partial){publish(partial,"partial");}
+    public void onEvent(int event,Bundle b){}
+   });
+   Intent i=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+   i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+   i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"ko-KR");i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,true);
+   recognizer.startListening(i);
+  }catch(Exception e){speechEvent(token,"음성 인식 시작 실패: "+e.getMessage(),"error");speechEvent(token,"","finished");cancelSpeech();}
+ }
+ private void cancelSpeech(){if(recognizer!=null){try{recognizer.cancel();recognizer.destroy();}catch(Exception ignored){}recognizer=null;}recognitionToken="";}
+ @Override public void onRequestPermissionsResult(int code,String[] permissions,int[] results){
+  super.onRequestPermissionsResult(code,permissions,results);
+  if(code==MIC_REQUEST){
+   boolean ok=results.length>0&&results[0]==PackageManager.PERMISSION_GRANTED;
+   String d=pendingDay,t=pendingSpeech;pendingDay="";pendingSpeech="";
+   if(ok){if(!d.isEmpty())record(d);else if(!t.isEmpty())startSpeech(t);}
+   else{if(!d.isEmpty())send("record_error","마이크 권한이 거부되었습니다.");
+        if(!t.isEmpty()){speechEvent(t,"마이크 권한이 거부되었습니다.","permission");speechEvent(t,"","finished");}}
+  }
+ }
+ @Override protected void onPause(){if(recorder!=null)stopRecord();cancelSpeech();endFileSpeech();super.onPause();}
+ @Override protected void onDestroy(){endFileSpeech();if(recorder!=null)stopRecord();cancelSpeech();if(player!=null){try{player.release();}catch(Exception ignored){}player=null;}super.onDestroy();}
+
+ // Optional recorded-file speech recognition. Never touches the working microphone recorder or live STT.
+ private android.speech.SpeechRecognizer fileSpeech;
+ private android.os.ParcelFileDescriptor fileRead, fileWrite;
+ private volatile boolean fileSpeechBusy=false;
+ private String fileSpeechTarget="";
+ private final java.util.ArrayList<String> fileSegments=new java.util.ArrayList<>();
+ private void sendTranscript(String type,String day,String id,String value){
+  try{
+   org.json.JSONObject data=new org.json.JSONObject();
+   data.put("day",day).put("id",id).put("text",value==null?"":value);
+   send(type,data.toString());
+  }catch(Exception ex){send("transcribe_error","결과 처리 오류");}
+ }
+ private void endFileSpeech(){
+  fileSpeechBusy=false;fileSpeechTarget="";
+  try{if(fileSpeech!=null){fileSpeech.cancel();fileSpeech.destroy();}}catch(Exception ignored){}
+  fileSpeech=null;
+  try{if(fileRead!=null)fileRead.close();}catch(Exception ignored){}
+  try{if(fileWrite!=null)fileWrite.close();}catch(Exception ignored){}
+  fileRead=null;fileWrite=null;fileSegments.clear();
+ }
+ private void startFileSpeech(String d,String id){
+  if(!trusted()||!validDay(d)||!validId(id))return;
+  if(fileSpeechBusy){send("transcribe_error","다른 파일의 글 변환이 진행 중입니다.");return;}
+  if(recorder!=null){send("transcribe_error","녹음을 종료한 후 글로 변환해 주세요.");return;}
+  final java.io.File source=new java.io.File(dayDir(d),id);
+  if(!source.exists()||source.length()==0){send("transcribe_error","음성파일을 찾지 못했습니다.");return;}
+  if(android.os.Build.VERSION.SDK_INT<33){send("transcribe_error","Android 13 이상에서 지원하는 기능입니다.");return;}
+  if(!android.speech.SpeechRecognizer.isRecognitionAvailable(this)){send("transcribe_error","사용 가능한 기기 음성인식 서비스가 없습니다.");return;}
+  cancelSpeech();fileSegments.clear();fileSpeechBusy=true;fileSpeechTarget=d+"/"+id;
+  try{
+   android.os.ParcelFileDescriptor[] pair=android.os.ParcelFileDescriptor.createPipe();
+   fileRead=pair[0];fileWrite=pair[1];
+   fileSpeech=android.speech.SpeechRecognizer.createSpeechRecognizer(this);
+   final String target=fileSpeechTarget;
+   fileSpeech.setRecognitionListener(new android.speech.RecognitionListener(){
+    public void onReadyForSpeech(android.os.Bundle b){}
+    public void onBeginningOfSpeech(){}
+    public void onRmsChanged(float v){}
+    public void onBufferReceived(byte[] b){}
+    public void onEndOfSpeech(){}
+    public void onError(int code){
+     if(!target.equals(fileSpeechTarget))return;
+     sendTranscript("transcribe_error",d,id,"저장된 음성 인식 실패("+code+"). 음성인식 서비스에서 파일 입력을 지원하지 않을 수 있습니다.");
+     endFileSpeech();
+    }
+    public void onResults(android.os.Bundle b){
+     if(!target.equals(fileSpeechTarget))return;
+     java.util.ArrayList<String> list=b==null?null:b.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION);
+     String recognized=(list!=null&&!list.isEmpty())?list.get(0):String.join(" ",fileSegments);
+     if(recognized.trim().isEmpty())sendTranscript("transcribe_error",d,id,"인식된 문장이 없습니다.");
+     else sendTranscript("transcribe_result",d,id,recognized.trim());
+     endFileSpeech();
+    }
+    public void onPartialResults(android.os.Bundle b){}
+    public void onEvent(int code,android.os.Bundle b){}
+    public void onSegmentResults(android.os.Bundle b){
+     java.util.ArrayList<String> x=b==null?null:b.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION);
+     if(x!=null&&!x.isEmpty())fileSegments.add(x.get(0));
+    }
+    public void onEndOfSegmentedSession(){
+     if(!target.equals(fileSpeechTarget))return;
+     String combined=String.join(" ",fileSegments).trim();
+     if(combined.isEmpty())sendTranscript("transcribe_error",d,id,"인식된 문장이 없습니다.");
+     else sendTranscript("transcribe_result",d,id,combined);
+     endFileSpeech();
+    }
+   });
+   android.content.Intent intent=new android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE,"ko-KR");
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_AUDIO_SOURCE,fileRead);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT,1);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING,android.media.AudioFormat.ENCODING_PCM_16BIT);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE,16000);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_SEGMENTED_SESSION,android.speech.RecognizerIntent.EXTRA_AUDIO_SOURCE);
+   fileSpeech.startListening(intent);
+   sendTranscript("transcribe_started",d,id,"저장된 파일을 기기 음성인식 서비스에 전달하고 있습니다.");
+   final android.os.ParcelFileDescriptor destination=fileWrite;
+   new Thread(()->{
+    try{streamPcm16k(source,destination,target);}
+    catch(Exception e){runOnUiThread(()->{
+      if(target.equals(fileSpeechTarget)){sendTranscript("transcribe_error",d,id,"오디오 디코딩 실패: "+e.getMessage());endFileSpeech();}
+    });}
+   },"moa-audio-file-transcriber").start();
+  }catch(Exception e){
+   sendTranscript("transcribe_error",d,id,"음성 변환 시작 실패: "+e.getClass().getSimpleName()+": "+e.getMessage());
+   endFileSpeech();
+  }
+ }
+ private void streamPcm16k(java.io.File source,android.os.ParcelFileDescriptor fd,String target)throws Exception{
+  android.media.MediaExtractor extractor=new android.media.MediaExtractor();
+  android.media.MediaCodec decoder=null;
+  try(java.io.OutputStream output=new android.os.ParcelFileDescriptor.AutoCloseOutputStream(fd)){
+   extractor.setDataSource(source.getAbsolutePath());
+   int track=-1;android.media.MediaFormat format=null;
+   for(int i=0;i<extractor.getTrackCount();i++){
+    android.media.MediaFormat m=extractor.getTrackFormat(i);
+    String type=m.getString(android.media.MediaFormat.KEY_MIME);
+    if(type!=null&&type.startsWith("audio/")){track=i;format=m;break;}
+   }
+   if(track<0||format==null)throw new java.io.IOException("M4A 오디오 트랙이 없습니다.");
+   extractor.selectTrack(track);
+   decoder=android.media.MediaCodec.createDecoderByType(format.getString(android.media.MediaFormat.KEY_MIME));
+   decoder.configure(format,null,null,0);decoder.start();
+   android.media.MediaCodec.BufferInfo bufferInfo=new android.media.MediaCodec.BufferInfo();
+   boolean inputDone=false,outputDone=false;
+   long outSamples=0,started=android.os.SystemClock.elapsedRealtime();
+   long accumulator=0;
+   int sampleRate=format.containsKey(android.media.MediaFormat.KEY_SAMPLE_RATE)?format.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE):44100;
+   int channels=format.containsKey(android.media.MediaFormat.KEY_CHANNEL_COUNT)?format.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT):1;
+   while(!outputDone&&fileSpeechBusy&&target.equals(fileSpeechTarget)){
+    if(!inputDone){
+     int index=decoder.dequeueInputBuffer(12000);
+     if(index>=0){
+      java.nio.ByteBuffer input=decoder.getInputBuffer(index);input.clear();
+      int length=extractor.readSampleData(input,0);
+      if(length<0){decoder.queueInputBuffer(index,0,0,0,android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM);inputDone=true;}
+      else{decoder.queueInputBuffer(index,0,length,extractor.getSampleTime(),0);extractor.advance();}
+     }
+    }
+    int outputIndex=decoder.dequeueOutputBuffer(bufferInfo,12000);
+    if(outputIndex==android.media.MediaCodec.INFO_OUTPUT_FORMAT_CHANGED){
+     android.media.MediaFormat fmt=decoder.getOutputFormat();
+     sampleRate=fmt.containsKey(android.media.MediaFormat.KEY_SAMPLE_RATE)?fmt.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE):sampleRate;
+     channels=fmt.containsKey(android.media.MediaFormat.KEY_CHANNEL_COUNT)?fmt.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT):channels;
+     int encoding=fmt.containsKey(android.media.MediaFormat.KEY_PCM_ENCODING)?fmt.getInteger(android.media.MediaFormat.KEY_PCM_ENCODING):android.media.AudioFormat.ENCODING_PCM_16BIT;
+     if(encoding!=android.media.AudioFormat.ENCODING_PCM_16BIT)throw new java.io.IOException("지원되지 않는 PCM 인코딩");
+    }else if(outputIndex>=0){
+     java.nio.ByteBuffer decoded=decoder.getOutputBuffer(outputIndex);
+     if(decoded!=null&&bufferInfo.size>0){
+      decoded.position(bufferInfo.offset);decoded.limit(bufferInfo.offset+bufferInfo.size);
+      decoded.order(java.nio.ByteOrder.LITTLE_ENDIAN);
+      int frames=bufferInfo.size/Math.max(2,channels*2);
+      java.io.ByteArrayOutputStream block=new java.io.ByteArrayOutputStream(frames*2);
+      for(int i=0;i<frames;i++){
+       int total=0;for(int ch=0;ch<channels;ch++)total+=decoded.getShort();
+       short sample=(short)(total/channels);
+       accumulator+=16000;
+       if(accumulator>=sampleRate){
+        accumulator-=sampleRate;block.write(sample&255);block.write((sample>>>8)&255);outSamples++;
+       }
+      }
+      byte[] bytes=block.toByteArray();if(bytes.length>0){output.write(bytes);output.flush();}
+      long expectedMs=outSamples*1000/16000;
+      long wait=expectedMs-(android.os.SystemClock.elapsedRealtime()-started);
+      if(wait>10)Thread.sleep(Math.min(wait,700));
+     }
+     outputDone=(bufferInfo.flags&android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;
+     decoder.releaseOutputBuffer(outputIndex,false);
+    }
+   }
+  }finally{
+   extractor.release();
+   try{if(decoder!=null){decoder.stop();decoder.release();}}catch(Exception ignored){}
+  }
+ }
+
+ public final class LocalBridge {
+  @JavascriptInterface public void transcribe(String day,String id){runOnUiThread(()->startFileSpeech(day,id));}
+  @JavascriptInterface public void recordStart(String day){runOnUiThread(()->{
+   if(!trusted()||!validDay(day))return;
+   if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){pendingDay=day;requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MIC_REQUEST);}
+   else record(day);
+  });}
+  @JavascriptInterface public void recordStop(){runOnUiThread(()->{if(trusted())stopRecord();});}
+  @JavascriptInterface public void speechStart(String token){runOnUiThread(()->{
+   if(!trusted())return;
+   if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){pendingSpeech=token;requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MIC_REQUEST);}
+   else startSpeech(token);
+  });}
+  @JavascriptInterface public void speechStop(String token){runOnUiThread(()->{if(recognizer!=null)recognizer.stopListening();});}
+  @JavascriptInterface public void speechCancel(){runOnUiThread(()->cancelSpeech());}
+  @JavascriptInterface public String list(String day){
+   JSONArray a=new JSONArray();if(!trustedPage||!validDay(day))return a.toString();
+   File[] files=dayDir(day).listFiles();if(files==null)return a.toString();
+   java.util.Arrays.sort(files,(l,r)->Long.compare(r.lastModified(),l.lastModified()));
+   for(File f:files)if(f.isFile()&&validId(f.getName())){
+    try{a.put(new JSONObject().put("id",f.getName()).put("bytes",f.length()).put("time",f.lastModified()).put("day",day));}catch(Exception ignored){}
+   }
+   return a.toString();
+  }
+  @JavascriptInterface public void play(String day,String id){runOnUiThread(()->MoaMomentAudioHostActivity.this.play(day,id));}
+  @JavascriptInterface public void togglePlayback(String day,String id){runOnUiThread(()->MoaMomentAudioHostActivity.this.togglePlayback(day,id));}
+  /** Read-only original M4A-to-text from camera Quick Record metadata. */
+  @JavascriptInterface public String captureTranscripts(String day){
+   if(!trusted()||!validDay(day))return "{}";
+   org.json.JSONObject found=new org.json.JSONObject();
+   try{
+    java.util.Map<String,?> entries=getSharedPreferences("moa_camera_native_v1",MODE_PRIVATE).getAll();
+    for(java.util.Map.Entry<String,?> ent:entries.entrySet()){
+      if(!ent.getKey().startsWith("m:")||!(ent.getValue() instanceof String))continue;
+      org.json.JSONObject record;
+      try{record=new org.json.JSONObject((String)ent.getValue());}catch(Exception ex){continue;}
+      String id=record.optString("voiceFileId","");
+      if(day.equals(record.optString("voiceDay",""))&&validId(id)){
+        org.json.JSONObject m=new org.json.JSONObject();
+        m.put("autoTranscript",record.optString("voiceAutoTranscript",""));
+        m.put("autoStatus",record.optString("voiceAutoStatus",""));
+        m.put("captureNote",record.optString("note",""));
+        found.put(id,m);
+      }
+      org.json.JSONArray history=record.optJSONArray("voiceRecords");
+      if(history==null)continue;
+      for(int n=0;n<history.length();n++){
+        org.json.JSONObject item=history.optJSONObject(n);if(item==null)continue;
+        String file=item.optString("id","");
+        if(!validId(file)||!day.equals(item.optString("day","")))continue;
+        org.json.JSONObject data=found.optJSONObject(file);
+        if(data==null)data=new org.json.JSONObject();
+        String transcript=item.optString("autoTranscript","");
+        if(!transcript.isEmpty()||!data.has("autoTranscript"))data.put("autoTranscript",transcript);
+        data.put("autoStatus",item.optString("autoStatus",""));
+        if(!data.has("captureNote"))data.put("captureNote",record.optString("note",""));
+        found.put(file,data);
+      }
+    }
+   }catch(Exception ignored){}
+   return found.toString();
+  }
+  @JavascriptInterface public void delete(String day,String id){runOnUiThread(()->{if(!trusted()||!validDay(day)||!validId(id))return;
+    File f=new File(dayDir(day),id);send("delete",f.delete()?"삭제되었습니다.":"삭제하지 못했습니다.");});}
+ }
+}
