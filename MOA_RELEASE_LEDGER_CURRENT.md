@@ -348,3 +348,11 @@ If a bug is discovered after release, append a correction with new timestamp and
 - Original R159 APK located in active `/mnt/data/MOA_R159_Install_Chat.apk`, 5,503,549 B SHA256 `bdedb262e8210e54ab55176b82ccdb7b447fc1986d83fda7b5c5c7882d256a17`; ZIP CRC PASS.
 - Current-turn Python created exact-byte copy `/mnt/data/MOA_R159_REDELIVERY_20261107.apk` and new `/mnt/data/MOA_R159_REDELIVERY_20261107.zip` with same exact APK embedded; verified copied SHA and ZIP integrity. These are **fresh current-turn generated files**, not the inaccessible previous link. **Android client recipient click/download STILL PENDING**, do not mark delivery as resolved from file creation alone.
 - Follow `MOA_RELEASE_DOWNLOAD_LINK_RELIABILITY_CRITICAL_RULE_20261105.md`; no email, no external uploads, no APK rebuilt, no version bump, no data deletion.
+
+
+## 2026-11-07 R163 — Camera capture memo IME, recording/play state, partial recorded-file STT, video poster play controls
+- **Artifact:** `MOA_R163_Install_Chat.apk` code163 same `com.juhyeon.familyjournea` and original cert, signed 5,540,517B SHA256 `f789a3a579102bfb34a77da11be9b99b18b54906527c428603885bbd130e68e1`.
+- **Base:** R161 SHA `daf119c7d9e98a5729c4b64e6d70c8b8071073018e9dc5c416db551fa24cf485`, 122/128 untouched entries, only manifest/classes7/r133+141 video overlay JS/CSS changed. User videos 19341/19348; R161 user reports newly added voice works but with bugs.
+- **New:** native IME inset padding, stop/play button state and MM:SS, SpeechRecognizer partial file-text preview with safe final replace+timeout rollback, reduced artificial PCM pacing, two in-app play-poster overlays softly styled. Video `diaryPlayVideo` invocation unchanged; external video player NOT replaced.
+- **QA:** isolated native compile job PASS, DEX ABI PASS, v2 certificate RSA/content digest and ZIP PASS; older unrelated workflow Java job FAIL; **R163 real-device tests and user-download success PENDING**.
+- **Library:** exact APK and backup in `/에어팟안드로이드/`, source/QA/handoff in `/모아_프로젝트_근거_20261103/`. No email, no data wipe, R161 preserved. See `MOA_R163_CAPTURE_IME_PLAYER_STT_VIDEO_HANDOFF_20261107.md`.
