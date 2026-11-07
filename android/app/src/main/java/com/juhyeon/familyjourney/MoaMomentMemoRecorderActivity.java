@@ -218,21 +218,20 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
     autoArchive.setTextSize(13);
     autoArchive.setChecked(MoaR165AudioExport.auto(this));
     autoArchive.setOnCheckedChangeListener((button,checked)->{
-      if(!checked){MoaR165AudioExport.setAuto(this,false);status("새 녹음의 외부 자동 보관 OFF · 기존 녹음/백업은 유지됩니다.");return;}
-      // Public media may be visible to other audio/media apps. Never enable
-      // without a user-initiated confirmation.
-      button.setChecked(false);
+      if(!checked){
+        MoaR165AudioExport.setAuto(this,false);
+        status("새 녹음의 외부 자동 보관 OFF · 기존 녹음/백업은 유지됩니다.");
+        return;
+      }
+      if(MoaR165AudioExport.auto(this))return;
       new AlertDialog.Builder(this)
         .setTitle("외부 녹음 자동 보관 켜기")
         .setMessage("새 M4A를 Music/MOA-Recordings에도 별도 복사합니다. 다른 미디어 앱에서도 파일을 볼 수 있고, 당분간 내부+외부 두 곳의 용량을 사용합니다. 기존 원본은 삭제하지 않습니다.")
-        .setNegativeButton("취소",null)
+        .setNegativeButton("취소",(dialog,which)->autoArchive.setChecked(false))
+        .setOnCancelListener(dialog->autoArchive.setChecked(false))
         .setPositiveButton("켜기",(dialog,which)->{
           MoaR165AudioExport.setAuto(this,true);
-          autoArchive.setOnCheckedChangeListener(null);autoArchive.setChecked(true);
-          autoArchive.setOnCheckedChangeListener((b,on)->{
-            if(!on){MoaR165AudioExport.setAuto(this,false);status("외부 자동 보관 OFF");}
-          });
-          status("다음 녹음부터 원본 저장 후 외부 백업을 추가로 검증합니다.");
+          status("다음 녹음부터 원본 저장 후 외부 백업을 추가 검증합니다.");
         }).show();
     });
     body.addView(autoArchive);
