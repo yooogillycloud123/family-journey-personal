@@ -73,6 +73,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feature/moa-r161-capture-record-stt-20261107
+      - name: R161 CI handshake before compile
+        run: |
+          set -euo pipefail
+          mkdir -p build/moa-r161-native
+          echo "R161_GITHUB_RUN_STARTED" > build/moa-r161-native/status.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f build/moa-r161-native/status.txt
+          git commit -m "ci(moa-r161): runner started" || true
+          git push origin HEAD:feature/moa-r161-capture-record-stt-20261107 || true
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
