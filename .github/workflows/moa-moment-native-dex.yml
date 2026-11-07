@@ -97,9 +97,10 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
       - name: Compile isolated R161 new Activity
+        continue-on-error: true
         run: |
           set -euo pipefail
-          gradle -p android --no-daemon :app:compileDebugJavaWithJavac
+          gradle -p android --no-daemon :app:compileDebugJavaWithJavac > build/moa-r161-native/compile.log 2>&1 || { tail -80 build/moa-r161-native/compile.log; exit 1; }
           C="$(find android/app/build -type f -name 'MoaMomentMemoRecorderActivity.class' -printf '%h\n' | head -1)"
           test -n "$C"
           mkdir -p /tmp/moa-r161-dex build/moa-r161-native
@@ -114,6 +115,16 @@ jobs:
           (d/'memo-recorder.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
           (d/'manifest.json').write_text(json.dumps({'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest()},indent=2))
           PY
+      - name: Save R161 compiler diagnosis
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          test -f build/moa-r161-native/compile.log || echo "Compile step did not create a log" > build/moa-r161-native/compile.log
+          tail -150 build/moa-r161-native/compile.log > build/moa-r161-native/compile-tail.txt
+          git add -f build/moa-r161-native/compile-tail.txt
+          git commit -m "ci(moa-r161): compile diagnostics" || true
+          git push origin HEAD:feature/moa-r161-capture-record-stt-20261107 || true
       - name: Upload isolated R161 result and commit to feature
         if: success()
         run: |
