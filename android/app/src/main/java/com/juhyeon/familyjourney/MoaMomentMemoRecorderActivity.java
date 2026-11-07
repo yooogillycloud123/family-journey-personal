@@ -73,6 +73,7 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
   private String id,day,voiceId="";
   private EditText text;
   private TextView status,backupStatus;
+  private File pendingExternalExport;
   private final AtomicBoolean backupBusy=new AtomicBoolean(false);
   private Button micButton,recButton,playButton,saveButton;
   private MoaMomentVoice speech;
@@ -367,8 +368,11 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
     playButton.setEnabled(true);
     playButton.setText("▶ 원본 듣기");playStyle(false);
     status("녹음 원본 저장 완료 · "+Math.max(1,(SystemClock.elapsedRealtime()-recordStarted)/1000)+"초. 녹음 텍스트 자동 변환 중…");
-    exportOneAudioSafely(f);
+    pendingExternalExport=f;
     startFileSpeech(f);
+    // No parallel copy while the recognizer decodes a recorded file.
+    // Unsupported recognizer paths return without fileBusy; back up then.
+    if(!fileBusy)sendPendingExternalExport();
   }
 
   /**
@@ -449,6 +453,11 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
     if(found==null)return new File[0];
     Arrays.sort(found,(a,b)->a.getName().compareTo(b.getName()));
     return found;
+  }
+  private void sendPendingExternalExport(){
+    File original=pendingExternalExport;
+    pendingExternalExport=null;
+    if(original!=null&&original.isFile())exportOneAudioSafely(original);
   }
   private void exportOneAudioSafely(File original){
     android.content.Context app=getApplicationContext();
@@ -655,6 +664,7 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
     try{if(readPipe!=null)readPipe.close();}catch(Exception ignored){}
     try{if(writePipe!=null)writePipe.close();}catch(Exception ignored){}
     readPipe=null;writePipe=null;segments.clear();
+    sendPendingExternalExport();
   }
   private void streamPcm16k(File source,ParcelFileDescriptor fd,String token)throws Exception{
     MediaExtractor extractor=new MediaExtractor();MediaCodec decoder=null;
