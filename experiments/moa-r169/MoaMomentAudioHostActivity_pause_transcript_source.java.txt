@@ -433,31 +433,6 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
   }
  }
 
- public final class LocalBridge {
-  @JavascriptInterface public void transcribe(String day,String id){runOnUiThread(()->startFileSpeech(day,id));}
-  @JavascriptInterface public void recordStart(String day){runOnUiThread(()->{
-   if(!trusted()||!validDay(day))return;
-   if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){pendingDay=day;requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MIC_REQUEST);}
-   else record(day);
-  });}
-  @JavascriptInterface public void recordStop(){runOnUiThread(()->{if(trusted())stopRecord();});}
-  @JavascriptInterface public void speechStart(String token){runOnUiThread(()->{
-   if(!trusted())return;
-   if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){pendingSpeech=token;requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MIC_REQUEST);}
-   else startSpeech(token);
-  });}
-  @JavascriptInterface public void speechStop(String token){runOnUiThread(()->{if(recognizer!=null)recognizer.stopListening();});}
-  @JavascriptInterface public void speechCancel(){runOnUiThread(()->cancelSpeech());}
-  @JavascriptInterface public String list(String day){
-   JSONArray a=new JSONArray();if(!trustedPage||!validDay(day))return a.toString();
-   File[] files=dayDir(day).listFiles();if(files==null)return a.toString();
-   java.util.Arrays.sort(files,(l,r)->Long.compare(r.lastModified(),l.lastModified()));
-   for(File f:files)if(f.isFile()&&validId(f.getName())){
-    try{a.put(new JSONObject().put("id",f.getName()).put("bytes",f.length()).put("time",f.lastModified()).put("day",day));}catch(Exception ignored){}
-   }
-   return a.toString();
-  }
-  @JavascriptInterface public void play(String day,String id){runOnUiThread(()->MoaMomentAudioHostActivity.this.play(day,id));}
   private android.net.Uri safeVideoUri(String videoId){
    if(!trusted()||videoId==null||!videoId.matches("v[0-9]{1,18}"))return null;
    try{
@@ -518,6 +493,34 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
      }
    },"moa-r169-video-frame").start();
   }
+
+ public final class LocalBridge {
+  @JavascriptInterface public void transcribe(String day,String id){runOnUiThread(()->startFileSpeech(day,id));}
+  @JavascriptInterface public void recordStart(String day){runOnUiThread(()->{
+   if(!trusted()||!validDay(day))return;
+   if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){pendingDay=day;requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MIC_REQUEST);}
+   else record(day);
+  });}
+  @JavascriptInterface public void recordStop(){runOnUiThread(()->{if(trusted())stopRecord();});}
+  @JavascriptInterface public void speechStart(String token){runOnUiThread(()->{
+   if(!trusted())return;
+   if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){pendingSpeech=token;requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MIC_REQUEST);}
+   else startSpeech(token);
+  });}
+  @JavascriptInterface public void speechStop(String token){runOnUiThread(()->{if(recognizer!=null)recognizer.stopListening();});}
+  @JavascriptInterface public void speechCancel(){runOnUiThread(()->cancelSpeech());}
+  @JavascriptInterface public String list(String day){
+   JSONArray a=new JSONArray();if(!trustedPage||!validDay(day))return a.toString();
+   File[] files=dayDir(day).listFiles();if(files==null)return a.toString();
+   java.util.Arrays.sort(files,(l,r)->Long.compare(r.lastModified(),l.lastModified()));
+   for(File f:files)if(f.isFile()&&validId(f.getName())){
+    try{a.put(new JSONObject().put("id",f.getName()).put("bytes",f.length()).put("time",f.lastModified()).put("day",day));}catch(Exception ignored){}
+   }
+   return a.toString();
+  }
+  @JavascriptInterface public void play(String day,String id){runOnUiThread(()->MoaMomentAudioHostActivity.this.play(day,id));}
+  @JavascriptInterface public String videoUri(String videoId){return MoaMomentAudioHostActivity.this.videoUri(videoId);}
+  @JavascriptInterface public void captureVideoFrame(String id,long at){MoaMomentAudioHostActivity.this.captureVideoFrame(id,at);}
   @JavascriptInterface public void togglePlayback(String day,String id){runOnUiThread(()->MoaMomentAudioHostActivity.this.togglePlayback(day,id));}
   /** Read-only original M4A-to-text from camera Quick Record metadata. */
   @JavascriptInterface public String captureTranscripts(String day){
