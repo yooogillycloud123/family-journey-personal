@@ -1,4 +1,4 @@
-name: MOA native gallery VideoView R171 compiled verification
+name: MOA native gallery VideoView R171 fade-in final compile
 on:
   push:
     branches:
