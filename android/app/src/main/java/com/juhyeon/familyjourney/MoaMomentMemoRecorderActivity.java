@@ -4,6 +4,17 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.NotificationManager;
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.Environment;
+import android.provider.MediaStore;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.security.MessageDigest;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -61,7 +72,8 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
   private final Handler main=new Handler(Looper.getMainLooper());
   private String id,day,voiceId="";
   private EditText text;
-  private TextView status;
+  private TextView status,backupStatus;
+  private final AtomicBoolean backupBusy=new AtomicBoolean(false);
   private Button micButton,recButton,playButton,saveButton;
   private MoaMomentVoice speech;
   private MediaRecorder recorder;
@@ -197,12 +209,31 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
     explain.setText("기억나는 말을 적거나 음성으로 말해 주세요. 모아를 다시 열면 해당 촬영 시간대에 동기화됩니다.");
     explain.setTextColor(0xff39495a);explain.setTextSize(14);
     explain.setPadding(0,dp(12),0,dp(10));body.addView(explain);
+    TextView storageHelp=new TextView(this);
+    storageHelp.setText("녹음 원본 외부 보관: Recordings/MOA · 기존 파일은 그대로 유지");
+    storageHelp.setTextSize(12);storageHelp.setTextColor(0xff476078);body.addView(storageHelp);
     text=new EditText(this);text.setMinLines(4);text.setGravity(48);
     text.setHint("지금 무슨 일이 있었나요?");text.setTextSize(17);
     text.setText(meta.optString("note",""));body.addView(text);
     status=new TextView(this);status.setTextColor(0xff395a58);status.setTextSize(13);
     status.setPadding(0,dp(10),0,0);body.addView(status);
     status(voiceId.isEmpty()?"음성 녹음은 원본 파일과 글을 함께 남겨요.":"이 사진에 연결된 녹음이 있어요.");
+    backupStatus=new TextView(this);
+    backupStatus.setTextSize(12);
+    backupStatus.setTextColor(0xff3b5c66);
+    backupStatus.setPadding(0,dp(7),0,dp(7));
+    backupStatus.setText("새 녹음은 외부 보관 폴더에 원본 사본을 안전하게 저장합니다.");
+    body.addView(backupStatus);
+    TextView backupAll=new TextView(this);
+    backupAll.setText("기존 녹음 원본 모두 외부 폴더에 보관하기  ›");
+    backupAll.setTextSize(13);backupAll.setTextColor(0xff165f8b);
+    backupAll.setPadding(0,dp(4),0,dp(12));
+    backupAll.setOnClickListener(v->new AlertDialog.Builder(this)
+      .setTitle("기존 녹음 원본 외부 보관")
+      .setMessage("모아 내부의 기존 음성 녹음을 Recordings/MOA 폴더에 복사하고 파일 내용을 검증합니다. 기존 앱 파일과 일기 연결은 삭제하거나 변경하지 않습니다. 다른 앱에서 녹음에 접근할 수도 있습니다.")
+      .setNegativeButton("취소",null)
+      .setPositiveButton("복사하기",(a,b)->exportAllAudioSafely()).show());
+    body.addView(backupAll);
 
     LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
     root.setBackgroundColor(Color.WHITE);
@@ -336,8 +367,141 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
     playButton.setEnabled(true);
     playButton.setText("▶ 원본 듣기");playStyle(false);
     status("녹음 원본 저장 완료 · "+Math.max(1,(SystemClock.elapsedRealtime()-recordStarted)/1000)+"초. 녹음 텍스트 자동 변환 중…");
+    exportOneAudioSafely(f);
     startFileSpeech(f);
   }
+
+  /**
+   * R165 storage-safety stage: external public copy, NEVER move or remove
+   * the private Golden M4A. MediaStore.Audio and RELATIVE_PATH persist on
+   * uninstall. Users need audio permission/SAF after reinstall to re-link.
+   * No main-thread media I/O; verify bytes + SHA256 before IS_PENDING=0.
+   */
+  private static String hex(byte[] b){
+    StringBuilder v=new StringBuilder();
+    for(byte x:b)v.append(String.format(Locale.US,"%02x",x&255));
+    return v.toString();
+  }
+  private static String hash(InputStream input)throws Exception {
+    MessageDigest dig=MessageDigest.getInstance("SHA-256");
+    byte[] data=new byte[65536];int n;
+    while((n=input.read(data))!=-1)if(n>0)dig.update(data,0,n);
+    return hex(dig.digest());
+  }
+  private static String hashFile(File file)throws Exception{
+    try(InputStream in=new FileInputStream(file)){return hash(in);}
+  }
+  private static String mediaRelPath(String date){
+    return Environment.DIRECTORY_RECORDINGS+"/MOA/"+date+"/";
+  }
+  private static Uri findVerifiedExternal(ContentResolver resolver,String relative,String display,File source,String wanted)throws Exception{
+    Uri media=MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+    String[] cols={MediaStore.Audio.Media._ID,MediaStore.Audio.Media.SIZE};
+    try(Cursor c=resolver.query(media,cols,MediaStore.Audio.Media.DISPLAY_NAME+"=? AND "+MediaStore.Audio.Media.RELATIVE_PATH+"=?",new String[]{display,relative},null)){
+      if(c!=null)while(c.moveToNext()){
+        if(c.getLong(1)!=source.length())continue;
+        Uri candidate=android.content.ContentUris.withAppendedId(media,c.getLong(0));
+        try(InputStream input=resolver.openInputStream(candidate)){
+          if(input!=null&&wanted.equals(hash(input)))return candidate;
+        }catch(Exception ignored){/* stale/inaccessible row: preserve original */ }
+      }
+    }
+    return null;
+  }
+  private static Uri exportVerifiedAudio(android.content.Context c,File source,String day)throws Exception{
+    if(android.os.Build.VERSION.SDK_INT<29)throw new UnsupportedOperationException("MediaStore Android 10+ required");
+    if(!source.isFile()||source.length()<=0||!source.getName().endsWith(".m4a"))
+      throw new java.io.IOException("Invalid original M4A");
+    if(day==null||!day.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}"))throw new IllegalArgumentException("Bad day");
+    String relative=mediaRelPath(day),display="MOA_"+day+"_"+source.getName();
+    ContentResolver resolver=c.getContentResolver();
+    String originalHash=hashFile(source);
+    Uri existing=findVerifiedExternal(resolver,relative,display,source,originalHash);
+    if(existing!=null)return existing;
+    Uri collection=MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),uri=null;
+    ContentValues values=new ContentValues();
+    values.put(MediaStore.Audio.Media.DISPLAY_NAME,display);
+    values.put(MediaStore.Audio.Media.MIME_TYPE,"audio/mp4");
+    values.put(MediaStore.Audio.Media.RELATIVE_PATH,relative);
+    values.put(MediaStore.Audio.Media.IS_PENDING,1);
+    try{
+      uri=resolver.insert(collection,values);
+      if(uri==null)throw new java.io.IOException("MediaStore insert returned null");
+      try(InputStream input=new FileInputStream(source);OutputStream output=resolver.openOutputStream(uri,"w")){
+        if(output==null)throw new java.io.IOException("Cannot write external M4A");
+        byte[] bytes=new byte[65536];int n;
+        while((n=input.read(bytes))!=-1)if(n>0)output.write(bytes,0,n);
+        output.flush();
+      }
+      try(InputStream verify=resolver.openInputStream(uri)){
+        if(verify==null||!originalHash.equals(hash(verify)))throw new java.io.IOException("External copy SHA256 mismatch");
+      }
+      values.clear();values.put(MediaStore.Audio.Media.IS_PENDING,0);
+      if(resolver.update(uri,values,null,null)<=0)throw new java.io.IOException("MediaStore publish failed");
+      return uri;
+    }catch(Exception problem){
+      if(uri!=null)try{resolver.delete(uri,null,null);}catch(Exception ignored){}
+      throw problem;
+    }
+  }
+  private static File[] filesFrom(File root){
+    File[] found=root.listFiles();
+    if(found==null)return new File[0];
+    Arrays.sort(found,(a,b)->a.getName().compareTo(b.getName()));
+    return found;
+  }
+  private void exportOneAudioSafely(File original){
+    android.content.Context app=getApplicationContext();
+    backupStatus.setText("외부 원본 보관 중… 기존 녹음은 안전하게 유지됩니다.");
+    new Thread(()->{
+      try{
+        Uri saved=exportVerifiedAudio(app,original,day);
+        main.post(()->{
+          if(!isFinishing()&&!isDestroyed()&&backupStatus!=null)
+            backupStatus.setText("외부 원본 복사·SHA-256 검증 완료 · Recordings/MOA/"+day);
+        });
+      }catch(Exception e){
+        main.post(()->{
+          if(!isFinishing()&&!isDestroyed()&&backupStatus!=null)
+            backupStatus.setText("외부 복사 실패 · 앱 내부 녹음은 정상 보존 · "+e.getClass().getSimpleName());
+        });
+      }
+    },"moa-r165-public-audio-copy").start();
+  }
+  private void exportAllAudioSafely(){
+    if(!backupBusy.compareAndSet(false,true)){
+      backupStatus.setText("기존 녹음 백업이 이미 진행 중입니다.");return;
+    }
+    backupStatus.setText("날짜별 녹음 보관 시작… 원본을 지우지 않습니다.");
+    android.content.Context app=getApplicationContext();
+    new Thread(()->{
+      int done=0,errors=0;
+      File folder=new File(app.getFilesDir(),"moa-original-audio");
+      try{
+        for(File dayFolder:filesFrom(folder)){
+          if(!dayFolder.isDirectory()||!dayFolder.getName().matches("[0-9]{4}-[0-9]{2}-[0-9]{2}"))continue;
+          for(File audio:filesFrom(dayFolder)){
+            if(!audio.isFile()||!audio.getName().endsWith(".m4a"))continue;
+            try{exportVerifiedAudio(app,audio,dayFolder.getName());done++;}
+            catch(Exception problem){errors++;}
+            final int d=done,err=errors;
+            main.post(()->{
+              if(!isFinishing()&&!isDestroyed()&&backupStatus!=null)
+                backupStatus.setText("외부 원본 보관 확인: "+d+"건 · 오류 "+err+"건");
+            });
+          }
+        }
+      }finally{
+        backupBusy.set(false);
+        final int count=done,bad=errors;
+        main.post(()->{
+          if(!isFinishing()&&!isDestroyed()&&backupStatus!=null)
+            backupStatus.setText("보관 완료 "+count+"건 / 오류 "+bad+"건 · 앱 내부 녹음은 모두 유지");
+        });
+      }
+    },"moa-r165-legacy-audio-backup").start();
+  }
+
   private void playVoice(){
     File f=voiceFile(voiceId);
     if(!f.isFile()){status("녹음 파일을 찾지 못했어.");return;}
