@@ -177,7 +177,15 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
     row2.addView(playButton,new LinearLayout.LayoutParams(0,dp(54),1));
     footer.addView(row2);
     saveButton=new Button(this);saveButton.setText("모아 일기에 메모 저장");
-    saveButton.setOnClickListener(v->{if(recorder!=null)stopRecording();saveNote(false);});
+    saveButton.setOnClickListener(v->{
+      if(recorder!=null){
+        stopRecording();
+        status("녹음 원본을 저장했어. 자동 글 변환을 확인한 뒤 메모 저장을 눌러줘.");
+        return;
+      }
+      if(fileBusy){status("녹음 텍스트 변환이 진행 중이야. 원본은 이미 저장됐어.");return;}
+      saveNote(false);
+    });
     footer.addView(saveButton,new LinearLayout.LayoutParams(-1,dp(54)));
     root.addView(footer,new LinearLayout.LayoutParams(-1,-2));
     setContentView(root);
