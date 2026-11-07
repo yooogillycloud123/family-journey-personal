@@ -120,7 +120,7 @@ jobs:
               void onFinished();
             }
             MoaMomentVoice(Activity a,Listener l){}
-            static boolean hasPermission(Context c){return true;}
+            static boolean hasPermission(Activity c){return true;}
             void start(){}
             void stop(){}
           }
