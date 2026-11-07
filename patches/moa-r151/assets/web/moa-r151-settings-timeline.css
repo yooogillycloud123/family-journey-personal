@@ -1,0 +1,21 @@
+/* R151 additive presentation; preserved existing photo/Diary/media/native behavior */
+#moa-r151-popup-pref{padding:12px 4px;border-bottom:1px solid #eee3eb;list-style:none}
+.moa-r151-pref-label{display:flex;align-items:center;gap:12px;justify-content:space-between;cursor:pointer;color:#29252b}
+.moa-r151-pref-copy{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
+.moa-r151-pref-copy strong{font-size:15px}.moa-r151-pref-copy small{font-size:12px;color:#8b8290;line-height:1.45}
+#moa-r151-popup-checkbox{position:absolute;opacity:0;width:1px;height:1px}
+.moa-r151-toggle-track{position:relative;display:block;flex:0 0 47px;width:47px;height:28px;border-radius:16px;background:#aaa3ab;transition:background .16s}
+.moa-r151-toggle-track::after{content:'';position:absolute;width:22px;height:22px;left:3px;top:3px;border-radius:50%;background:#fff;transition:transform .16s}
+#moa-r151-popup-checkbox:checked+.moa-r151-toggle-track{background:var(--moa-accent,var(--accent,#ee086d))}
+#moa-r151-popup-checkbox:checked+.moa-r151-toggle-track::after{transform:translateX(19px)}
+#moa-r151-popup-checkbox:focus-visible+.moa-r151-toggle-track{outline:3px solid #888}
+#fj-diary-root .moa-r151-group-tools{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:10px 0 12px}
+#fj-diary-root .moa-r151-slot-record,#fj-diary-root .moa-r151-manage{border:1px solid #eed4df;background:#fff3f8;color:#b70653;font-weight:700;border-radius:12px;padding:9px 12px;font-size:13px;max-width:100%;text-align:left}
+#fj-diary-root .moa-r151-recordings{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+#fj-diary-root .moa-r151-recording{display:flex;max-width:100%}
+#fj-diary-root .moa-r151-play{border:1px solid #dfd3dc;background:#fff;border-radius:14px;padding:8px 12px;color:#36313a;font-size:13px;white-space:normal}
+#fj-diary-root .moa-r151-standalone{border-top:1px dashed #ded7df;padding-top:14px;margin-top:16px}
+#fj-diary-root .moa-r151-standalone h3{font-size:15px;margin:0 0 12px}
+#fj-diary-root .moa-r151-empty{font-size:12px;color:#8b8792}
+#fj-diary-root .moa-r151-manage{margin-top:12px}
+.moa-r151-link-hint{background:#fff0f6;color:#ae0956;border-radius:12px;padding:10px;font-size:13px;line-height:1.5}
