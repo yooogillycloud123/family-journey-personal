@@ -1,3 +1,5 @@
+> **POST-RELEASE 2026-11-07 GOLDEN STATUS CORRECTION:** Following the BETA handoff below, the user completed R163 physical-device testing and reported “일단 작동함”; **promote exact signed R163 SHA f789a3a5…68e1 to USER DEVICE BASIC-OPERATION GOLDEN**. Individual IME/STT/video features were not each separately tested in supplied evidence; prior statements below saying DEVICE PENDING reflect historical pre-user status only. See [new Golden lock](MOA_R163_USER_DEVICE_GOLDEN_LOCK_READ_FIRST_20261107.md) and private Library all-member SHA manifest. Do not edit frozen APK. 
+
 # MOA R163 — capture IME, recording/playback state and video entry UI (2026-11-07)
 
 ## Current exact artifact
