@@ -280,7 +280,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feature/moa-r165-safe-ime-controls-fast-stt-video-20261107
+          ref: feature/moa-r165-safe-media-audio-export-20261107
       - name: R161 CI handshake before compile
         run: |
           set -euo pipefail
@@ -290,7 +290,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -f build/moa-r165-safe-native/status.txt
           git commit -m "ci(moa-r165-safe): runner started" || true
-          git push origin HEAD:feature/moa-r165-safe-ime-controls-fast-stt-video-20261107 || true
+          git push origin HEAD:feature/moa-r165-safe-media-audio-export-20261107 || true
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -365,7 +365,7 @@ jobs:
           tail -150 build/moa-r165-safe-native/compile.log > build/moa-r165-safe-native/compile-tail.txt
           git add -f build/moa-r165-safe-native/compile-tail.txt
           git commit -m "ci(moa-r165-safe): compile diagnostics" || true
-          git push origin HEAD:feature/moa-r165-safe-ime-controls-fast-stt-video-20261107 || true
+          git push origin HEAD:feature/moa-r165-safe-media-audio-export-20261107 || true
       - name: Upload isolated R161 result and commit to feature
         if: success()
         run: |
@@ -375,7 +375,7 @@ jobs:
           git add -f build/moa-r165-safe-native/memo-recorder.dex.z.b64 build/moa-r165-safe-native/manifest.json
           if ! git diff --cached --quiet; then
             git commit -m "build(moa-r165-safe): source-verified isolated DEX"
-            git push origin HEAD:feature/moa-r165-safe-ime-controls-fast-stt-video-20261107 || true
+            git push origin HEAD:feature/moa-r165-safe-media-audio-export-20261107 || true
           fi
       - uses: actions/upload-artifact@v4
         with:
