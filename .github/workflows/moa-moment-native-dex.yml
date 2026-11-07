@@ -381,3 +381,54 @@ jobs:
         with:
           name: MOA-R165-SAFE-EXTERNAL-AUDIO-DEX
           path: build/moa-r165-safe-native
+
+  r169_voice_native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/moa-r169-voice-slot-pause-rail-video-20261107
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile R169 exact audio host without replacing legacy host/other classes
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/r169/src/com/juhyeon/familyjourney /tmp/r169/classes /tmp/r169/dex build/moa-r169-native
+          cp experiments/moa-r169/MoaMomentAudioHostActivity_pause_transcript_source.java.txt /tmp/r169/src/com/juhyeon/familyjourney/MoaMomentAudioHostActivity.java
+          cat > /tmp/r169/src/com/juhyeon/familyjourney/MoaMomentVoiceHostActivity.java <<'JAVA'
+          package com.juhyeon.familyjourney;
+          class MoaMomentVoiceHostActivity extends android.app.Activity {}
+          JAVA
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d /tmp/r169/classes \
+            /tmp/r169/src/com/juhyeon/familyjourney/MoaMomentVoiceHostActivity.java \
+            /tmp/r169/src/com/juhyeon/familyjourney/MoaMomentAudioHostActivity.java \
+            > build/moa-r169-native/compile.log 2>&1 || { tail -150 build/moa-r169-native/compile.log; exit 1; }
+          find /tmp/r169/classes -type f -name 'MoaMomentAudioHostActivity*.class' -print0 |
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r169/dex \
+            >> build/moa-r169-native/compile.log 2>&1 || { tail -150 build/moa-r169-native/compile.log; exit 1; }
+          python3 - <<'PY'
+          import pathlib,hashlib,base64,zlib,json
+          src=pathlib.Path('experiments/moa-r169/MoaMomentAudioHostActivity_pause_transcript_source.java.txt')
+          b=pathlib.Path('/tmp/r169/dex/classes.dex').read_bytes()
+          assert b.startswith(b'dex\n') and b'MoaMomentAudioHostActivity' in b
+          assert b'togglePlayback' in b and b'captureTranscripts' in b
+          assert b'MoaMomentVoiceHostActivity;' not in b
+          out=pathlib.Path('build/moa-r169-native')
+          (out/'classes6.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+          (out/'manifest.json').write_text(json.dumps({'dex_sha256':hashlib.sha256(b).hexdigest(),'dex_bytes':len(b),'source_sha256':hashlib.sha256(src.read_bytes()).hexdigest(),'new_methods':['togglePlayback','captureTranscripts']},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R169-NATIVE-PAUSE-AUTO-TEXT
+          path: build/moa-r169-native
