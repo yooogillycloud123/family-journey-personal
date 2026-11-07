@@ -128,7 +128,7 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
       status("녹음 텍스트 인식 중… 임시 미리보기, 완료되면 자동 저장돼요.");
     }
   }
-  private final Runnable timeout=()->{if(fileBusy){status("자동 텍스트 변환 시간이 초과됐어. 녹음 원본은 보존됐어.");cancelFileRecognition();}};
+  private final Runnable timeout=()->{if(fileBusy){discardPreview();status("자동 텍스트 변환 시간이 초과됐어. 녹음 원본은 보존됐어.");cancelFileRecognition();}};
 
   private int dp(int n){return (int)(getResources().getDisplayMetrics().density*n+0.5f);}
   private void status(String s){if(status!=null)status.setText(s);}
@@ -447,7 +447,7 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
         @Override public void onSegmentResults(Bundle b){
           if(!token.equals(fileToken))return;
           ArrayList<String> list=b==null?null:b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-          if(list!=null&&!list.isEmpty())segments.add(list.get(0));
+          if(list!=null&&!list.isEmpty()){segments.add(list.get(0));showPreview(String.join(" ",segments));}
         }
         @Override public void onEndOfSegmentedSession(){
           if(token.equals(fileToken))finishTranscript(token,String.join(" ",segments));
@@ -456,6 +456,7 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
       Intent intent=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
       intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
       intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"ko-KR");
+      intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,true);
       intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE,readPipe);
       intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT,1);
       intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING,AudioFormat.ENCODING_PCM_16BIT);
