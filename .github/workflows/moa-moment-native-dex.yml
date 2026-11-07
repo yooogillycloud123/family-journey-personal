@@ -1,4 +1,4 @@
-name: MOA native bridge plus R165 deferred safe audio export verified build
+name: MOA native gallery VideoView R171 compiled verification
 on:
   push:
     branches:
