@@ -1,0 +1,34 @@
+# MOA R163 — User-confirmed device basic-operation Golden (2026-11-07)
+
+> **Newest active MOA GOLDEN.** User states: “오케이 실기기테스트 완료 일단 작동함 골든버전에 추가하고 지금까지 내용도 기재해놓고 그걸 바탕으로 더 업구레이드 시켜야하니까”. This is explicit **user-reported on-device R163 installed/basic-functioning PASS**; do not fabricate per-function timings or independent tests. Older R115/R89/R83/R63 Goldens and R161 remain frozen separately.
+
+## Immutable binary — actual authority
+- Exact archived signed APK (private personal Library): \`/모아_프로젝트_근거_20261103/MOA_R163_USER_DEVICE_GOLDEN_20261107_DO_NOT_MODIFY.apk\`
+- Original delivered exact byte copy: \`/에어팟안드로이드/MOA_R163_Install_Chat_20261107.apk\`
+- \`com.juhyeon.familyjournea\`, **versionCode 163**, **5,540,517 bytes**
+- **SHA-256** \`f789a3a579102bfb34a77da11be9b99b18b54906527c428603885bbd130e68e1\`
+- Original signer certificate SHA-256 \`5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15\`
+- 2026-11-07 independent reverify: APK v2 signer-list, RSA signature, full signed APK content digest, original certificate, ZIP CRC and stored-entry alignment **PASS**; **128 ZIP members**. Private \`MOA_R163_USER_DEVICE_GOLDEN_LOCK_MANIFEST_20261107.json\` lists the SHA-256 of **all 128 payloads**; private \`MOA_R163_GOLDEN_REVERIFY_20261107.json\`, checksum file and exact Golden APK are archived.
+- **Immutable public source/CI checkpoint**: \`golden/moa-r163-20261107-user-device-basic-pass-do-not-modify\` forked from \`feature/moa-r163-ime-controls-fast-stt-video-20261107\`. This is a changed-class/source/CI anchor **not** independently reproducible full signed APK. The frozen signed APK hash is the release authority. Do not overwrite/re-sign it.
+
+## What happened — chronological evidence
+1. **Prior golden R115** (2026-11-06), original SHA \`1118bdc249e2d941a899518e58be0185b120a887ff2c371c8f5a01037a5002a8\` stays frozen. Earlier R63 diary IndexedDB, R83 native voice, R89 keyboard-safe memo/clear and R96 navigation remain historical protected Golden anchors.
+2. **R157**: existing Android Diary native recorder records M4A, manual mic speech-to-text separately. User earlier confirmed working.
+3. **R159**: new post-stop M4A file recognition to separate \`autoTranscript\`, preserving manually edited \`transcript\`; user reported completing device testing. Android recognition providers may ignore \`EXTRA_AUDIO_SOURCE\` and use a mic, so never claim verified word-for-word M4A transcription from general PASS.
+4. **R161**: new independent “음성 녹음” button in camera “바로 기록” alongside unchanged “음성으로 말하기” (text only), save original M4A \`moa-original-audio/YYYY-MM-DD\`, associate capture media ID/date, append recognized text to native note and Diary metadata. User reported function seemed to work but video \`19348.mp4\` and feedback found keyboard-covered control toolbar, unclear recording/play status, delayed text. Never downgrade to R161 without a documented emergency reason.
+5. **R163**: fixes native toolbar positioning via Android IME/status/nav \`WindowInsets\`, recording red stop button & elapsed time, playback pause/resume & position/length; \`EXTRA_PARTIAL_RESULTS\` temporary transcript preview + final replacement/no duplicate + timeout rollback; PCM file-input artificial pace ~3× for reduced waiting (actual latency unmeasured); softer translucent circular play **poster/entry** overlays in R133 Diary mixed media viewer and R141 monthly report. **Native external video player and seek controls remain unchanged** (the two video playback overlays are not a complete replacement of Samsung/system playback).
+6. Exact R161 parent APK SHA \`daf119c7d9e98a5729c4b64e6d70c8b8071073018e9dc5c416db551fa24cf485\`; R163 preserved **122/128 member payloads byte-identical**. Changed exactly \`AndroidManifest.xml\`, \`classes7.dex\`, \`assets/web/moa-r133-diary-unified.js/css\`, \`assets/web/moa-r141-monthly-report.js/css\`. Original DEX1–6, native R159 voice, capture, Diary IDB, photo/video originals, Maps, Family calendar, user data and signing untouched.
+
+## Evidence and limitation ledger
+- **USER DEVICE BASIC PASS** (2026-11-07): installing/testing R163 and app generally working. No per-feature test report supplied for keyboard across orientations, mic status cadence, source-file STT truth/latency, all video/player paths, or all legacy regression. These individual rows remain **not separately verified**, even though overall user hardware check is successful.
+- User private videos \`19341.mp4\` and \`19348.mp4\` are **R161 issue/reference evidence** only. Do not upload them publicly.
+- Isolated \`r163_photo_memo\` Android SDK35 Java+d8 build **PASS** (DEX SHA \`edd6f1ed0c4aa7949c51b4d23bce316e0472474e25b2e027b8ed72b3d94f94a4\`, source SHA \`ec70c368818b82f41d00b082fd1d8519496d862c49d2dfae4e46a8aa2d8e95dd\`), while older **unrelated full-source \`dex\` job FAILED** due incomplete GitHub native source. Do not call it a fully reproducible clean Gradle build.
+- APK signed, file stored in Library, link presented, downloaded, installed, and feature tested are **different gates**. The current user's device confirmation supports **R163 installed/basic running**, not proving all future links work.
+
+## Mandatory future releases and Golden preservation
+- **Keep current R163 exact APK and frozen source branch immutable.** Do not overwrite private Golden, do not uninstall/clear user storage, no signer/package change, no broken optional/helper apps, no changes to separate AirPods code.
+- **Next normal feature release versionCode >=165**; reserve R164 as emergency rollback-forward of exact R163 behavior if needed. Create a new branch based on R163 feature/source anchor, not public \`main\`'s stale partial Android code. Preserve no-key \`MOA_R163_USER_DEVICE_GOLDEN_SOURCE_QA_NO_KEYS_20261107.zip\` and full signed APK.
+- Preserve both capture functions: “음성으로 말하기” = text only, “음성 녹음” = M4A original + post-save auto text and capture-time metadata/Diary linkage. Validate keyboard footer above Samsung IME, record/stop timer, play/pause/finish, draft/final STT with no duplicate and real file truth, original M4A continuity and restart persistence, old Diary voice, photo IDB, calendar/map and video poster vs external player.
+- For every future candidate: record exact APK hash/size/signer/package/version; changed-entry allowlist vs exact R163 Golden; isolated source+compiled class/method ABI; v2 RSA/content digest/ZIP, version monotonic; explicit user device acceptance. No public private signer backups, no Gmail/email, no forced reset.
+
+Private full Korean+technical lock is in Library: \`MOA_R163_USER_DEVICE_GOLDEN_LOCK_READ_FIRST_20261107.md\`; append-only release timeline: \`MOA_RELEASE_LEDGER_CURRENT.md\`. Prior \`MOA_R163_CAPTURE_IME_PLAYER_STT_VIDEO_HANDOFF_20261107.md\` describes pre-device BETA status and must now be interpreted with this confirmed status above it.
