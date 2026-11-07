@@ -345,6 +345,61 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
    return a.toString();
   }
   @JavascriptInterface public void play(String day,String id){runOnUiThread(()->MoaMomentAudioHostActivity.this.play(day,id));}
+  private android.net.Uri safeVideoUri(String videoId){
+   if(!trusted()||videoId==null||!videoId.matches("v[0-9]{1,18}"))return null;
+   try{
+     long mediaId=Long.parseLong(videoId.substring(1));
+     android.net.Uri uri=android.content.ContentUris.withAppendedId(android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,mediaId);
+     try(android.database.Cursor c=getContentResolver().query(uri,new String[]{android.provider.MediaStore.Video.Media._ID},null,null,null)){
+       if(c!=null&&c.moveToFirst())return uri;
+     }
+   }catch(Exception ignored){}
+   return null;
+  }
+  /** Optional HTML5 video source. Browser may reject a content:// URL, so JS must fallback safely. */
+  @JavascriptInterface public String videoUri(String videoId){
+   android.net.Uri uri=safeVideoUri(videoId);return uri==null?"":uri.toString();
+  }
+  /** Explicit user-tap capture from this source video; stores a NEW JPEG without editing original. */
+  @JavascriptInterface public void captureVideoFrame(String videoId,long millis){
+   android.net.Uri src=safeVideoUri(videoId);
+   if(src==null){main.post(()->send("video_capture_error","원본 동영상을 찾을 수 없습니다."));return;}
+   new Thread(()->{
+     android.media.MediaMetadataRetriever retriever=new android.media.MediaMetadataRetriever();
+     android.net.Uri dest=null;boolean published=false;
+     try{
+       retriever.setDataSource(MoaMomentAudioHostActivity.this,src);
+       android.graphics.Bitmap bitmap=retriever.getFrameAtTime(Math.max(0,millis)*1000,android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+       if(bitmap==null)throw new java.io.IOException("해당 시각의 화면을 추출하지 못했습니다.");
+       android.content.ContentValues values=new android.content.ContentValues();
+       values.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME,"MOA_video_"+System.currentTimeMillis()+".jpg");
+       values.put(android.provider.MediaStore.Images.Media.MIME_TYPE,"image/jpeg");
+       if(android.os.Build.VERSION.SDK_INT>=29){
+         values.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH,android.os.Environment.DIRECTORY_PICTURES+"/MOA-Video-Captures/");
+         values.put(android.provider.MediaStore.Images.Media.IS_PENDING,1);
+       }
+       android.content.ContentResolver cr=getContentResolver();
+       dest=cr.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);
+       if(dest==null)throw new java.io.IOException("사진 저장 공간을 열지 못했습니다.");
+       try(java.io.OutputStream out=cr.openOutputStream(dest,"w")){
+         if(out==null||!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,94,out))
+           throw new java.io.IOException("JPEG 저장 실패");
+       }finally{bitmap.recycle();}
+       if(android.os.Build.VERSION.SDK_INT>=29){
+         android.content.ContentValues ready=new android.content.ContentValues();
+         ready.put(android.provider.MediaStore.Images.Media.IS_PENDING,0);
+         if(cr.update(dest,ready,null,null)<1)throw new java.io.IOException("캡처 공개 처리 실패");
+       }
+       published=true;
+       main.post(()->send("video_capture_saved","Pictures/MOA-Video-Captures에 현재 화면 저장 완료"));
+     }catch(Exception e){
+       final String err=e.getMessage();main.post(()->send("video_capture_error","동영상 캡처 실패: "+err));
+     }finally{
+       try{retriever.release();}catch(Exception ignored){}
+       if(!published&&dest!=null)try{getContentResolver().delete(dest,null,null);}catch(Exception ignored){}
+     }
+   },"moa-r169-video-frame").start();
+  }
   @JavascriptInterface public void togglePlayback(String day,String id){runOnUiThread(()->MoaMomentAudioHostActivity.this.togglePlayback(day,id));}
   /** Read-only original M4A-to-text from camera Quick Record metadata. */
   @JavascriptInterface public String captureTranscripts(String day){
