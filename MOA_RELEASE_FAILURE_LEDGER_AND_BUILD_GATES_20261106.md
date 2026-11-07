@@ -67,3 +67,11 @@ OPEN RISKS + NEXT EXACT STEP:
 - Avoid destructive actions even if older package tests are failing; the user's past actual diary/photo data are more important than cosmetic changes.
 - Release correctness includes **recipient accessibility and functional continuity**, not just file integrity.
 - Every failure is recorded in the same append-only ledger; never erase a failed version to make chronology look clean.
+
+
+
+## 2026-11-07 PERMANENT CRITICAL GATE: APK v2 SIGNER-LIST ENVELOPE (R151/R153 failure)
+- User ADB PackageManager `INSTALL_PARSE_FAILED_NO_CERTIFICATES ... No supported signatures found` exposed a **genuine broken v2 signing-block structure**, despite earlier PASS from an incomplete homebuilt RSA/digest-only test.
+- Required v2 signer block is `LP(signers_list containing LP(signer(...)))`: the old builder omitted the first **4-byte LP signers-list envelope**. R151 and first R153 Samsung install failed. Corrected R153 (SHA256 `9356895559d50535f2c0302028d992a4ab5257414a360010dfd97679abc066ff`) **physically installs on user Galaxy**.
+- **Before delivering EVERY new APK**, invoke keyless `tools/moa_apk_v2_signer_guard.py <path.apk> --cert-sha256 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`; guard must verify both LP layers, signer alg 0x103 RSA signature, public key certificate match, full 1MiB-chunked signed content digest, ZIP CRC and alignment. Negative control first malformed R153 must FAIL, fixed R153 and newly signed APK must PASS. Prefer official Android `apksigner verify --verbose --print-certs` when SDK is available and record results; local environment might lack the tool. Even both static tools do NOT equal on-device installer PASS.
+- No new binary Manifest/string resource IDs or signer/key rotation. Preserve exact original package+cert, copy all old DEX and user data/IDB storage unchanged unless independently verified and user approved.
