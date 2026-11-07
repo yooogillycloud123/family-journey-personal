@@ -382,7 +382,7 @@ jobs:
           name: MOA-R165-SAFE-EXTERNAL-AUDIO-DEX
           path: build/moa-r165-safe-native
 
-r165_saf_verified_mirror:
+  r165_saf_verified_mirror:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
