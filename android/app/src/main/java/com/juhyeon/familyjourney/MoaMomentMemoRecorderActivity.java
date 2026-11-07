@@ -283,6 +283,14 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
           j.put("voiceAutoTranscript",recognized.trim())
             .put("voiceAutoStatus","review").put("voiceFileId",voiceId)
             .put("voiceDay",day);
+          JSONArray records=j.optJSONArray("voiceRecords");
+          if(records!=null)for(int k=0;k<records.length();k++){
+            JSONObject item=records.optJSONObject(k);
+            if(item!=null&&voiceId.equals(item.optString("id"))&&day.equals(item.optString("day"))){
+              item.put("autoTranscript",recognized.trim()).put("autoStatus","review")
+                .put("recognizedAt",System.currentTimeMillis());
+            }
+          }
           MoaMomentCaptureService.prefs(this).edit().putString("m:"+id,j.toString()).commit();
         }
       }catch(Exception ignored){}
