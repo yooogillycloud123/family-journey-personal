@@ -22,6 +22,21 @@ import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.content.Intent;
+import android.content.ContentResolver;
+import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.DocumentsContract;
+import android.provider.OpenableColumns;
+import java.io.InputStream;
+import java.io.IOException;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.security.MessageDigest;
+import java.util.concurrent.atomic.AtomicBoolean;
 import android.view.View;
 import android.view.WindowInsets;
 import android.content.res.ColorStateList;
@@ -57,7 +72,7 @@ import java.util.UUID;
  * The recognizer MAY ignore EXTRA_AUDIO_SOURCE; show reviewable draft only.
  */
 public final class MoaMomentMemoRecorderActivity extends Activity {
-  private static final int MIC=7801, RECORD_MIC=7802;
+  private static final int MIC=7801, RECORD_MIC=7802, ARCHIVE_EXPORT=7865, ARCHIVE_IMPORT=7866;
   private final Handler main=new Handler(Looper.getMainLooper());
   private String id,day,voiceId="";
   private EditText text;
@@ -203,6 +218,11 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
     status=new TextView(this);status.setTextColor(0xff395a58);status.setTextSize(13);
     status.setPadding(0,dp(10),0,0);body.addView(status);
     status(voiceId.isEmpty()?"음성 녹음은 원본 파일과 글을 함께 남겨요.":"이 사진에 연결된 녹음이 있어요.");
+    Button archiveButton=new Button(this);
+    archiveButton.setText("녹음 원본 외부 보관 · 복원");
+    archiveButton.setTextSize(13);archiveButton.setAllCaps(false);
+    archiveButton.setOnClickListener(v->showVoiceArchiveMenu());
+    body.addView(archiveButton,new LinearLayout.LayoutParams(-1,dp(44)));
 
     LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
     root.setBackgroundColor(Color.WHITE);
@@ -559,6 +579,282 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
       try{if(decoder!=null){decoder.stop();decoder.release();}}catch(Exception ignored){}
     }
   }
+
+  // R165: explicit opt-in and copy-only backup, not a replacement for any R163
+  // recorder, transcript, list, player or photo-to-Diary data writer.
+  // SAF user-selected documents survive app removal, while app-private M4A stays
+  // authoritative until a separately device-verified external-primary migration.
+  private static final AtomicBoolean archiveBusy=new AtomicBoolean(false);
+  private boolean restoreArchiveRequested=false;
+  private void showVoiceArchiveMenu(){
+    if(recorder!=null||fileBusy){status("녹음·글 변환 완료 후 음성 보관을 실행해 주세요.");return;}
+    new AlertDialog.Builder(this).setTitle("모아 녹음 안전 보관")
+      .setMessage("앱 내부 원본은 삭제하지 않고 선택한 외부 폴더로 복사·SHA-256 검증합니다. 녹음 원본과 촬영 메모 연결정보를 백업하며, 앱 내부의 일기·음성 제목 전체 데이터 백업은 아직 별도입니다.\n\n백업에는 원본 용량만큼 추가 공간이 필요합니다.")
+      .setPositiveButton("외부 폴더에 백업",(d,w)->chooseVoiceArchive(false))
+      .setNeutralButton("녹음 파일 복원",(d,w)->chooseVoiceArchive(true))
+      .setNegativeButton("취소",null).show();
+  }
+  private void chooseVoiceArchive(boolean restore){
+    restoreArchiveRequested=restore;
+    Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|
+        Intent.FLAG_GRANT_WRITE_URI_PERMISSION|
+        Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION|
+        Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+    try{startActivityForResult(i,restore?ARCHIVE_IMPORT:ARCHIVE_EXPORT);}
+    catch(Exception e){status("폴더 선택 불가: "+e.getMessage());}
+  }
+  private static final class ArchiveDoc {
+    final String name;
+    final Uri uri;
+    final String type;
+    ArchiveDoc(String name,Uri uri,String type){this.name=name;this.uri=uri;this.type=type;}
+  }
+  private Uri archiveRoot(Uri tree){
+    return DocumentsContract.buildDocumentUriUsingTree(tree,DocumentsContract.getTreeDocumentId(tree));
+  }
+  private ArchiveDoc findArchiveChild(Uri tree,Uri parent,String name)throws Exception{
+    Uri childList=DocumentsContract.buildChildDocumentsUriUsingTree(tree,DocumentsContract.getDocumentId(parent));
+    String[] cols={DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+      DocumentsContract.Document.COLUMN_DISPLAY_NAME,DocumentsContract.Document.COLUMN_MIME_TYPE};
+    try(Cursor c=getContentResolver().query(childList,cols,null,null,null)){
+      if(c==null)throw new IOException("선택한 폴더를 조회할 수 없습니다");
+      while(c.moveToNext()){
+        if(name.equals(c.getString(1))){
+          return new ArchiveDoc(name,DocumentsContract.buildDocumentUriUsingTree(tree,c.getString(0)),c.getString(2));
+        }
+      }
+    }
+    return null;
+  }
+  private static String sha256(File f)throws Exception{
+    MessageDigest md=MessageDigest.getInstance("SHA-256");
+    try(InputStream in=new FileInputStream(f)){
+      byte[] b=new byte[65536];int n;
+      while((n=in.read(b))!=-1)md.update(b,0,n);
+    }
+    return hex(md.digest());
+  }
+  private static String hex(byte[] bytes){
+    StringBuilder sb=new StringBuilder(bytes.length*2);
+    for(byte b:bytes)sb.append(String.format(Locale.US,"%02x",b&255));
+    return sb.toString();
+  }
+  private String hashDocument(Uri uri)throws Exception{
+    MessageDigest md=MessageDigest.getInstance("SHA-256");
+    try(InputStream in=getContentResolver().openInputStream(uri)){
+      if(in==null)throw new IOException("문서를 읽을 수 없습니다");
+      byte[] b=new byte[65536];int n;
+      while((n=in.read(b))!=-1)md.update(b,0,n);
+    }
+    return hex(md.digest());
+  }
+  private byte[] readDocument(Uri doc,int maxBytes)throws Exception{
+    try(InputStream in=getContentResolver().openInputStream(doc)){
+      if(in==null)throw new IOException("원본 파일 열기 실패");
+      java.io.ByteArrayOutputStream buffer=new java.io.ByteArrayOutputStream();
+      byte[] b=new byte[32768];int n;long size=0;
+      while((n=in.read(b))!=-1){
+        size+=n;if(size>maxBytes)throw new IOException("백업 목록 크기 초과");
+        buffer.write(b,0,n);
+      }
+      return buffer.toByteArray();
+    }
+  }
+  private void copy(File src,Uri dest)throws Exception{
+    try(InputStream in=new FileInputStream(src);
+        OutputStream out=getContentResolver().openOutputStream(dest,"wt")){
+      if(out==null)throw new IOException("외부 폴더 쓰기 실패");
+      byte[] b=new byte[65536];int n;
+      while((n=in.read(b))!=-1)out.write(b,0,n);
+      out.flush();
+    }
+  }
+  private void writeDoc(Uri dest,byte[] content)throws Exception{
+    try(OutputStream out=getContentResolver().openOutputStream(dest,"wt")){
+      if(out==null)throw new IOException("외부 메타데이터 쓰기 실패");
+      out.write(content);out.flush();
+    }
+  }
+  private static boolean validArchiveDay(String day){return day!=null&&day.matches("\\d{4}-\\d{2}-\\d{2}");}
+  private static boolean validArchiveName(String name){return name!=null&&name.matches("[0-9a-zA-Z_-]{8,90}\\.m4a");}
+  private static final String DIR_MIME=DocumentsContract.Document.MIME_TYPE_DIR;
+  private static final String FILE_MIME="audio/mp4";
+  private void backupVoiceArchive(Uri tree)throws Exception{
+    Uri root=archiveRoot(tree);
+    File base=new File(getFilesDir(),"moa-original-audio");
+    File[] days=base.listFiles();
+    if(days==null)days=new File[0];
+    Arrays.sort(days,Comparator.comparing(File::getName));
+    JSONArray entries=new JSONArray();
+    long total=0;int count=0,skipped=0;
+    for(File dayDir:days){
+      if(!dayDir.isDirectory()||!validArchiveDay(dayDir.getName()))continue;
+      File[] clips=dayDir.listFiles();
+      if(clips==null)continue;
+      Arrays.sort(clips,Comparator.comparing(File::getName));
+      Uri folder=null;
+      for(File file:clips){
+        if(!file.isFile()||!validArchiveName(file.getName()))continue;
+        String sha=sha256(file);
+        if(folder==null){
+          ArchiveDoc found=findArchiveChild(tree,root,dayDir.getName());
+          folder=found!=null?found.uri:DocumentsContract.createDocument(getContentResolver(),root,DIR_MIME,dayDir.getName());
+          if(folder==null)throw new IOException("날짜 폴더 생성 실패");
+        }
+        ArchiveDoc existing=findArchiveChild(tree,folder,file.getName());
+        Uri dest;
+        if(existing!=null){
+          dest=existing.uri;
+          if(!sha.equals(hashDocument(dest)))
+            throw new IOException("외부 폴더 이름 충돌·해시 불일치: "+dayDir.getName()+"/"+file.getName());
+          skipped++;
+        }else{
+          dest=DocumentsContract.createDocument(getContentResolver(),folder,FILE_MIME,file.getName());
+          if(dest==null)throw new IOException("녹음 문서 생성 실패");
+          try{
+            copy(file,dest);
+            if(!sha.equals(hashDocument(dest)))throw new IOException("복사 후 해시 불일치");
+          }catch(Exception ex){
+            try{DocumentsContract.deleteDocument(getContentResolver(),dest);}catch(Exception ignored){}
+            throw ex;
+          }
+        }
+        JSONObject x=new JSONObject().put("day",dayDir.getName()).put("id",file.getName())
+          .put("bytes",file.length()).put("sha256",sha);
+        entries.put(x);count++;total+=file.length();
+      }
+    }
+    JSONObject links=new JSONObject();
+    for(java.util.Map.Entry<String,?> kv:MoaMomentCaptureService.prefs(this).getAll().entrySet()){
+      if(kv.getKey().matches("m:v?\\d{1,19}")&&kv.getValue() instanceof String){
+        JSONObject meta=new JSONObject((String)kv.getValue());
+        if(meta.has("voiceFileId")||meta.has("voiceRecords"))links.put(kv.getKey(),kv.getValue());
+      }
+    }
+    JSONObject manifest=new JSONObject().put("schema",1)
+      .put("kind","moa-voice-safety-copy")
+      .put("createdAt",System.currentTimeMillis())
+      .put("clips",entries).put("captureLinks",links)
+      .put("note","App-private original recordings are still preserved. No gallery or voice WebView localStorage backup.");
+    byte[] m=manifest.toString(2).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    String stamp=new SimpleDateFormat("yyyyMMdd_HHmmss_SSS",Locale.US).format(new Date());
+    String name="MOA_voice_manifest_"+stamp+".json";
+    Uri dest=DocumentsContract.createDocument(getContentResolver(),root,"application/json",name);
+    if(dest==null)throw new IOException("백업 목록 저장 실패");
+    try{
+      writeDoc(dest,m);
+      if(!java.util.Arrays.equals(m,readDocument(dest,100000000)))
+        throw new IOException("백업 목록 읽기 검증 실패");
+    }catch(Exception ex){
+      try{DocumentsContract.deleteDocument(getContentResolver(),dest);}catch(Exception ignored){}
+      throw ex;
+    }
+    final int done=count,already=skipped;final long bytes=total;
+    runOnUiThread(()->status("외부 백업 검증 완료: "+done+"개 · "+
+      String.format(Locale.US,"%.1f",bytes/1048576.0)+"MB · 기존 검증 "+already+"개. 내부 원본 보존."));
+  }
+  private void restoreVoiceArchive(Uri tree)throws Exception{
+    Uri root=archiveRoot(tree);
+    ArchiveDoc manifestDoc=null;
+    Uri listing=DocumentsContract.buildChildDocumentsUriUsingTree(tree,DocumentsContract.getDocumentId(root));
+    String[] cols={DocumentsContract.Document.COLUMN_DOCUMENT_ID,DocumentsContract.Document.COLUMN_DISPLAY_NAME};
+    try(Cursor c=getContentResolver().query(listing,cols,null,null,null)){
+      if(c==null)throw new IOException("외부 폴더 목록을 읽을 수 없습니다");
+      while(c.moveToNext()){
+        String name=c.getString(1);
+        if(name.matches("MOA_voice_manifest_\\d{8}_\\d{6}_\\d{3}\\.json") &&
+           (manifestDoc==null||name.compareTo(manifestDoc.name)>0))
+          manifestDoc=new ArchiveDoc(name,
+            DocumentsContract.buildDocumentUriUsingTree(tree,c.getString(0)),"application/json");
+      }
+    }
+    if(manifestDoc==null)throw new IOException("모아 녹음 백업 목록을 찾지 못했습니다");
+    JSONObject manifest=new JSONObject(new String(readDocument(manifestDoc.uri,100000000),
+       java.nio.charset.StandardCharsets.UTF_8));
+    if(manifest.optInt("schema")!=1||!"moa-voice-safety-copy".equals(manifest.optString("kind")))
+      throw new IOException("지원하지 않는 백업 파일");
+    JSONArray clips=manifest.optJSONArray("clips");
+    if(clips==null||clips.length()>100000)throw new IOException("녹음 목록이 없거나 너무 많습니다");
+    int restored=0,kept=0;
+    File base=new File(getFilesDir(),"moa-original-audio");
+    for(int n=0;n<clips.length();n++){
+      JSONObject c=clips.getJSONObject(n);
+      String date=c.getString("day"),name=c.getString("id"),sha=c.getString("sha256");
+      if(!validArchiveDay(date)||!validArchiveName(name)||!sha.matches("[a-f0-9]{64}"))
+        throw new IOException("백업에 잘못된 날짜·파일명이 있습니다");
+      ArchiveDoc dayDoc=findArchiveChild(tree,root,date);
+      if(dayDoc==null)throw new IOException("백업 날짜 폴더 없음: "+date);
+      ArchiveDoc fileDoc=findArchiveChild(tree,dayDoc.uri,name);
+      if(fileDoc==null||!sha.equals(hashDocument(fileDoc.uri)))
+        throw new IOException("외부 녹음 원본 해시 불일치: "+name);
+      File folder=new File(base,date),existing=new File(folder,name);
+      if(existing.isFile()){
+        if(!sha.equals(sha256(existing)))throw new IOException("내부 파일 이름 충돌(덮어쓰기 금지): "+name);
+        kept++;continue;
+      }
+      if(!folder.isDirectory()&&!folder.mkdirs())throw new IOException("복원 폴더 생성 실패");
+      File tmp=new File(folder,name+".restore-part");
+      if(tmp.exists()&&!tmp.delete())throw new IOException("이전 미완성 임시파일 삭제 실패");
+      try(InputStream in=getContentResolver().openInputStream(fileDoc.uri);
+          OutputStream out=new FileOutputStream(tmp)){
+        if(in==null)throw new IOException("외부 원본 읽기 실패");
+        byte[] buf=new byte[65536];int len;
+        while((len=in.read(buf))!=-1)out.write(buf,0,len);
+        out.flush();
+      }
+      if(!sha.equals(sha256(tmp))||!tmp.renameTo(existing)){
+        tmp.delete();throw new IOException("복원 검증/확정 실패: "+name);
+      }
+      restored++;
+    }
+    JSONObject links=manifest.optJSONObject("captureLinks");
+    int merged=0;
+    if(links!=null){
+      SharedPreferences prefs=MoaMomentCaptureService.prefs(this);
+      SharedPreferences.Editor editor=prefs.edit();
+      Iterator<String> keys=links.keys();
+      while(keys.hasNext()){
+        String key=keys.next();
+        if(!key.matches("m:v?\\d{1,19}")||prefs.contains(key))continue;
+        editor.putString(key,links.optString(key));merged++;
+      }
+      if(merged>0&&!editor.commit())throw new IOException("촬영 연결정보 복원 저장 실패");
+    }
+    final int a=restored,b=kept,d=merged;
+    runOnUiThread(()->status("음성 복원 완료: 새 파일 "+a+"개 · 기존 확인 "+b+
+      "개 · 촬영 연결정보 "+d+"개. 일기 전체/제목 DB는 별도 복원이 필요합니다."));
+  }
+  private void startVoiceArchive(final Uri tree,final boolean restore){
+    if(!archiveBusy.compareAndSet(false,true)){status("다른 음성 보관 작업이 진행 중입니다");return;}
+    status(restore?"녹음 복원 및 SHA-256 검증 중…":"녹음 원본을 외부에 복사·검증 중…");
+    new Thread(()->{
+      try{
+        if(restore)restoreVoiceArchive(tree);else backupVoiceArchive(tree);
+      }catch(Exception ex){
+        String msg=ex.getClass().getSimpleName()+": "+ex.getMessage();
+        runOnUiThread(()->status("음성 "+(restore?"복원":"백업")+" 중단: "+msg+
+          " · 내부 원본은 삭제하지 않았습니다."));
+      }finally{archiveBusy.set(false);}
+    },"moa-r165-voice-archive").start();
+  }
+  @Override protected void onActivityResult(int request,int result,Intent data){
+    super.onActivityResult(request,result,data);
+    if((request!=ARCHIVE_EXPORT&&request!=ARCHIVE_IMPORT)||result!=RESULT_OK||data==null)return;
+    Uri tree=data.getData();if(tree==null){status("폴더 선택이 취소됐습니다");return;}
+    try{
+      int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+      getContentResolver().takePersistableUriPermission(tree,flags);
+      new AlertDialog.Builder(this)
+        .setTitle(request==ARCHIVE_IMPORT?"녹음 원본 복원 확인":"녹음 외부 복사 확인")
+        .setMessage(request==ARCHIVE_IMPORT?
+          "선택한 폴더의 최신 모아 백업 목록을 검사한 뒤, 내부에 없는 녹음만 복구합니다. 기존 파일은 절대 덮어쓰지 않습니다.":
+          "날짜별 M4A 원본을 선택한 폴더에 추가 복사하고 SHA-256으로 다시 확인합니다. 앱 내부 원본과 기존 기록은 그대로 유지됩니다.")
+        .setPositiveButton("실행",(d,w)->startVoiceArchive(tree,request==ARCHIVE_IMPORT))
+        .setNegativeButton("취소",null).show();
+    }catch(Exception ex){status("외부 폴더 접근권한 저장 실패: "+ex.getMessage());}
+  }
+
   @Override public void onRequestPermissionsResult(int code,String[] p,int[] results){
     super.onRequestPermissionsResult(code,p,results);
     if(code==MIC||code==RECORD_MIC){
