@@ -728,8 +728,10 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
     JSONObject links=new JSONObject();
     for(java.util.Map.Entry<String,?> kv:MoaMomentCaptureService.prefs(this).getAll().entrySet()){
       if(kv.getKey().matches("m:v?\\d{1,19}")&&kv.getValue() instanceof String){
-        JSONObject meta=new JSONObject((String)kv.getValue());
-        if(meta.has("voiceFileId")||meta.has("voiceRecords"))links.put(kv.getKey(),kv.getValue());
+        try{
+          JSONObject meta=new JSONObject((String)kv.getValue());
+          if(meta.has("voiceFileId")||meta.has("voiceRecords"))links.put(kv.getKey(),kv.getValue());
+        }catch(Exception ignored){} // One legacy malformed note must not block other recordings.
       }
     }
     JSONObject manifest=new JSONObject().put("schema",1)
