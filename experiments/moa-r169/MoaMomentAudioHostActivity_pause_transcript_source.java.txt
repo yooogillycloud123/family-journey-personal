@@ -88,7 +88,7 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
    int width=Math.min(Math.round(w*factor),root.getWidth()-left);
    int height=Math.min(Math.round(h*factor),root.getHeight()-top);
    if(width<vdp(100)||height<vdp(120))throw new IllegalArgumentException("bounds");
-   android.widget.FrameLayout l=new android.widget.FrameLayout(this);l.setBackgroundColor(0xff080808);
+   android.widget.FrameLayout l=new android.widget.FrameLayout(this);l.setBackgroundColor(0xff080808);l.setAlpha(0f);
    android.widget.FrameLayout.LayoutParams pos=new android.widget.FrameLayout.LayoutParams(width,height);
    pos.leftMargin=left;pos.topMargin=top;root.addView(l,pos);videoOverlay=l;videoActiveId=id;videoMuted=true;
    android.widget.VideoView v=new android.widget.VideoView(this);videoWidget=v;
@@ -139,6 +139,7 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
    v.setOnErrorListener((mp,what,extra)->{if(videoWidget==v){closeVideoOverlay();videoEvent("error",id);}return true;});
    v.setOnPreparedListener(mp->{if(videoWidget!=v)return;
     videoReady=true;preparedVideo=mp;mp.setVolume(0,0);v.start();
+    l.animate().alpha(1f).setDuration(150).start();
     videoEvent("started",id);main.removeCallbacks(vTicker);main.post(vTicker);
    });
    v.setOnCompletionListener(mp->{if(videoWidget==v){play.setText("▶");videoEvent("ended",id);}});
