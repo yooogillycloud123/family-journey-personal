@@ -1,4 +1,4 @@
-name: MOA moment native bridge and R163 partial STT final build
+name: MOA native bridge plus R165 deferred safe audio export verified build
 on:
   push:
     branches:
