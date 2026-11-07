@@ -1,0 +1,442 @@
+package com.juhyeon.familyjourney;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.NotificationManager;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.media.AudioFormat;
+import android.media.MediaCodec;
+import android.media.MediaExtractor;
+import android.media.MediaFormat;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.ParcelFileDescriptor;
+import android.os.SystemClock;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+import android.content.Intent;
+import android.view.View;
+import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+import org.json.JSONObject;
+import org.json.JSONArray;
+import java.io.File;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Locale;
+import java.util.UUID;
+
+/**
+ * R161 feature-only native capture memo activity.
+ * Manifest activity-alias keeps the original explicit notification component name
+ * while R159's existing M4A recorder, classes4.dex, classes6.dex and diary JS
+ * remain byte-identical. This activity writes M4A in the exact R159 day folder.
+ *
+ * Separate capture paths:
+ *  - "음성으로 말하기": original MoaMomentVoice, text only.
+ *  - "음성 녹음": MediaRecorder -> M4A -> source-file SpeechRecognizer -> note.
+ * The recognizer MAY ignore EXTRA_AUDIO_SOURCE; show reviewable draft only.
+ */
+public final class MoaMomentMemoRecorderActivity extends Activity {
+  private static final int MIC=7801, RECORD_MIC=7802;
+  private final Handler main=new Handler(Looper.getMainLooper());
+  private String id,day,voiceId="";
+  private EditText text;
+  private TextView status;
+  private Button micButton,recButton,playButton,saveButton;
+  private MoaMomentVoice speech;
+  private MediaRecorder recorder;
+  private MediaPlayer player;
+  private File recordingFile;
+  private long recordStarted;
+  private SpeechRecognizer fileRecognizer;
+  private ParcelFileDescriptor readPipe,writePipe;
+  private volatile boolean fileBusy=false;
+  private String fileToken="";
+  private final ArrayList<String> segments=new ArrayList<>();
+  private boolean finishing=false, recognitionDelivered=false, windowOpened=false;
+  private final Runnable timeout=()->{if(fileBusy){status("자동 텍스트 변환 시간이 초과됐어. 녹음 원본은 보존됐어.");cancelFileRecognition();}};
+
+  private int dp(int n){return (int)(getResources().getDisplayMetrics().density*n+0.5f);}
+  private void status(String s){if(status!=null)status.setText(s);}
+  private JSONObject current(){
+    try{return new JSONObject(MoaMomentCaptureService.prefs(this).getString("m:"+id,"{}"));}
+    catch(Exception ex){return new JSONObject();}
+  }
+  private boolean saveNote(boolean automated){
+    try{
+      String prior=MoaMomentCaptureService.prefs(this).getString("m:"+id,"");
+      if(prior.isEmpty()){status("촬영 기록을 찾지 못했어.");return false;}
+      JSONObject data=new JSONObject(prior),values=current();
+      String note=text.getText().toString().trim();
+      if(note.isEmpty()){if(!automated)Toast.makeText(this,"입력한 메모가 없어요.",Toast.LENGTH_SHORT).show();return false;}
+      data.put("note",note).put("memoSaved",true).put("updatedAt",System.currentTimeMillis());
+      if(!voiceId.isEmpty()){
+        data.put("voiceFileId",voiceId).put("voiceDay",day);
+        data.put("voiceAutoTranscript",values.optString("voiceAutoTranscript",""));
+      }
+      if(!MoaMomentCaptureService.prefs(this).edit().putString("m:"+id,data.toString()).commit())
+        throw new IllegalStateException("메모 저장 실패");
+      MoaMomentDirectDiaryStore.requestSync(this);
+      if(!automated){
+        try{NotificationManager nm=getSystemService(NotificationManager.class);
+          if(nm!=null)nm.cancel(43000+(id.hashCode()&0x7fff));}catch(Exception ignored){}
+        Toast.makeText(this,"메모 저장 완료 · 모아 일기 동기화 대기",Toast.LENGTH_SHORT).show();
+        finishing=true;finish();
+      }
+      return true;
+    }catch(Exception ex){status("메모 저장 실패: "+ex.getMessage());return false;}
+  }
+  private void rememberVoice(String name,long size){
+    try{
+      String prev=MoaMomentCaptureService.prefs(this).getString("m:"+id,"");
+      if(prev.isEmpty())throw new IllegalStateException("촬영 기록 없음");
+      JSONObject j=new JSONObject(prev);
+      JSONArray arr=j.optJSONArray("voiceRecords");
+      if(arr==null)arr=new JSONArray();
+      JSONObject link=new JSONObject().put("id",name).put("day",day)
+        .put("photoId",id).put("bytes",size).put("recordedAt",System.currentTimeMillis())
+        .put("status","transcript_pending");
+      arr.put(link);
+      j.put("voiceRecords",arr).put("voiceFileId",name).put("voiceDay",day)
+        .put("voiceAutoStatus","pending");
+      if(!MoaMomentCaptureService.prefs(this).edit().putString("m:"+id,j.toString()).commit())
+        throw new IllegalStateException("음성 연결 메타데이터 저장 실패");
+    }catch(Exception ex){status("원본 음성은 저장됐지만 사진 연결 정보 저장 실패: "+ex.getMessage());}
+  }
+  @Override protected void onCreate(Bundle saved){
+    super.onCreate(saved);
+    id=getIntent()==null?null:getIntent().getStringExtra("id");
+    if(id==null||!id.matches("v?\\d{1,19}")){finish();return;}
+    JSONObject meta=current();
+    long at=meta.optLong("at",meta.optLong("capturedAt",System.currentTimeMillis()));
+    day=new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date(at));
+    voiceId=meta.optString("voiceFileId","");
+    android.app.KeyguardManager kg=getSystemService(android.app.KeyguardManager.class);
+    if(kg!=null&&kg.isKeyguardLocked())setShowWhenLocked(true);
+    LinearLayout body=new LinearLayout(this);
+    body.setPadding(dp(16),dp(14),dp(16),dp(12));
+    body.setOrientation(LinearLayout.VERTICAL);body.setBackgroundColor(Color.WHITE);
+    TextView title=new TextView(this);
+    title.setText("방금 찍은 사진·영상 · 모아 시간대별 메모");
+    title.setTextColor(0xff243140);title.setTextSize(20);title.setTypeface(null,Typeface.BOLD);body.addView(title);
+    TextView explain=new TextView(this);
+    explain.setText("기억나는 말을 적거나 음성으로 말해 주세요. 모아를 다시 열면 해당 촬영 시간대에 동기화됩니다.");
+    explain.setTextColor(0xff39495a);explain.setTextSize(14);
+    explain.setPadding(0,dp(12),0,dp(10));body.addView(explain);
+    text=new EditText(this);text.setMinLines(4);text.setGravity(48);
+    text.setHint("지금 무슨 일이 있었나요?");text.setTextSize(17);
+    text.setText(meta.optString("note",""));body.addView(text);
+    status=new TextView(this);status.setTextColor(0xff395a58);status.setTextSize(13);
+    status.setPadding(0,dp(10),0,0);body.addView(status);
+    status(voiceId.isEmpty()?"음성 녹음은 원본 파일과 글을 함께 남겨요.":"이 사진에 연결된 녹음이 있어요.");
+
+    LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
+    root.setBackgroundColor(Color.WHITE);
+    ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
+    scroll.addView(body);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+    LinearLayout footer=new LinearLayout(this);footer.setOrientation(LinearLayout.VERTICAL);
+    footer.setBackgroundColor(0xfffaf8f7);
+    footer.setPadding(dp(12),dp(6),dp(12),dp(9));
+    LinearLayout row1=new LinearLayout(this);
+    micButton=new Button(this);micButton.setText("🎙 음성으로 말하기");
+    micButton.setOnClickListener(v->startDictation());
+    Button clear=new Button(this);clear.setText("내용 전체 지우기");
+    clear.setOnClickListener(v->new AlertDialog.Builder(this)
+      .setTitle("현재 메모 글자 모두 지우기")
+      .setMessage("지금 입력된 글자만 지울까요? 원본 사진과 기존 녹음 파일은 삭제하지 않아요.")
+      .setNegativeButton("취소",null)
+      .setPositiveButton("모두 지우기",(a,b)->{text.setText("");text.requestFocus();}).show());
+    row1.addView(micButton,new LinearLayout.LayoutParams(0,dp(54),1));
+    row1.addView(clear,new LinearLayout.LayoutParams(0,dp(54),1));
+    footer.addView(row1);
+    LinearLayout row2=new LinearLayout(this);
+    recButton=new Button(this);recButton.setText("● 음성 녹음");
+    recButton.setOnClickListener(v->{if(recorder==null)startRecording();else stopRecording();});
+    playButton=new Button(this);playButton.setText("▶ 녹음 듣기");
+    playButton.setEnabled(!voiceId.isEmpty());
+    playButton.setOnClickListener(v->playVoice());
+    row2.addView(recButton,new LinearLayout.LayoutParams(0,dp(54),1));
+    row2.addView(playButton,new LinearLayout.LayoutParams(0,dp(54),1));
+    footer.addView(row2);
+    saveButton=new Button(this);saveButton.setText("모아 일기에 메모 저장");
+    saveButton.setOnClickListener(v->{if(recorder!=null)stopRecording();saveNote(false);});
+    footer.addView(saveButton,new LinearLayout.LayoutParams(-1,dp(54)));
+    root.addView(footer,new LinearLayout.LayoutParams(-1,-2));
+    setContentView(root);
+    getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|
+      WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+    text.requestFocus();
+  }
+
+  @Override public void onWindowFocusChanged(boolean focused){
+    super.onWindowFocusChanged(focused);
+    if(focused&&!windowOpened&&text!=null){
+      windowOpened=true;
+      main.postDelayed(()->{if(!isFinishing()&&text!=null){
+        InputMethodManager imm=getSystemService(InputMethodManager.class);
+        if(imm!=null)imm.showSoftInput(text,InputMethodManager.SHOW_IMPLICIT);
+      }},180);
+    }
+  }
+  private void startDictation(){
+    if(recorder!=null){status("먼저 음성 녹음을 종료해 줘.");return;}
+    if(fileBusy){status("저장된 파일의 텍스트 변환을 먼저 완료해 줘.");return;}
+    if(!MoaMomentVoice.hasPermission(this)){
+      requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MIC);return;
+    }
+    if(speech!=null){speech.stop();speech=null;}
+    speech=new MoaMomentVoice(this,new MoaMomentVoice.Listener(){
+      @Override public void onListening(){micButton.setText("듣는 중…");micButton.setEnabled(false);}
+      @Override public void onText(String value){appendText(value,false);}
+      @Override public void onFailure(String msg){status(msg);}
+      @Override public void onFinished(){micButton.setText("🎙 음성으로 말하기");micButton.setEnabled(true);}
+    });
+    speech.start();
+  }
+  private File voiceFile(String file){return new File(new File(getFilesDir(),"moa-original-audio/"+day),file);}
+  private void startRecording(){
+    if(fileBusy){status("이전 녹음 텍스트 변환을 완료하고 다시 녹음해 줘.");return;}
+    if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+      requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},RECORD_MIC);return;
+    }
+    if(speech!=null){speech.stop();speech=null;micButton.setText("🎙 음성으로 말하기");micButton.setEnabled(true);}
+    File dir=new File(getFilesDir(),"moa-original-audio/"+day);if(!dir.exists()&&!dir.mkdirs()){status("음성 저장 폴더 생성 실패");return;}
+    File f=new File(dir,System.currentTimeMillis()+"-"+UUID.randomUUID().toString().replace("-","")+".m4a");
+    MediaRecorder r=null;
+    try{
+      r=new MediaRecorder();r.setAudioSource(MediaRecorder.AudioSource.MIC);
+      r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+      r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+      r.setAudioEncodingBitRate(96000);r.setAudioSamplingRate(44100);
+      r.setOutputFile(f.getAbsolutePath());r.prepare();r.start();
+      recorder=r;recordingFile=f;recordStarted=SystemClock.elapsedRealtime();
+      recButton.setText("■ 녹음 종료·저장");micButton.setEnabled(false);
+      status("녹음 중… 종료하면 원본 M4A를 저장한 뒤 자동으로 글 변환을 시도해.");
+    }catch(Exception ex){
+      try{if(r!=null)r.release();}catch(Exception ignored){}
+      if(f.exists())f.delete();
+      recorder=null;recordingFile=null;
+      status("음성 녹음 시작 실패: "+ex.getMessage());
+    }
+  }
+  private void stopRecording(){
+    MediaRecorder r=recorder;File f=recordingFile;
+    recorder=null;recordingFile=null;
+    recButton.setText("● 음성 녹음");micButton.setEnabled(true);
+    if(r==null)return;
+    boolean good=false;
+    try{r.stop();good=f!=null&&f.isFile()&&f.length()>0;}catch(Exception ex){status("녹음 종료 실패: "+ex.getMessage());}
+    finally{try{r.reset();r.release();}catch(Exception ignored){}}
+    if(!good){if(f!=null)f.delete();status("녹음 파일이 비어 있어 저장하지 않았어.");return;}
+    voiceId=f.getName();
+    rememberVoice(voiceId,f.length());
+    playButton.setEnabled(true);
+    status("녹음 원본 저장 완료 · "+Math.max(1,(SystemClock.elapsedRealtime()-recordStarted)/1000)+"초. 녹음 텍스트 자동 변환 중…");
+    startFileSpeech(f);
+  }
+  private void playVoice(){
+    File f=voiceFile(voiceId);
+    if(!f.isFile()){status("녹음 파일을 찾지 못했어.");return;}
+    try{
+      if(player!=null){player.release();player=null;}
+      MediaPlayer p=new MediaPlayer();p.setDataSource(f.getAbsolutePath());
+      p.setOnCompletionListener(mp->{try{mp.release();}catch(Exception ignored){}if(player==mp)player=null;status("원본 녹음 재생 완료");});
+      p.prepare();p.start();player=p;status("원본 녹음을 재생 중이야.");
+    }catch(Exception ex){status("재생 실패: "+ex.getMessage());}
+  }
+  private void appendText(String recognized,boolean fromRecording){
+    if(recognized==null||recognized.trim().isEmpty())return;
+    String previous=text.getText().toString().trim();
+    String next=previous.isEmpty()?recognized.trim():previous+" "+recognized.trim();
+    text.setText(next);text.setSelection(text.length());
+    if(fromRecording){
+      try{
+        String prior=MoaMomentCaptureService.prefs(this).getString("m:"+id,"");
+        if(!prior.isEmpty()){
+          JSONObject j=new JSONObject(prior);
+          j.put("voiceAutoTranscript",recognized.trim())
+            .put("voiceAutoStatus","review").put("voiceFileId",voiceId)
+            .put("voiceDay",day);
+          MoaMomentCaptureService.prefs(this).edit().putString("m:"+id,j.toString()).commit();
+        }
+      }catch(Exception ignored){}
+      saveNote(true);
+      status("녹음 글 변환 초안을 메모에 추가·저장했어. 원본을 들으며 내용을 확인해 줘.");
+    }
+  }
+  private void startFileSpeech(File source){
+    if(fileBusy){status("다른 녹음의 자동 텍스트 변환이 진행 중이야.");return;}
+    if(android.os.Build.VERSION.SDK_INT<33||!SpeechRecognizer.isRecognitionAvailable(this)){
+      status("원본 M4A는 저장됐어. 기기의 파일 음성인식이 지원되지 않아 글은 직접 입력할 수 있어.");return;
+    }
+    fileBusy=true;recognitionDelivered=false;segments.clear();
+    final String token=source.getName();fileToken=token;
+    try{
+      ParcelFileDescriptor[] pair=ParcelFileDescriptor.createPipe();
+      readPipe=pair[0];writePipe=pair[1];
+      fileRecognizer=SpeechRecognizer.createSpeechRecognizer(this);
+      fileRecognizer.setRecognitionListener(new RecognitionListener(){
+        @Override public void onReadyForSpeech(Bundle b){}
+        @Override public void onBeginningOfSpeech(){}
+        @Override public void onRmsChanged(float v){}
+        @Override public void onBufferReceived(byte[] b){}
+        @Override public void onEndOfSpeech(){}
+        @Override public void onPartialResults(Bundle b){}
+        @Override public void onEvent(int type,Bundle b){}
+        @Override public void onError(int err){
+          if(!token.equals(fileToken))return;
+          status("M4A 원본은 저장했어. 음성 텍스트 인식 오류("+err+") · 다시 들으며 입력할 수 있어.");
+          cancelFileRecognition();
+        }
+        @Override public void onResults(Bundle b){
+          if(!token.equals(fileToken)||recognitionDelivered)return;
+          ArrayList<String> list=b==null?null:b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+          String s=list!=null&&!list.isEmpty()?list.get(0):String.join(" ",segments);
+          finishTranscript(token,s);
+        }
+        @Override public void onSegmentResults(Bundle b){
+          if(!token.equals(fileToken))return;
+          ArrayList<String> list=b==null?null:b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+          if(list!=null&&!list.isEmpty())segments.add(list.get(0));
+        }
+        @Override public void onEndOfSegmentedSession(){
+          if(token.equals(fileToken))finishTranscript(token,String.join(" ",segments));
+        }
+      });
+      Intent intent=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+      intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+      intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"ko-KR");
+      intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE,readPipe);
+      intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT,1);
+      intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING,AudioFormat.ENCODING_PCM_16BIT);
+      intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE,16000);
+      intent.putExtra(RecognizerIntent.EXTRA_SEGMENTED_SESSION,RecognizerIntent.EXTRA_AUDIO_SOURCE);
+      fileRecognizer.startListening(intent);
+      main.postDelayed(timeout,180000);
+      final ParcelFileDescriptor output=writePipe;
+      new Thread(()->{
+        try{streamPcm16k(source,output,token);}
+        catch(Exception ex){runOnUiThread(()->{
+          if(token.equals(fileToken)){status("원본은 저장됐지만 음성 디코딩 실패: "+ex.getMessage());cancelFileRecognition();}
+        });}
+      },"moa-r161-file-to-text").start();
+    }catch(Exception ex){status("원본은 저장됐지만 텍스트 변환 시작 실패: "+ex.getMessage());cancelFileRecognition();}
+  }
+  private void finishTranscript(String token,String content){
+    if(!token.equals(fileToken)||recognitionDelivered)return;
+    recognitionDelivered=true;
+    String recognized=content==null?"":content.trim();
+    if(recognized.isEmpty())status("원본 녹음은 저장됐어. 인식된 텍스트는 없어.");
+    else appendText(recognized,true);
+    cancelFileRecognition();
+  }
+  private void cancelFileRecognition(){
+    main.removeCallbacks(timeout);fileBusy=false;fileToken="";
+    try{if(fileRecognizer!=null){fileRecognizer.cancel();fileRecognizer.destroy();}}catch(Exception ignored){}
+    fileRecognizer=null;
+    try{if(readPipe!=null)readPipe.close();}catch(Exception ignored){}
+    try{if(writePipe!=null)writePipe.close();}catch(Exception ignored){}
+    readPipe=null;writePipe=null;segments.clear();
+  }
+  private void streamPcm16k(File source,ParcelFileDescriptor fd,String token)throws Exception{
+    MediaExtractor extractor=new MediaExtractor();MediaCodec decoder=null;
+    try(OutputStream out=new ParcelFileDescriptor.AutoCloseOutputStream(fd)){
+      extractor.setDataSource(source.getAbsolutePath());
+      int track=-1;MediaFormat format=null;
+      for(int i=0;i<extractor.getTrackCount();i++){
+        MediaFormat m=extractor.getTrackFormat(i);String mime=m.getString(MediaFormat.KEY_MIME);
+        if(mime!=null&&mime.startsWith("audio/")){track=i;format=m;break;}
+      }
+      if(track<0||format==null)throw new java.io.IOException("M4A 오디오 트랙 없음");
+      extractor.selectTrack(track);
+      decoder=MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME));
+      decoder.configure(format,null,null,0);decoder.start();
+      MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
+      boolean inputDone=false,outputDone=false;
+      int rate=format.containsKey(MediaFormat.KEY_SAMPLE_RATE)?format.getInteger(MediaFormat.KEY_SAMPLE_RATE):44100;
+      int channels=format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)?format.getInteger(MediaFormat.KEY_CHANNEL_COUNT):1;
+      long accumulator=0,samples=0,begin=SystemClock.elapsedRealtime();
+      while(!outputDone&&fileBusy&&token.equals(fileToken)){
+        if(!inputDone){
+          int idx=decoder.dequeueInputBuffer(12000);
+          if(idx>=0){
+            ByteBuffer input=decoder.getInputBuffer(idx);input.clear();
+            int bytes=extractor.readSampleData(input,0);
+            if(bytes<0){decoder.queueInputBuffer(idx,0,0,0,MediaCodec.BUFFER_FLAG_END_OF_STREAM);inputDone=true;}
+            else{decoder.queueInputBuffer(idx,0,bytes,extractor.getSampleTime(),0);extractor.advance();}
+          }
+        }
+        int idx=decoder.dequeueOutputBuffer(info,12000);
+        if(idx==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED){
+          MediaFormat f=decoder.getOutputFormat();
+          rate=f.containsKey(MediaFormat.KEY_SAMPLE_RATE)?f.getInteger(MediaFormat.KEY_SAMPLE_RATE):rate;
+          channels=f.containsKey(MediaFormat.KEY_CHANNEL_COUNT)?f.getInteger(MediaFormat.KEY_CHANNEL_COUNT):channels;
+          int encoding=f.containsKey(MediaFormat.KEY_PCM_ENCODING)?f.getInteger(MediaFormat.KEY_PCM_ENCODING):AudioFormat.ENCODING_PCM_16BIT;
+          if(encoding!=AudioFormat.ENCODING_PCM_16BIT)throw new java.io.IOException("PCM 16비트 인코딩 아님");
+        }else if(idx>=0){
+          ByteBuffer audio=decoder.getOutputBuffer(idx);
+          if(audio!=null&&info.size>0){
+            audio.position(info.offset);audio.limit(info.offset+info.size);
+            audio.order(ByteOrder.LITTLE_ENDIAN);
+            int frames=info.size/Math.max(2,channels*2);
+            java.io.ByteArrayOutputStream pcm=new java.io.ByteArrayOutputStream(frames*2);
+            for(int i=0;i<frames;i++){
+              int total=0;for(int ch=0;ch<channels;ch++)total+=audio.getShort();
+              short sample=(short)(total/channels);
+              accumulator+=16000;
+              if(accumulator>=rate){
+                accumulator-=rate;pcm.write(sample&255);pcm.write((sample>>>8)&255);samples++;
+              }
+            }
+            byte[] block=pcm.toByteArray();
+            if(block.length>0){out.write(block);out.flush();}
+            long delay=samples*1000/16000-(SystemClock.elapsedRealtime()-begin);
+            if(delay>10)Thread.sleep(Math.min(delay,700));
+          }
+          outputDone=(info.flags&MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;
+          decoder.releaseOutputBuffer(idx,false);
+        }
+      }
+    }finally{
+      extractor.release();
+      try{if(decoder!=null){decoder.stop();decoder.release();}}catch(Exception ignored){}
+    }
+  }
+  @Override public void onRequestPermissionsResult(int code,String[] p,int[] results){
+    super.onRequestPermissionsResult(code,p,results);
+    if(code==MIC||code==RECORD_MIC){
+      if(results.length>0&&results[0]==PackageManager.PERMISSION_GRANTED){
+        if(code==MIC)startDictation();else startRecording();
+      }else status("마이크 권한이 없어 음성 기능을 시작하지 못했어.");
+    }
+  }
+  @Override protected void onPause(){
+    if(recorder!=null)stopRecording();
+    super.onPause();
+  }
+  @Override protected void onDestroy(){
+    if(speech!=null){speech.stop();speech=null;}
+    if(recorder!=null)stopRecording();
+    cancelFileRecognition();
+    try{if(player!=null){player.release();player=null;}}catch(Exception ignored){}
+    super.onDestroy();
+  }
+}
