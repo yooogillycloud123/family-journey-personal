@@ -1,0 +1,36 @@
+# MOA R167 — Diary voice inline edit, layout stability, monthly jump (2026-11-07)
+
+> **R167 SIGNED BETA, user Galaxy install/runtime NOT YET VERIFIED. R163 remains protected user-device Golden, R165 user-reported basic functioning but external M4A backup NOT PROVEN by screenshots.** Never promote R167 to Golden without user verification.
+
+## User-supplied evidence and precise uncertainty
+- On 2026-11-07 the user uploaded **19377.png, 19379.png, 19381.png, 19392.png, 19394.mp4**, reporting voice recordings/play working and live Diary voice buttons turning pink during playback.
+- User requests (1) Diary voice controls arrive in stages and physically shift the screen, possibly since R165; (2) a **compact inline expand/edit** beside existing pink-playing buttons so one need not open the whole dated voice modal to view/rename/edit a specific recording; (3) top/bottom quick jumps for 700+ photos in virtualized monthly report; (4) determine precise R165 external backup location and whether copy succeeded.
+- **Observed source reason for timeline jump:** pre-R167 R151 inline block in `assets/web/moa-r141-monthly-report.js` polls every 900ms and, when signature changes, `bar.replaceChildren()` and `standalone.replaceChildren()`, recreating all controls *after* Diary photo DOM has already mounted. This can shift the page and reset expanded state. **R165 signed base did NOT modify this JS compared to R163**; the backup-only `classes7.dex` update did not directly change this display logic. Exact physical cause can include Android WebView scroll anchoring and device load; source is evidence for an avoidable cause, not a lab-measured root cause.
+- **External copy status:** installed app media list and M4A byte labels prove internal recordings readable, **NOT that MediaStore external copy was completed**. This R165 build uses `Music/MOA-Recordings/YYYY-MM-DD` (other R165 source variants documented `Recordings/MOA`; identify exact installed APK SHA before relying on a path). External backup needs actual My Files confirmation or R165 native backup completion response; no remote access to phone storage. Never tell user to uninstall to test. The current build preserves internal original M4A and Gallery/Diary metadata; portable full Diary restore remains unimplemented.
+
+## Exact signed beta artifact and immutable baseline
+- **R167** package `com.juhyeon.familyjournea`, versionCode **167**, signed **5,561,432 bytes**, SHA256 `287a177ce645b2c20c882129397e5b02b0a102f246092abfb1bd7c899c9d4271`.
+- Same preexisting signing certificate SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`; nested APK Signature Scheme v2 signer list, RSA-SHA256 signature, 1MiB-chunk content digest, ZIP CRC and stored-entry alignment independently PASS.
+- **Exact parent** R165 signed APK bytes 5,558,821; SHA256 `e4e0fbf2db8cee500920a1349471677e40a6897f43a4afccfd1a3039420cf654`. *Do not confuse it with separate alternate R165 build SHA `989c50d3…` that has different external directory.*
+- R167 **124/128 original ZIP entries byte-identical**. Changed **only** `AndroidManifest.xml` (165→167), `assets/web/moa-r141-monthly-report.js`, `assets/web/moa-r141-monthly-report.css`, `assets/web/moa-r149-voice.js`. Every DEX file, all Java/native M4A MediaStore export/capture/ASR and every other JS/CSS, original family-diary IndexedDB, photo/video map/Family Calendar untouched.
+- Prior **R163 user-device Golden** code163 SHA256 `f789a3a579102bfb34a77da11be9b99b18b54906527c428603885bbd130e68e1` remains immutable, older Goldens too.
+
+## Changes
+1. **Timeline stability**: reuse the existing recording/play button DOM rather than `replaceChildren()` for every signature change; keep open inline editor and active pink `◉ 재생 중` style. An observer reacts to the actual Diary's new `.fd23-log` sections as soon as they mount instead of relying solely on the 900ms poll. Existing manual recording and native playback event wiring unchanged.
+2. **Compact inline expand/edit** beside each standalone or photo-slot play button: `▾ 내용·편집` opens a nested drawer with editable recording title and manual text; read-only `autoTranscript` shown when available and optional copy-to-draft. Existing `moa.voice.notes.v1` store, shared `saveMeta` method reused with quiet mode; manual save does not erase auto transcription and does not reorder unrelated audio. No new delete affordance; entire voice list/delete remains as before. Native Quick Record-specific transcription stored outside localStorage is **not guaranteed** to populate this view until reconciled by a future verified metadata bridge; do not promise that all automatically recorded text will be present.
+3. **Monthly report jump**: low-profile floating `↑ 맨 위` and `↓ 맨 아래` controls scroll the existing internal panel to either end; original 700+ media virtualizer (≈3 columns x visible rows) remains unchanged. No photo data/all-media insertion into DOM.
+4. **Storage location clarity**: existing dated voice list help text now identifies `Music/MOA-Recordings/YYYY-MM-DD` for this R165 path while warning that in-app playback proves nothing about external backups.
+
+## QA and preserved gates
+- Node `--check` for both patched JS **PASS**.
+- Headless Chromium Playwright with mock Galaxy Diary state and native audio bridge **PASS**:
+  - voice row mounts; inline expand; autoTranscript display; manual name/body edit saves and preserves autoTranscript;
+  - pink playback state survives `MoaVoiceTimelineRefresh`;
+  - added photo time sections mount voice controls promptly before old poll;
+  - virtualized 700-photo report maintains bounded DOM tile count and jump-to-bottom then jump-to-top without loading all tiles.
+- Full APK v2 signature RSA and signed data/digest/ZIP static **PASS**; exact unchanged-entry allowlist **PASS**. **Actual R167 Android installer/device behavior, MediaStore copy location/proof, same-day long diary and performance still PENDING**.
+- Private Library: APK `/에어팟안드로이드/MOA_R167_Install_Chat_20261107.apk`; backup ZIP same folder; QA and full source ZIP (no keys) in `/모아_프로젝트_근거_20261103/`. Source branch `feature/moa-r167-voice-inline-stable-timeline-month-jump-20261107` contains web sources under `experiments/moa-r167/assets/web/`; **exact signed APK and private source ZIP authoritative**. No keys uploaded to public GitHub.
+- Emergency-only **R168 rollback-forward** exact R165 behavior with only Manifest 165→168 changed, signed 5,558,821B, SHA256 `d946c11f65dbf0ea5ca17a38e67a589d678ad09e3e79ffa44bdf1d243113d295`; private Library, never install routinely.
+
+## Next physical test and future development
+User should update in place, never uninstall/reset. Confirm voice row appearance while date opens, playback status remains pink, inline edit save and refresh persistence, original voice list, capture mic/audio/STT, monthly navigation with 700+ media, video/photos/map/calendar, and check My Files external M4A if previously opted into R165 backup. Only confirmed evidence can promote new Golden; otherwise R163 Golden remains and R165 backup status unverified. Future external-primary audio and portable Diary metadata restore require a separate migration with verified backups and consent; **do not delete internal M4A**.
