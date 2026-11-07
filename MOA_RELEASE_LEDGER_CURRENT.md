@@ -315,3 +315,10 @@ If a bug is discovered after release, append a correction with new timestamp and
 - Tests Node syntax, isolated 393×852 Chromium mocked Map close/back and old STT editor transcription/storage PASS; independent original-cert APK v2 dual signer LP, RSA signature and 1MiB-chunk content digest, ZIP alignment CRC PASS; intentionally malformed previous R153 FAIL negative. **R157 actual Galaxy INSTALL/UI/MIC PENDING**, NOT GOLDEN.
 - Emergency-only R158 exact R155 content with just versionCode158, SHA `5287c0decc9f5cf69e18390cf3e57e3a2f1df3ad74f8c6f7c7393f8e4a831eee`, private Library archived. No uninstall/data clear, key publication, email, music, AirPods.
 - Handoff `MOA_R157_MAP_BACK_VOICE_TEXT_AND_FILE_STT_RESEARCH_HANDOFF_20261107.md`; next recorded-file M4A transcription with genuine device-supported service and no audio data loss. Previously stored M4A and local voice meta still not in Diary backup.
+
+
+
+### 2026-11-07 — R157 BETA revised before delivery (Naver full-photo Back)
+- Initial R157 APK code157 SHA `fb1b33c0ade45ba7b22f3b900fc202b0d988a327745fcdbeafee559f055b196d` was an **unshipped candidate**. Before delivery, code review confirmed Map's ordinary place-photo gallery uses `#fj-naver-photo-full`/`__fjBackOverlay`, not only `#viewer-root`/`__photoMapBack`. Wrapped both Back paths to hide place sheet synchronously under OFF setting; ON remains existing behavior.
+- **Superseding R157 deliverable** 5,492,731 B, SHA256 `c85018a9592fa78089ec87150769559c3a882e50e6275805ff278e2edc701e35`, original cert, 127 members names unchanged, 124 bytes identical to user-tested R155, original native six DEX untouched, independent structural v2 signer PASS, Chrome mock legacy+Naver Back and existing STT-to-text edit PASS. Android install pending. R155 user-tested baseline protected.
+- Saved M4A → automatic transcription is NOT delivered; new user voice dictation into editor uses existing live mic STT, not file audio. Quarantined native recorded-file prototype compiled but provider input not device-verified; do not publish unverified feature. Revised APK and QA archived private Library. No Gmail/uninstall/music/AirPods.
