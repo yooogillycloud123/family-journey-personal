@@ -43,10 +43,10 @@ jobs:
           python3 - <<'PY'
           import pathlib,zlib,base64,json,hashlib,struct
           b=pathlib.Path('/tmp/moa-r161-native/classes.dex').read_bytes()
-          assert b.startswith(b'dex\\n') and b'MoaMomentMemoRecorderActivity' in b
+          assert b.startswith(b'dex\n') and b'MoaMomentMemoRecorderActivity' in b
           assert b'MoaMomentMemoActivity;' not in b
           p=pathlib.Path('build/moa-r161-native')
-          (p/'memo-recorder.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\\n')
+          (p/'memo-recorder.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
           (p/'manifest.json').write_text(json.dumps({'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'class':'MoaMomentMemoRecorderActivity','base':'R159 original signed APK'},indent=2))
           PY
       - name: Commit compiled DEX base64 into feature branch only
