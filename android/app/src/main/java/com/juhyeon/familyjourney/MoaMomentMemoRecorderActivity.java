@@ -28,6 +28,8 @@ import android.content.res.ColorStateList;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -62,7 +64,9 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
   private String id,day,voiceId="";
   private EditText text;
   private TextView status;
-  private Button micButton,recButton,playButton,saveButton;
+  private Button micButton,recButton,playButton,saveButton,backupButton;
+  private CheckBox autoArchive;
+  private volatile boolean archiving=false;
   private MoaMomentVoice speech;
   private MediaRecorder recorder;
   private MediaPlayer player;
@@ -203,6 +207,40 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
     status=new TextView(this);status.setTextColor(0xff395a58);status.setTextSize(13);
     status.setPadding(0,dp(10),0,0);body.addView(status);
     status(voiceId.isEmpty()?"음성 녹음은 원본 파일과 글을 함께 남겨요.":"이 사진에 연결된 녹음이 있어요.");
+    // R165: opt-in public MediaStore backup. Not an automatic migration and
+    // never deletes original M4A; legacy R163 recording/list/STT stay intact.
+    TextView backupExplain=new TextView(this);
+    backupExplain.setText("녹음 외부 보관 · Music/MOA-Recordings\n앱 삭제 후에도 외부 복사본을 남길 수 있어요. 원본과 일기 메모는 앱 내부에 그대로 유지됩니다.");
+    backupExplain.setTextColor(0xff596b7b);backupExplain.setTextSize(12);
+    backupExplain.setPadding(0,dp(15),0,dp(6));body.addView(backupExplain);
+    autoArchive=new CheckBox(this);
+    autoArchive.setText("앞으로 녹음한 음성도 외부에 자동 복사 (저장공간 두 곳 사용)");
+    autoArchive.setTextSize(13);
+    autoArchive.setChecked(MoaR165AudioExport.auto(this));
+    autoArchive.setOnCheckedChangeListener((button,checked)->{
+      if(!checked){MoaR165AudioExport.setAuto(this,false);status("새 녹음의 외부 자동 보관 OFF · 기존 녹음/백업은 유지됩니다.");return;}
+      // Public media may be visible to other audio/media apps. Never enable
+      // without a user-initiated confirmation.
+      button.setChecked(false);
+      new AlertDialog.Builder(this)
+        .setTitle("외부 녹음 자동 보관 켜기")
+        .setMessage("새 M4A를 Music/MOA-Recordings에도 별도 복사합니다. 다른 미디어 앱에서도 파일을 볼 수 있고, 당분간 내부+외부 두 곳의 용량을 사용합니다. 기존 원본은 삭제하지 않습니다.")
+        .setNegativeButton("취소",null)
+        .setPositiveButton("켜기",(dialog,which)->{
+          MoaR165AudioExport.setAuto(this,true);
+          autoArchive.setOnCheckedChangeListener(null);autoArchive.setChecked(true);
+          autoArchive.setOnCheckedChangeListener((b,on)->{
+            if(!on){MoaR165AudioExport.setAuto(this,false);status("외부 자동 보관 OFF");}
+          });
+          status("다음 녹음부터 원본 저장 후 외부 백업을 추가로 검증합니다.");
+        }).show();
+    });
+    body.addView(autoArchive);
+    backupButton=new Button(this);
+    backupButton.setText("기존 음성 전체 외부 안전 보관");
+    backupButton.setAllCaps(false);
+    backupButton.setOnClickListener(v->confirmBackupAll());
+    body.addView(backupButton,new LinearLayout.LayoutParams(-1,dp(48)));
 
     LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
     root.setBackgroundColor(Color.WHITE);
@@ -333,10 +371,70 @@ public final class MoaMomentMemoRecorderActivity extends Activity {
     if(!good){if(f!=null)f.delete();status("녹음 파일이 비어 있어 저장하지 않았어.");return;}
     voiceId=f.getName();
     rememberVoice(voiceId,f.length());
+    // Backup is asynchronous and opt-in. R163's original M4A, local list,
+    // playback and source-file STT remain primary and unchanged.
+    if(MoaR165AudioExport.auto(this))backupSingleAsync(f,day);
     playButton.setEnabled(true);
     playButton.setText("▶ 원본 듣기");playStyle(false);
     status("녹음 원본 저장 완료 · "+Math.max(1,(SystemClock.elapsedRealtime()-recordStarted)/1000)+"초. 녹음 텍스트 자동 변환 중…");
     startFileSpeech(f);
+  }
+  private void confirmBackupAll(){
+    if(archiving){status("기존 녹음 외부 보관이 진행 중입니다.");return;}
+    if(!MoaR165AudioExport.supported()){status("Android 10 이상에서 이용할 수 있습니다.");return;}
+    new AlertDialog.Builder(this)
+      .setTitle("녹음 원본을 별도 폴더에 보관할까요?")
+      .setMessage("앱 내부의 날짜별 M4A 전체를 Music/MOA-Recordings/에 복사하고 파일별 SHA-256으로 검증합니다.\n\n기존 녹음·텍스트·사진 연결은 변경하지 않습니다. 앱 내부 공간이 즉시 줄어드는 방식은 아니고, 백업된 음성은 다른 미디어 앱에서도 보일 수 있습니다.")
+      .setNegativeButton("취소",null)
+      .setPositiveButton("원본 보관 시작",(dialog,which)->backupAllAsync())
+      .show();
+  }
+  private void backupAllAsync(){
+    if(archiving)return;
+    archiving=true;
+    backupButton.setEnabled(false);
+    status("앱 내부 녹음 목록 확인 중… 원본은 절대 삭제하지 않습니다.");
+    final android.content.Context app=getApplicationContext();
+    new Thread(()->MoaR165AudioExport.exportAll(app,new MoaR165AudioExport.Listener(){
+      @Override public void update(int done,int total,int copied,int existing,int failed,long bytes,String message){
+        if(done==total||done%10==0){
+          main.post(()->{if(!isFinishing()&&!isDestroyed())
+            status("외부 안전 보관 "+done+"/"+total+" · 새 복사 "+copied+
+              " · 기존 확인 "+existing+" · 실패 "+failed);});
+        }
+      }
+      @Override public void complete(MoaR165AudioExport.Summary summary){
+        main.post(()->{
+          archiving=false;
+          if(backupButton!=null)backupButton.setEnabled(true);
+          if(!isFinishing()&&!isDestroyed()){
+            status(summary.describe());
+            new AlertDialog.Builder(MoaMomentMemoRecorderActivity.this)
+              .setTitle("녹음 외부 보관 결과")
+              .setMessage(summary.describe())
+              .setPositiveButton("확인",null).show();
+          }
+        });
+      }
+    }),"moa-r165-audio-safe-backup").start();
+  }
+  private void backupSingleAsync(File original,String date){
+    final android.content.Context app=getApplicationContext();
+    new Thread(()->{
+      try{
+        MoaR165AudioExport.ExportResult result=MoaR165AudioExport.copy(app,original,date);
+        main.post(()->{
+          if(!isFinishing()&&!isDestroyed()){
+            status("새 녹음 외부 보관 확인 · "+result.message+" (앱 내부 원본도 유지)");
+          }
+        });
+      }catch(Exception error){
+        main.post(()->{
+          if(!isFinishing()&&!isDestroyed())
+            status("외부 보관 실패 · 앱 내부 원본 및 녹음 텍스트는 유지됨: "+error.getMessage());
+        });
+      }
+    },"moa-r165-audio-automatic-copy").start();
   }
   private void playVoice(){
     File f=voiceFile(voiceId);
