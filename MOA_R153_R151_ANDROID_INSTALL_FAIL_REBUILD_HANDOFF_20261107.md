@@ -23,3 +23,12 @@
 ## Next strict gate
 - In-place install R153 and ask for actual on-device result. Verify old Diary STT + voice clip and both R151 extra settings before any Golden label.
 - If installation again fails, stop blind APK rebuilds: use read-only `adb install -r MOA_R153_Install.apk` on a trusted USB-debugging host to obtain `INSTALL_FAILED_*` text from PackageManager and use it to identify precise failure; capture `pm path com.juhyeon.familyjournea` / `dumpsys package` when possible, no uninstall. Distinguish downgrade from signature mismatch, malformed Manifest, existing profile policy and APK extraction corruption with actual code, not guesses.
+
+
+
+## 2026-11-07 additional user physical video — R153 INSTALL FAIL
+- User uploaded `19253.mp4` (~5.2 sec, 1080×2340): Samsung My Files path `Download > MOA_R153_Install_Fallback`, tapping `MOA_R153_Install.apk` (~5.49MB), package installer visibly presents **`앱을 업데이트하시겠습니까?`** and the attempt returns **`앱이 설치되지 않음`**. **R153 DEVICE INSTALL FAIL**. The fact that the file was launched from a directory named for the fallback ZIP does not prove whether it was actually extracted or why install failed.
+- At this point **both R151 and R153** failed real Samsung installation; static v2 signature and ZIP checks did not predict installation; do **not** send a third blind version or claim a fix. `INSTALL_FAILED_*` Android PackageManager detail remains UNKNOWN.
+- Offline recheck of server-side files: R149 127 ZIP entries, R151 129, R153 127. The v2 signing block exists for each, ZIP integrity passes; these tests **cannot verify compatibility with the actual installed package/users/profiles and platform policy**. No exact cause identified.
+- Required next evidence (do not uninstall / clear data): obtain explicit **Android PackageManager failure code** from the user's existing debugging connection, e.g. PC with adb: `adb install -r "MOA_R153_Install.apk"` (this does attempt update if installable) and capture `Failure [INSTALL_FAILED_...]`. Run only with user's intention to update; not strictly read-only. Alternatively user can first try a clearly extracted standalone APK in Downloads rather than navigating inside archive, but that does not prove fix.
+- Protected last real-world working feature baseline remains R149 (STT + original audio M4A user PASS); R153 not Golden. No further modifications to user data, source, or signing in this checkpoint.
