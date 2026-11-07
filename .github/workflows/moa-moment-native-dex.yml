@@ -67,22 +67,22 @@ jobs:
           name: MOA-R43-native-classes-Dex
           path: build/moa-moment-r43
 
-  r161_photo_memo:
+  r163_photo_memo:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feature/moa-r161-capture-record-stt-20261107
+          ref: feature/moa-r163-ime-controls-fast-stt-video-20261107
       - name: R161 CI handshake before compile
         run: |
           set -euo pipefail
-          mkdir -p build/moa-r161-native
-          echo "R161_GITHUB_RUN_ID=${GITHUB_RUN_ID}" > build/moa-r161-native/status.txt
+          mkdir -p build/moa-r163-native
+          echo "R163_GITHUB_RUN_ID=${GITHUB_RUN_ID}" > build/moa-r163-native/status.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -f build/moa-r161-native/status.txt
-          git commit -m "ci(moa-r161): runner started" || true
-          git push origin HEAD:feature/moa-r161-capture-record-stt-20261107 || true
+          git add -f build/moa-r163-native/status.txt
+          git commit -m "ci(moa-r163): runner started" || true
+          git push origin HEAD:feature/moa-r163-ime-controls-fast-stt-video-20261107 || true
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -100,8 +100,8 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          mkdir -p /tmp/moa-r161-stubs/com/juhyeon/familyjourney /tmp/moa-r161-classes /tmp/moa-r161-dex build/moa-r161-native
-          cat > /tmp/moa-r161-stubs/com/juhyeon/familyjourney/MoaMomentCompileStubs.java <<'JAVA'
+          mkdir -p /tmp/moa-r163-stubs/com/juhyeon/familyjourney /tmp/moa-r163-classes /tmp/moa-r163-dex build/moa-r163-native
+          cat > /tmp/moa-r163-stubs/com/juhyeon/familyjourney/MoaMomentCompileStubs.java <<'JAVA'
           package com.juhyeon.familyjourney;
           import android.content.Context;
           import android.content.SharedPreferences;
@@ -127,21 +127,21 @@ jobs:
           JAVA
           javac -encoding UTF-8 -source 17 -target 17 \
             -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
-            -sourcepath /tmp/moa-r161-stubs \
-            -d /tmp/moa-r161-classes \
+            -sourcepath /tmp/moa-r163-stubs \
+            -d /tmp/moa-r163-classes \
             android/app/src/main/java/com/juhyeon/familyjourney/MoaMomentMemoRecorderActivity.java \
-            /tmp/moa-r161-stubs/com/juhyeon/familyjourney/MoaMomentCompileStubs.java \
-            > build/moa-r161-native/compile.log 2>&1 || { tail -100 build/moa-r161-native/compile.log; exit 1; }
-          find /tmp/moa-r161-classes -type f -name 'MoaMomentMemoRecorderActivity*.class' -print0 |
-            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa-r161-dex \
-            >> build/moa-r161-native/compile.log 2>&1 || { tail -100 build/moa-r161-native/compile.log; exit 1; }
+            /tmp/moa-r163-stubs/com/juhyeon/familyjourney/MoaMomentCompileStubs.java \
+            > build/moa-r163-native/compile.log 2>&1 || { tail -100 build/moa-r163-native/compile.log; exit 1; }
+          find /tmp/moa-r163-classes -type f -name 'MoaMomentMemoRecorderActivity*.class' -print0 |
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa-r163-dex \
+            >> build/moa-r163-native/compile.log 2>&1 || { tail -100 build/moa-r163-native/compile.log; exit 1; }
           python3 - <<'PY'
           import pathlib,base64,zlib,json,hashlib
-          b=pathlib.Path('/tmp/moa-r161-dex/classes.dex').read_bytes()
+          b=pathlib.Path('/tmp/moa-r163-dex/classes.dex').read_bytes()
           assert b.startswith(b'dex\n')
           assert b'MoaMomentMemoRecorderActivity' in b
           assert b'MoaMomentMemoActivity;' not in b
-          d=pathlib.Path('build/moa-r161-native')
+          d=pathlib.Path('build/moa-r163-native')
           (d/'memo-recorder.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
           (d/'manifest.json').write_text(json.dumps({'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'source_sha256':hashlib.sha256(pathlib.Path('android/app/src/main/java/com/juhyeon/familyjourney/MoaMomentMemoRecorderActivity.java').read_bytes()).hexdigest()},indent=2))
           PY
@@ -150,23 +150,23 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          test -f build/moa-r161-native/compile.log || echo "Compile step did not create a log" > build/moa-r161-native/compile.log
-          tail -150 build/moa-r161-native/compile.log > build/moa-r161-native/compile-tail.txt
-          git add -f build/moa-r161-native/compile-tail.txt
-          git commit -m "ci(moa-r161): compile diagnostics" || true
-          git push origin HEAD:feature/moa-r161-capture-record-stt-20261107 || true
+          test -f build/moa-r163-native/compile.log || echo "Compile step did not create a log" > build/moa-r163-native/compile.log
+          tail -150 build/moa-r163-native/compile.log > build/moa-r163-native/compile-tail.txt
+          git add -f build/moa-r163-native/compile-tail.txt
+          git commit -m "ci(moa-r163): compile diagnostics" || true
+          git push origin HEAD:feature/moa-r163-ime-controls-fast-stt-video-20261107 || true
       - name: Upload isolated R161 result and commit to feature
         if: success()
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -f build/moa-r161-native/memo-recorder.dex.z.b64 build/moa-r161-native/manifest.json
+          git add -f build/moa-r163-native/memo-recorder.dex.z.b64 build/moa-r163-native/manifest.json
           if ! git diff --cached --quiet; then
-            git commit -m "build(moa-r161): source-verified isolated DEX"
-            git push origin HEAD:feature/moa-r161-capture-record-stt-20261107 || true
+            git commit -m "build(moa-r163): source-verified isolated DEX"
+            git push origin HEAD:feature/moa-r163-ime-controls-fast-stt-video-20261107 || true
           fi
       - uses: actions/upload-artifact@v4
         with:
           name: MOA-R161-NEW-MEMO-DEX
-          path: build/moa-r161-native
+          path: build/moa-r163-native
