@@ -407,6 +407,10 @@ public final class MoaNativeGallery {
  public void close(){
   if(Looper.myLooper()!=Looper.getMainLooper()){main.post(this::close);return;}
   r203CancelFling();
+  r205PreviewSerial++;
+  if(r205Preview!=null&&r205Preview.getParent() instanceof ViewGroup)
+   ((ViewGroup)r205Preview.getParent()).removeView(r205Preview);
+  r205Preview=null;
   if(r203StageVelocity!=null){r203StageVelocity.recycle();r203StageVelocity=null;}
   open=false;loadToken++;videoToken++;scrubFrameToken++;
   // Never leave Android system bars hidden after closing the gallery.
@@ -1193,6 +1197,46 @@ public final class MoaNativeGallery {
  }
  private int getWidthSafe(View v){return v==null?dp(300):Math.max(1,v.getWidth());}
 
+ // R205: screenshot confirmation appears above the real capture control.
+ private void r205ShowCapturePreview(Bitmap shotBitmap){
+  if(!open||host==null||still==null||shotBitmap==null)return;
+  final int token=++r205PreviewSerial;
+  if(r205Preview!=null&&r205Preview.getParent() instanceof ViewGroup)
+   ((ViewGroup)r205Preview.getParent()).removeView(r205Preview);
+  FrameLayout popup=new FrameLayout(activity);r205Preview=popup;
+  popup.setElevation(dp(15));popup.setClickable(false);
+  android.graphics.drawable.GradientDrawable border=new android.graphics.drawable.GradientDrawable();
+  border.setColor(0xff181a20);border.setCornerRadius(dp(10));
+  border.setStroke(dp(1.5f),0xdfffffff);
+  popup.setBackground(border);popup.setPadding(dp(3),dp(3),dp(3),dp(3));
+  ImageView shot=new ImageView(activity);
+  shot.setImageBitmap(shotBitmap);shot.setScaleType(ImageView.ScaleType.CENTER_CROP);
+  android.graphics.drawable.GradientDrawable crop=new android.graphics.drawable.GradientDrawable();
+  crop.setColor(0xff181a20);crop.setCornerRadius(dp(8));
+  shot.setBackground(crop);shot.setClipToOutline(true);
+  popup.addView(shot,new FrameLayout.LayoutParams(-1,-1));
+  TextView check=new TextView(activity);check.setText("✓");check.setTextSize(12);
+  check.setTextColor(Color.WHITE);check.setGravity(Gravity.CENTER);
+  android.graphics.drawable.GradientDrawable dot=new android.graphics.drawable.GradientDrawable();
+  dot.setColor(0xe900b9a0);dot.setCornerRadius(dp(12));check.setBackground(dot);
+  FrameLayout.LayoutParams checkPos=new FrameLayout.LayoutParams(dp(21),dp(21),Gravity.RIGHT|Gravity.BOTTOM);
+  checkPos.setMargins(0,0,dp(3),dp(3));popup.addView(check,checkPos);
+  host.addView(popup,new FrameLayout.LayoutParams(dp(72),dp(88),Gravity.TOP|Gravity.LEFT));
+  int[] pos=new int[2],root=new int[2];
+  still.getLocationOnScreen(pos);host.getLocationOnScreen(root);
+  popup.setX(Math.max(dp(5),Math.min(Math.max(dp(5),host.getWidth()-dp(77)),pos[0]-root[0]-dp(19))));
+  popup.setY(Math.max(dp(5),pos[1]-root[1]-dp(101)));
+  popup.setPivotY(dp(88));popup.setAlpha(0f);popup.setScaleX(.82f);popup.setScaleY(.82f);
+  popup.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(190).start();
+  main.postDelayed(()->{
+   if(token!=r205PreviewSerial||popup!=r205Preview)return;
+   popup.animate().alpha(0f).translationY(-dp(10)).setDuration(230)
+    .withEndAction(()->{
+     if(popup.getParent() instanceof ViewGroup)((ViewGroup)popup.getParent()).removeView(popup);
+     if(r205Preview==popup)r205Preview=null;
+    }).start();
+  },1800);
+ }
  private void capture(){if(!open||!video(ids.get(index)))return;
   final Uri source=uri(ids.get(index));final int time=media!=null&&prepared?media.getCurrentPosition():0;
   // Snapshot on UI thread while TextureView still displays the selected frame.
@@ -1221,7 +1265,19 @@ public final class MoaNativeGallery {
     if(created==null)throw new java.io.IOException("create failed");
     try(OutputStream out=activity.getContentResolver().openOutputStream(created,"w")){if(out==null||!stillFrame.compress(Bitmap.CompressFormat.JPEG,94,out))throw new java.io.IOException("write failed");}
     if(Build.VERSION.SDK_INT>=29){ContentValues ready=new ContentValues();ready.put(MediaStore.Images.Media.IS_PENDING,0);activity.getContentResolver().update(created,ready,null,null);}
-    done=true;main.post(()->android.widget.Toast.makeText(activity,"장면을 사진으로 저장했어요",0).show());
+    done=true;
+    Bitmap previewImage=null;
+    try{
+     float scale=Math.min(128f/Math.max(1,stillFrame.getWidth()),160f/Math.max(1,stillFrame.getHeight()));
+     previewImage=Bitmap.createScaledBitmap(stillFrame,
+       Math.max(1,Math.round(stillFrame.getWidth()*scale)),
+       Math.max(1,Math.round(stillFrame.getHeight()*scale)),true);
+    }catch(Exception ignored){}
+    final Bitmap screenshotPreview=previewImage;
+    main.post(()->{
+     if(open)r205ShowCapturePreview(screenshotPreview);
+     android.widget.Toast.makeText(activity,"장면을 사진으로 저장했어요",0).show();
+    });
    }catch(Exception e){main.post(()->android.widget.Toast.makeText(activity,"장면 저장 실패: "+e.getMessage(),0).show());}
    finally{if(!done&&created!=null)try{activity.getContentResolver().delete(created,null,null);}catch(Exception ignored){}}
   });
