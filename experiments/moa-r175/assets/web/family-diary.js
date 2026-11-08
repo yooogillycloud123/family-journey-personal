@@ -1310,15 +1310,28 @@ function r193OpenDisplaySettings(){
  const shade=elem('div','moa-r191-day-shade');shade.id='moa-r191-day-shade';
  const panel=elem('section','moa-r191-day-panel moa-r193-settings');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');
  panel.append(elem('h3','','사진일기 보기 설정'));
- const bucketLabel=elem('label','moa-r193-setting-row','사진·영상 시간대 묶음');
- const bucket=elem('select');for(const n of R193_BUCKET_CHOICES){const o=elem('option','',n>=60?(n/60)+'시간':n+'분');o.value=String(n);bucket.append(o)}bucket.value=String(r193GroupMinutes());bucketLabel.append(bucket);panel.append(bucketLabel);
+ const bucketLabel=elem('label','moa-r193-setting-row','사진·영상 시간대 묶음 · 최대 24시간');
+ const bucket=elem('select');for(const n of R193_BUCKET_CHOICES){const o=elem('option','',n>=60?(n/60)+'시간':n+'분');o.value=String(n);bucket.append(o)}
+ const option=elem('option','','직접 지정 (5분 단위)');option.value='custom';bucket.append(option);
+ const current=r193GroupMinutes();bucket.value=R193_BUCKET_CHOICES.includes(current)?String(current):'custom';
+ bucketLabel.append(bucket);panel.append(bucketLabel);
+ const customRow=elem('label','moa-r193-setting-row moa-r195-custom-minutes','직접 지정 · 5~1440분');
+ const custom=elem('input');custom.type='number';custom.min='5';custom.max='1440';custom.step='5';custom.inputMode='numeric';custom.value=String(current);
+ custom.setAttribute('aria-label','시간 묶음 직접 지정, 분 단위');customRow.append(custom);panel.append(customRow);
+ customRow.hidden=bucket.value!=='custom';bucket.addEventListener('change',()=>{customRow.hidden=bucket.value!=='custom';if(!customRow.hidden)custom.focus()});
  const sizeLabel=elem('label','moa-r193-setting-row','사진 표시 크기');const size=elem('select');
  for(const [n,label] of [[1,'크게 · 한 줄에 1장'],[2,'보통 · 한 줄에 2장'],[3,'작게 · 한 줄에 3장']]){const o=elem('option','',label);o.value=n;size.append(o)}
  size.value=String(r193PhotoColumns());sizeLabel.append(size);panel.append(sizeLabel);
- panel.append(elem('p','moa-r193-setting-help','설정은 보기 방식만 바꿉니다. 기존 사진의 촬영 시각, 메모, 녹음 파일과 일기는 변경되지 않습니다.'));
+ const stickyLabel=elem('label','moa-r193-setting-row moa-r195-sticky-row');
+ const stickyText=elem('span','','상단 날짜·관리 메뉴 틀 고정');
+ const sticky=elem('input');sticky.type='checkbox';sticky.checked=r195StickyHeader();
+ sticky.setAttribute('aria-label','상단 날짜 메뉴 고정 켜기 또는 끄기');stickyLabel.append(stickyText,sticky);panel.append(stickyLabel);
+ panel.append(elem('p','moa-r193-setting-help','표시 방식만 바뀝니다. 5분~24시간 범위를 지정해도 원래 사진 촬영 시간, 음성 녹음과 메모 데이터는 그대로 유지됩니다.'));
  const actions=elem('div','moa-r193-settings-actions');
- actions.append(button('← 관리 메뉴',()=>r191OpenDaySheet(false)),button('적용',()=>{
-  try{localStorage.setItem(R193_BUCKET_KEY,bucket.value);localStorage.setItem(R193_PHOTO_SIZE_KEY,size.value)}catch(e){}
+ actions.append(button('관리 메뉴',()=>r191OpenDaySheet(false)),button('적용',()=>{
+  const minutes=bucket.value==='custom'?Number(custom.value):Number(bucket.value);
+  if(!Number.isInteger(minutes)||minutes<5||minutes>1440||minutes%5!==0){alert('시간대는 5~1440분 사이 5분 단위로 지정해 주세요.');custom.focus();return;}
+  try{localStorage.setItem(R193_BUCKET_KEY,String(minutes));localStorage.setItem(R193_PHOTO_SIZE_KEY,size.value);localStorage.setItem(R195_STICKY_HEADER_KEY,sticky.checked?'on':'off')}catch(e){}
   shade.remove();render();status('사진일기 보기 설정을 적용했어요.');
  },'primary'));
  panel.append(actions);shade.append(panel);S.root.append(shade);
