@@ -466,21 +466,26 @@ public final class MoaNativeGallery {
   private long downAt;
   GalleryRail(){super(activity);setLayerType(View.LAYER_TYPE_HARDWARE,null);setOnTouchListener(this::touch);}
   @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);
-   if(videoScrubMode && r197ScrubExpansion>=.999f && open && !ids.isEmpty() && video(ids.get(index))){
-    drawVideoFrames(canvas);return;
-   }
+   // R199: never replace the entire mixed-media rail with a video-only rail.
    float stride=dp(44),cw=getWidth()*.5f,ht=getHeight()*.5f;
    int lo=Math.max(0,(int)Math.floor(center)-12),hi=Math.min(ids.size()-1,(int)Math.ceil(center)+12);
+   final float extraHalf=dp(86)*(videoScrubMode?Math.max(0f,r197ScrubExpansion):0f);
    for(int i=lo;i<=hi;i++){
-    float x=cw+(i-center)*stride;if(x<-stride||x>getWidth()+stride)continue;
+    float x=cw+(i-center)*stride;
+    if(i<index)x-=extraHalf;else if(i>index)x+=extraHalf;
+    if(x<-stride-extraHalf||x>getWidth()+stride+extraHalf)continue;
     String id=ids.get(i);Bitmap bmp=posters.get(id);
-    RectF box=new RectF(x-dp(19),ht-dp(23),x+dp(19),ht+dp(23));
+    RectF box=new RectF(x-dp(19)-(i==index?extraHalf:0f),ht-dp(23),
+      x+dp(19)+(i==index?extraHalf:0f),ht+dp(23));
     paint.setColor(0xff33363a);canvas.drawRoundRect(box,dp(5),dp(5),paint);
-    if(bmp!=null){
+    if(bmp!=null&&!(i==index&&videoScrubMode&&r197ScrubExpansion>0.001f)){
      float ratio=Math.max((float)box.width()/bmp.getWidth(),(float)box.height()/bmp.getHeight());
      int bw=Math.min(bmp.getWidth(),Math.round(box.width()/ratio)),bh=Math.min(bmp.getHeight(),Math.round(box.height()/ratio));
      Rect src=new Rect((bmp.getWidth()-bw)/2,(bmp.getHeight()-bh)/2,(bmp.getWidth()+bw)/2,(bmp.getHeight()+bh)/2);
      canvas.drawBitmap(bmp,src,box,paint);
+    }
+    if(i==index&&videoScrubMode&&r197ScrubExpansion>0.001f&&video(id)){
+     canvas.save();canvas.clipRect(box);drawVideoFrames(canvas);canvas.restore();
     }
     paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(i==index?dp(3):dp(1));
     paint.setColor(i==index?0xfffff7f9:0x883d4350);canvas.drawRoundRect(box,dp(5),dp(5),paint);
@@ -488,7 +493,7 @@ public final class MoaNativeGallery {
     if(video(id)){
      paint.setColor(0xbb111111);canvas.drawCircle(x,ht,dp(7),paint);
      paint.setColor(-1);paint.setTextSize(dp(9));canvas.drawText("▶",x-dp(3),ht+dp(3),paint);
-     if(i==index&&prepared&&media!=null&&!videoScrubMode){
+     if(i==index&&prepared&&media!=null&&r197ScrubExpansion<0.01f){
       // R195: playback position is visible even BEFORE opening the scene strip.
       float progress=0;
       try{progress=Math.max(0f,Math.min(1f,(float)media.getCurrentPosition()/Math.max(1,media.getDuration())));}catch(Exception ignored){}
@@ -498,13 +503,7 @@ public final class MoaNativeGallery {
      }
     }
    }
-   // R197: only the selected video's OWN tile shows live white progress.
-   // The global line spanning unrelated PHOTO thumbnails is removed.
-   if(r197ScrubExpansion>0.001f && open && !ids.isEmpty() && video(ids.get(index))){
-    int alpha=Math.min(255,Math.max(0,Math.round(r197ScrubExpansion*255f)));
-    canvas.saveLayerAlpha(0,0,getWidth(),getHeight(),alpha);
-    canvas.drawColor(0xff17181b);drawVideoFrames(canvas);canvas.restore();
-   }
+   // Adjacent photo/video thumbnails remain present throughout transition.
   }
   void prefetch(){
    int lo=Math.max(0,index-13),hi=Math.min(ids.size()-1,index+13);
@@ -520,8 +519,22 @@ public final class MoaNativeGallery {
   private boolean touch(View v,MotionEvent e){
    if(!open)return false;
    if(videoScrubMode && !ids.isEmpty() && video(ids.get(index))){
-    // Tap the selected central scene thumbnail again to collapse to media.
     int action=e.getActionMasked();
+    if(action==MotionEvent.ACTION_DOWN){
+     r199SideStartX=e.getX();
+     r199SideGesture=Math.abs(e.getX()-getWidth()*.5f)>dp(19)+dp(86)*r197ScrubExpansion+dp(3);
+     if(r199SideGesture)return true;
+    }else if(r199SideGesture){
+     if(action==MotionEvent.ACTION_UP){
+      float dx=e.getX()-r199SideStartX;
+      int direction=Math.abs(dx)>dp(24)?(dx>0?-1:1):(r199SideStartX<getWidth()*.5f?-1:1);
+      r199SideGesture=false;int next=Math.max(0,Math.min(ids.size()-1,index+direction));
+      setVideoScrubMode(false);if(next!=index)navigate(next);return true;
+     }
+     if(action==MotionEvent.ACTION_CANCEL)r199SideGesture=false;
+     return true;
+    }
+    // Tap the selected central scene thumbnail again to collapse to media.
     if(action==MotionEvent.ACTION_DOWN){
      r197CenterDownX=e.getX();
      r197CenterTapPending=Math.abs(e.getX()-getWidth()*.5f)<dp(22);
