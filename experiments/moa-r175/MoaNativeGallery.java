@@ -6,6 +6,7 @@ import android.content.ContentUris;
 import android.content.ContentValues;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.ImageDecoder;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -14,6 +15,7 @@ import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.CancellationSignal;
@@ -73,7 +75,9 @@ public final class MoaNativeGallery {
  private ImageView[] images=new ImageView[3];
  private TextView header,videoTime,videoStatus;
  private Button pause,mute,still;
- private LinearLayout videoControls;
+ private LinearLayout videoControls, volumeRow, lowerControls;
+ private SeekBar mediaVolumeSeek;
+ private TextView mediaVolumeText;
  private SeekBar seek;
  private TextureView texture;
  private MediaPlayer media;
@@ -161,7 +165,8 @@ public final class MoaNativeGallery {
    });popup.show();
   });
   header.setPadding(dp(95),0,dp(60),0);
-  LinearLayout lower=new LinearLayout(activity);lower.setOrientation(LinearLayout.VERTICAL);lower.setBackgroundColor(0xff0a0a0c);
+  LinearLayout lower=new LinearLayout(activity);lowerControls=lower;lower.setOrientation(LinearLayout.VERTICAL);lower.setBackgroundColor(0xff0a0a0c);
+  activity.setVolumeControlStream(AudioManager.STREAM_MUSIC);
   FrameLayout.LayoutParams lowerPos=new FrameLayout.LayoutParams(-1,dp(165),Gravity.BOTTOM);
   host.addView(lower,lowerPos);
   videoControls=new LinearLayout(activity);videoControls.setGravity(Gravity.CENTER_VERTICAL);
@@ -180,6 +185,29 @@ public final class MoaNativeGallery {
    public void onStopTrackingTouch(SeekBar bar){seekInProgress=false;try{if(media!=null&&prepared)media.seekTo(bar.getProgress());}catch(Exception ignored){}}
    public void onProgressChanged(SeekBar bar,int p,boolean from){}}
   );lower.addView(seek,new LinearLayout.LayoutParams(-1,dp(36)));
+  // R179: system MUSIC volume is independent of MediaPlayer's mute/unmute.
+  // Show a slider only while sound is enabled; never raise device volume automatically.
+  volumeRow=new LinearLayout(activity);volumeRow.setGravity(Gravity.CENTER_VERTICAL);
+  mediaVolumeText=new TextView(activity);mediaVolumeText.setTextSize(11);mediaVolumeText.setTextColor(Color.WHITE);
+  mediaVolumeText.setGravity(Gravity.CENTER_VERTICAL);mediaVolumeText.setPadding(dp(9),0,0,0);
+  volumeRow.addView(mediaVolumeText,new LinearLayout.LayoutParams(dp(104),dp(34)));
+  mediaVolumeSeek=new SeekBar(activity);
+  AudioManager volumeAudio=(AudioManager)activity.getSystemService(Activity.AUDIO_SERVICE);
+  int maxAudio=volumeAudio==null?15:Math.max(1,volumeAudio.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+  mediaVolumeSeek.setMax(maxAudio);
+  mediaVolumeSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+   @Override public void onStartTrackingTouch(SeekBar bar){}
+   @Override public void onStopTrackingTouch(SeekBar bar){}
+   @Override public void onProgressChanged(SeekBar bar,int progress,boolean fromUser){
+    if(!fromUser)return;
+    try{if(volumeAudio!=null&&!volumeAudio.isVolumeFixed())volumeAudio.setStreamVolume(AudioManager.STREAM_MUSIC,progress,0);}
+    catch(SecurityException blocked){android.widget.Toast.makeText(activity,"기기에서 미디어 음량 변경을 허용하지 않았습니다.",0).show();}
+    updateMediaVolume();
+   }
+  });
+  volumeRow.addView(mediaVolumeSeek,new LinearLayout.LayoutParams(0,dp(34),1));
+  volumeRow.setVisibility(View.GONE);
+  lower.addView(volumeRow,new LinearLayout.LayoutParams(-1,dp(36)));
   rail=new GalleryRail();lower.addView(rail,new LinearLayout.LayoutParams(-1,dp(72)));
   open=true;registerBack();refreshPages();stage.post(()->{if(open)updatePosition(0);});prepareCurrentVideo();
   host.requestFocus();return true;
@@ -199,7 +227,7 @@ public final class MoaNativeGallery {
   if(backRegistered&&Build.VERSION.SDK_INT>=33)try{activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);}catch(Exception ignored){}
   backRegistered=false;backCallback=null;
   if(host!=null&&host.getParent() instanceof ViewGroup)((ViewGroup)host.getParent()).removeView(host);
-  host=null;stage=null;rail=null;ids.clear();
+  host=null;stage=null;rail=null;lowerControls=null;volumeRow=null;mediaVolumeSeek=null;mediaVolumeText=null;ids.clear();
  }
  private void refreshPages(){
   if(!open)return;
@@ -225,6 +253,7 @@ public final class MoaNativeGallery {
   videoControls.setVisibility(video(ids.get(index))?View.VISIBLE:View.INVISIBLE);
   seek.setVisibility(video(ids.get(index))?View.VISIBLE:View.INVISIBLE);
   if(rail!=null){rail.center=index;rail.invalidate();if(!browsingRail)rail.prefetch();}
+  updateMediaVolume();
  }
  private Bitmap getBitmap(String id,boolean fullSize){
   Bitmap cached=(fullSize?full:posters).get(id);if(cached!=null)return cached;
@@ -233,6 +262,21 @@ public final class MoaNativeGallery {
    Bitmap bmp;
    if(!fullSize){bmp=activity.getContentResolver().loadThumbnail(u,new Size(dp(160),dp(160)),null);}
    else{
+    // R179: ImageDecoder honors encoded EXIF/HEIF rotation. BitmapFactory did not:
+    // its raw raster sometimes appeared 90 degrees sideways in the full viewer.
+    if(Build.VERSION.SDK_INT>=28){
+     try{
+      Bitmap corrected=ImageDecoder.decodeBitmap(
+       ImageDecoder.createSource(activity.getContentResolver(),u),
+       (decoder,info,source)->{
+        int sw=Math.max(1,info.getSize().getWidth()),sh=Math.max(1,info.getSize().getHeight());
+        int sample=1;while(sw/sample>2300||sh/sample>2300)sample*=2;
+        decoder.setTargetSampleSize(sample);
+        decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
+       });
+      if(corrected!=null){full.put(id,corrected);return corrected;}
+     }catch(Exception nativeDecoderUnavailable){ /* preserve original BitmapFactory fallback */ }
+    }
     try(InputStream in=activity.getContentResolver().openInputStream(u)){
      if(in==null)return null;
      BitmapFactory.Options o=new BitmapFactory.Options();o.inJustDecodeBounds=true;
@@ -401,7 +445,7 @@ public final class MoaNativeGallery {
   }
  }
  private void prepareCurrentVideo(){
-  muted=true;
+  muted=true;updateMediaVolume();
   if(!open||!video(ids.get(index)))return;
   final String id=ids.get(index);final int token=++videoToken;
   try{
@@ -480,15 +524,52 @@ public final class MoaNativeGallery {
  private String clock(long ms){long s=Math.max(0,ms)/1000;return String.format(java.util.Locale.US,"%02d:%02d",s/60,s%60);}
  private void toggle(){if(media==null||!prepared)return;try{if(media.isPlaying())media.pause();else media.start();
   pause.setText(media.isPlaying()?"Ⅱ":"▶");}catch(Exception ignored){}}
+ private void updateMediaVolume(){
+  if(volumeRow==null||lowerControls==null||stage==null||ids.isEmpty())return;
+  boolean shown=open&&video(ids.get(index))&&!muted;
+  if(volumeRow.getVisibility()!=(shown?View.VISIBLE:View.GONE)){
+   volumeRow.setVisibility(shown?View.VISIBLE:View.GONE);
+   ViewGroup.LayoutParams box=lowerControls.getLayoutParams();
+   if(box!=null){box.height=dp(shown?201:165);lowerControls.setLayoutParams(box);}
+   FrameLayout.LayoutParams stageSize=(FrameLayout.LayoutParams)stage.getLayoutParams();
+   if(stageSize!=null){stageSize.bottomMargin=dp(shown?201:165);stage.setLayoutParams(stageSize);}
+  }
+  if(shown&&mediaVolumeSeek!=null){
+   try{
+    AudioManager audio=(AudioManager)activity.getSystemService(Activity.AUDIO_SERVICE);
+    if(audio!=null){
+     int max=Math.max(1,audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+     int current=audio.getStreamVolume(AudioManager.STREAM_MUSIC);
+     mediaVolumeSeek.setMax(max);mediaVolumeSeek.setProgress(current);
+     mediaVolumeText.setText(current<=0?"미디어 음량 0":"미디어 음량 "+Math.round(current*100f/max)+"%");
+     mediaVolumeSeek.setEnabled(!audio.isVolumeFixed());
+    }
+   }catch(Exception ignored){}
+  }
+ }
  private void toggleMute(){muted=!muted;try{if(media!=null)media.setVolume(muted?0:1,muted?0:1);}catch(Exception ignored){}
-  mute.setText(muted?"소리 켜기":"음소거");}
+  mute.setText(muted?"소리 켜기":"음소거");updateMediaVolume();}
  private void capture(){if(!open||!video(ids.get(index)))return;
   final Uri source=uri(ids.get(index));final int time=media!=null&&prepared?media.getCurrentPosition():0;
+  // Snapshot on UI thread while TextureView still displays the selected frame.
+  // Some HEVC/HDR clips play correctly but MediaMetadataRetriever returns null.
+  Bitmap displayed=null;
+  try{if(texture!=null&&texture.isAvailable()&&prepared)displayed=texture.getBitmap();}
+  catch(RuntimeException unavailable){}
+  final Bitmap visibleFrame=displayed;
   background.execute(()->{Uri created=null;boolean done=false;
    try{
-    MediaMetadataRetriever mr=new MediaMetadataRetriever();mr.setDataSource(activity,source);
-    Bitmap stillFrame=mr.getFrameAtTime(time*1000L,MediaMetadataRetriever.OPTION_CLOSEST);mr.release();
-    if(stillFrame==null)throw new java.io.IOException("frame missing");
+    Bitmap stillFrame=visibleFrame;
+    if(stillFrame==null){
+     MediaMetadataRetriever mr=new MediaMetadataRetriever();
+     try{
+      mr.setDataSource(activity,source);
+      stillFrame=mr.getFrameAtTime(time*1000L,MediaMetadataRetriever.OPTION_CLOSEST);
+      if(stillFrame==null)stillFrame=mr.getFrameAtTime(time*1000L,MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+      if(stillFrame==null)stillFrame=mr.getFrameAtTime(-1);
+     }finally{try{mr.release();}catch(Exception ignored){}}
+    }
+    if(stillFrame==null)throw new java.io.IOException("화면 영상 프레임을 읽을 수 없습니다");
     ContentValues v=new ContentValues();v.put(MediaStore.Images.Media.DISPLAY_NAME,"MOA_"+System.currentTimeMillis()+".jpg");
     v.put(MediaStore.Images.Media.MIME_TYPE,"image/jpeg");
     if(Build.VERSION.SDK_INT>=29){v.put(MediaStore.Images.Media.RELATIVE_PATH,Environment.DIRECTORY_PICTURES+"/MOA-Video-Captures/");v.put(MediaStore.Images.Media.IS_PENDING,1);}
