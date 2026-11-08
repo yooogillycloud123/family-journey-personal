@@ -343,12 +343,28 @@ public final class MoaNativeGallery {
    iconPaint.setStrokeCap(Paint.Cap.ROUND);iconPaint.setStrokeJoin(Paint.Join.ROUND);
    iconPaint.setStyle(Paint.Style.STROKE);
    if(kind==0){
-    float a=dp(13),b=dp(6);
-    canvas.drawLine(cx-a,cy-a+b,cx-a,cy-a,iconPaint);canvas.drawLine(cx-a,cy-a,cx-a+b,cy-a,iconPaint);
-    canvas.drawLine(cx+a-b,cy-a,cx+a,cy-a,iconPaint);canvas.drawLine(cx+a,cy-a,cx+a,cy-a+b,iconPaint);
-    canvas.drawLine(cx-a,cy+a-b,cx-a,cy+a,iconPaint);canvas.drawLine(cx-a,cy+a,cx-a+b,cy+a,iconPaint);
-    canvas.drawLine(cx+a-b,cy+a,cx+a,cy+a,iconPaint);canvas.drawLine(cx+a,cy+a-b,cx+a,cy+a,iconPaint);
-    canvas.drawCircle(cx,cy,dp(3.3f),iconPaint);
+    // Picture inside four screenshot/viewfinder corner brackets.
+    float r=dp(12.2f),arm=dp(4.8f);
+    iconPaint.setStrokeWidth(dp(1.8f));
+    canvas.drawLine(cx-r,cy-r+arm,cx-r,cy-r,iconPaint);
+    canvas.drawLine(cx-r,cy-r,cx-r+arm,cy-r,iconPaint);
+    canvas.drawLine(cx+r-arm,cy-r,cx+r,cy-r,iconPaint);
+    canvas.drawLine(cx+r,cy-r,cx+r,cy-r+arm,iconPaint);
+    canvas.drawLine(cx-r,cy+r-arm,cx-r,cy+r,iconPaint);
+    canvas.drawLine(cx-r,cy+r,cx-r+arm,cy+r,iconPaint);
+    canvas.drawLine(cx+r-arm,cy+r,cx+r,cy+r,iconPaint);
+    canvas.drawLine(cx+r,cy+r-arm,cx+r,cy+r,iconPaint);
+    RectF photo=new RectF(cx-dp(7.4f),cy-dp(5.8f),cx+dp(7.4f),cy+dp(5.8f));
+    iconPaint.setStrokeWidth(dp(1.35f));
+    canvas.drawRoundRect(photo,dp(1.5f),dp(1.5f),iconPaint);
+    canvas.drawCircle(cx+dp(3.4f),cy-dp(2.2f),dp(1.0f),iconPaint);
+    android.graphics.Path landscape=new android.graphics.Path();
+    landscape.moveTo(cx-dp(6),cy+dp(4.4f));
+    landscape.lineTo(cx-dp(2),cy-dp(.5f));
+    landscape.lineTo(cx+dp(.7f),cy+dp(2.4f));
+    landscape.lineTo(cx+dp(2.1f),cy+dp(.8f));
+    landscape.lineTo(cx+dp(6),cy+dp(4.4f));
+    canvas.drawPath(landscape,iconPaint);
    }else if(kind==1){
     iconPaint.setStyle(Paint.Style.FILL);
     if(String.valueOf(getText()).contains("▶")){
@@ -360,15 +376,23 @@ public final class MoaNativeGallery {
      canvas.drawRoundRect(cx+dp(3),cy-dp(10),cx+dp(9),cy+dp(10),dp(2),dp(2),iconPaint);
     }
    }else{
-    android.graphics.Path shape=new android.graphics.Path();
-    shape.moveTo(cx-dp(12),cy-dp(5));shape.lineTo(cx-dp(7),cy-dp(5));
-    shape.lineTo(cx,cy-dp(11));shape.lineTo(cx,cy+dp(11));
-    shape.lineTo(cx-dp(7),cy+dp(5));shape.lineTo(cx-dp(12),cy+dp(5));
-    shape.close();canvas.drawPath(shape,iconPaint);
-    if(String.valueOf(getText()).equals("♪"))canvas.drawLine(cx+dp(5),cy-dp(8),cx+dp(14),cy+dp(8),iconPaint);
-    else{
-     canvas.drawArc(cx-dp(4),cy-dp(9),cx+dp(12),cy+dp(9),-55,110,false,iconPaint);
-     canvas.drawArc(cx-dp(1),cy-dp(14),cx+dp(18),cy+dp(14),-55,110,false,iconPaint);
+    // Distinct speaker / muted speaker icon, no musical notes.
+    android.graphics.Path speaker=new android.graphics.Path();
+    speaker.moveTo(cx-dp(10),cy-dp(4));
+    speaker.lineTo(cx-dp(6),cy-dp(4));
+    speaker.lineTo(cx-dp(1),cy-dp(9));
+    speaker.lineTo(cx-dp(1),cy+dp(9));
+    speaker.lineTo(cx-dp(6),cy+dp(4));
+    speaker.lineTo(cx-dp(10),cy+dp(4));
+    speaker.close();
+    canvas.drawPath(speaker,iconPaint);
+    if(String.valueOf(getText()).equals("♪")){
+     iconPaint.setStrokeWidth(dp(2.2f));
+     canvas.drawLine(cx+dp(3),cy-dp(10),cx+dp(12),cy+dp(10),iconPaint);
+    }else{
+     iconPaint.setStrokeWidth(dp(1.8f));
+     canvas.drawArc(cx-dp(4),cy-dp(8),cx+dp(12),cy+dp(8),-53,106,false,iconPaint);
+     canvas.drawArc(cx-dp(1),cy-dp(12),cx+dp(15),cy+dp(12),-52,104,false,iconPaint);
     }
    }
   }
