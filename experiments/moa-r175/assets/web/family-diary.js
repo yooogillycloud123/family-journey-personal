@@ -18,7 +18,8 @@ const manuallyCurated=x=>!!x&&(x.selectionMode==='manual'||(x.selectionMode===un
 // R37: keep completed gallery thumbnails visible across camera rescans and app relaunches.
 // In-memory LRU is transient; a small, bounded cache of ONLY calendar covers is
 // kept in the existing on-device diary IndexedDB (no original photo copies).
-const R38_BIG_THUMB=(()=>{try{return matchMedia('(min-width: 600px)').matches?400:250}catch(e){return 250}})();
+// R197: never show a 130px cover as the permanent day tile; request 400px photo previews.
+const R38_BIG_THUMB=400;
 const R37_RAM_LIMIT=18*1024*1024,R37_COVER_LIMIT=5*1024*1024;
 const r37Ram=new Map();let r37RamBytes=0,r37Cover={},r37CoverOrder=[],r37CoverBytes=0,r37SaveTimer=0;
 function r37Bytes(v){return v?String(v).length*2:0}
@@ -1106,12 +1107,55 @@ function chooseDay(day,newEntry=false){
  render();S.root.scrollTop=0;
 }
 function newCurated(){const picked=$('#fd23-newdate')?.value||S.today;const a=new Date(picked+'T12:00:00');if(!/^\d{4}-\d{2}-\d{2}$/.test(picked)||!Number.isFinite(a.getTime())||dateOf(a.getTime())!==picked){alert('먼저 일기를 기록할 날짜를 선택해 주세요.');return}S.month=new Date(a.getFullYear(),a.getMonth(),1);chooseDay(picked,true);openPicker()}
-function render(){if(!S.open||!S.root)return;r74KeepVisible();r37Snapshot();const previousScroll=S.root.scrollTop;S.root.replaceChildren();S.root.dataset.page=S.page;const banner=elem('div','fd23-banner',S.load?'사진 날짜 정보 읽는 중…':!S.ready?'일기 자료를 불러오는 중 · 달력은 먼저 표시됩니다':metaStatus());banner.id='fd23-status';S.root.append(banner);
+
+// R197: WebView redraws/Android external intents must not collapse the day's
+// previously opened media cards, record panels, or visible media batches.
+let r197LastDayUI=null;
+function r197CaptureDayUI(){
+ if(!S.root||S.root.dataset.page!=='day')return null;
+ const media={};
+ for(const tile of S.root.querySelectorAll('.moa-r191-media-tile[data-moa-media-id]')){
+  const id=tile.dataset.moaMediaId;
+  media[id]={
+   memo:!!tile.querySelector('.moa-r191-memo-fold')?.open,
+   tools:!!tile.querySelector('.moa-r191-tools-fold')?.open,
+   attach:!!tile.querySelector('.moa-r193-audio-attach')?.open,
+   geo:!!tile.querySelector('.fd29-geo-panel:not([hidden])')
+  };
+ }
+ const groups={};
+ for(const group of S.root.querySelectorAll('.fd23-log[data-group-start]'))
+  groups[group.dataset.groupStart]=group.querySelectorAll('.moa-r191-media-tile').length;
+ return {key:(S.root.dataset.moaRenderedMode||S.mode)+'|'+(S.root.dataset.moaRenderedDay||S.date),media,groups,scroll:S.root.scrollTop};
+}
+function r197RestoreDayUI(snapshot){
+ if(!snapshot||S.page!=='day'||snapshot.key!==S.mode+'|'+S.date)return;
+ for(const group of S.root.querySelectorAll('.fd23-log[data-group-start]')){
+  const need=Math.min(400,Number(snapshot.groups[group.dataset.groupStart])||0);
+  let guard=0;
+  while(group.querySelectorAll('.moa-r191-media-tile').length<need&&guard++<30){
+   const more=group.querySelector('button.fd31-more');if(!more)break;more.click();
+  }
+ }
+ for(const tile of S.root.querySelectorAll('.moa-r191-media-tile[data-moa-media-id]')){
+  const keep=snapshot.media[tile.dataset.moaMediaId];if(!keep)continue;
+  const memo=tile.querySelector('.moa-r191-memo-fold'),tools=tile.querySelector('.moa-r191-tools-fold');
+  if(memo)memo.open=keep.memo;if(tools)tools.open=keep.tools;
+  if(keep.geo&&tools){const btn=tools.querySelector('.fd29-position');if(btn)btn.click()}
+  const attach=tile.querySelector('.moa-r193-audio-attach');if(attach)attach.open=keep.attach;
+ }
+ S.root.scrollTop=snapshot.scroll;
+}
+function render(){if(!S.open||!S.root)return;
+ const daySnapshot=S.page==='day'?(r197CaptureDayUI()||r197LastDayUI):null;
+ if(daySnapshot)r197LastDayUI=daySnapshot;
+ r74KeepVisible();r37Snapshot();const previousScroll=S.root.scrollTop;S.root.replaceChildren();S.root.dataset.page=S.page;const banner=elem('div','fd23-banner',S.load?'사진 날짜 정보 읽는 중…':!S.ready?'일기 자료를 불러오는 중 · 달력은 먼저 표시됩니다':metaStatus());banner.id='fd23-status';S.root.append(banner);
  if(S.page==='calendar'||S.page==='curated'){const h=elem('header','fd23-header');h.append(elem('div','fd23-heading','우리 가족 사진 일기'));S.root.insertBefore(h,banner);
   const switcher=elem('div','fd23-modes');switcher.append(button('내가 고른 사진 일기',()=>chooseMode('curated'),S.mode==='curated'?'active':''),button('자동 사진 달력',()=>chooseMode('automatic'),S.mode==='automatic'?'active':''));S.root.append(switcher);
   renderCalendar();
  }else if(S.page==='day')renderDay();else if(S.page==='picker')renderPicker();
  if(previousScroll>0)S.root.scrollTop=previousScroll;
+ if(S.page==='day'&&daySnapshot)r197RestoreDayUI(daySnapshot);
  r96Queue();
 }
 function renderCalendar(){
@@ -1195,8 +1239,8 @@ async function r193ConnectPhotoVoice(day,uid,fileId){
   const moments=(entry.moments||[]).map(m=>m.uid===uid?{...m,voiceIds:[...new Set([...(m.voiceIds||[]),fileId])],updatedAt:Date.now()}:m);
   if(!moments.some(m=>m.uid===uid))throw Error('연결할 사진 메모를 찾지 못했습니다');
   const updated={...entry,moments,updatedAt:Date.now()};await dbPut('curated',day,updated);S.curatedEntries.set(day,updated);
-  render();status('선택한 녹음을 이 사진에 연결했습니다. 원본 M4A는 그대로 유지됩니다.');
- }catch(e){status('녹음 연결 실패: '+e,true)}
+  render();status('선택한 녹음을 이 사진에 연결했습니다. 원본 M4A는 그대로 유지됩니다.');return true;
+  }catch(e){status('녹음 연결 실패: '+e,true);return false}
 }
 // Native M4A record_saved callback for an explicitly selected photo.
 // Native bytes remain in the original day folder. Only ID reference enters diary DB.
@@ -1235,6 +1279,129 @@ function r193PhotoAudio(m,day,body,voiceIndex){
   row.append(play);body.append(row);
  }
 }
+
+// R197: a real in-app audio attachment sheet, instead of Android's blind
+// time/size-only select list. The chosen original photo and exact M4A metadata
+// stay visible together; no data is modified before explicit confirmation.
+function r197OpenVoiceAttachSheet(photo,entry,moment,available){
+ document.getElementById('moa-r197-voice-picker')?.remove();
+ const day=entry?.day||S.date;
+ const shade=elem('div','moa-r197-voice-shade');shade.id='moa-r197-voice-picker';
+ const panel=elem('section','moa-r197-voice-sheet');
+ panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');
+ panel.setAttribute('aria-label','이 사진에 연결할 원본 음성 선택');
+ const close=()=>shade.remove();
+ const head=elem('div','moa-r197-voice-head');
+ head.append(elem('strong','','사진 확인 · 기존 녹음 연결'),button('닫기',close));
+ panel.append(head);
+ const photoRow=elem('div','moa-r197-voice-photo');
+ const thumb=elem('img');thumb.dataset.photoId=String(photo.id);thumb.alt='지금 녹음을 연결할 바로 그 사진';
+ const live=S.root.querySelector('.moa-r191-media-tile[data-moa-media-id="'+String(photo.id)+'"] img');
+ if(live?.src)thumb.src=live.src;
+ const photoDesc=elem('div','','');
+ photoDesc.append(elem('strong','','연결 대상 사진·영상'));
+ photoDesc.append(elem('p','','촬영 '+new Date(Number(photo.t)||Date.now()).toLocaleString('ko-KR')));
+ photoDesc.append(elem('small','','위 사진을 확인하고 아래 녹음을 직접 들어본 뒤 연결하세요.'));
+ photoRow.append(thumb,photoDesc);panel.append(photoRow);
+ panel.append(elem('p','moa-r197-voice-note','저장된 음성을 재생·일시정지하거나 녹음 당시 저장한 텍스트를 읽어볼 수 있습니다. 연결하지 않아도 원본은 보존됩니다.'));
+ const list=elem('div','moa-r197-voice-list');
+ let chosen=null;
+ for(const file of available){
+  const fileId=String(file.id),record=elem('label','moa-r197-voice-choice');
+  const note=w.MoaVoicePlaybackUI?.metaFor?.(day,fileId)||{};
+  const choice=elem('input');choice.type='radio';choice.name='moa-r197-voice-choice';
+  choice.value=fileId;choice.addEventListener('change',()=>{chosen=fileId;confirm.disabled=false});
+  const main=elem('div','moa-r197-voice-detail');
+  const line=elem('strong','moa-r197-voice-title',String(note.title||'원본 음성 기록'));
+  main.append(line);
+  const info=elem('div','moa-r197-voice-file-meta',
+   new Date(Number(file.time)||Date.now()).toLocaleString('ko-KR')+' · '+Math.round(Math.max(0,Number(file.bytes)||0)/1024)+'KB');
+  main.append(info);
+  const playback=button('▶ 00:00 / '+(w.MoaVoicePlaybackUI?.totalLabel?.(day,fileId)||'--:--'),
+   ()=>w.MoaVoicePlaybackUI?.play?.(day,fileId,playback),'moa-r197-voice-play');
+  playback.dataset.moaAudioPlay=day+'/'+fileId;playback.dataset.moaAudioTitle=note.title||'원본 음성';
+  main.append(playback);
+  const recognized=String(note.transcript||note.autoTranscript||'').trim();
+  const noteBox=elem('div','moa-r197-voice-transcript',
+   recognized||'저장된 녹음 텍스트 없음 · 재생해서 내용을 확인할 수 있습니다.');
+  main.append(noteBox);
+  record.append(choice,main);list.append(record);
+ }
+ panel.append(list);
+ const footer=elem('div','moa-r197-voice-footer');
+ const confirm=button('선택한 음성을 이 사진에 연결',async()=>{
+  if(!chosen)return;confirm.disabled=true;
+  const ok=await r193ConnectPhotoVoice(day,String(moment.uid),chosen);
+  if(ok){close();r197HighlightLinkedPhoto(String(photo.id),true);}
+  else confirm.disabled=false;
+ },'primary');
+ confirm.disabled=true;
+ footer.append(button('취소',close),confirm);panel.append(footer);
+ shade.append(panel);document.body.append(shade);
+ shade.addEventListener('click',e=>{if(e.target===shade)close()});
+ panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}});
+ if(!thumb.src)thumbs([thumb],400);
+ // Android Back must close the nearest modal and never jump to the calendar.
+ for(const k of ['__fjBackOverlay','__photoMapBack']){
+  const old=w[k];if(typeof old!=='function'||old.__moaR197VoicePicker)continue;
+  const wrapped=function(...args){
+   const picker=document.getElementById('moa-r197-voice-picker');
+   if(picker){picker.remove();return true}return old.apply(this,args);
+  };wrapped.__moaR197VoicePicker=true;w[k]=wrapped;
+ }
+}
+function r197HighlightLinkedPhoto(id,linked=true){
+ const target=S.root?.querySelector('.moa-r191-media-tile[data-moa-media-id="'+String(id)+'"]');
+ if(target)r197MarkVoiceDestination(target,linked);
+}
+function r197MarkVoiceDestination(target,exact){
+ if(!target||!target.isConnected)return;
+ for(const x of S.root.querySelectorAll('.moa-r197-voice-destination'))x.classList.remove('moa-r197-voice-destination');
+ for(const x of S.root.querySelectorAll('.moa-r197-voice-badge'))x.remove();
+ target.classList.add('moa-r197-voice-destination');
+ const badge=elem('span','moa-r197-voice-badge',
+  exact?'이 녹음이 연결된 사진':'이 시간대 녹음 · 연결된 사진 없음');
+ target.insertBefore(badge,target.firstChild);
+ const focus=()=>{if(target.isConnected)target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'})};
+ focus();setTimeout(focus,150); // voice sheet has finished closing
+ setTimeout(()=>{if(target.isConnected){badge.remove();target.classList.remove('moa-r197-voice-destination')}},10000);
+}
+
+
+// R197: two-finger inline zoom inside a diary card, without launching gallery.
+// On zoom, card stays in day timeline; second ordinary tap resets it.
+function r197EnableInlinePinch(item,picture){
+ let startSpan=0,startScale=1,zoom=1,lastMidX=0,lastMidY=0;
+ let dx=0,dy=0,blockTapUntil=0;
+ const length=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+ const middle=t=>({x:(t[0].clientX+t[1].clientX)/2,y:(t[0].clientY+t[1].clientY)/2});
+ const paint=()=>{
+  picture.style.transform='translate('+dx+'px,'+dy+'px) scale('+zoom+')';
+  item.classList.toggle('moa-r197-inline-zoom',zoom>1.025);
+  item.setAttribute('aria-label',zoom>1.025?'사진 확대됨 · 탭하면 원래 크기':'사진 확대 보기 · 두 손가락으로 화면 안에서 확대 가능');
+ };
+ item.addEventListener('touchstart',e=>{
+  if(e.touches.length===2){startSpan=Math.max(1,length(e.touches));startScale=zoom;
+   const pt=middle(e.touches);lastMidX=pt.x;lastMidY=pt.y;
+   blockTapUntil=Date.now()+700;e.preventDefault();}
+ },{passive:false});
+ item.addEventListener('touchmove',e=>{
+  if(e.touches.length!==2||!startSpan)return;
+  const mid=middle(e.touches);
+  dx+=mid.x-lastMidX;dy+=mid.y-lastMidY;lastMidX=mid.x;lastMidY=mid.y;
+  zoom=Math.max(1,Math.min(3.25,startScale*length(e.touches)/startSpan));
+  if(zoom<1.04){zoom=1;dx=0;dy=0}
+  const limitX=Math.max(0,(zoom-1)*item.clientWidth/2);
+  const limitY=Math.max(0,(zoom-1)*item.clientHeight/2);
+  dx=Math.max(-limitX,Math.min(limitX,dx));dy=Math.max(-limitY,Math.min(limitY,dy));
+  paint();blockTapUntil=Date.now()+700;e.preventDefault();
+ },{passive:false});
+ item.addEventListener('touchend',e=>{if(e.touches.length<2)startSpan=0},{passive:true});
+ return ()=>{if(Date.now()<blockTapUntil)return true;
+  if(zoom>1.025){zoom=1;dx=dy=0;paint();return true}
+  return false;};
+}
+
 function videoFriendlyTile(p,chosen,entry,voiceIndex){
  const tile=elem('div','fd26-tile moa-r191-media-tile'),video=isVideo(p),id=String(p.id);
  tile.dataset.moaMediaId=id;tile.dataset.moaMediaTime=String(Number(p.t)||0);
@@ -1242,7 +1409,8 @@ function videoFriendlyTile(p,chosen,entry,voiceIndex){
  item.setAttribute('aria-label',video?'동영상 재생':'사진 확대 보기');
  const pic=elem('img');pic.dataset.photoId=id;pic.alt=video?'동영상 미리보기':'사진 미리보기';item.append(pic);
  if(video)item.append(elem('span','fd26-video-mark','▶ '+durationText(p.duration)));
- item.onclick=()=>video?nav('diaryPlayVideo',{id}):openGallery(chosen,chosen.findIndex(x=>x.id===id));
+ const pinchGuard=video?()=>false:r197EnableInlinePinch(item,pic);
+ item.onclick=()=>{if(pinchGuard())return;video?nav('diaryPlayVideo',{id}):openGallery(chosen,chosen.findIndex(x=>x.id===id));};
  tile.append(item);
 
  const related=(entry?.moments||[]).filter(m=>(m.photoIds||[]).some(mid=>String(mid)===id));
@@ -1274,11 +1442,8 @@ function videoFriendlyTile(p,chosen,entry,voiceIndex){
   const assigned=new Set((entry?.moments||[]).flatMap(m=>Array.isArray(m.voiceIds)?m.voiceIds:[]));
   const available=[...(voiceIndex?.values()||[])].filter(f=>!assigned.has(f.id));
   if(available.length&&related[0]?.uid){
-   const picker=elem('details','moa-r193-audio-attach');picker.append(elem('summary','','기존 녹음 연결'));
-   const selection=elem('select');selection.setAttribute('aria-label','이 사진과 연결할 음성 선택');
-   for(const f of available){const opt=elem('option','',new Date(Number(f.time)).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' · '+Math.round((Number(f.bytes)||0)/1024)+'KB');opt.value=f.id;selection.append(opt)}
-   picker.append(selection,button('이 사진에 연결',()=>r193ConnectPhotoVoice(entry.day,String(related[0].uid),selection.value),'moa-r191-tile-edit'));
-   memoBody.append(picker);
+   memoBody.append(button('기존 녹음 찾아 연결',
+    ()=>r197OpenVoiceAttachSheet(p,entry,related[0],available),'moa-r197-attach-open'));
   }
  }
  memo.append(memoBody);tile.append(memo);
@@ -1390,7 +1555,13 @@ function r191OpenDaySheet(edit=false){
       S.editing=true;S.dirty=true;render();r191OpenDaySheet(true);
      });
    }
-   add('⚙ 보기 설정 · 시간대·사진 크기',()=>r193OpenDisplaySettings());
+   add('⚙ 보기 설정 · 시간대·사진 크기·상단 고정',()=>r193OpenDisplaySettings());
+   add('상단 날짜·메뉴 고정: '+(r195StickyHeader()?'켜짐 · 끄기':'꺼짐 · 켜기'),()=>{
+    const turnOn=!r195StickyHeader();
+    try{localStorage.setItem(R195_STICKY_HEADER_KEY,turnOn?'on':'off')}catch(_){}
+    S.root.dataset.moaR195Sticky=turnOn?'on':'off';
+    status('상단 날짜·메뉴 고정 '+(turnOn?'켜짐':'꺼짐'));
+   });
    add('✎ 제목·본문·시간대 메모 · 일기 수정',()=>r191OpenDaySheet(true));
    if(entriesForMode().get(S.date))
      add('일기 삭제',()=>remove(),true);
@@ -1419,10 +1590,11 @@ function r191GroupOnlyActivity(entry,g){
  return text.replace(/\n{3,}/g,'\n\n').trim();
 }
 function renderDay(){const day=S.date,entry=entriesForMode().get(day),auto=S.byDay.get(day)||[],chosen=visibleDayPhotos();
+ S.root.dataset.moaRenderedDay=day;S.root.dataset.moaRenderedMode=S.mode;
  S.root.dataset.moaR193Columns=String(r193PhotoColumns());
  S.root.dataset.moaR195Sticky=r195StickyHeader()?'on':'off';
  const voiceIndex=r193DayVoices(day);
- const header=elem('div','fd23-top');header.append(button('‹ 달력으로',back,'soft'),elem('strong','',readable(day)),button('⋯',()=>r191OpenDaySheet(S.editing),'soft moa-r191-day-menu-trigger'));S.root.append(header);
+ const header=elem('div','fd23-top');header.append(button('‹ 달력으로',back,'soft'),elem('strong','',readable(day)),button('⋯',()=>r191OpenDaySheet(S.editing),'soft moa-r191-day-menu-trigger'));S.root.insertBefore(header,S.root.firstChild);
  const stat=elem('div','fd23-daystats');stat.append(elem('div','',`사진 ${chosen.filter(p=>!isVideo(p)).length}장 · 동영상 ${chosen.filter(isVideo).length}개 · ${S.manual?'내가 고른 기록':'이날 촬영한 전체 기록'}`));if(auto.length||(S.byVideoDay.get(day)||[]).length)stat.append(elem('small','',`이날 촬영한 사진 ${auto.length}장 · 영상 ${(S.byVideoDay.get(day)||[]).length}개`));S.root.append(stat);
  const jump=elem('div','fd23-shortcuts');
  if(S.manual){
@@ -1609,6 +1781,7 @@ async function save(){const previous=entriesForMode().get(S.date)||{};const doc=
 async function remove(){if(!confirm('이 날짜의 일기 내용을 삭제할까요? 원본 사진은 삭제되지 않습니다.'))return;try{const table=S.manual?'curated':'entries';await dbDelete(table,S.date);entriesForMode().delete(S.date);S.selection.clear();S.editing=false;S.dirty=false;render();status('일기 삭제 완료 · 원본 사진 보존')}catch(e){status('삭제 실패: '+e,true)}}
 function openPicker(){// Avoid losing unsaved editor edits on picker round trip.
  if(S.editing&&S.dirty){const snapshot={title:$('#fd23-title')?.value,body:$('#fd23-body')?.value,tags:$('#fd23-tags')?.value,feeling:$('#fd23-feeling')?.value,activities:{}};for(const x of S.root.querySelectorAll('[data-activity-key]'))snapshot.activities[x.dataset.activityKey]=x.value;S.editorSnapshot=snapshot}else S.editorSnapshot=null;
+ r197LastDayUI=r197CaptureDayUI();
  S.page='picker';S.pickerMonth=new Date(S.month);S.pickerPage=0;S.manual=true;render()}
 function renderPicker(){
  const head=elem('header','fd23-top');head.append(button('‹ 일기로 돌아가기',()=>{S.page='day';render()},'soft'),elem('strong','','사진·동영상 여러 개 선택'),elem('span','fd23-chip',`${S.selection.size}개`));S.root.append(head);
@@ -2019,9 +2192,7 @@ async function r195JumpToAudioLocation(day,fileId){
    status('이 날짜에 연결된 사진·영상이 보이지 않습니다. 원본 음성은 그대로 보존됩니다.',true);
    return false;
   }
-  target.scrollIntoView({behavior:'smooth',block:attachedId?'center':'start',inline:'nearest'});
-  target.classList.add('moa-r195-jump-target');
-  setTimeout(()=>target?.classList.remove('moa-r195-jump-target'),2500);
+  r197MarkVoiceDestination(target,!!(attachedId&&target.dataset.moaMediaId===attachedId));
   return true;
  }catch(e){
   status('녹음 위치로 이동하지 못했습니다: '+String(e),true);
