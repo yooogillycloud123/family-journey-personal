@@ -424,10 +424,14 @@ window.MoaMonthlyInsights={open:show,close,collectMonth,version:'R143'};
    const m=label.match(/([01]\d|2[0-3]):([0-5]\d)/);if(!m)continue;
    const slot=m[1]+':'+String(Math.floor(Number(m[2])/5)*5).padStart(2,'0');
    let bar=$('.moa-r151-group-tools',section);if(!bar){bar=mk('div','moa-r151-group-tools');section.querySelector('.fd23-logtime')?.insertAdjacentElement('afterend',bar);}
-    let add=$('.moa-r151-slot-record',bar);
-    if(!add){add=mk('button','moa-r151-slot-record','● 이 시간대 음성 녹음');add.type='button';
-      bar.append(add);}
-    // Update the correct time slot without replacing existing playback or edit DOM.
+    // R191: same native recording callback, compact round button IN the time header.
+    let add=$('.moa-r151-slot-record',section);
+    if(!add){add=mk('button','moa-r151-slot-record moa-r191-round-mic','●');add.type='button';
+      section.querySelector('.fd23-logtime')?.append(add);}
+    add.textContent='●';
+    add.setAttribute('aria-label',slot+' 시간대 음성 녹음');
+    add.title=slot+' 시간대 음성 녹음';
+    // Same underlying native recorder and day/slot metadata logic as R151.
     add.onclick=()=>showRecorder(d,slot);
    const attached=entries.filter(item=>{const assignedSlot=slotOf(item.time); /* R169 actual recording time only, no implicit backdated group. */ if(assignedSlot===slot){assigned.add(item.id);return true;}return false;});
    let fold=$('.moa-r169-slot-fold',bar);
@@ -439,12 +443,16 @@ window.MoaMonthlyInsights={open:show,close,collectMonth,version:'R143'};
    let details=$('.moa-r169-slot-details',bar);
    if(!details){details=mk('div','moa-r169-slot-details');details.hidden=true;bar.append(details);}
    details.dataset.count=String(attached.length);
+   // With no recording the tools row should occupy zero height.
+   bar.hidden=attached.length===0;
    fold.hidden=attached.length===0;
    fold.textContent=(details.hidden?'▾ ':'▴ ')+attached.length+'개 음성';
    addAudioRow(details,attached,d);
   }
   let standalone=$('#moa-r151-standalone');if(!standalone){standalone=mk('section','moa-r151-standalone');standalone.id='moa-r151-standalone';timeline.append(standalone);}
    const others=entries.filter(x=>!assigned.has(x.id));
+   // R191: no empty recordings notice in the compact daily page; manager is in ⋯.
+   standalone.hidden=others.length===0;
    let heading=$('.moa-r151-unlinked-title',standalone);
    if(!heading){heading=mk('h3','moa-r151-unlinked-title','사진 시간대 밖에 녹음한 음성');standalone.append(heading);}
    heading.hidden=!others.length;
