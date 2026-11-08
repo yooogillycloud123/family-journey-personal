@@ -476,7 +476,7 @@ public final class MoaNativeGallery {
   fingerOffset=offset;if(!open||stage==null)return;
   int width=Math.max(1,stage.getWidth());
   for(int j=0;j<3;j++)pages[j].setTranslationX((j-1)*width+offset);
-  if(rail!=null){rail.center=index-offset/Math.max(1,width);rail.invalidate();}
+  if(rail!=null)rail.r205Track(index-offset/Math.max(1,width));
  }
  // R203: unlike R201's one-photo settle, native Android OverScroller keeps
  // momentum after finger release, updates the SAME fractional photo+thumbnail
@@ -663,14 +663,30 @@ public final class MoaNativeGallery {
  private final class GalleryRail extends View{
   private final Paint paint=new Paint(3);
   private float center,indexAtDown,xAtDown;
+  private float r205PrevCenter=Float.NaN,r205WaveStrength=0f;
+  private long r205WaveAt=0L;
   private android.view.VelocityTracker r203RailVelocity;
   private boolean r203RailMoved;
    // R201 scene painting only within selected thumbnail.
   private long downAt;
   GalleryRail(){super(activity);setLayerType(View.LAYER_TYPE_HARDWARE,null);setOnTouchListener(this::touch);}
+  void r205Track(float target){
+   long now=SystemClock.uptimeMillis();
+   if(!Float.isNaN(r205PrevCenter)){
+    float delta=Math.abs(target-r205PrevCenter);
+    if(delta>.001f){
+     float previous=r205WaveStrength*(float)Math.exp(-Math.max(0,now-r205WaveAt)/260f);
+     r205WaveStrength=Math.min(1f,Math.max(previous,delta*6.2f));r205WaveAt=now;
+    }
+   }
+   r205PrevCenter=target;center=target;invalidate();
+  }
   @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);
    // R199: never replace the entire mixed-media rail with a video-only rail.
    float stride=dp(44),cw=getWidth()*.5f,ht=getHeight()*.5f;
+   // Dynamic lifted thumbnail wave around the selected image; rail parent Y stays fixed.
+   float wave=r205WaveStrength*(float)Math.exp(-Math.max(0,SystemClock.uptimeMillis()-r205WaveAt)/260f);
+   if(wave>.025f&&open&&getVisibility()==View.VISIBLE)postInvalidateOnAnimation();
    int lo=Math.max(0,(int)Math.floor(center)-12),hi=Math.min(ids.size()-1,(int)Math.ceil(center)+12);
    final float extraHalf=dp(86)*Math.max(0f,r197ScrubExpansion);
    for(int i=lo;i<=hi;i++){
@@ -678,8 +694,13 @@ public final class MoaNativeGallery {
     if(i<index)x-=extraHalf;else if(i>index)x+=extraHalf;
     if(x<-stride-extraHalf||x>getWidth()+stride+extraHalf)continue;
     String id=ids.get(i);Bitmap bmp=posters.get(id);
-    RectF box=new RectF(x-dp(19)-(i==index?extraHalf:0f),ht-dp(23),
-      x+dp(19)+(i==index?extraHalf:0f),ht+dp(23));
+    float distance=i-center;
+    float lift=-dp(8)*wave*(float)Math.exp(-.56f*distance*distance);
+    float ripple=dp(4)*wave*(float)Math.sin(distance*2.15f)
+                   *(float)Math.exp(-Math.abs(distance)*.60f);
+    float localY=lift+ripple;
+    RectF box=new RectF(x-dp(19)-(i==index?extraHalf:0f),ht-dp(23)+localY,
+      x+dp(19)+(i==index?extraHalf:0f),ht+dp(23)+localY);
     paint.setColor(0xff33363a);canvas.drawRoundRect(box,dp(5),dp(5),paint);
     if(bmp!=null&&!(i==index&&r197ScrubExpansion>0.001f)){
      float ratio=Math.max((float)box.width()/bmp.getWidth(),(float)box.height()/bmp.getHeight());
@@ -694,8 +715,8 @@ public final class MoaNativeGallery {
     paint.setColor(i==index?0xfffff7f9:0x883d4350);canvas.drawRoundRect(box,dp(5),dp(5),paint);
     paint.setStyle(Paint.Style.FILL);
     if(video(id)){
-     paint.setColor(0xbb111111);canvas.drawCircle(x,ht,dp(7),paint);
-     paint.setColor(-1);paint.setTextSize(dp(9));canvas.drawText("▶",x-dp(3),ht+dp(3),paint);
+     paint.setColor(0xbb111111);canvas.drawCircle(x,ht+localY,dp(7),paint);
+     paint.setColor(-1);paint.setTextSize(dp(9));canvas.drawText("▶",x-dp(3),ht+localY+dp(3),paint);
      if(i==index&&prepared&&media!=null&&r197ScrubExpansion<0.01f){
       // R195: playback position is visible even BEFORE opening the scene strip.
       float progress=0;
