@@ -343,7 +343,7 @@ window.MoaMonthlyInsights={open:show,close,collectMonth,version:'R143'};
     function refreshPreview(){const m=getMeta();const summary=String(m.transcript||m.autoTranscript||m.captureNote||'').trim();
       preview.textContent=summary?(m.transcript?'메모 · ':m.autoTranscript?'자동 글 · ':'촬영 메모 · ')+summary:'';
       preview.hidden=!summary;play.dataset.moaAudioTitle=m.title||stamp;
-      if(!play.classList.contains('moa-voice-playing'))play.textContent='▶ '+(m.title||stamp+' · '+Math.round((item.bytes||0)/1024)+'KB');
+      if(!play.classList.contains('moa-voice-playing')&&!play.classList.contains('moa-voice-paused'))play.textContent='▶ '+(m.title||stamp+' · '+Math.round((item.bytes||0)/1024)+'KB');
     }
     const titleLabel=mk('label','moa-r167-field-label','녹음 이름');
     const title=mk('input','moa-r167-voice-name');title.type='text';title.maxLength=120;title.placeholder='예: 아이와 나눈 이야기';titleLabel.append(title);
@@ -417,23 +417,38 @@ window.MoaMonthlyInsights={open:show,close,collectMonth,version:'R143'};
   const timeline=$('.fd23-timeline',root);if(!timeline)return;
   const sections=[...timeline.querySelectorAll('.fd23-log')];
   const entries=isVoiceReady()?voices(d):[],links=loadLinks();
-  const signature=d+'|'+sections.map(x=>x.querySelector('.fd23-logtime strong')?.textContent||'').join('|')+'|'+entries.map(x=>x.id+':'+x.time+':'+links[d+'/'+x.id]).join('|');
+  // Camera Quick Record audio is attached to a particular photo, never a
+  // generic group. Refresh when voiceIds in diary change, not just when file list does.
+  const entry=window.FamilyJourneyDiary?.state?.curatedEntries?.get?.(d);
+  const photoVoice=new Set((entry?.moments||[]).flatMap(m=>Array.isArray(m.voiceIds)?m.voiceIds:[]).map(String));
+  const signature=d+'|'+sections.map(x=>x.querySelector('.fd23-logtime strong')?.textContent||'').join('|')+'|'+entries.map(x=>x.id+':'+x.time+':'+links[d+'/'+x.id]).join('|')+'|'+[...photoVoice].sort().join(',');
   if(signature===lastSignature&&$('#moa-r151-standalone'))return;lastSignature=signature;
   const assigned=new Set();
+  for(const file of entries)if(photoVoice.has(String(file.id)))assigned.add(String(file.id));
   for(const section of sections){const header=$('.fd23-logtime strong',section);const label=header?.textContent||'';
    const m=label.match(/([01]\d|2[0-3]):([0-5]\d)/);if(!m)continue;
-   const slot=m[1]+':'+String(Math.floor(Number(m[2])/5)*5).padStart(2,'0');
+   const start=Number(section.dataset.groupStart),end=Number(section.dataset.groupEnd);
+   if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)continue;
+   const stamp=new Date(start),slot=String(stamp.getHours()).padStart(2,'0')+':'+String(stamp.getMinutes()).padStart(2,'0');
    let bar=$('.moa-r151-group-tools',section);if(!bar){bar=mk('div','moa-r151-group-tools');section.querySelector('.fd23-logtime')?.insertAdjacentElement('afterend',bar);}
-    // R191: same native recording callback, compact round button IN the time header.
-    let add=$('.moa-r151-slot-record',section);
-    if(!add){add=mk('button','moa-r151-slot-record moa-r191-round-mic','●');add.type='button';
-      section.querySelector('.fd23-logtime')?.append(add);}
-    add.textContent='●';
-    add.setAttribute('aria-label',slot+' 시간대 음성 녹음');
-    add.title=slot+' 시간대 음성 녹음';
-    // Same underlying native recorder and day/slot metadata logic as R151.
-    add.onclick=()=>showRecorder(d,slot);
-   const attached=entries.filter(item=>{const assignedSlot=slotOf(item.time); /* R169 actual recording time only, no implicit backdated group. */ if(assignedSlot===slot){assigned.add(item.id);return true;}return false;});
+    // R193: tap the visible time RANGE, no right-edge red circle.
+    const timeTitle=$('.fd23-logtime strong',section);
+    if(timeTitle){timeTitle.setAttribute('role','button');timeTitle.setAttribute('tabindex','0');
+      timeTitle.setAttribute('aria-label',label+' 시간대 음성 녹음 시작');timeTitle.title='이 시간대에 음성 기록';
+      timeTitle.onclick=()=>showRecorder(d,slot);
+      timeTitle.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showRecorder(d,slot)}};
+    }
+    const add=$('.moa-r151-slot-record',section);if(add)add.remove();
+    const attached=entries.filter(item=>{
+      if(photoVoice.has(String(item.id)))return false;
+      const linked=String(links[d+'/'+item.id]||'');
+      let at=Number(item.time);
+      if(/^([01]\d|2[0-3]):[0-5]\d$/.test(linked)){
+       const date=new Date(d+'T'+linked+':00');if(Number.isFinite(date.getTime()))at=date.getTime();
+      }
+      if(at>=start&&at<end){assigned.add(item.id);return true}
+      return false;
+    });
    let fold=$('.moa-r169-slot-fold',bar);
    if(!fold){fold=mk('button','moa-r169-slot-fold','');fold.type='button';
      fold.setAttribute('aria-expanded','false');bar.append(fold);
@@ -450,7 +465,7 @@ window.MoaMonthlyInsights={open:show,close,collectMonth,version:'R143'};
    addAudioRow(details,attached,d);
   }
   let standalone=$('#moa-r151-standalone');if(!standalone){standalone=mk('section','moa-r151-standalone');standalone.id='moa-r151-standalone';timeline.append(standalone);}
-   const others=entries.filter(x=>!assigned.has(x.id));
+   const others=entries.filter(x=>!assigned.has(x.id)&&!photoVoice.has(String(x.id)));
    // R191: no empty recordings notice in the compact daily page; manager is in ⋯.
    standalone.hidden=others.length===0;
    let heading=$('.moa-r151-unlinked-title',standalone);
