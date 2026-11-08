@@ -116,6 +116,12 @@ public final class MoaNativeGallery {
  private ValueAnimator r203Snap;
  private android.view.VelocityTracker r203StageVelocity;
  private float r203FloatIndex;
+ // R205 visual motion only: this never changes the accepted R203 scroll physics.
+ private float r205Wave=0f;
+ private float r205WavePhase=0f;
+ private long r205LastWaveMs=0L;
+ private int r205PreviewSerial=0;
+ private android.view.View r205Preview;
  private String currentDay="";
  private Runnable ticker;
  private android.window.OnBackInvokedCallback backCallback;
@@ -212,28 +218,32 @@ public final class MoaNativeGallery {
   pause.setText("Ⅱ");mute.setText("♪");
   still.setOnClickListener(v->capture());pause.setOnClickListener(v->toggle());mute.setOnClickListener(v->toggleMute());
   LinearLayout leftIcon=new LinearLayout(activity);leftIcon.setGravity(Gravity.CENTER);
-  leftIcon.addView(still,new LinearLayout.LayoutParams(dp(37),dp(37)));
+  leftIcon.addView(still,new LinearLayout.LayoutParams(dp(32),dp(32)));
   videoControls.addView(leftIcon,new LinearLayout.LayoutParams(0,dp(45),1f));
   LinearLayout centerPill=new LinearLayout(activity);centerPill.setGravity(Gravity.CENTER_VERTICAL);
   android.graphics.drawable.GradientDrawable pillBg=new android.graphics.drawable.GradientDrawable();
-  pillBg.setColor(0xb816191f);pillBg.setCornerRadius(dp(22));pillBg.setStroke(dp(.7f),0x507d8288);
+  pillBg.setColor(0xc516191f);pillBg.setCornerRadius(dp(19));pillBg.setStroke(dp(1.1f),0x99ffffff);
   centerPill.setBackground(pillBg);centerPill.setPadding(dp(5),0,dp(6),0);
   // R203: the ENTIRE central capsule is the play/pause hit target.
   centerPill.setClickable(true);centerPill.setFocusable(true);
   centerPill.setContentDescription("동영상 재생·일시정지 및 재생시간");
   centerPill.setOnClickListener(v->toggle());
-  centerPill.addView(pause,new LinearLayout.LayoutParams(dp(31),dp(36)));
-  videoTime=new TextView(activity);videoTime.setTextColor(Color.WHITE);videoTime.setTextSize(12);
+  centerPill.addView(pause,new LinearLayout.LayoutParams(dp(29),dp(33)));
+  videoTime=new TextView(activity);videoTime.setTextColor(Color.WHITE);videoTime.setTextSize(11);
   videoTime.setSingleLine(true);videoTime.setGravity(Gravity.CENTER);
   videoTime.setTypeface(android.graphics.Typeface.MONOSPACE);videoTime.setText("00:00 / 00:00");
   videoTime.setClickable(true);videoTime.setContentDescription("동영상 재생·일시정지");
   videoTime.setOnClickListener(v->toggle());
-  centerPill.addView(videoTime,new LinearLayout.LayoutParams(0,dp(37),1f));
-  videoControls.addView(centerPill,new LinearLayout.LayoutParams(dp(154),dp(40)));
+  centerPill.addView(videoTime,new LinearLayout.LayoutParams(0,dp(33),1f));
+  videoControls.addView(centerPill,new LinearLayout.LayoutParams(dp(142),dp(36)));
   LinearLayout rightIcon=new LinearLayout(activity);rightIcon.setGravity(Gravity.CENTER);
-  rightIcon.addView(mute,new LinearLayout.LayoutParams(dp(37),dp(37)));
+  rightIcon.addView(mute,new LinearLayout.LayoutParams(dp(32),dp(32)));
   videoControls.addView(rightIcon,new LinearLayout.LayoutParams(0,dp(45),1f));
-  lower.addView(videoControls,new LinearLayout.LayoutParams(-1,dp(46)));
+  // Touchable feedback is independent of the nested child hit area.
+  r205PressFeedback(still,still);r205PressFeedback(mute,mute);
+  r205PressFeedback(centerPill,centerPill);
+  r205PressFeedback(pause,centerPill);r205PressFeedback(videoTime,centerPill);
+  lower.addView(videoControls,new LinearLayout.LayoutParams(-1,dp(44)));
   seek=new SeekBar(activity);seek.setMax(1000);seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
    public void onStartTrackingTouch(SeekBar bar){seekInProgress=true;}
    public void onStopTrackingTouch(SeekBar bar){seekInProgress=false;try{if(media!=null&&prepared)media.seekTo(bar.getProgress());}catch(Exception ignored){}}
@@ -293,9 +303,9 @@ public final class MoaNativeGallery {
    setTextColor(Color.TRANSPARENT);setPadding(0,0,0,0);
    setMinWidth(0);setMinHeight(0);setMinimumWidth(0);setMinimumHeight(0);
    android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
-   bg.setColor(which==1?Color.TRANSPARENT:0xa813151b);
-   bg.setCornerRadius(dp(25));
-   if(which!=1)bg.setStroke(dp(1),0x587f848a);
+   bg.setColor(which==1?Color.TRANSPARENT:0xb716191f);
+   bg.setCornerRadius(dp(18));
+   if(which!=1)bg.setStroke(dp(1.1f),0xaaffffff);
    setBackgroundTintList(null);setBackground(bg);
   }
   @Override protected void onDraw(Canvas canvas){
