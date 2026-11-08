@@ -122,7 +122,9 @@ function showViewer(ctx,initial){
  // Native owner will return false on unavailable/denied media, retaining the
  // R173 legacy viewer as safe fallback, without changing any diary records.
  const nativeApi=window.MoaLocalAudio;
- if(typeof nativeApi?.openNativeGallery==='function'){
+ const forceLegacy=window.__moaR175BypassNative===true;
+ if(forceLegacy)window.__moaR175BypassNative=false;
+ if(!forceLegacy && typeof nativeApi?.openNativeGallery==='function'){
   try{
    const at=Math.max(0,Math.min(ctx.media.length-1,Math.floor(initial||0)));
    const list=ctx.media.map(item=>String(item.id||''));
