@@ -313,16 +313,18 @@ public final class MoaNativeGallery {
   @Override protected void onDraw(Canvas canvas){
    super.onDraw(canvas);
    float cx=getWidth()/2f,cy=getHeight()/2f;
-   iconPaint.setColor(Color.WHITE);iconPaint.setStrokeWidth(dp(2.2f));
+   canvas.save();canvas.scale(.75f,.75f,cx,cy);
+   iconPaint.setColor(Color.WHITE);iconPaint.setStrokeWidth(dp(2f));
    iconPaint.setStrokeCap(Paint.Cap.ROUND);iconPaint.setStrokeJoin(Paint.Join.ROUND);
    iconPaint.setStyle(Paint.Style.STROKE);
    if(kind==0){
-    float a=dp(13),b=dp(6);
-    canvas.drawLine(cx-a,cy-a+b,cx-a,cy-a,iconPaint);canvas.drawLine(cx-a,cy-a,cx-a+b,cy-a,iconPaint);
-    canvas.drawLine(cx+a-b,cy-a,cx+a,cy-a,iconPaint);canvas.drawLine(cx+a,cy-a,cx+a,cy-a+b,iconPaint);
-    canvas.drawLine(cx-a,cy+a-b,cx-a,cy+a,iconPaint);canvas.drawLine(cx-a,cy+a,cx-a+b,cy+a,iconPaint);
-    canvas.drawLine(cx+a-b,cy+a,cx+a,cy+a,iconPaint);canvas.drawLine(cx+a,cy+a-b,cx+a,cy+a,iconPaint);
-    canvas.drawCircle(cx,cy,dp(3.3f),iconPaint);
+    // Framed picture + landscape: matches gallery metaphor, not capture corner brackets.
+    canvas.drawRoundRect(cx-dp(12),cy-dp(10),cx+dp(12),cy+dp(10),dp(2.7f),dp(2.7f),iconPaint);
+    canvas.drawCircle(cx+dp(6),cy-dp(4),dp(1.7f),iconPaint);
+    android.graphics.Path hill=new android.graphics.Path();
+    hill.moveTo(cx-dp(10),cy+dp(6));hill.lineTo(cx-dp(3),cy-dp(2));
+    hill.lineTo(cx+dp(1),cy+dp(2));hill.lineTo(cx+dp(5),cy-dp(1));
+    hill.lineTo(cx+dp(10),cy+dp(6));canvas.drawPath(hill,iconPaint);
    }else if(kind==1){
     iconPaint.setStyle(Paint.Style.FILL);
     if(String.valueOf(getText()).contains("▶")){
@@ -334,17 +336,20 @@ public final class MoaNativeGallery {
      canvas.drawRoundRect(cx+dp(3),cy-dp(10),cx+dp(9),cy+dp(10),dp(2),dp(2),iconPaint);
     }
    }else{
-    android.graphics.Path shape=new android.graphics.Path();
-    shape.moveTo(cx-dp(12),cy-dp(5));shape.lineTo(cx-dp(7),cy-dp(5));
-    shape.lineTo(cx,cy-dp(11));shape.lineTo(cx,cy+dp(11));
-    shape.lineTo(cx-dp(7),cy+dp(5));shape.lineTo(cx-dp(12),cy+dp(5));
-    shape.close();canvas.drawPath(shape,iconPaint);
-    if(String.valueOf(getText()).equals("♪"))canvas.drawLine(cx+dp(5),cy-dp(8),cx+dp(14),cy+dp(8),iconPaint);
-    else{
-     canvas.drawArc(cx-dp(4),cy-dp(9),cx+dp(12),cy+dp(9),-55,110,false,iconPaint);
-     canvas.drawArc(cx-dp(1),cy-dp(14),cx+dp(18),cy+dp(14),-55,110,false,iconPaint);
+    // Conventional speaker / muted-speaker visual, never a musical-note symbol.
+    android.graphics.Path speaker=new android.graphics.Path();
+    speaker.moveTo(cx-dp(11),cy-dp(5));speaker.lineTo(cx-dp(7),cy-dp(5));
+    speaker.lineTo(cx-dp(2),cy-dp(10));speaker.lineTo(cx-dp(2),cy+dp(10));
+    speaker.lineTo(cx-dp(7),cy+dp(5));speaker.lineTo(cx-dp(11),cy+dp(5));
+    speaker.close();canvas.drawPath(speaker,iconPaint);
+    if(String.valueOf(getText()).equals("♪")){
+     canvas.drawLine(cx+dp(2),cy-dp(9),cx+dp(12),cy+dp(9),iconPaint);
+    }else{
+     canvas.drawArc(cx-dp(5),cy-dp(8),cx+dp(9),cy+dp(8),-55,110,false,iconPaint);
+     canvas.drawArc(cx-dp(2),cy-dp(12),cx+dp(14),cy+dp(12),-55,110,false,iconPaint);
     }
    }
+   canvas.restore();
   }
  }
  private void r205PressFeedback(View control){
