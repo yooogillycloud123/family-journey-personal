@@ -98,6 +98,7 @@ public final class MoaNativeGallery {
  private ImageView[] images=new ImageView[3];
  private TextView header,videoTime,videoStatus;
  private Button pause,mute,still;
+ private ImageView r205CapturePreview;private Runnable r205PreviewDismiss;
  private LinearLayout videoControls, volumeRow, lowerControls;
  private SeekBar mediaVolumeSeek;
  private TextView mediaVolumeText;
@@ -212,26 +213,33 @@ public final class MoaNativeGallery {
   pause.setText("Ⅱ");mute.setText("♪");
   still.setOnClickListener(v->capture());pause.setOnClickListener(v->toggle());mute.setOnClickListener(v->toggleMute());
   LinearLayout leftIcon=new LinearLayout(activity);leftIcon.setGravity(Gravity.CENTER);
-  leftIcon.addView(still,new LinearLayout.LayoutParams(dp(37),dp(37)));
+  leftIcon.addView(still,new LinearLayout.LayoutParams(dp(32),dp(32)));
   videoControls.addView(leftIcon,new LinearLayout.LayoutParams(0,dp(45),1f));
   LinearLayout centerPill=new LinearLayout(activity);centerPill.setGravity(Gravity.CENTER_VERTICAL);
   android.graphics.drawable.GradientDrawable pillBg=new android.graphics.drawable.GradientDrawable();
-  pillBg.setColor(0xb816191f);pillBg.setCornerRadius(dp(22));pillBg.setStroke(dp(.7f),0x507d8288);
-  centerPill.setBackground(pillBg);centerPill.setPadding(dp(5),0,dp(6),0);
+  pillBg.setColor(0xc0191a1e);pillBg.setCornerRadius(dp(18));pillBg.setStroke(dp(1),0x9aa0a5aa);
+  android.graphics.drawable.GradientDrawable pillMask=new android.graphics.drawable.GradientDrawable();
+  pillMask.setColor(Color.WHITE);pillMask.setCornerRadius(dp(18));
+  centerPill.setBackground(new android.graphics.drawable.RippleDrawable(
+   android.content.res.ColorStateList.valueOf(0x55ffffff),pillBg,pillMask));
+  centerPill.setPadding(dp(3),0,dp(5),0);
   // R203: the ENTIRE central capsule is the play/pause hit target.
   centerPill.setClickable(true);centerPill.setFocusable(true);
   centerPill.setContentDescription("동영상 재생·일시정지 및 재생시간");
   centerPill.setOnClickListener(v->toggle());
-  centerPill.addView(pause,new LinearLayout.LayoutParams(dp(31),dp(36)));
-  videoTime=new TextView(activity);videoTime.setTextColor(Color.WHITE);videoTime.setTextSize(12);
+  centerPill.addView(pause,new LinearLayout.LayoutParams(dp(25),dp(30)));
+  videoTime=new TextView(activity);videoTime.setTextColor(Color.WHITE);videoTime.setTextSize(11);
   videoTime.setSingleLine(true);videoTime.setGravity(Gravity.CENTER);
   videoTime.setTypeface(android.graphics.Typeface.MONOSPACE);videoTime.setText("00:00 / 00:00");
   videoTime.setClickable(true);videoTime.setContentDescription("동영상 재생·일시정지");
   videoTime.setOnClickListener(v->toggle());
-  centerPill.addView(videoTime,new LinearLayout.LayoutParams(0,dp(37),1f));
-  videoControls.addView(centerPill,new LinearLayout.LayoutParams(dp(154),dp(40)));
+  centerPill.addView(videoTime,new LinearLayout.LayoutParams(0,dp(30),1f));
+  pause.setClickable(false);pause.setFocusable(false);pause.setLongClickable(false);
+  videoTime.setClickable(false);videoTime.setFocusable(false);
+  videoControls.addView(centerPill,new LinearLayout.LayoutParams(dp(136),dp(34)));
+  r205PressFeedback(still);r205PressFeedback(centerPill);r205PressFeedback(mute);
   LinearLayout rightIcon=new LinearLayout(activity);rightIcon.setGravity(Gravity.CENTER);
-  rightIcon.addView(mute,new LinearLayout.LayoutParams(dp(37),dp(37)));
+  rightIcon.addView(mute,new LinearLayout.LayoutParams(dp(32),dp(32)));
   videoControls.addView(rightIcon,new LinearLayout.LayoutParams(0,dp(45),1f));
   lower.addView(videoControls,new LinearLayout.LayoutParams(-1,dp(46)));
   seek=new SeekBar(activity);seek.setMax(1000);seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
@@ -293,10 +301,14 @@ public final class MoaNativeGallery {
    setTextColor(Color.TRANSPARENT);setPadding(0,0,0,0);
    setMinWidth(0);setMinHeight(0);setMinimumWidth(0);setMinimumHeight(0);
    android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
-   bg.setColor(which==1?Color.TRANSPARENT:0xa813151b);
+   bg.setColor(which==1?Color.TRANSPARENT:0xbb16181b);
    bg.setCornerRadius(dp(25));
-   if(which!=1)bg.setStroke(dp(1),0x587f848a);
-   setBackgroundTintList(null);setBackground(bg);
+   if(which!=1)bg.setStroke(dp(1),0x9c9fa6ad);
+   android.graphics.drawable.GradientDrawable mask=new android.graphics.drawable.GradientDrawable();
+   mask.setColor(Color.WHITE);mask.setCornerRadius(dp(18));
+   setBackgroundTintList(null);
+   setBackground(new android.graphics.drawable.RippleDrawable(
+    android.content.res.ColorStateList.valueOf(0x66ffffff),bg,mask));
   }
   @Override protected void onDraw(Canvas canvas){
    super.onDraw(canvas);
@@ -334,6 +346,18 @@ public final class MoaNativeGallery {
     }
    }
   }
+ }
+ private void r205PressFeedback(View control){
+  control.setOnTouchListener((v,e)->{
+   int action=e.getActionMasked();
+   if(action==MotionEvent.ACTION_DOWN){
+    v.animate().cancel();v.animate().scaleX(.91f).scaleY(.91f).setDuration(75).start();
+   }else if(action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL){
+    v.animate().cancel();v.animate().scaleX(1f).scaleY(1f).setDuration(145)
+      .setInterpolator(new android.view.animation.OvershootInterpolator(.85f)).start();
+   }
+   return false;
+  });
  }
  private Button button(String label,int size){Button b=new Button(activity);b.setAllCaps(false);b.setText(label);b.setTextSize(size);
   b.setTextColor(-1);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff22242b));
