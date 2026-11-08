@@ -141,7 +141,11 @@ function updatePlayback(){
   const elapsed=selected?Math.max(0,playing.elapsed+(playing.paused?0:Date.now()-playing.since)):0;
   const shown=selected?Math.floor((total>0?Math.min(elapsed,total):elapsed)/1000):0;
   const durationText=total>0?fmtSec(Math.ceil(total/1000)):'--:--';
-  b.textContent=selected?(playing.paused?'▶ 이어듣기 · ':'Ⅱ 일시정지 · ')+fmtSec(shown)+' / '+durationText:'▶ '+t+' · '+fmtSec(0)+' / '+durationText;
+  // Narrow diary cards must keep audio controls readable in ONE horizontal line.
+  const compact=b.dataset.moaAudioCompact==='true';
+  b.textContent=compact
+   ?(selected?(playing.paused?'▶ ':'Ⅱ '):'▶ ')+fmtSec(shown)+' / '+durationText
+   :selected?(playing.paused?'▶ 이어듣기 · ':'Ⅱ 일시정지 · ')+fmtSec(shown)+' / '+durationText:'▶ '+t+' · '+fmtSec(0)+' / '+durationText;
   b.setAttribute('aria-label',selected?(playing.paused?'이 음성 이어듣기':'이 음성 일시정지'):'음성 재생: '+t);
   b.classList.toggle('moa-voice-playing',!!selected&&!playing.paused);
   b.classList.toggle('moa-voice-paused',!!selected&&!!playing.paused);
@@ -222,7 +226,16 @@ function list(){if(!overlay)return;
   });
   auto.dataset.moaTranscribe=safeKey(day,item.id);
   row.append(auto);
-  row.append(play,btn('이름·글 편집','moa-r155-edit',()=>editMeta(day,item.id)),btn('삭제','',()=>{
+  const goToRecord=btn('기록 위치','moa-r195-jump-to-media',()=>{
+   const navigate=window.MoaDiaryNavigateToVoice;
+   if(typeof navigate!=='function'){text('사진일기 연결 기능이 준비되지 않았습니다.');return;}
+   goToRecord.disabled=true;
+   Promise.resolve(navigate(day,item.id)).then(found=>{
+    if(found)close();else text('연결된 사진 또는 해당 촬영 시간대를 찾지 못했습니다.');
+   }).catch(err=>text('기록 위치 이동 실패: '+String(err))).finally(()=>goToRecord.disabled=false);
+  });
+  goToRecord.setAttribute('aria-label','이 녹음이 연결된 사진 또는 해당 시간대 일기로 이동');
+  row.append(play,goToRecord,btn('이름·글 편집','moa-r155-edit',()=>editMeta(day,item.id)),btn('삭제','',()=>{
    if(!window.confirm('이 날짜의 선택한 음성 원본을 삭제할까요?'))return;
    native().delete(day,item.id);
   }));card.append(row);
