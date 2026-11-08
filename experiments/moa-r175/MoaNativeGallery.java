@@ -82,6 +82,10 @@ public final class MoaNativeGallery {
  private String scrubFrameClip="";
  private int scrubFrameCount=24,scrubFrameToken=0;
  private final HashMap<Integer,Bitmap> scrubFrames=new HashMap<>();
+ private final String[] loadedPageIds=new String[3];
+ private final java.util.HashSet<String> pendingPosters=new java.util.HashSet<>();
+ private final ExecutorService frameWorker=Executors.newSingleThreadExecutor();
+ private ImageView scrubPreview;
  private FrameLayout[] pages=new FrameLayout[3];
  private ImageView[] images=new ImageView[3];
  private TextView header,videoTime,videoStatus;
@@ -143,7 +147,7 @@ public final class MoaNativeGallery {
   container.addView(host,new FrameLayout.LayoutParams(-1,-1));
   stage=new FrameLayout(activity);stage.setBackgroundColor(Color.BLACK);
   FrameLayout.LayoutParams stagePos=new FrameLayout.LayoutParams(-1,-1);
-  stagePos.topMargin=dp(48);stagePos.bottomMargin=dp(165);
+  stagePos.topMargin=0;stagePos.bottomMargin=0; // stable viewer composition regardless of chrome
   host.addView(stage,stagePos);
   for(int j=0;j<3;j++){
    FrameLayout card=new FrameLayout(activity);
@@ -178,7 +182,7 @@ public final class MoaNativeGallery {
    });popup.show();
   });
   header.setPadding(dp(95),0,dp(60),0);
-  LinearLayout lower=new LinearLayout(activity);lowerControls=lower;lower.setOrientation(LinearLayout.VERTICAL);lower.setBackgroundColor(0xff0a0a0c);
+  LinearLayout lower=new LinearLayout(activity);lowerControls=lower;lower.setOrientation(LinearLayout.VERTICAL);lower.setBackgroundColor(0xb9000000); // overlay, don't resize the media
   activity.setVolumeControlStream(AudioManager.STREAM_MUSIC);
   FrameLayout.LayoutParams lowerPos=new FrameLayout.LayoutParams(-1,dp(165),Gravity.BOTTOM);
   host.addView(lower,lowerPos);
@@ -202,13 +206,13 @@ public final class MoaNativeGallery {
   // The video time-filmstrip is deliberately an alternative to the old seekbar,
   // not another unrelated horizontal media gallery.
   seekRow=new LinearLayout(activity);seekRow.setGravity(Gravity.CENTER_VERTICAL);
-  videoModeButton=button("영상 탐색",12);
+  videoModeButton=button("‹ 목록",12);videoModeButton.setVisibility(View.GONE);
   videoModeButton.setOnClickListener(v->setVideoScrubMode(!videoScrubMode));
   seekRow.addView(videoModeButton,new LinearLayout.LayoutParams(dp(94),dp(36)));
   seekRow.addView(seek,new LinearLayout.LayoutParams(0,dp(36),1));
   videoModeHint=new TextView(activity);videoModeHint.setTextColor(0xffeeeeee);
   videoModeHint.setTextSize(11);videoModeHint.setGravity(Gravity.CENTER_VERTICAL);
-  videoModeHint.setText("아래 장면을 좌우로 끌어 재생 위치 이동");
+  videoModeHint.setText("영상 장면 좌우 이동 · 선택 영상 미리보기 누르면 탐색");
   videoModeHint.setVisibility(View.GONE);
   seekRow.addView(videoModeHint,new LinearLayout.LayoutParams(0,dp(36),1));
   lower.addView(seekRow,new LinearLayout.LayoutParams(-1,dp(36)));
@@ -257,18 +261,21 @@ public final class MoaNativeGallery {
   if(backRegistered&&Build.VERSION.SDK_INT>=33)try{activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);}catch(Exception ignored){}
   backRegistered=false;backCallback=null;
   if(host!=null&&host.getParent() instanceof ViewGroup)((ViewGroup)host.getParent()).removeView(host);
+  for(int i=0;i<loadedPageIds.length;i++)loadedPageIds[i]=null;
+  pendingPosters.clear();scrubPreview=null;
   host=null;stage=null;rail=null;lowerControls=null;volumeRow=null;mediaVolumeSeek=null;mediaVolumeText=null;videoModeButton=null;videoModeHint=null;seekRow=null;backButton=null;menuButton=null;ids.clear();
  }
  private void refreshPages(){
   if(!open)return;
   header.setText((currentDay.isEmpty()?"사진·영상":currentDay)+"   "+(index+1)+" / "+ids.size());
   for(int j=0;j<3;j++){
-   final int p=index+j-1;images[j].setImageDrawable(null);
+   final int p=index+j-1;
    pages[j].setVisibility(p>=0&&p<ids.size()?View.VISIBLE:View.INVISIBLE);
-   if(p<0||p>=ids.size())continue;
-   final String id=ids.get(p);Bitmap bitmap=full.get(id);
-   if(bitmap==null)bitmap=posters.get(id);
-   if(bitmap!=null)images[j].setImageBitmap(bitmap);
+   if(p<0||p>=ids.size()){loadedPageIds[j]=null;continue;}
+   final String id=ids.get(p);boolean changedId=!id.equals(loadedPageIds[j]);
+   if(changedId){loadedPageIds[j]=id;images[j].setImageDrawable(null);}
+   Bitmap bitmap=full.get(id);if(bitmap==null)bitmap=posters.get(id);
+   if(bitmap!=null&&changedId)images[j].setImageBitmap(bitmap);
    final int generation=loadToken;final ImageView target=images[j];final int slot=j;
    // Only 3 full images. Neighbor photos load in the background with downsampling;
    // videos use their MediaStore thumbnail as poster until first decoder frame.
@@ -284,7 +291,7 @@ public final class MoaNativeGallery {
   if(!selectedVideo){videoScrubMode=false;scrubFrameClip="";scrubFrameToken++;scrubFrames.clear();}
   videoControls.setVisibility(selectedVideo?View.VISIBLE:View.GONE);
   if(seekRow!=null)seekRow.setVisibility(selectedVideo?View.VISIBLE:View.GONE);
-  if(videoModeButton!=null)videoModeButton.setText(videoScrubMode?"사진·영상 목록":"영상 탐색");
+  if(videoModeButton!=null){videoModeButton.setText("‹ 목록");videoModeButton.setVisibility(selectedVideo&&videoScrubMode?View.VISIBLE:View.GONE);}
   if(seek!=null)seek.setVisibility(videoScrubMode?View.GONE:View.VISIBLE);
   if(videoModeHint!=null)videoModeHint.setVisibility(videoScrubMode?View.VISIBLE:View.GONE);
   if(rail!=null){rail.center=index;rail.invalidate();if(!browsingRail)rail.prefetch();}
@@ -458,7 +465,10 @@ public final class MoaNativeGallery {
    for(int i=lo;i<=hi;i++){
     String id=ids.get(i);
     if(posters.get(id)!=null)continue;
-    background.execute(()->{Bitmap b=getBitmap(id,false);if(b!=null)main.post(()->{if(open&&rail==GalleryRail.this)invalidate();});});
+    if(!pendingPosters.add(id))continue;
+    background.execute(()->{Bitmap b=getBitmap(id,false);
+     main.post(()->{pendingPosters.remove(id);if(open&&rail==GalleryRail.this&&b!=null)invalidate();});
+    });
    }
   }
   private boolean touch(View v,MotionEvent e){
@@ -478,10 +488,15 @@ public final class MoaNativeGallery {
      float next=Math.max(0,Math.min(ids.size()-1,indexAtDown+(xAtDown-e.getX())/dp(52)));
      if(Math.abs(e.getX()-xAtDown)<dp(5)&&ids.size()>1){next=index+Math.round((e.getX()-getWidth()*.5f)/dp(52));}
      browsingRail=false;int selected=Math.round(Math.max(0,Math.min(ids.size()-1,next)));
-     if(selected==index){loadToken++;refreshPages();updatePosition(0);prepareCurrentVideo();}
-     else navigate(selected);return true;
+     if(Math.abs(e.getX()-xAtDown)<dp(8)&&selected>=0&&selected<ids.size()&&video(ids.get(selected))){
+      if(selected!=index)navigate(selected);
+      updatePosition(0);setVideoScrubMode(true);return true;
+     }
+     if(selected==index){refreshPages();updatePosition(0);}
+     else navigate(selected);
+     return true;
     }
-    case MotionEvent.ACTION_CANCEL:browsingRail=false;loadToken++;refreshPages();updatePosition(0);prepareCurrentVideo();return true;
+    case MotionEvent.ACTION_CANCEL:browsingRail=false;refreshPages();updatePosition(0);if(video(ids.get(index))&&!prepared&&media==null)prepareCurrentVideo();return true;
     default:return true;
    }
   }
@@ -509,7 +524,9 @@ public final class MoaNativeGallery {
       player.prepareAsync();
      }catch(Exception ex){videoFailure();}
     }
-    @Override public void onSurfaceTextureSizeChanged(SurfaceTexture st,int w,int h){}
+    @Override public void onSurfaceTextureSizeChanged(SurfaceTexture st,int w,int h){
+    try{if(token==videoToken&&media!=null)updateVideoGeometry(media.getVideoWidth(),media.getVideoHeight());}catch(Exception ignored){}
+   }
     @Override public boolean onSurfaceTextureDestroyed(SurfaceTexture st){teardownPlayer();return true;}
     @Override public void onSurfaceTextureUpdated(SurfaceTexture st){}
    });
@@ -599,14 +616,7 @@ public final class MoaNativeGallery {
   if(backButton!=null)backButton.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
   if(menuButton!=null)menuButton.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
   if(lowerControls!=null)lowerControls.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
-  try{
-   View decor=activity.getWindow().getDecorView();
-   if(chromeVisible)decor.setSystemUiVisibility(savedSystemUi);
-   else decor.setSystemUiVisibility(savedSystemUi|View.SYSTEM_UI_FLAG_FULLSCREEN|
-      View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY|
-      View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION|
-      View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-  }catch(Exception ignored){}
+  // Do not toggle OS window insets; their Surface resize was changing image/video sizes.
   updateChromeLayout();
  }
  private void updateChromeLayout(){
@@ -617,15 +627,12 @@ public final class MoaNativeGallery {
   if(!chromeVisible)needed=0;
   ViewGroup.LayoutParams lowerParams=lowerControls.getLayoutParams();
   if(lowerParams!=null&&lowerParams.height!=dp(needed)){lowerParams.height=dp(needed);lowerControls.setLayoutParams(lowerParams);}
-  FrameLayout.LayoutParams s=(FrameLayout.LayoutParams)stage.getLayoutParams();
-  if(s!=null){int top=chromeVisible?dp(48):0;int bottom=dp(needed);
-   if(s.topMargin!=top||s.bottomMargin!=bottom){s.topMargin=top;s.bottomMargin=bottom;stage.setLayoutParams(s);}
-  }
+  // Stable full-stage canvas. Chrome overlays media without causing image/video rescale.
  }
  private void setVideoScrubMode(boolean enabled){
   if(!open||ids.isEmpty()||!video(ids.get(index)))return;
   videoScrubMode=enabled;
-  if(videoModeButton!=null)videoModeButton.setText(enabled?"사진·영상 목록":"영상 탐색");
+  if(videoModeButton!=null){videoModeButton.setText("‹ 목록");videoModeButton.setVisibility(enabled?View.VISIBLE:View.GONE);}
   if(videoModeHint!=null)videoModeHint.setVisibility(enabled?View.VISIBLE:View.GONE);
   if(seek!=null)seek.setVisibility(enabled?View.GONE:View.VISIBLE);
   if(enabled)requestScrubFrames();
@@ -651,7 +658,7 @@ public final class MoaNativeGallery {
   final int count=scrubFrameCount;
   final int current=(int)((long)videoPositionMs()*(count-1)/Math.max(1,total));
   // Decode/scale only on the worker. Start near current playback, then expand out.
-  background.execute(()->{
+  frameWorker.execute(()->{
    MediaMetadataRetriever grabber=new MediaMetadataRetriever();
    try{
     grabber.setDataSource(activity,uri(clip));
