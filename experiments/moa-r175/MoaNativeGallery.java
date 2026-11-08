@@ -99,6 +99,10 @@ public final class MoaNativeGallery {
  private TextView header,videoTime,videoStatus;
  private Button pause,mute,still;
  private ImageView r205CapturePreview;private Runnable r205PreviewDismiss;
+  private FrameLayout r207SavedPhotoViewer;
+  private ImageView r207SavedPhotoImage;
+  private boolean r207ResumeVideoAfterPhoto=false;
+  private int r207SavedPhotoLoadGeneration=0;
  private LinearLayout videoControls, volumeRow, lowerControls;
  private SeekBar mediaVolumeSeek;
  private TextView mediaVolumeText;
@@ -381,7 +385,7 @@ public final class MoaNativeGallery {
   b.setTextColor(-1);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff22242b));
   b.setMinHeight(0);b.setMinimumHeight(0);b.setMinWidth(0);b.setMinimumWidth(0);return b;}
  private void registerBack(){if(Build.VERSION.SDK_INT>=33){
-  try{backCallback=()->close();activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+  try{backCallback=()->{if(r207SavedPhotoViewer!=null)r207CloseSavedPhoto();else close();};activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
     android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY,backCallback);backRegistered=true;}catch(Exception ignored){}
  }}
  public void close(){
@@ -390,6 +394,11 @@ public final class MoaNativeGallery {
   if(r203StageVelocity!=null){r203StageVelocity.recycle();r203StageVelocity=null;}
   if(r205PreviewDismiss!=null){main.removeCallbacks(r205PreviewDismiss);r205PreviewDismiss=null;}
   if(r205CapturePreview!=null){r205CapturePreview.setImageDrawable(null);r205CapturePreview=null;}
+  r207SavedPhotoLoadGeneration++;
+  if(r207SavedPhotoViewer!=null&&r207SavedPhotoViewer.getParent() instanceof ViewGroup)
+   ((ViewGroup)r207SavedPhotoViewer.getParent()).removeView(r207SavedPhotoViewer);
+  if(r207SavedPhotoImage!=null)r207SavedPhotoImage.setImageDrawable(null);
+  r207SavedPhotoViewer=null;r207SavedPhotoImage=null;r207ResumeVideoAfterPhoto=false;
   open=false;loadToken++;videoToken++;scrubFrameToken++;
   // Never leave Android system bars hidden after closing the gallery.
   if(host!=null)try{activity.getWindow().getDecorView().setSystemUiVisibility(savedSystemUi);}catch(Exception ignored){}
@@ -1182,7 +1191,84 @@ public final class MoaNativeGallery {
  }
  private int getWidthSafe(View v){return v==null?dp(300):Math.max(1,v.getWidth());}
 
- private void r205ShowCapturePreview(Bitmap thumb){
+ 
+ // R207 captured image viewer lives above the same existing gallery host.
+ // It does not navigate the media index, destroy the video player, or mutate the diary.
+ private void r207OpenSavedPhoto(Uri saved){
+  if(!open||host==null||saved==null||r207SavedPhotoViewer!=null)return;
+  if(r205PreviewDismiss!=null){main.removeCallbacks(r205PreviewDismiss);r205PreviewDismiss=null;}
+  if(r205CapturePreview!=null){
+   r205CapturePreview.animate().cancel();
+   if(r205CapturePreview.getParent() instanceof ViewGroup)
+    ((ViewGroup)r205CapturePreview.getParent()).removeView(r205CapturePreview);
+   r205CapturePreview.setImageDrawable(null);r205CapturePreview=null;
+  }
+  r207ResumeVideoAfterPhoto=false;
+  try{if(media!=null&&prepared&&media.isPlaying()){
+   r207ResumeVideoAfterPhoto=true;media.pause();
+   if(pause!=null)pause.setText("▶");
+  }}catch(Exception ignored){}
+  FrameLayout overlay=new FrameLayout(activity);overlay.setBackgroundColor(Color.BLACK);
+  overlay.setClickable(true);overlay.setFocusableInTouchMode(true);
+  r207SavedPhotoViewer=overlay;
+  ImageView image=new ImageView(activity);r207SavedPhotoImage=image;
+  image.setBackgroundColor(Color.BLACK);image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+  overlay.addView(image,new FrameLayout.LayoutParams(-1,-1));
+  TextView back=new TextView(activity);back.setText("‹  돌아가기");
+  back.setTextColor(Color.WHITE);back.setTextSize(15);back.setGravity(Gravity.CENTER);
+  android.graphics.drawable.GradientDrawable backBg=new android.graphics.drawable.GradientDrawable();
+  backBg.setColor(0xd522242a);backBg.setCornerRadius(dp(22));
+  back.setBackground(backBg);back.setClickable(true);
+  back.setOnClickListener(v->r207CloseSavedPhoto());
+  FrameLayout.LayoutParams backPos=new FrameLayout.LayoutParams(dp(112),dp(44),Gravity.TOP|Gravity.LEFT);
+  backPos.leftMargin=dp(10);backPos.topMargin=dp(15);
+  overlay.addView(back,backPos);
+  overlay.setOnKeyListener((v,keyCode,event)->{
+   if(keyCode==android.view.KeyEvent.KEYCODE_BACK&&event.getAction()==android.view.KeyEvent.ACTION_UP){
+    r207CloseSavedPhoto();return true;
+   }
+   return false;
+  });
+  host.addView(overlay,new FrameLayout.LayoutParams(-1,-1));overlay.requestFocus();
+  final int generation=++r207SavedPhotoLoadGeneration;
+  background.execute(()->{
+   Bitmap loaded=null;
+   try{
+    BitmapFactory.Options size=new BitmapFactory.Options();size.inJustDecodeBounds=true;
+    try(InputStream input=activity.getContentResolver().openInputStream(saved)){
+     if(input!=null)BitmapFactory.decodeStream(input,null,size);
+    }
+    int maxDim=Math.max(size.outWidth,size.outHeight),sampling=1;
+    while(maxDim/sampling>4096)sampling*=2;
+    BitmapFactory.Options opts=new BitmapFactory.Options();opts.inSampleSize=sampling;
+    try(InputStream input=activity.getContentResolver().openInputStream(saved)){
+     if(input!=null)loaded=BitmapFactory.decodeStream(input,null,opts);
+    }
+   }catch(Exception ignored){}
+   final Bitmap ready=loaded;
+   main.post(()->{
+    if(generation!=r207SavedPhotoLoadGeneration||!open||r207SavedPhotoViewer!=overlay)return;
+    if(ready!=null){image.setImageBitmap(ready);}
+    else android.widget.Toast.makeText(activity,"저장한 사진을 열 수 없어요",0).show();
+   });
+  });
+ }
+ private void r207CloseSavedPhoto(){
+  if(r207SavedPhotoViewer==null)return;
+  ++r207SavedPhotoLoadGeneration;
+  FrameLayout overlay=r207SavedPhotoViewer;
+  r207SavedPhotoViewer=null;
+  if(r207SavedPhotoImage!=null){r207SavedPhotoImage.setImageDrawable(null);r207SavedPhotoImage=null;}
+  if(overlay.getParent() instanceof ViewGroup)((ViewGroup)overlay.getParent()).removeView(overlay);
+  // Return to the identical gallery media, original playback position and audio policy.
+  if(open&&r207ResumeVideoAfterPhoto&&prepared&&media!=null){
+   try{media.start();if(pause!=null)pause.setText("Ⅱ");}catch(Exception ignored){}
+  }
+  r207ResumeVideoAfterPhoto=false;
+  if(host!=null)host.requestFocus();
+ }
+
+ private void r205ShowCapturePreview(Bitmap thumb,Uri saved){
   if(thumb==null||host==null||!open)return;
   if(r205PreviewDismiss!=null){main.removeCallbacks(r205PreviewDismiss);r205PreviewDismiss=null;}
   if(r205CapturePreview!=null){
@@ -1199,6 +1285,9 @@ public final class MoaNativeGallery {
   FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(dp(56),dp(68),Gravity.LEFT|Gravity.BOTTOM);
   p.leftMargin=dp(15);p.bottomMargin=dp(128);
   host.addView(preview,p);
+  preview.setContentDescription("저장된 캡처 사진 크게 보기");
+  preview.setClickable(true);
+  preview.setOnClickListener(v->r207OpenSavedPhoto(saved));
   preview.setAlpha(0f);preview.setScaleX(.78f);preview.setScaleY(.78f);preview.setTranslationY(dp(10));
   preview.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setDuration(200).start();
   Runnable hide=()->{
@@ -1243,7 +1332,8 @@ public final class MoaNativeGallery {
     try{int h=dp(78),w=Math.max(1,Math.round(h*(float)stillFrame.getWidth()/Math.max(1,stillFrame.getHeight())));
      thumb=Bitmap.createScaledBitmap(stillFrame,Math.min(dp(98),w),h,true);}catch(Throwable ignored){}
     final Bitmap preview=thumb;
-    done=true;main.post(()->{if(open&&preview!=null)r205ShowCapturePreview(preview);
+    final Uri savedUri=created;
+    done=true;main.post(()->{if(open&&preview!=null)r205ShowCapturePreview(preview,savedUri);
      android.widget.Toast.makeText(activity,"장면을 사진으로 저장했어요",0).show();});
    }catch(Exception e){main.post(()->android.widget.Toast.makeText(activity,"장면 저장 실패: "+e.getMessage(),0).show());}
    finally{if(!done&&created!=null)try{activity.getContentResolver().delete(created,null,null);}catch(Exception ignored){}}
