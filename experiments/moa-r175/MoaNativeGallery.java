@@ -375,6 +375,8 @@ public final class MoaNativeGallery {
   if(Looper.myLooper()!=Looper.getMainLooper()){main.post(this::close);return;}
   r203CancelFling();
   if(r203StageVelocity!=null){r203StageVelocity.recycle();r203StageVelocity=null;}
+  if(r205PreviewDismiss!=null){main.removeCallbacks(r205PreviewDismiss);r205PreviewDismiss=null;}
+  if(r205CapturePreview!=null){r205CapturePreview.setImageDrawable(null);r205CapturePreview=null;}
   open=false;loadToken++;videoToken++;scrubFrameToken++;
   // Never leave Android system bars hidden after closing the gallery.
   if(host!=null)try{activity.getWindow().getDecorView().setSystemUiVisibility(savedSystemUi);}catch(Exception ignored){}
@@ -1181,6 +1183,34 @@ public final class MoaNativeGallery {
  }
  private int getWidthSafe(View v){return v==null?dp(300):Math.max(1,v.getWidth());}
 
+ private void r205ShowCapturePreview(Bitmap thumb){
+  if(thumb==null||host==null||!open)return;
+  if(r205PreviewDismiss!=null){main.removeCallbacks(r205PreviewDismiss);r205PreviewDismiss=null;}
+  if(r205CapturePreview!=null){
+   if(r205CapturePreview.getParent() instanceof ViewGroup)
+    ((ViewGroup)r205CapturePreview.getParent()).removeView(r205CapturePreview);
+   r205CapturePreview.setImageDrawable(null);
+  }
+  ImageView preview=new ImageView(activity);r205CapturePreview=preview;
+  preview.setImageBitmap(thumb);preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+  preview.setPadding(dp(2),dp(2),dp(2),dp(2));
+  android.graphics.drawable.GradientDrawable frame=new android.graphics.drawable.GradientDrawable();
+  frame.setColor(0xe51b1c20);frame.setCornerRadius(dp(7));frame.setStroke(dp(1),0xbde3e5e8);
+  preview.setBackground(frame);preview.setClipToOutline(true);preview.setElevation(dp(6));
+  FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(dp(56),dp(68),Gravity.LEFT|Gravity.BOTTOM);
+  p.leftMargin=dp(15);p.bottomMargin=dp(128);
+  host.addView(preview,p);
+  preview.setAlpha(0f);preview.setScaleX(.78f);preview.setScaleY(.78f);preview.setTranslationY(dp(10));
+  preview.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setDuration(200).start();
+  Runnable hide=()->{
+   if(r205CapturePreview!=preview)return;
+   preview.animate().alpha(0f).translationY(-dp(8)).setDuration(180).withEndAction(()->{
+    if(r205CapturePreview==preview){r205CapturePreview=null;preview.setImageDrawable(null);
+     if(preview.getParent() instanceof ViewGroup)((ViewGroup)preview.getParent()).removeView(preview);}
+   }).start();
+  };
+  r205PreviewDismiss=hide;main.postDelayed(hide,1300);
+ }
  private void capture(){if(!open||!video(ids.get(index)))return;
   final Uri source=uri(ids.get(index));final int time=media!=null&&prepared?media.getCurrentPosition():0;
   // Snapshot on UI thread while TextureView still displays the selected frame.
@@ -1209,7 +1239,13 @@ public final class MoaNativeGallery {
     if(created==null)throw new java.io.IOException("create failed");
     try(OutputStream out=activity.getContentResolver().openOutputStream(created,"w")){if(out==null||!stillFrame.compress(Bitmap.CompressFormat.JPEG,94,out))throw new java.io.IOException("write failed");}
     if(Build.VERSION.SDK_INT>=29){ContentValues ready=new ContentValues();ready.put(MediaStore.Images.Media.IS_PENDING,0);activity.getContentResolver().update(created,ready,null,null);}
-    done=true;main.post(()->android.widget.Toast.makeText(activity,"장면을 사진으로 저장했어요",0).show());
+    Bitmap thumb=null;
+    // Thumbnail is derived from the ACTUAL saved frame; memory bounded and only after commit.
+    try{int h=dp(78),w=Math.max(1,Math.round(h*(float)stillFrame.getWidth()/Math.max(1,stillFrame.getHeight())));
+     thumb=Bitmap.createScaledBitmap(stillFrame,Math.min(dp(98),w),h,true);}catch(Throwable ignored){}
+    final Bitmap preview=thumb;
+    done=true;main.post(()->{if(open&&preview!=null)r205ShowCapturePreview(preview);
+     android.widget.Toast.makeText(activity,"장면을 사진으로 저장했어요",0).show();});
    }catch(Exception e){main.post(()->android.widget.Toast.makeText(activity,"장면 저장 실패: "+e.getMessage(),0).show());}
    finally{if(!done&&created!=null)try{activity.getContentResolver().delete(created,null,null);}catch(Exception ignored){}}
   });
