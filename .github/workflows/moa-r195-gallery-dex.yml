@@ -10,6 +10,7 @@ on:
       - feature/moa-r201-samsung-video-controls-rail-tapfix-20261108
       - feature/moa-r203-compact-center-pill-native-inertia-fling-20261109
       - feature/moa-r205-native-gallery-polish-wave-feedback-20261109
+      - feature/moa-r207-selected-lift-capture-preview-volume-20261109
     paths:
       - 'experiments/moa-r175/MoaNativeGallery.java'
       - 'experiments/moa-r175/MoaMomentAudioHostActivity_native_unified_gallery.java.txt'
