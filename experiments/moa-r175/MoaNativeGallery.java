@@ -194,23 +194,33 @@ public final class MoaNativeGallery {
   FrameLayout.LayoutParams lowerPos=new FrameLayout.LayoutParams(-1,dp(208),Gravity.BOTTOM);
   host.addView(lower,lowerPos);
   lower.addView(new android.widget.Space(activity),new LinearLayout.LayoutParams(-1,0,1f));
-  // R199: compact three-glyph controls, capture / pause / sound.
-  videoControls=new LinearLayout(activity);videoControls.setGravity(Gravity.CENTER);
-  videoControls.setBackgroundColor(Color.TRANSPARENT);
-  pause=button("Ⅱ",22);mute=button("♪",23);still=button("▣",22);
-  r199StyleVideoButton(still,"현재 동영상 장면 저장");
-  r199StyleVideoButton(pause,"동영상 일시정지");
-  r199StyleVideoButton(mute,"동영상 소리 켜기");
-  pause.setOnClickListener(v->toggle());mute.setOnClickListener(v->toggleMute());
-  still.setOnClickListener(v->capture());
-  for(Button control:new Button[]{still,pause,mute}){
-   LinearLayout slot=new LinearLayout(activity);slot.setGravity(Gravity.CENTER);
-   slot.addView(control,new LinearLayout.LayoutParams(dp(43),dp(42)));
-   videoControls.addView(slot,new LinearLayout.LayoutParams(0,dp(46),1f));
-  }
-  videoTime=new TextView(activity);videoTime.setTextColor(0xffeeeeee);videoTime.setTextSize(11);
-  videoTime.setText("00:00 / 00:00");videoTime.setGravity(Gravity.CENTER);
-  lower.addView(videoControls,new LinearLayout.LayoutParams(-1,dp(46)));
+  // R201: Galaxy layout - capture left, central play+elapsed/total, mute right.
+  videoControls=new LinearLayout(activity);videoControls.setGravity(Gravity.CENTER_VERTICAL);
+  videoControls.setPadding(dp(7),0,dp(7),0);videoControls.setBackgroundColor(Color.TRANSPARENT);
+  still=new R201VideoIconButton(activity,0);pause=new R201VideoIconButton(activity,1);
+  mute=new R201VideoIconButton(activity,2);
+  still.setContentDescription("현재 동영상 장면 저장");
+  pause.setContentDescription("동영상 일시정지");
+  mute.setContentDescription("동영상 소리 켜기");
+  pause.setText("Ⅱ");mute.setText("♪");
+  still.setOnClickListener(v->capture());pause.setOnClickListener(v->toggle());mute.setOnClickListener(v->toggleMute());
+  LinearLayout leftIcon=new LinearLayout(activity);leftIcon.setGravity(Gravity.CENTER);
+  leftIcon.addView(still,new LinearLayout.LayoutParams(dp(48),dp(48)));
+  videoControls.addView(leftIcon,new LinearLayout.LayoutParams(dp(62),dp(54)));
+  LinearLayout centerPill=new LinearLayout(activity);centerPill.setGravity(Gravity.CENTER_VERTICAL);
+  android.graphics.drawable.GradientDrawable pillBg=new android.graphics.drawable.GradientDrawable();
+  pillBg.setColor(0xc216191f);pillBg.setCornerRadius(dp(28));pillBg.setStroke(dp(1),0x447f838c);
+  centerPill.setBackground(pillBg);centerPill.setPadding(dp(8),0,dp(7),0);
+  centerPill.addView(pause,new LinearLayout.LayoutParams(dp(44),dp(46)));
+  videoTime=new TextView(activity);videoTime.setTextColor(Color.WHITE);videoTime.setTextSize(14);
+  videoTime.setSingleLine(true);videoTime.setGravity(Gravity.CENTER);
+  videoTime.setTypeface(android.graphics.Typeface.MONOSPACE);videoTime.setText("00:00 / 00:00");
+  centerPill.addView(videoTime,new LinearLayout.LayoutParams(0,dp(47),1f));
+  videoControls.addView(centerPill,new LinearLayout.LayoutParams(0,dp(50),1f));
+  LinearLayout rightIcon=new LinearLayout(activity);rightIcon.setGravity(Gravity.CENTER);
+  rightIcon.addView(mute,new LinearLayout.LayoutParams(dp(48),dp(48)));
+  videoControls.addView(rightIcon,new LinearLayout.LayoutParams(dp(62),dp(54)));
+  lower.addView(videoControls,new LinearLayout.LayoutParams(-1,dp(56)));
   seek=new SeekBar(activity);seek.setMax(1000);seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
    public void onStartTrackingTouch(SeekBar bar){seekInProgress=true;}
    public void onStopTrackingTouch(SeekBar bar){seekInProgress=false;try{if(media!=null&&prepared)media.seekTo(bar.getProgress());}catch(Exception ignored){}}
@@ -225,12 +235,13 @@ public final class MoaNativeGallery {
   videoModeButton.setOnClickListener(v->setVideoScrubMode(!videoScrubMode));
   seekRow.addView(videoModeButton,new LinearLayout.LayoutParams(dp(94),dp(36)));
   seekRow.addView(seek,new LinearLayout.LayoutParams(0,dp(36),1));
-  seekRow.addView(videoTime,new LinearLayout.LayoutParams(dp(104),dp(36)));
+  // Time remains in the center playback pill.
   videoModeHint=new TextView(activity);videoModeHint.setTextColor(0xffeeeeee);
   videoModeHint.setTextSize(11);videoModeHint.setGravity(Gravity.CENTER_VERTICAL);
   videoModeHint.setText("영상 장면 좌우 이동 · 선택 영상 미리보기 누르면 탐색");
   videoModeHint.setVisibility(View.GONE);
   seekRow.addView(videoModeHint,new LinearLayout.LayoutParams(0,dp(36),1));
+  seekRow.setVisibility(View.GONE);
   lower.addView(seekRow,new LinearLayout.LayoutParams(-1,dp(36)));
   // R179: system MUSIC volume is independent of MediaPlayer's mute/unmute.
   // Show a slider only while sound is enabled; never raise device volume automatically.
@@ -261,11 +272,55 @@ public final class MoaNativeGallery {
   open=true;registerBack();refreshPages();stage.post(()->{if(open)updatePosition(0);});prepareCurrentVideo();
   host.requestFocus();return true;
  }
- private void r199StyleVideoButton(Button b,String label){
-  android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
-  bg.setColor(0xa8121519);bg.setCornerRadius(dp(24));bg.setStroke(dp(1),0x66ffffff);
-  b.setBackgroundTintList(null);b.setBackground(bg);b.setContentDescription(label);
-  b.setPadding(0,0,0,0);b.setMinWidth(0);b.setMinHeight(0);
+ // R201: native vector icons rather than decorative Unicode glyphs.
+ private final class R201VideoIconButton extends Button{
+  private final int kind;private final Paint iconPaint=new Paint(Paint.ANTI_ALIAS_FLAG);
+  R201VideoIconButton(Activity owner,int which){
+   super(owner);kind=which;setAllCaps(false);setTextSize(1);
+   setTextColor(Color.TRANSPARENT);setPadding(0,0,0,0);
+   setMinWidth(0);setMinHeight(0);setMinimumWidth(0);setMinimumHeight(0);
+   android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
+   bg.setColor(which==1?Color.TRANSPARENT:0xa813151b);
+   bg.setCornerRadius(dp(25));
+   if(which!=1)bg.setStroke(dp(1),0x587f848a);
+   setBackgroundTintList(null);setBackground(bg);
+  }
+  @Override protected void onDraw(Canvas canvas){
+   super.onDraw(canvas);
+   float cx=getWidth()/2f,cy=getHeight()/2f;
+   iconPaint.setColor(Color.WHITE);iconPaint.setStrokeWidth(dp(2.2f));
+   iconPaint.setStrokeCap(Paint.Cap.ROUND);iconPaint.setStrokeJoin(Paint.Join.ROUND);
+   iconPaint.setStyle(Paint.Style.STROKE);
+   if(kind==0){
+    float a=dp(13),b=dp(6);
+    canvas.drawLine(cx-a,cy-a+b,cx-a,cy-a,iconPaint);canvas.drawLine(cx-a,cy-a,cx-a+b,cy-a,iconPaint);
+    canvas.drawLine(cx+a-b,cy-a,cx+a,cy-a,iconPaint);canvas.drawLine(cx+a,cy-a,cx+a,cy-a+b,iconPaint);
+    canvas.drawLine(cx-a,cy+a-b,cx-a,cy+a,iconPaint);canvas.drawLine(cx-a,cy+a,cx-a+b,cy+a,iconPaint);
+    canvas.drawLine(cx+a-b,cy+a,cx+a,cy+a,iconPaint);canvas.drawLine(cx+a,cy+a-b,cx+a,cy+a,iconPaint);
+    canvas.drawCircle(cx,cy,dp(3.3f),iconPaint);
+   }else if(kind==1){
+    iconPaint.setStyle(Paint.Style.FILL);
+    if(String.valueOf(getText()).contains("▶")){
+     android.graphics.Path shape=new android.graphics.Path();
+     shape.moveTo(cx-dp(6),cy-dp(10));shape.lineTo(cx+dp(10),cy);
+     shape.lineTo(cx-dp(6),cy+dp(10));shape.close();canvas.drawPath(shape,iconPaint);
+    }else{
+     canvas.drawRoundRect(cx-dp(9),cy-dp(10),cx-dp(3),cy+dp(10),dp(2),dp(2),iconPaint);
+     canvas.drawRoundRect(cx+dp(3),cy-dp(10),cx+dp(9),cy+dp(10),dp(2),dp(2),iconPaint);
+    }
+   }else{
+    android.graphics.Path shape=new android.graphics.Path();
+    shape.moveTo(cx-dp(12),cy-dp(5));shape.lineTo(cx-dp(7),cy-dp(5));
+    shape.lineTo(cx,cy-dp(11));shape.lineTo(cx,cy+dp(11));
+    shape.lineTo(cx-dp(7),cy+dp(5));shape.lineTo(cx-dp(12),cy+dp(5));
+    shape.close();canvas.drawPath(shape,iconPaint);
+    if(String.valueOf(getText()).equals("♪"))canvas.drawLine(cx+dp(5),cy-dp(8),cx+dp(14),cy+dp(8),iconPaint);
+    else{
+     canvas.drawArc(cx-dp(4),cy-dp(9),cx+dp(12),cy+dp(9),-55,110,false,iconPaint);
+     canvas.drawArc(cx-dp(1),cy-dp(14),cx+dp(18),cy+dp(14),-55,110,false,iconPaint);
+    }
+   }
+  }
  }
  private Button button(String label,int size){Button b=new Button(activity);b.setAllCaps(false);b.setText(label);b.setTextSize(size);
   b.setTextColor(-1);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff22242b));
@@ -317,7 +372,7 @@ public final class MoaNativeGallery {
    if(r197ScrubAnim!=null){r197ScrubAnim.cancel();r197ScrubAnim=null;}
    scrubFrameClip="";scrubFrameToken++;scrubFrames.clear();hideScrubPreview();}
   videoControls.setVisibility(selectedVideo?View.VISIBLE:View.GONE);
-  if(seekRow!=null)seekRow.setVisibility(selectedVideo?View.VISIBLE:View.GONE);
+  if(seekRow!=null)seekRow.setVisibility(View.GONE);
   if(videoModeButton!=null)videoModeButton.setVisibility(View.GONE);
   if(seek!=null)seek.setVisibility(videoScrubMode?View.GONE:View.VISIBLE);
   if(videoModeHint!=null)videoModeHint.setVisibility(View.GONE);
