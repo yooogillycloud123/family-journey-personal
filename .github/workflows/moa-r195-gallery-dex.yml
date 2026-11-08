@@ -1,5 +1,8 @@
 name: MOA R195 compact video strip / active playback progress DEX
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - feature/moa-r195-clean-controls-24h-sticky-audio-jump-video-rail-20261108
