@@ -110,6 +110,12 @@ public final class MoaNativeGallery {
  private int index,loadToken,videoToken;
  private float fingerOffset;
  private ValueAnimator motion;
+ // R203: native spline deceleration with fractional media index and final snap.
+ private android.widget.OverScroller r203Scroller;
+ private Runnable r203FlingFrame;
+ private ValueAnimator r203Snap;
+ private android.view.VelocityTracker r203StageVelocity;
+ private float r203FloatIndex;
  private String currentDay="";
  private Runnable ticker;
  private android.window.OnBackInvokedCallback backCallback;
@@ -440,6 +446,85 @@ public final class MoaNativeGallery {
   int width=Math.max(1,stage.getWidth());
   for(int j=0;j<3;j++)pages[j].setTranslationX((j-1)*width+offset);
   if(rail!=null){rail.center=index-offset/Math.max(1,width);rail.invalidate();}
+ }
+ // R203: unlike R201's one-photo settle, native Android OverScroller keeps
+ // momentum after finger release, updates the SAME fractional photo+thumbnail
+ // index, slows continuously, and only prepares video at the final selection.
+ private float r203Clamp(float position){
+  if(ids.isEmpty())return 0;
+  return Math.max(0f,Math.min(ids.size()-1f,position));
+ }
+ private void r203CancelFling(){
+  if(r203FlingFrame!=null){main.removeCallbacks(r203FlingFrame);r203FlingFrame=null;}
+  if(r203Scroller!=null){r203Scroller.forceFinished(true);r203Scroller=null;}
+  if(r203Snap!=null){ValueAnimator old=r203Snap;r203Snap=null;old.cancel();}
+ }
+ private void r203Present(float fractional){
+  if(!open||ids.isEmpty()||stage==null)return;
+  final float position=r203Clamp(fractional);r203FloatIndex=position;
+  final int near=Math.max(0,Math.min(ids.size()-1,Math.round(position)));
+  if(near!=index){
+   index=near;loadToken++;resetPhotoZoom();
+   refreshPages(); // only 3 visible pages, no full-resolution decode mid-fling
+   if(rail!=null)rail.prefetch();
+  }
+  updatePosition((index-position)*Math.max(1,stage.getWidth()));
+ }
+ private void r203CompleteFling(){
+  if(!open||ids.isEmpty())return;
+  browsingRail=false;
+  int near=Math.max(0,Math.min(ids.size()-1,Math.round(r203FloatIndex)));
+  if(index!=near){index=near;loadToken++;resetPhotoZoom();}
+  refreshPages();updatePosition(0);
+  prepareCurrentVideo();
+ }
+ private void r203SnapNearest(float initial){
+  if(!open||ids.isEmpty())return;
+  final float from=r203Clamp(initial);
+  final float to=Math.round(from);
+  if(Math.abs(from-to)<.001f){r203Present(to);r203CompleteFling();return;}
+  ValueAnimator animator=ValueAnimator.ofFloat(from,to);
+  r203Snap=animator;animator.setDuration(150);
+  animator.setInterpolator(new DecelerateInterpolator(1.6f));
+  animator.addUpdateListener(a->{if(r203Snap==animator&&open)r203Present((float)a.getAnimatedValue());});
+  animator.addListener(new android.animation.AnimatorListenerAdapter(){
+   @Override public void onAnimationEnd(android.animation.Animator ended){
+    if(r203Snap!=animator||!open)return;
+    r203Snap=null;r203Present(to);r203CompleteFling();
+   }
+  });animator.start();
+ }
+ private void r203ReleaseWithVelocity(float initial,float fingerVelocity,float gain){
+  if(!open||ids.isEmpty())return;
+  r203CancelFling();
+  if(motion!=null){ValueAnimator old=motion;motion=null;old.cancel();}
+  if(r197ScrubAnim!=null){r197ScrubAnim.cancel();r197ScrubAnim=null;}
+  videoScrubMode=false;r197ScrubExpansion=0f;
+  if(media!=null||texture!=null)teardownPlayer();
+  browsingRail=true;
+  float starting=r203Clamp(initial);
+  r203Present(starting);
+  if(Math.abs(fingerVelocity)<380f||ids.size()<2){
+   r203SnapNearest(starting);return;
+  }
+  int stride=Math.max(1,dp(44)),startPx=Math.round(starting*stride);
+  int minPx=Math.max(0,Math.round((starting-45f)*stride));
+  int maxPx=Math.min(Math.round((ids.size()-1f)*stride),Math.round((starting+45f)*stride));
+  int speed=Math.round(Math.max(-14000f,Math.min(14000f,-fingerVelocity*gain)));
+  r203Scroller=new android.widget.OverScroller(activity);
+  r203Scroller.fling(startPx,0,speed,0,minPx,maxPx,0,0);
+  final Runnable runner=new Runnable(){public void run(){
+   if(r203FlingFrame!=this||!open||rail==null||r203Scroller==null)return;
+   if(r203Scroller.computeScrollOffset()){
+    r203Present(r203Scroller.getCurrX()/(float)stride);
+    if(!r203Scroller.isFinished()){rail.postOnAnimation(this);return;}
+   }
+   r203FlingFrame=null;
+   float at=r203FloatIndex;
+   r203Scroller=null;
+   r203SnapNearest(at);
+  }};
+  r203FlingFrame=runner;rail.postOnAnimation(runner);
  }
  private void settle(int direction,float initial){
   if(!open||stage==null)return;
