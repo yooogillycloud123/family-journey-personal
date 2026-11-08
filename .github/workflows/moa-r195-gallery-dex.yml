@@ -8,6 +8,7 @@ on:
       - feature/moa-r195-clean-controls-24h-sticky-audio-jump-video-rail-20261108
       - feature/moa-r197-gallery-transition-voice-sheet-sticky-sharp-day-20261108
       - feature/moa-r201-samsung-video-controls-rail-tapfix-20261108
+      - feature/moa-r203-compact-center-pill-native-inertia-fling-20261109
     paths:
       - 'experiments/moa-r175/MoaNativeGallery.java'
       - 'experiments/moa-r175/MoaMomentAudioHostActivity_native_unified_gallery.java.txt'
@@ -37,6 +38,9 @@ jobs:
           set -euo pipefail
           grep -q 'r197ScrubExpansion' experiments/moa-r175/MoaNativeGallery.java
           grep -q 'r197CenterTapPending' experiments/moa-r175/MoaNativeGallery.java
+          grep -q 'r203ReleaseWithVelocity' experiments/moa-r175/MoaNativeGallery.java
+          grep -q 'centerPill.setOnClickListener' experiments/moa-r175/MoaNativeGallery.java
+          grep -q 'android.widget.OverScroller' experiments/moa-r175/MoaNativeGallery.java
           grep -q 'texture.setAlpha(0f)' experiments/moa-r175/MoaNativeGallery.java
           if grep -q 'getWidth()\*videoProgress' experiments/moa-r175/MoaNativeGallery.java; then
             echo 'ERROR: full-rail white cursor must NOT return'; exit 1
