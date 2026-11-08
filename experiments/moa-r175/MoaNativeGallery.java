@@ -58,6 +58,7 @@ import java.util.concurrent.Executors;
  */
 public final class MoaNativeGallery {
  private final Activity activity;
+ private final java.util.function.Consumer<String> legacyDetails;
  private final Handler main=new Handler(Looper.getMainLooper());
  private final ExecutorService background=Executors.newFixedThreadPool(2);
  private final LruCache<String,Bitmap> posters=new LruCache<String,Bitmap>(20*1024*1024){
@@ -88,7 +89,7 @@ public final class MoaNativeGallery {
  private boolean backRegistered;
  private int savedSystemUi;
 
- public MoaNativeGallery(Activity activity){this.activity=activity;}
+ public MoaNativeGallery(Activity activity,java.util.function.Consumer<String> legacyDetails){this.activity=activity;this.legacyDetails=legacyDetails;}
  private int dp(float x){return (int)(x*activity.getResources().getDisplayMetrics().density+.5f);}
  private boolean video(String id){return id!=null&&id.startsWith("v");}
  private Uri uri(String id){
@@ -144,13 +145,22 @@ public final class MoaNativeGallery {
   host.addView(header,headPos);
   Button back=button("‹  닫기",15);FrameLayout.LayoutParams bpos=new FrameLayout.LayoutParams(dp(78),dp(44),Gravity.TOP|Gravity.LEFT);
   host.addView(back,bpos);back.setOnClickListener(v->close());
-  Button original=button("원본",13),share=button("공유",13);
-  FrameLayout.LayoutParams openPos=new FrameLayout.LayoutParams(dp(74),dp(44),Gravity.TOP|Gravity.RIGHT);
-  FrameLayout.LayoutParams sharePos=new FrameLayout.LayoutParams(dp(68),dp(44),Gravity.TOP|Gravity.RIGHT);
-  sharePos.rightMargin=dp(75);
-  host.addView(original,openPos);host.addView(share,sharePos);
-  original.setOnClickListener(v->openOriginal());share.setOnClickListener(v->shareOriginal());
-  header.setPadding(dp(95),0,dp(153),0);
+  Button menu=button("⋮",20);
+  FrameLayout.LayoutParams menuPos=new FrameLayout.LayoutParams(dp(53),dp(44),Gravity.TOP|Gravity.RIGHT);
+  host.addView(menu,menuPos);
+  menu.setOnClickListener(v->{
+   android.widget.PopupMenu popup=new android.widget.PopupMenu(activity,menu);
+   popup.getMenu().add(0,1,0,"원본 갤러리에서 열기");
+   popup.getMenu().add(0,2,1,"사진·영상 공유");
+   popup.getMenu().add(0,3,2,"모아 기존 상세·GPS 보기");
+   popup.setOnMenuItemClickListener(item->{
+    if(item.getItemId()==1){openOriginal();return true;}
+    if(item.getItemId()==2){shareOriginal();return true;}
+    if(item.getItemId()==3){openLegacyDetails();return true;}
+    return false;
+   });popup.show();
+  });
+  header.setPadding(dp(95),0,dp(60),0);
   LinearLayout lower=new LinearLayout(activity);lower.setOrientation(LinearLayout.VERTICAL);lower.setBackgroundColor(0xff0a0a0c);
   FrameLayout.LayoutParams lowerPos=new FrameLayout.LayoutParams(-1,dp(165),Gravity.BOTTOM);
   host.addView(lower,lowerPos);
@@ -430,6 +440,13 @@ public final class MoaNativeGallery {
   message.setTextSize(14);message.setTextColor(Color.WHITE);message.setGravity(Gravity.CENTER);
   FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(-1,dp(70),Gravity.CENTER);
   pages[1].addView(message,p);message.setOnClickListener(v->openOriginal());
+ }
+ private void openLegacyDetails(){
+  if(!open||ids.isEmpty()||legacyDetails==null)return;
+  final String id=ids.get(index);
+  final String scope=currentDay.length()>=10?"day":"month";
+  close();
+  legacyDetails.accept(scope+"|"+id);
  }
  private void openOriginal(){try{if(!open||ids.isEmpty())return;
   String id=ids.get(index);Uri original=uri(id);if(original==null)return;
