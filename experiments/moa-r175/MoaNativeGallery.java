@@ -490,9 +490,10 @@ public final class MoaNativeGallery {
      browsingRail=false;int selected=Math.round(Math.max(0,Math.min(ids.size()-1,next)));
      if(Math.abs(e.getX()-xAtDown)<dp(8)&&selected>=0&&selected<ids.size()&&video(ids.get(selected))){
       if(selected!=index)navigate(selected);
+      else if(media==null)prepareCurrentVideo();
       updatePosition(0);setVideoScrubMode(true);return true;
      }
-     if(selected==index){refreshPages();updatePosition(0);}
+     if(selected==index){refreshPages();updatePosition(0);if(video(ids.get(index))&&media==null)prepareCurrentVideo();}
      else navigate(selected);
      return true;
     }
