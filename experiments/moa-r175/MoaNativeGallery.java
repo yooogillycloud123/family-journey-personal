@@ -1349,7 +1349,7 @@ public final class MoaNativeGallery {
     final Bitmap preview=thumb;
     final Uri savedUri=created;
     done=true;main.post(()->{if(open&&preview!=null)r205ShowCapturePreview(preview,savedUri);
-     // The actual captured-photo thumbnail confirms saving; skip redundant toast.});
+     /* The captured-photo thumbnail is confirmation; no redundant success toast. */});
    }catch(Exception e){main.post(()->android.widget.Toast.makeText(activity,"장면 저장 실패: "+e.getMessage(),0).show());}
    finally{if(!done&&created!=null)try{activity.getContentResolver().delete(created,null,null);}catch(Exception ignored){}}
   });
