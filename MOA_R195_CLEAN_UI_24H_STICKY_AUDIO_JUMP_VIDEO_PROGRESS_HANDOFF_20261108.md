@@ -1,0 +1,39 @@
+# MOA R195 — icon-free diary controls, 24-hour ranges, sticky header, voice deep-link, native gallery progress (2026-11-08)
+
+## Actual status — DO NOT MISREPRESENT
+**SOURCE PATCHED + UI STATIC CI PASS + ISOLATED NATIVE JAVAC/D8 CI PASS. NO SIGNED R195 APK, NO GALAXY R195 DEVICE PASS.** Exact user R193 installed app (screenshot evidence) remains the running base. The current execution environment's Python/container backend returned ClientError repeatedly, so private R193 APK/original signing key could NOT be assembled or independently v2-signed into an installable APK in this turn. NEVER invent an APK path. Next step is to assemble signed versionCode **195** from exact signed R193 when secure local runtime becomes available, with independent package signer/v2 digest/ZIP/DEX checks. If unavailable, do not claim full completion. Do not use GitHub Actions to publish user's signing material or signed APK. The immutable R187 user-device scoped Golden remains untouched.
+
+## User evidence / desired UX
+Private user screenshots `19650.png`, `19652.png`, `19660.png`, videos `19656.mp4`, `19659.mp4`. Actual R193 screenshots show a portrait 2-column diary card with ridiculously narrow vertical audio play button, icons preceding 기록/기능, excessive microphone decoration, native daily voice manager listing saved M4As. User wants minimalist theme-state indicator, red outline recording, compact horizontal play, time grouping up to 24h, frozen top date ⋯ toggle, "기록 위치" on each saved voice, smaller seamless media/film strip and white playback indicator visibly moving even before the selected video thumbnail is tapped.
+
+## Exact modified source branch
+`feature/moa-r195-clean-controls-24h-sticky-audio-jump-video-rail-20261108` forked from exact `feature/moa-r193-photo-voice-ui-grouping-playback-20261108`. Scope limited to the four existing web assets and native gallery `MoaNativeGallery.java`, plus R195 workflow files. No edits to `classes7.dex` quick record save, native M4A host `MoaMomentAudioHostActivity_native_unified_gallery.java.txt`, personal IndexedDB data, original APK, old Golden branch or AA Android Auto audio repo.
+
+### Diary JS / CSS
+- `family-diary.js`: distinct `data-record-state="filled"|"empty"` on media-level 기록; `기록` and `기능` headings now text ONLY, removed decorative 🧑‍💻/headphone/pencil/microphone characters from media controls; `수정`, `메모 추가`, outlined `녹음`, `기존 녹음 연결`. All original action callbacks remain unchanged.
+- `moa-r149-voice.css`: filled record gets subdued theme pink background/border, empty record quiet neutral grey, photo voice row now occupies a whole row and single compact `▶ 00:00 / 00:05` with `white-space:nowrap`, even in 2/3-column responsive cards; red-line `녹음` instead of icon, time range gets red outlined capsule with **no microphone icon**. Date header sticky mode has translucent backdrop and high z-index only when setting enabled; note/media card scroll-margin and highlighted jump destination.
+- `moa-r149-voice.js`: audio buttons with `data-moa-audio-compact=true` render a short tabular-numeric play/pause elapsed/total label; native `durationMs` untouched. Every saved audio row in the existing native voice manager gains `기록 위치` which calls `window.MoaDiaryNavigateToVoice(day,id)`; only on success does it close the modal.
+- `family-diary.js` global `MoaDiaryNavigateToVoice`: find **exact** original `moments[].voiceIds` linked to `moments[].photoIds`, lazy-load that photo's original day group (30 at a time), expand its record and smoothly scroll/highlight. For unlinked time-slot recordings, consult existing `moa.voice.timeline.links.v1` or file creation timestamp and scroll to that existing displayed time bucket. **Never infer that an unlinked recording belongs to a specific photo**. No popup/viewer or persisted data change.
+- Existing group setting `moa.diary.group.minutes.v1`: 5/10/15/20/30/45/60/90/120/180/240/360/480/720/**1440** minutes and direct **5-minute steps** in [5,1440]; default 60. Only presentation buckets, original timestamps and 5-minute voice/legacy activity records untouched.
+- New `moa.diary.day.header.sticky.v1` preference from ⋯ → 보기 설정: default ON, optionally OFF, updates data attr `data-moa-r195-sticky`; only `.fd23-top` gets sticky positioning. Do not freeze entire day photo/voice body.
+
+### Native video gallery
+- `MoaNativeGallery.java`: mixed-media strip item stride 52→44dp with 38×46dp tiles; scene frame strip item stride 50→42dp with 36×46dp tiles. Matching touch sensitivity denominator adjusted to avoid index/time mismatch. Existing 72dp bottom strip and player fullscreen stage unchanged.
+- On ordinary mixed-photo strip **while video plays**, draw a thin white vertical progress cursor from the left to the right edge and a faint rail-bottom progress trail using actual `MediaPlayer.getCurrentPosition()/getDuration`, before any video frame-strip tap. The selected video tile itself also has an accurate progress line. No fake fixed-time animation.
+- Video playback rail ticker now refreshes approximately 30fps while playing or in scrub and slows when paused; gallery stage original R187 fixed-viewport and live real decoder seeks untouched.
+- Video-frame strip capped to 8–14 predecoded thumbnails, prefetched on `onPrepared` through existing single `frameWorker`; results still posted as **one atomic batch**. Previously only requested after clicking video thumbnail; user complained of late/staircase appearance. It may still be slower than Samsung native's proprietary prefetch, and physical smoothness remains unverified.
+- Source and isolated native compile are verified, no 120Hz parity claim.
+
+## CI evidence
+- UI syntax/source-contract GitHub Actions run `42475167852` **PASS**.
+- Native isolated javac + d8 CI `42475214730` **PASS** (first run 42475132085 failed because missing Paint arg; fixed in commit `51184ef33d642558ab5f9ada22c38200d4d4c474`); subsequent video rail cursor/ticker edit compile run **`42475418826` SUCCESS**.
+- CI names: `.github/workflows/moa-r195-day-ui-static.yml`, `.github/workflows/moa-r195-gallery-dex.yml`. GitHub native artifact `13614638683` has isolated compiled DEX (not an installable APK).
+- APK signer/digest and device tests: **PENDING**; do not claim release success.
+
+## Secure next-work plan
+1. Retrieve private exact signed R193 `MOA_R193_PHOTO_MEMO_VOICE_GROUP_VIEW_BETA.apk` SHA256 `a5cdccef318a02f8743fd3fa3449bb5d76d417d85123efd8eae66869a13230e1` from private Library `/모아_프로젝트_근거_20261103/`; check last _analysis_repair/temp/DEX/QA first. Keep user R187 Golden frozen.
+2. Obtain exact files from R195 source branch and compiled native R195 CI artifact. Verify source byte hashes and Javac output. Repack **only** AndroidManifest.xml (versionCode195), `assets/web/family-diary.js`, `moa-r149-voice.js`, `moa-r149-voice.css`, and `classes6.dex`; `moa-r141-monthly-report.js` remains unchanged. All other R193 ZIP entry payloads must be bit-identical.
+3. Sign APK v2 with original private signer **only inside secure local container**, never GitHub. Verify original certificate SHA, v2 signed content digest, 128 ZIP member CRC/alignment, DEX SHA1/Adler, JS node --check, and create APK and ZIP fallback with verified exact sandbox paths.
+4. Generate higher version code **196 emergency-only** from exact R193 signed payload (manifest code193→196), original signer/digest, but do not install routinely. Never uninstall or clear user data.
+5. Device acceptance: 2/3 column voice button horizontal, filled/empty colors, time badge no mic, red-outline record, 24h/custom grouping and saved setting after restart, sticky on/off, voice list link to exact photo/time group, video progress white line moves before opening frame strip, existing smooth stage and audio/zoom/playback/diary/voice/IndexedDB stable.
+6. Promote new Golden only after user's device confirmation. Preserve original R187 and other user-tested releases separately.
