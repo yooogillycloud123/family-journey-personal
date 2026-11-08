@@ -449,12 +449,12 @@ public final class MoaNativeGallery {
   GalleryRail(){super(activity);setLayerType(View.LAYER_TYPE_HARDWARE,null);setOnTouchListener(this::touch);}
   @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);
    if(videoScrubMode && open && !ids.isEmpty() && video(ids.get(index))){drawVideoFrames(canvas);return;}
-   float stride=dp(52),cw=getWidth()*.5f,ht=getHeight()*.5f;
+   float stride=dp(44),cw=getWidth()*.5f,ht=getHeight()*.5f;
    int lo=Math.max(0,(int)Math.floor(center)-12),hi=Math.min(ids.size()-1,(int)Math.ceil(center)+12);
    for(int i=lo;i<=hi;i++){
     float x=cw+(i-center)*stride;if(x<-stride||x>getWidth()+stride)continue;
     String id=ids.get(i);Bitmap bmp=posters.get(id);
-    RectF box=new RectF(x-dp(23),ht-dp(26),x+dp(23),ht+dp(26));
+    RectF box=new RectF(x-dp(19),ht-dp(23),x+dp(19),ht+dp(23));
     paint.setColor(0xff33363a);canvas.drawRoundRect(box,dp(5),dp(5),paint);
     if(bmp!=null){
      float ratio=Math.max((float)box.width()/bmp.getWidth(),(float)box.height()/bmp.getHeight());
@@ -465,7 +465,18 @@ public final class MoaNativeGallery {
     paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(i==index?dp(3):dp(1));
     paint.setColor(i==index?0xfffff7f9:0x883d4350);canvas.drawRoundRect(box,dp(5),dp(5),paint);
     paint.setStyle(Paint.Style.FILL);
-    if(video(id)){paint.setColor(0xbb111111);canvas.drawCircle(x,ht,dp(9),paint);paint.setColor(-1);paint.setTextSize(dp(11));canvas.drawText("▶",x-dp(4),ht+dp(4),paint);}
+    if(video(id)){
+     paint.setColor(0xbb111111);canvas.drawCircle(x,ht,dp(7),paint);
+     paint.setColor(-1);paint.setTextSize(dp(9));canvas.drawText("▶",x-dp(3),ht+dp(3),paint);
+     if(i==index&&prepared&&media!=null){
+      // R195: playback position is visible even BEFORE opening the scene strip.
+      float progress=0;
+      try{progress=Math.max(0f,Math.min(1f,(float)media.getCurrentPosition()/Math.max(1,media.getDuration())));}catch(Exception ignored){}
+      float cursor=box.left+progress*box.width();
+      paint.setColor(0x99ffffff);canvas.drawRect(box.left,box.bottom-dp(3),cursor,box.bottom);
+      paint.setColor(Color.WHITE);canvas.drawRoundRect(new RectF(cursor-dp(1),box.top,cursor+dp(1),box.bottom),dp(1),dp(1),paint);
+     }
+    }
    }
    paint.setColor(0xfffff7f9);canvas.drawRoundRect(new RectF(cw-dp(1),0,cw+dp(1),getHeight()),dp(1),dp(1),paint);
   }
@@ -487,15 +498,15 @@ public final class MoaNativeGallery {
     case MotionEvent.ACTION_DOWN:
      browsingRail=true;xAtDown=e.getX();indexAtDown=center;downAt=SystemClock.uptimeMillis();return true;
     case MotionEvent.ACTION_MOVE:{
-     float next=Math.max(0,Math.min(ids.size()-1,indexAtDown+(xAtDown-e.getX())/dp(52)));
+     float next=Math.max(0,Math.min(ids.size()-1,indexAtDown+(xAtDown-e.getX())/dp(44)));
      center=next;invalidate();
      // Stage motion is always tied to the SAME fractional index as the rail.
      int near=Math.round(next);if(near!=index){index=near;loadToken++;resetPhotoZoom();teardownPlayer();refreshPages();}
      updatePosition((index-next)*Math.max(1,stage.getWidth()));return true;
     }
     case MotionEvent.ACTION_UP:{
-     float next=Math.max(0,Math.min(ids.size()-1,indexAtDown+(xAtDown-e.getX())/dp(52)));
-     if(Math.abs(e.getX()-xAtDown)<dp(5)&&ids.size()>1){next=index+Math.round((e.getX()-getWidth()*.5f)/dp(52));}
+     float next=Math.max(0,Math.min(ids.size()-1,indexAtDown+(xAtDown-e.getX())/dp(44)));
+     if(Math.abs(e.getX()-xAtDown)<dp(5)&&ids.size()>1){next=index+Math.round((e.getX()-getWidth()*.5f)/dp(44));}
      browsingRail=false;int selected=Math.round(Math.max(0,Math.min(ids.size()-1,next)));
      if(Math.abs(e.getX()-xAtDown)<dp(8)&&selected>=0&&selected<ids.size()&&video(ids.get(selected))){
       if(selected!=index)navigate(selected);
@@ -594,10 +605,10 @@ public final class MoaNativeGallery {
   try{int t=media.getCurrentPosition(),d=Math.max(1,media.getDuration());
    if(!seekInProgress&&!scrubbingVideo){seek.setMax(d);seek.setProgress(t);}
     if(!scrubbingVideo)videoTime.setText(clock(t)+" / "+clock(d));
-    if(videoScrubMode && rail!=null && !scrubbingVideo)rail.invalidate();
+    if(rail!=null&&!scrubbingVideo)rail.invalidate();
    pause.setText(media.isPlaying()?"Ⅱ":"▶");
   }catch(Exception ignored){}
-  main.postDelayed(this,videoScrubMode?80:300);
+  main.postDelayed(this,80);
  }};main.post(ticker);}
  private String clock(long ms){long s=Math.max(0,ms)/1000;return String.format(java.util.Locale.US,"%02d:%02d",s/60,s%60);}
  private void toggle(){if(media==null||!prepared)return;try{if(media.isPlaying())media.pause();else media.start();
@@ -662,7 +673,7 @@ public final class MoaNativeGallery {
   return 0;
  }
  private void requestScrubFrames(){
-  if(!videoScrubMode||!open||ids.isEmpty()||!video(ids.get(index))||!prepared)return;
+  if(!open||ids.isEmpty()||!video(ids.get(index))||!prepared)return;
   final String clip=ids.get(index);
   if(clip.equals(scrubFrameClip))return;
   scrubFrameClip=clip;scrubFrames.clear();
@@ -670,7 +681,7 @@ public final class MoaNativeGallery {
   final int total=videoLengthMs();
   // Limit independent random-seek decodes and reveal the strip in one batch,
   // rather than posting 20+ individual frames that visually climb in stair steps.
-  scrubFrameCount=Math.max(12,Math.min(22, (int)Math.ceil(total/1800f)+1));
+  scrubFrameCount=Math.max(8,Math.min(14, (int)Math.ceil(total/2200f)+1));
   final int count=scrubFrameCount;
   final int current=(int)((long)videoPositionMs()*(count-1)/Math.max(1,total));
   // Decode/scale only on the worker. Start near current playback, then expand out.
@@ -694,7 +705,7 @@ public final class MoaNativeGallery {
     }
     // R193: precisely ONE UI invalidation. No asynchronous thumbnail staircase.
     main.post(()->{
-     if(open&&token==scrubFrameToken&&videoScrubMode){scrubFrames.putAll(ready);if(rail!=null)rail.invalidate();}
+     if(open&&token==scrubFrameToken&&clip.equals(ids.get(index))){scrubFrames.putAll(ready);if(videoScrubMode&&rail!=null)rail.invalidate();}
      else for(Bitmap bitmap:ready.values())try{bitmap.recycle();}catch(Exception ignored){}
     });
    }catch(Exception ignored){}
@@ -703,13 +714,13 @@ public final class MoaNativeGallery {
  }
  private void drawVideoFrames(Canvas canvas,Paint paint,View railView){
   int count=Math.max(2,scrubFrameCount),duration=videoLengthMs();
-  float step=dp(50),cx=railView.getWidth()/2f,cy=railView.getHeight()/2f;
+  float step=dp(42),cx=railView.getWidth()/2f,cy=railView.getHeight()/2f;
   float fractional=(float)videoPositionMs()/Math.max(1,duration)*(count-1);
   int lo=Math.max(0,(int)Math.floor(fractional)-(int)(railView.getWidth()/step/2)-2);
   int hi=Math.min(count-1,(int)Math.ceil(fractional)+(int)(railView.getWidth()/step/2)+2);
   for(int i=lo;i<=hi;i++){
    float x=cx+(i-fractional)*step;
-   RectF box=new RectF(x-dp(23),cy-dp(26),x+dp(23),cy+dp(26));
+   RectF box=new RectF(x-dp(18),cy-dp(23),x+dp(18),cy+dp(23));
    paint.setColor(0xff30333a);canvas.drawRoundRect(box,dp(3),dp(3),paint);
    Bitmap frame=scrubFrames.get(i);
    if(frame!=null&&!frame.isRecycled()){
@@ -729,7 +740,7 @@ public final class MoaNativeGallery {
  }
  private boolean scrubTouch(MotionEvent e,float firstX,float firstTimeMs,int duration){
   if(media==null||!prepared)return true;
-  int target=Math.round(firstTimeMs+(firstX-e.getX())/Math.max(1,dp(50))*
+  int target=Math.round(firstTimeMs+(firstX-e.getX())/Math.max(1,dp(42))*
                   duration/Math.max(1f,scrubFrameCount-1f));
   scrubMs=Math.max(0,Math.min(duration,target));
   if(rail!=null)rail.invalidate();
@@ -812,7 +823,7 @@ public final class MoaNativeGallery {
     scrubTouch(e,scrubDownX,scrubDownMs,duration);
     if(Math.abs(e.getX()-scrubDownX)<dp(6)){
      scrubMs=Math.max(0,Math.min(duration,
-      Math.round(scrubDownMs+(e.getX()-getWidthSafe(rail)/2f)/Math.max(1f,dp(50))*
+      Math.round(scrubDownMs+(e.getX()-getWidthSafe(rail)/2f)/Math.max(1f,dp(42))*
       duration/Math.max(1f,scrubFrameCount-1f))));
     }
     r187SeekWanted=scrubMs;scrubbingVideo=false;r187SeekReleased=true;
