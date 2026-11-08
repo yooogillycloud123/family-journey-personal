@@ -77,6 +77,8 @@ public final class MoaNativeGallery {
  private TextView videoModeHint;
  private LinearLayout seekRow;
  private boolean chromeVisible=true,videoScrubMode=false,scrubbingVideo=false,scrubWasPlaying=false;
+ private float r197ScrubExpansion=0f;private ValueAnimator r197ScrubAnim;
+ private boolean r197CenterTapPending=false;private float r197CenterDownX=0f;
  private boolean r187SeekInFlight=false,r187SeekReleased=false;
  private int r187SeekWanted=0,r187SeekIssued=0;
  private long r187LastSeekTime=0;
@@ -265,6 +267,7 @@ public final class MoaNativeGallery {
   // Never leave Android system bars hidden after closing the gallery.
   if(host!=null)try{activity.getWindow().getDecorView().setSystemUiVisibility(savedSystemUi);}catch(Exception ignored){}
   chromeVisible=true;videoScrubMode=false;scrubFrames.clear();scrubFrameClip="";
+  if(r197ScrubAnim!=null){r197ScrubAnim.cancel();r197ScrubAnim=null;}r197ScrubExpansion=0f;r197CenterTapPending=false;
   if(motion!=null){motion.cancel();motion=null;}
   teardownPlayer();
   if(backRegistered&&Build.VERSION.SDK_INT>=33)try{activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);}catch(Exception ignored){}
@@ -297,7 +300,9 @@ public final class MoaNativeGallery {
    });
   }
   boolean selectedVideo=video(ids.get(index));
-  if(!selectedVideo){videoScrubMode=false;scrubFrameClip="";scrubFrameToken++;scrubFrames.clear();hideScrubPreview();}
+  if(!selectedVideo){videoScrubMode=false;r197ScrubExpansion=0f;
+   if(r197ScrubAnim!=null){r197ScrubAnim.cancel();r197ScrubAnim=null;}
+   scrubFrameClip="";scrubFrameToken++;scrubFrames.clear();hideScrubPreview();}
   videoControls.setVisibility(selectedVideo?View.VISIBLE:View.GONE);
   if(seekRow!=null)seekRow.setVisibility(selectedVideo?View.VISIBLE:View.GONE);
   if(videoModeButton!=null){videoModeButton.setText("‹ 목록");videoModeButton.setVisibility(selectedVideo&&videoScrubMode?View.VISIBLE:View.GONE);}
@@ -448,7 +453,9 @@ public final class MoaNativeGallery {
   private long downAt;
   GalleryRail(){super(activity);setLayerType(View.LAYER_TYPE_HARDWARE,null);setOnTouchListener(this::touch);}
   @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);
-   if(videoScrubMode && open && !ids.isEmpty() && video(ids.get(index))){drawVideoFrames(canvas);return;}
+   if(videoScrubMode && r197ScrubExpansion>=.999f && open && !ids.isEmpty() && video(ids.get(index))){
+    drawVideoFrames(canvas);return;
+   }
    float stride=dp(44),cw=getWidth()*.5f,ht=getHeight()*.5f;
    int lo=Math.max(0,(int)Math.floor(center)-12),hi=Math.min(ids.size()-1,(int)Math.ceil(center)+12);
    for(int i=lo;i<=hi;i++){
@@ -468,7 +475,7 @@ public final class MoaNativeGallery {
     if(video(id)){
      paint.setColor(0xbb111111);canvas.drawCircle(x,ht,dp(7),paint);
      paint.setColor(-1);paint.setTextSize(dp(9));canvas.drawText("▶",x-dp(3),ht+dp(3),paint);
-     if(i==index&&prepared&&media!=null){
+     if(i==index&&prepared&&media!=null&&!videoScrubMode){
       // R195: playback position is visible even BEFORE opening the scene strip.
       float progress=0;
       try{progress=Math.max(0f,Math.min(1f,(float)media.getCurrentPosition()/Math.max(1,media.getDuration())));}catch(Exception ignored){}
@@ -478,19 +485,12 @@ public final class MoaNativeGallery {
      }
     }
    }
-   // R195: unlike the old immobile index marker, an actively playing video
-   // has a visible timeline cursor travelling from start to end on the rail.
-   float videoProgress=-1;
-   if(!ids.isEmpty()&&video(ids.get(index))&&prepared&&media!=null){
-    try{videoProgress=Math.max(0f,Math.min(1f,(float)media.getCurrentPosition()/Math.max(1,media.getDuration())));}catch(Exception ignored){}
-   }
-   if(videoProgress>=0){
-    float cursor=getWidth()*videoProgress;
-    paint.setColor(0x88ffffff);canvas.drawRect(0,getHeight()-dp(3),cursor,getHeight(),paint);
-    paint.setColor(0xffffffff);
-    canvas.drawRoundRect(new RectF(cursor-dp(1.2f),0,cursor+dp(1.2f),getHeight()),dp(1),dp(1),paint);
-   }else{
-    paint.setColor(0xfffff7f9);canvas.drawRoundRect(new RectF(cw-dp(1),0,cw+dp(1),getHeight()),dp(1),dp(1),paint);
+   // R197: only the selected video's OWN tile shows live white progress.
+   // The global line spanning unrelated PHOTO thumbnails is removed.
+   if(r197ScrubExpansion>0.001f && open && !ids.isEmpty() && video(ids.get(index))){
+    int alpha=Math.min(255,Math.max(0,Math.round(r197ScrubExpansion*255f)));
+    canvas.saveLayerAlpha(0,0,getWidth(),getHeight(),alpha);
+    canvas.drawColor(0xff17181b);drawVideoFrames(canvas);canvas.restore();
    }
   }
   void prefetch(){
@@ -506,7 +506,26 @@ public final class MoaNativeGallery {
   }
   private boolean touch(View v,MotionEvent e){
    if(!open)return false;
-   if(videoScrubMode && !ids.isEmpty() && video(ids.get(index)))return MoaNativeGallery.this.touchVideoFrames(e);
+   if(videoScrubMode && !ids.isEmpty() && video(ids.get(index))){
+    // Tap the selected central scene thumbnail again to collapse to media.
+    int action=e.getActionMasked();
+    if(action==MotionEvent.ACTION_DOWN){
+     r197CenterDownX=e.getX();
+     r197CenterTapPending=Math.abs(e.getX()-getWidth()*.5f)<dp(22);
+     if(r197CenterTapPending)return true;
+    }else if(r197CenterTapPending&&action==MotionEvent.ACTION_MOVE){
+     if(Math.abs(e.getX()-r197CenterDownX)<dp(8))return true;
+     r197CenterTapPending=false;
+     MotionEvent synthetic=MotionEvent.obtain(e);synthetic.setAction(MotionEvent.ACTION_DOWN);
+     synthetic.setLocation(r197CenterDownX,e.getY());
+     MoaNativeGallery.this.touchVideoFrames(synthetic);synthetic.recycle();
+    }else if(r197CenterTapPending&&(action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL)){
+     r197CenterTapPending=false;
+     if(action==MotionEvent.ACTION_UP)setVideoScrubMode(false);
+     return true;
+    }
+    return MoaNativeGallery.this.touchVideoFrames(e);
+   }
    switch(e.getActionMasked()){
     case MotionEvent.ACTION_DOWN:
      browsingRail=true;xAtDown=e.getX();indexAtDown=center;downAt=SystemClock.uptimeMillis();return true;
@@ -541,6 +560,8 @@ public final class MoaNativeGallery {
   final String id=ids.get(index);final int token=++videoToken;
   try{
    texture=new TextureView(activity);texture.setOpaque(false);
+    // Keep the selected video poster visible until the first decoded frame.
+    texture.setAlpha(0f);
    pages[1].addView(texture,new FrameLayout.LayoutParams(-1,-1));
    // Never scale tiny timeline thumbnails up to the full-resolution video stage.
    scrubPreview=null;
@@ -557,7 +578,11 @@ public final class MoaNativeGallery {
        // It runs only on frameWorker and reveals a single completed batch.
        requestScrubFrames();});
       player.setOnInfoListener((p,what,extra)->{if(what==MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START&&token==videoToken){
-       images[1].setVisibility(View.INVISIBLE);return true;}return false;});
+       final TextureView firstFrame=texture;
+        if(firstFrame!=null)firstFrame.animate().alpha(1f).setDuration(130).withEndAction(()->{
+         if(token==videoToken&&open&&images[1]!=null)images[1].setVisibility(View.INVISIBLE);
+        }).start();
+        return true;}return false;});
       player.setOnErrorListener((p,what,extra)->{if(token==videoToken&&open)videoFailure();return true;});
       player.setOnCompletionListener(p->{if(token==videoToken){pause.setText("▶");}});
       player.prepareAsync();
@@ -672,7 +697,19 @@ public final class MoaNativeGallery {
  }
  private void setVideoScrubMode(boolean enabled){
   if(!open||ids.isEmpty()||!video(ids.get(index)))return;
+  if(r197ScrubAnim!=null){r197ScrubAnim.cancel();r197ScrubAnim=null;}
   videoScrubMode=enabled;
+  ValueAnimator expand=ValueAnimator.ofFloat(r197ScrubExpansion,enabled?1f:0f);
+  r197ScrubAnim=expand;expand.setDuration(175);
+  expand.setInterpolator(new DecelerateInterpolator(1.35f));
+  expand.addUpdateListener(anim->{
+   r197ScrubExpansion=(float)anim.getAnimatedValue();if(rail!=null)rail.invalidate();
+  });
+  expand.addListener(new android.animation.AnimatorListenerAdapter(){
+   @Override public void onAnimationEnd(android.animation.Animator done){
+    if(r197ScrubAnim==expand)r197ScrubAnim=null;
+   }
+  });expand.start();
   if(videoModeButton!=null){videoModeButton.setText("‹ 목록");videoModeButton.setVisibility(enabled?View.VISIBLE:View.GONE);}
   if(videoModeHint!=null)videoModeHint.setVisibility(enabled?View.VISIBLE:View.GONE);
   if(seek!=null)seek.setVisibility(enabled?View.GONE:View.VISIBLE);
