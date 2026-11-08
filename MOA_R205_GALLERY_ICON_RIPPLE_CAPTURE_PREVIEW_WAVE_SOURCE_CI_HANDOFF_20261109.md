@@ -1,0 +1,29 @@
+# MOA R205 — Gallery visual polish continuation on locked R203 user-approved scoped Golden
+
+## Precise 2026-11-09 status
+**SOURCE PATCH + NATIVE ANDROID JAVAC/D8 CI PASS. NO INSTALLABLE R205 APK CREATED / NO R205 DEVICE PASS.** An attempt to inspect uploaded `/mnt/data/19749.mp4` and to use the local Python/container APK packing/signing tools failed repeatedly with environment-level `ClientError`, before video frames, source APK bytes, private signer, ZIP packing or final APK signature verification could be accessed. **Do not fabricate a download link or claim R205 APK exists.** This is a local runtime blocking gate, not a Java compile failure.
+
+## Exact Golden acceptance
+R203 now USER-ACCEPTED **Gallery-scoped Golden** (explicit user confirmation that R203 inertia thumbnail scrolling worked and was very satisfactory). **Never overwrite/rename original R203 signed APK.** Locked private Library path `/모아_프로젝트_근거_20261103/GOLDEN_R203_20261109/MOA_R203_USER_DEVICE_SCOPED_GOLDEN_DO_NOT_MODIFY.apk`, identical SHA256 `6d85add0d0d97b08e90cec1fc13923cfa49faea1af66907350eb1f54a2b2c6a7`; 128-member freeze manifest `MOA_R203_USER_SCOPED_GOLDEN_128_MEMBER_FREEZE_20261109.json`. Original R187 legacy Golden SHA `4380ca0a421c3a12cfad0334e860e659112b116f6cc7099f8989475c646a97e9` preserved independently. Exact acceptance record: `MOA_R203_USER_ACCEPTED_GALLERY_GOLDEN_LOCK_20261109.md`. Full-app backup/media/GPS regression is not implicitly claimed by user acceptance of inertial gallery.
+
+## User's new request
+Uploaded private `19749.mp4`: smaller and more precise Samsung-gallery-like capture / play-time / sound controls, photo pictogram INSIDE screenshot viewfinder glyph, explicit speaker mute slash, rounded border and clear pressed animation/haptic, captured image mini-preview ABOVE capture button only on actual successful save, and wave/vertical lift/easing on thumbnail photos as they pass during inertial fling. **Do not upload user's personal recordings or photographs to GitHub.** The video itself could not be frame-inspected in this failed local runtime; design is based on user's explicit description and prior Samsung screenshot evidence; real-device tuning remains open.
+
+## GitHub source patch and CI evidence
+- Branch: `feature/moa-r205-gallery-golden-polish-wave-preview-20261109`, based on exact R203 accepted native source.
+- Only two GitHub files differ from R203 branch: `experiments/moa-r175/MoaNativeGallery.java` and `.github/workflows/moa-r195-gallery-dex.yml`; compare changes native +171/-31 lines plus workflow +4.
+- Exact patched Java source Git blob SHA `b47ab6cd4ace14f43f5afb073280a5d95adf84e9`, current source link `https://github.com/yooogillycloud123/family-journey-personal/blob/feature/moa-r205-gallery-golden-polish-wave-preview-20261109/experiments/moa-r175/MoaNativeGallery.java`.
+- Latest commit `15e74b574f831b1c70887cf85f90a7d3a70291a5` (workflow branch/contract enable; native file blob unchanged from preceding native commit), GitHub Actions **42530596012 completed SUCCESS**, native Android 35 javac and D8. CI artifact `13636848777`, `MOA-R197-NATIVE-GALLERY-DEX` (historical workflow label); saved as `MOA_R205_NATIVE_GALLERY_DEX_CI.zip` (artifact ZIP digest `sha256:c7c957989c95f8d7508fe24796eff948ed5a5da15eab37d4a5f77c62f1b8585e`). It includes `classes6.dex.z.b64` and `manifest.json`, but **is not an APK**.
+- Press scale .94 with restorative spring, masked native white ripple and Android haptic; capture/volume circle **32dp** (vs 37dp R203), center capsule **142×36dp** (vs 154×40dp R203), elapsed/total stays visible. Existing R203 whole-center-pill click retained.
+- Screenshot icon redesigned as picture+sun+mountain inside viewfinder corners; audio icon redesigned as speaker polygon plus mute slash or waves, replacing misleading music note.
+- After the original MediaStore photo save finishes successfully, a brief 72×88dp framed thumbnail + ✓ animates in above the real capture button for ~1.8s then fades; no backup/gallery content mutation.
+- Rail `onDraw` applies a subtle selected-tile -3.5dp lift plus velocity-sensitive ±7.5dp decaying sine wave, and stage receives ≤4dp vertical parallax during R203 native fling. R203 fractional OverScroller physics, fast fling, 150ms final snap and media order intact; on cancel or settle wave amplitude resets.
+
+## Next exact steps (DO NOT RESTART FROM SCRATCH)
+1. Restore local Python/container runtime access; inspect `/mnt/data/19749.mp4` by frame extraction to refine exact wave/look if required, without posting private frames.
+2. Find signed R203 immutable baseline in private Library and private signing backup; do not expose signer/password. Materialize raw bytes in secure runtime only; verify exact SHA256.
+3. Retrieve R205 native compiled artifact 13636848777, decode classes6.dex; verify against manifest. Replace **ONLY `AndroidManifest.xml` versionCode 203→205 and `classes6.dex`** in exact R203 APK. Preserve **126/128 APK member uncompressed bytes unchanged**. Preserve original APK package and original permanent signing certificate `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+4. Re-sign privately with original signer using APK Signature Scheme v2. Independently validate APK v2 RSA/full-file digest, ZIP CRC/all 128 entries, DEX Adler+SHA1, AXML manifest, resource alignment, app package/version, and R203 golden hash unchanged. Output installable **R205 BETA APK** and forward emergency-only R206 exact R203-feature payload if packaging succeeds.
+5. Actual Galaxy device QA: buttons small and tappable, center pill entire area responds, touch ripple/haptic, captured preview appears only on saving, wave glides without stutter or media jumping; R203 momentum no regression, recording, diary, image/voice, backup all intact. **Do not label R205 new Golden until actual user accepts.**
+
+No AirPods/Android Auto changes; no uninstall, clear data, share private keys or family media.
