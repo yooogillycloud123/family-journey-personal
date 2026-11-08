@@ -2,7 +2,7 @@ name: MOA R181 immersive gallery + video frame filmstrip native DEX
 on:
   push:
     branches:
-      - feature/moa-r181-exif-volume-frame-capture-safe-20261108
+      - feature/moa-r181-immersive-video-frame-filmstrip-20261108
     paths:
       - 'experiments/moa-r175/MoaNativeGallery.java'
       - 'experiments/moa-r175/MoaMomentAudioHostActivity_native_unified_gallery.java.txt'
