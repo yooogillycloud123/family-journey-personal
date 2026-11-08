@@ -2,7 +2,7 @@ name: MOA R183 stable viewport + direct video filmstrip seek native DEX
 on:
   push:
     branches:
-      - feature/moa-r183-immersive-video-frame-filmstrip-20261108
+      - feature/moa-r183-stable-viewport-direct-filmstrip-seek-20261108
     paths:
       - 'experiments/moa-r175/MoaNativeGallery.java'
       - 'experiments/moa-r175/MoaMomentAudioHostActivity_native_unified_gallery.java.txt'
