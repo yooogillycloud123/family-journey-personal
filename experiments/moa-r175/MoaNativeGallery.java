@@ -137,7 +137,7 @@ public final class MoaNativeGallery {
   }
   View touch=new View(activity);touch.setBackgroundColor(Color.TRANSPARENT);
   stage.addView(touch,new FrameLayout.LayoutParams(-1,-1));
-  touch.setOnTouchListener(new SwipeHandler(false));
+  touch.setOnTouchListener(new SwipeHandler());
   header=new TextView(activity);header.setTextColor(Color.WHITE);header.setTextSize(15);
   header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(dp(17),0,0,0);
   FrameLayout.LayoutParams headPos=new FrameLayout.LayoutParams(-1,dp(48),Gravity.TOP);
