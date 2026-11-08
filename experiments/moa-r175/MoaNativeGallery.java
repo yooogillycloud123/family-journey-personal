@@ -318,9 +318,9 @@ public final class MoaNativeGallery {
    scrubFrameClip="";scrubFrameToken++;scrubFrames.clear();hideScrubPreview();}
   videoControls.setVisibility(selectedVideo?View.VISIBLE:View.GONE);
   if(seekRow!=null)seekRow.setVisibility(selectedVideo?View.VISIBLE:View.GONE);
-  if(videoModeButton!=null){videoModeButton.setText("‹ 목록");videoModeButton.setVisibility(selectedVideo&&videoScrubMode?View.VISIBLE:View.GONE);}
+  if(videoModeButton!=null)videoModeButton.setVisibility(View.GONE);
   if(seek!=null)seek.setVisibility(videoScrubMode?View.GONE:View.VISIBLE);
-  if(videoModeHint!=null)videoModeHint.setVisibility(videoScrubMode?View.VISIBLE:View.GONE);
+  if(videoModeHint!=null)videoModeHint.setVisibility(View.GONE);
   if(rail!=null){rail.center=index;rail.invalidate();if(!browsingRail)rail.prefetch();}
   updateMediaVolume();
   if(videoScrubMode&&prepared)requestScrubFrames();
@@ -469,7 +469,7 @@ public final class MoaNativeGallery {
    // R199: never replace the entire mixed-media rail with a video-only rail.
    float stride=dp(44),cw=getWidth()*.5f,ht=getHeight()*.5f;
    int lo=Math.max(0,(int)Math.floor(center)-12),hi=Math.min(ids.size()-1,(int)Math.ceil(center)+12);
-   final float extraHalf=dp(86)*(videoScrubMode?Math.max(0f,r197ScrubExpansion):0f);
+   final float extraHalf=dp(86)*Math.max(0f,r197ScrubExpansion);
    for(int i=lo;i<=hi;i++){
     float x=cw+(i-center)*stride;
     if(i<index)x-=extraHalf;else if(i>index)x+=extraHalf;
@@ -478,13 +478,13 @@ public final class MoaNativeGallery {
     RectF box=new RectF(x-dp(19)-(i==index?extraHalf:0f),ht-dp(23),
       x+dp(19)+(i==index?extraHalf:0f),ht+dp(23));
     paint.setColor(0xff33363a);canvas.drawRoundRect(box,dp(5),dp(5),paint);
-    if(bmp!=null&&!(i==index&&videoScrubMode&&r197ScrubExpansion>0.001f)){
+    if(bmp!=null&&!(i==index&&r197ScrubExpansion>0.001f)){
      float ratio=Math.max((float)box.width()/bmp.getWidth(),(float)box.height()/bmp.getHeight());
      int bw=Math.min(bmp.getWidth(),Math.round(box.width()/ratio)),bh=Math.min(bmp.getHeight(),Math.round(box.height()/ratio));
      Rect src=new Rect((bmp.getWidth()-bw)/2,(bmp.getHeight()-bh)/2,(bmp.getWidth()+bw)/2,(bmp.getHeight()+bh)/2);
      canvas.drawBitmap(bmp,src,box,paint);
     }
-    if(i==index&&videoScrubMode&&r197ScrubExpansion>0.001f&&video(id)){
+    if(i==index&&r197ScrubExpansion>0.001f&&video(id)){
      canvas.save();canvas.clipRect(box);drawVideoFrames(canvas);canvas.restore();
     }
     paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(i==index?dp(3):dp(1));
@@ -736,8 +736,8 @@ public final class MoaNativeGallery {
     if(r197ScrubAnim==expand)r197ScrubAnim=null;
    }
   });expand.start();
-  if(videoModeButton!=null){videoModeButton.setText("‹ 목록");videoModeButton.setVisibility(enabled?View.VISIBLE:View.GONE);}
-  if(videoModeHint!=null)videoModeHint.setVisibility(enabled?View.VISIBLE:View.GONE);
+  if(videoModeButton!=null)videoModeButton.setVisibility(View.GONE);
+  if(videoModeHint!=null)videoModeHint.setVisibility(View.GONE);
   if(seek!=null)seek.setVisibility(enabled?View.GONE:View.VISIBLE);
   if(enabled)requestScrubFrames();else hideScrubPreview();
   if(rail!=null)rail.invalidate();
