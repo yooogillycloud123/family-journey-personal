@@ -478,7 +478,20 @@ public final class MoaNativeGallery {
      }
     }
    }
-   paint.setColor(0xfffff7f9);canvas.drawRoundRect(new RectF(cw-dp(1),0,cw+dp(1),getHeight()),dp(1),dp(1),paint);
+   // R195: unlike the old immobile index marker, an actively playing video
+   // has a visible timeline cursor travelling from start to end on the rail.
+   float videoProgress=-1;
+   if(!ids.isEmpty()&&video(ids.get(index))&&prepared&&media!=null){
+    try{videoProgress=Math.max(0f,Math.min(1f,(float)media.getCurrentPosition()/Math.max(1,media.getDuration())));}catch(Exception ignored){}
+   }
+   if(videoProgress>=0){
+    float cursor=getWidth()*videoProgress;
+    paint.setColor(0x88ffffff);canvas.drawRect(0,getHeight()-dp(3),cursor,getHeight(),paint);
+    paint.setColor(0xffffffff);
+    canvas.drawRoundRect(new RectF(cursor-dp(1.2f),0,cursor+dp(1.2f),getHeight()),dp(1),dp(1),paint);
+   }else{
+    paint.setColor(0xfffff7f9);canvas.drawRoundRect(new RectF(cw-dp(1),0,cw+dp(1),getHeight()),dp(1),dp(1),paint);
+   }
   }
   void prefetch(){
    int lo=Math.max(0,index-13),hi=Math.min(ids.size()-1,index+13);
@@ -611,7 +624,7 @@ public final class MoaNativeGallery {
     if(rail!=null&&!scrubbingVideo)rail.invalidate();
    pause.setText(media.isPlaying()?"Ⅱ":"▶");
   }catch(Exception ignored){}
-  main.postDelayed(this,80);
+  main.postDelayed(this,videoScrubMode||media.isPlaying()?32:250);
  }};main.post(ticker);}
  private String clock(long ms){long s=Math.max(0,ms)/1000;return String.format(java.util.Locale.US,"%02d:%02d",s/60,s%60);}
  private void toggle(){if(media==null||!prepared)return;try{if(media.isPlaying())media.pause();else media.start();
