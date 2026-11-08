@@ -217,7 +217,7 @@ public final class MoaNativeGallery {
   pause.setText("Ⅱ");mute.setText("♪");
   still.setOnClickListener(v->capture());pause.setOnClickListener(v->toggle());mute.setOnClickListener(v->toggleMute());
   LinearLayout leftIcon=new LinearLayout(activity);leftIcon.setGravity(Gravity.CENTER);
-  leftIcon.addView(still,new LinearLayout.LayoutParams(dp(32),dp(32)));
+  leftIcon.addView(mute,new LinearLayout.LayoutParams(dp(32),dp(32)));
   videoControls.addView(leftIcon,new LinearLayout.LayoutParams(0,dp(45),1f));
   LinearLayout centerPill=new LinearLayout(activity);centerPill.setGravity(Gravity.CENTER_VERTICAL);
   android.graphics.drawable.GradientDrawable pillBg=new android.graphics.drawable.GradientDrawable();
@@ -243,7 +243,7 @@ public final class MoaNativeGallery {
   videoControls.addView(centerPill,new LinearLayout.LayoutParams(dp(136),dp(34)));
   r205PressFeedback(still);r205PressFeedback(centerPill);r205PressFeedback(mute);
   LinearLayout rightIcon=new LinearLayout(activity);rightIcon.setGravity(Gravity.CENTER);
-  rightIcon.addView(mute,new LinearLayout.LayoutParams(dp(32),dp(32)));
+  rightIcon.addView(still,new LinearLayout.LayoutParams(dp(32),dp(32)));
   videoControls.addView(rightIcon,new LinearLayout.LayoutParams(0,dp(45),1f));
   lower.addView(videoControls,new LinearLayout.LayoutParams(-1,dp(46)));
   seek=new SeekBar(activity);seek.setMax(1000);seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
@@ -1282,8 +1282,8 @@ public final class MoaNativeGallery {
   android.graphics.drawable.GradientDrawable frame=new android.graphics.drawable.GradientDrawable();
   frame.setColor(0xe51b1c20);frame.setCornerRadius(dp(7));frame.setStroke(dp(1),0xbde3e5e8);
   preview.setBackground(frame);preview.setClipToOutline(true);preview.setElevation(dp(6));
-  FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(dp(56),dp(68),Gravity.LEFT|Gravity.BOTTOM);
-  p.leftMargin=dp(15);p.bottomMargin=dp(128);
+  FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(dp(56),dp(68),Gravity.RIGHT|Gravity.BOTTOM);
+  p.rightMargin=dp(15);p.bottomMargin=dp(128);
   host.addView(preview,p);
   preview.setContentDescription("저장된 캡처 사진 크게 보기");
   preview.setClickable(true);
@@ -1334,7 +1334,7 @@ public final class MoaNativeGallery {
     final Bitmap preview=thumb;
     final Uri savedUri=created;
     done=true;main.post(()->{if(open&&preview!=null)r205ShowCapturePreview(preview,savedUri);
-     android.widget.Toast.makeText(activity,"장면을 사진으로 저장했어요",0).show();});
+     // The actual captured-photo thumbnail confirms saving; skip redundant toast.});
    }catch(Exception e){main.post(()->android.widget.Toast.makeText(activity,"장면 저장 실패: "+e.getMessage(),0).show());}
    finally{if(!done&&created!=null)try{activity.getContentResolver().delete(created,null,null);}catch(Exception ignored){}}
   });
