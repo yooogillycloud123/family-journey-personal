@@ -288,7 +288,7 @@ public final class MoaNativeGallery {
    });
   }
   boolean selectedVideo=video(ids.get(index));
-  if(!selectedVideo){videoScrubMode=false;scrubFrameClip="";scrubFrameToken++;scrubFrames.clear();}
+  if(!selectedVideo){videoScrubMode=false;scrubFrameClip="";scrubFrameToken++;scrubFrames.clear();hideScrubPreview();}
   videoControls.setVisibility(selectedVideo?View.VISIBLE:View.GONE);
   if(seekRow!=null)seekRow.setVisibility(selectedVideo?View.VISIBLE:View.GONE);
   if(videoModeButton!=null){videoModeButton.setText("‹ 목록");videoModeButton.setVisibility(selectedVideo&&videoScrubMode?View.VISIBLE:View.GONE);}
@@ -508,6 +508,11 @@ public final class MoaNativeGallery {
   try{
    texture=new TextureView(activity);texture.setOpaque(false);
    pages[1].addView(texture,new FrameLayout.LayoutParams(-1,-1));
+   scrubPreview=new ImageView(activity);
+   scrubPreview.setScaleType(ImageView.ScaleType.FIT_CENTER);
+   scrubPreview.setBackgroundColor(Color.BLACK);
+   scrubPreview.setVisibility(View.GONE);
+   pages[1].addView(scrubPreview,new FrameLayout.LayoutParams(-1,-1));
    texture.setSurfaceTextureListener(new TextureView.SurfaceTextureListener(){
     @Override public void onSurfaceTextureAvailable(SurfaceTexture st,int w,int h){if(!open||token!=videoToken)return;
      try{
@@ -571,6 +576,8 @@ public final class MoaNativeGallery {
   if(media!=null){try{media.reset();media.release();}catch(Exception ignored){}media=null;}
   if(mediaSurface!=null){try{mediaSurface.release();}catch(Exception ignored){}mediaSurface=null;}
   if(texture!=null){TextureView old=texture;texture=null;old.setSurfaceTextureListener(null);if(old.getParent() instanceof ViewGroup)((ViewGroup)old.getParent()).removeView(old);}
+  if(scrubPreview!=null){ImageView old=scrubPreview;scrubPreview=null;old.setImageDrawable(null);if(old.getParent() instanceof ViewGroup)((ViewGroup)old.getParent()).removeView(old);}
+  scrubbingVideo=false;
   if(images[1]!=null)images[1].setVisibility(View.VISIBLE);
  }
  private void startTicker(){ticker=new Runnable(){public void run(){if(!open||media==null||!prepared)return;
@@ -635,7 +642,7 @@ public final class MoaNativeGallery {
   if(videoModeButton!=null){videoModeButton.setText("‹ 목록");videoModeButton.setVisibility(enabled?View.VISIBLE:View.GONE);}
   if(videoModeHint!=null)videoModeHint.setVisibility(enabled?View.VISIBLE:View.GONE);
   if(seek!=null)seek.setVisibility(enabled?View.GONE:View.VISIBLE);
-  if(enabled)requestScrubFrames();
+  if(enabled)requestScrubFrames();else hideScrubPreview();
   if(rail!=null)rail.invalidate();
  }
  private int videoLengthMs(){
@@ -674,7 +681,9 @@ public final class MoaNativeGallery {
       else frame=grabber.getFrameAtTime(micros,MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
      }catch(Exception ignored){}
      if(frame!=null){final Bitmap bmp=frame;final int at=i;
-      main.post(()->{if(open&&token==scrubFrameToken&&videoScrubMode){scrubFrames.put(at,bmp);if(rail!=null)rail.invalidate();}else bmp.recycle();});
+      main.post(()->{if(open&&token==scrubFrameToken&&videoScrubMode){
+       scrubFrames.put(at,bmp);if(rail!=null)rail.invalidate();if(scrubbingVideo)showScrubPreview(scrubMs);
+      }else bmp.recycle();});
      }
     }
    }catch(Exception ignored){}
@@ -709,7 +718,43 @@ public final class MoaNativeGallery {
   scrubMs=Math.max(0,Math.min(duration,target));
   if(rail!=null)rail.invalidate();
   if(videoTime!=null)videoTime.setText(clock(scrubMs)+" / "+clock(duration));
+  showScrubPreview(scrubMs);
   return true;
+ }
+ private void showScrubPreview(int positionMs){
+  if(scrubPreview==null||scrubFrames.isEmpty())return;
+  int best=-1,distance=Integer.MAX_VALUE,at=Math.round((float)Math.max(0,positionMs)/
+                   Math.max(1,videoLengthMs())*(Math.max(2,scrubFrameCount)-1));
+  for(Integer k:scrubFrames.keySet()){int d=Math.abs(k-at);if(d<distance){distance=d;best=k;}}
+  Bitmap frame=scrubFrames.get(best);
+  if(frame!=null&&!frame.isRecycled()){
+   scrubPreview.setImageBitmap(frame);
+   scrubPreview.setVisibility(View.VISIBLE);
+  }
+ }
+ private void hideScrubPreview(){
+  if(scrubPreview!=null){scrubPreview.setVisibility(View.GONE);scrubPreview.setImageDrawable(null);}
+ }
+ private void commitVideoSeek(int targetMs,boolean resume){
+  final MediaPlayer player=media;
+  if(player==null||!prepared){hideScrubPreview();return;}
+  final int token=videoToken;
+  try{
+   player.setOnSeekCompleteListener(p->{
+    if(p!=media||token!=videoToken||!open)return;
+    hideScrubPreview();
+    try{if(resume)p.start();}catch(Exception ignored){}
+    if(videoTime!=null)videoTime.setText(clock(p.getCurrentPosition())+" / "+clock(videoLengthMs()));
+    if(rail!=null)rail.invalidate();
+   });
+   // Precisely seek once on finger UP rather than queuing repeated seeks during
+   // drag, which caused some HEVC clips to stall/error in R181.
+   if(Build.VERSION.SDK_INT>=26)player.seekTo(targetMs,MediaPlayer.SEEK_CLOSEST);
+   else player.seekTo(targetMs);
+  }catch(Exception ignored){
+   hideScrubPreview();
+   try{if(resume)player.start();}catch(Exception ignoredAgain){}
+  }
  }
  private float scrubDownX,scrubDownMs;
  private boolean touchVideoFrames(MotionEvent e){
@@ -718,28 +763,28 @@ public final class MoaNativeGallery {
   switch(e.getActionMasked()){
    case MotionEvent.ACTION_DOWN:
     scrubDownX=e.getX();scrubDownMs=videoPositionMs();
-    scrubMs=(int)scrubDownMs;scrubbingVideo=true;lastLiveSeek=0;
+    scrubMs=(int)scrubDownMs;scrubbingVideo=true;
     try{scrubWasPlaying=media.isPlaying();if(scrubWasPlaying)media.pause();}catch(Exception ignored){scrubWasPlaying=false;}
     return true;
    case MotionEvent.ACTION_MOVE:
+    // Only move playhead and a decoded preview. Do not issue MediaPlayer seeks
+    // on every move; exactly one real seek happens upon release.
     scrubTouch(e,scrubDownX,scrubDownMs,duration);
-    long now=SystemClock.uptimeMillis();
-    if(now-lastLiveSeek>=150){lastLiveSeek=now;try{media.seekTo(scrubMs);}catch(Exception ignored){}}
     return true;
    case MotionEvent.ACTION_UP:
     scrubTouch(e,scrubDownX,scrubDownMs,duration);
-    if(Math.abs(e.getX()-scrubDownX)<dp(5)){
+    if(Math.abs(e.getX()-scrubDownX)<dp(6)){
      scrubMs=Math.max(0,Math.min(duration,
       Math.round(scrubDownMs+(e.getX()-getWidthSafe(rail)/2f)/Math.max(1f,dp(50))*
       duration/Math.max(1f,scrubFrameCount-1f))));
     }
-    try{media.seekTo(scrubMs);if(scrubWasPlaying)media.start();}catch(Exception ignored){}
     scrubbingVideo=false;
+    commitVideoSeek(scrubMs,scrubWasPlaying);
     if(rail!=null)rail.invalidate();
     return true;
    case MotionEvent.ACTION_CANCEL:
-    try{media.seekTo((int)scrubDownMs);if(scrubWasPlaying)media.start();}catch(Exception ignored){}
-    scrubbingVideo=false;if(rail!=null)rail.invalidate();return true;
+    scrubbingVideo=false;commitVideoSeek((int)scrubDownMs,scrubWasPlaying);
+    if(rail!=null)rail.invalidate();return true;
    default:return true;
   }
  }
