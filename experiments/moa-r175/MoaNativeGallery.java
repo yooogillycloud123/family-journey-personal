@@ -668,7 +668,9 @@ public final class MoaNativeGallery {
   scrubFrameClip=clip;scrubFrames.clear();
   final int token=++scrubFrameToken;
   final int total=videoLengthMs();
-  scrubFrameCount=Math.max(12,Math.min(36, (int)Math.ceil(total/1200f)+1));
+  // Limit independent random-seek decodes and reveal the strip in one batch,
+  // rather than posting 20+ individual frames that visually climb in stair steps.
+  scrubFrameCount=Math.max(12,Math.min(22, (int)Math.ceil(total/1800f)+1));
   final int count=scrubFrameCount;
   final int current=(int)((long)videoPositionMs()*(count-1)/Math.max(1,total));
   // Decode/scale only on the worker. Start near current playback, then expand out.
@@ -679,6 +681,7 @@ public final class MoaNativeGallery {
     ArrayList<Integer> priority=new ArrayList<>();
     for(int i=0;i<count;i++)priority.add(i);
     priority.sort((a,b)->Integer.compare(Math.abs(a-current),Math.abs(b-current)));
+    final HashMap<Integer,Bitmap> ready=new HashMap<>();
     for(int i:priority){
      if(token!=scrubFrameToken||!open)break;
      long micros=(long)total*1000L*i/Math.max(1,count-1);
@@ -687,12 +690,13 @@ public final class MoaNativeGallery {
       if(Build.VERSION.SDK_INT>=27)frame=grabber.getScaledFrameAtTime(micros,MediaMetadataRetriever.OPTION_CLOSEST_SYNC,dp(72),dp(72));
       else frame=grabber.getFrameAtTime(micros,MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
      }catch(Exception ignored){}
-     if(frame!=null){final Bitmap bmp=frame;final int at=i;
-      main.post(()->{if(open&&token==scrubFrameToken&&videoScrubMode){
-       scrubFrames.put(at,bmp);if(rail!=null)rail.invalidate();// full-resolution decoder rendering replaces the blurry overlay
-      }else bmp.recycle();});
-     }
+     if(frame!=null)ready.put(i,frame);
     }
+    // R193: precisely ONE UI invalidation. No asynchronous thumbnail staircase.
+    main.post(()->{
+     if(open&&token==scrubFrameToken&&videoScrubMode){scrubFrames.putAll(ready);if(rail!=null)rail.invalidate();}
+     else for(Bitmap bitmap:ready.values())try{bitmap.recycle();}catch(Exception ignored){}
+    });
    }catch(Exception ignored){}
    finally{try{grabber.release();}catch(Exception ignored){}}
   });
@@ -714,6 +718,11 @@ public final class MoaNativeGallery {
     Rect crop=new Rect((frame.getWidth()-sw)/2,(frame.getHeight()-sh)/2,(frame.getWidth()+sw)/2,(frame.getHeight()+sh)/2);
     canvas.drawBitmap(frame,crop,box,paint);
    }
+  }
+  if(scrubFrames.isEmpty()){
+   paint.setColor(0xffc6c7ce);paint.setTextSize(dp(11));paint.setTextAlign(Paint.Align.CENTER);
+   canvas.drawText("장면 미리보기 준비 중",cx,cy+dp(6),paint);
+   paint.setTextAlign(Paint.Align.LEFT);
   }
   paint.setColor(Color.WHITE);
   canvas.drawRoundRect(new RectF(cx-dp(1.5f),0,cx+dp(1.5f),railView.getHeight()),dp(1),dp(1),paint);
