@@ -517,7 +517,7 @@ public final class MoaNativeGallery {
  private final class GalleryRail extends View{
   private final Paint paint=new Paint(3);
   private float center,indexAtDown,xAtDown;
-   private void drawVideoFrames(Canvas canvas){MoaNativeGallery.this.drawVideoFrames(canvas,paint,this);}
+   // R201 scene painting only within selected thumbnail.
   private long downAt;
   GalleryRail(){super(activity);setLayerType(View.LAYER_TYPE_HARDWARE,null);setOnTouchListener(this::touch);}
   @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);
@@ -540,7 +540,7 @@ public final class MoaNativeGallery {
      canvas.drawBitmap(bmp,src,box,paint);
     }
     if(i==index&&r197ScrubExpansion>0.001f&&video(id)){
-     canvas.save();canvas.clipRect(box);drawVideoFrames(canvas);canvas.restore();
+     canvas.save();canvas.clipRect(box);r201DrawSceneFrames(canvas,paint,box);canvas.restore();
     }
     paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(i==index?dp(3):dp(1));
     paint.setColor(i==index?0xfffff7f9:0x883d4350);canvas.drawRoundRect(box,dp(5),dp(5),paint);
@@ -592,7 +592,7 @@ public final class MoaNativeGallery {
     // Tap the selected central scene thumbnail again to collapse to media.
     if(action==MotionEvent.ACTION_DOWN){
      r197CenterDownX=e.getX();
-     r197CenterTapPending=Math.abs(e.getX()-getWidth()*.5f)<dp(22);
+     r197CenterTapPending=Math.abs(e.getX()-getWidth()*.5f)<=dp(19)+dp(86)*Math.max(0f,r197ScrubExpansion)+dp(4);
      if(r197CenterTapPending)return true;
     }else if(r197CenterTapPending&&action==MotionEvent.ACTION_MOVE){
      if(Math.abs(e.getX()-r197CenterDownX)<dp(8))return true;
@@ -846,31 +846,38 @@ public final class MoaNativeGallery {
    finally{try{grabber.release();}catch(Exception ignored){}}
   });
  }
- private void drawVideoFrames(Canvas canvas,Paint paint,View railView){
-  int count=Math.max(2,scrubFrameCount),duration=videoLengthMs();
-  float step=dp(42),cx=railView.getWidth()/2f,cy=railView.getHeight()/2f;
-  float fractional=(float)videoPositionMs()/Math.max(1,duration)*(count-1);
-  int lo=Math.max(0,(int)Math.floor(fractional)-(int)(railView.getWidth()/step/2)-2);
-  int hi=Math.min(count-1,(int)Math.ceil(fractional)+(int)(railView.getWidth()/step/2)+2);
-  for(int i=lo;i<=hi;i++){
-   float x=cx+(i-fractional)*step;
-   RectF box=new RectF(x-dp(18),cy-dp(23),x+dp(18),cy+dp(23));
-   paint.setColor(0xff30333a);canvas.drawRoundRect(box,dp(3),dp(3),paint);
+ // R201: scene thumbnails are drawn only inside the expanded active video.
+ // Blank grey lead-ins are eliminated, even while frame extraction is pending.
+ private void r201DrawSceneFrames(Canvas canvas,Paint paint,RectF slot){
+  if(ids.isEmpty()||!video(ids.get(index)))return;
+  final int count=Math.max(2,scrubFrameCount),duration=videoLengthMs();
+  final float step=dp(38),visible=slot.width()/Math.max(1f,step);
+  final float active=Math.max(0f,Math.min(count-1f,((float)videoPositionMs()/Math.max(1,duration))*(count-1)));
+  final float origin=Math.max(0f,Math.min(Math.max(0f,count-visible),active-visible*.5f));
+  final int first=Math.max(0,(int)Math.floor(origin));
+  final int last=Math.min(count-1,(int)Math.ceil(origin+visible));
+  final Bitmap poster=posters.get(ids.get(index));
+  for(int i=first;i<=last;i++){
+   float x=slot.left+(i-origin)*step;
+   RectF box=new RectF(x,slot.top,x+step+dp(1),slot.bottom);
+   paint.setColor(0xff1b1e24);canvas.drawRect(box,paint);
    Bitmap frame=scrubFrames.get(i);
-   if(frame!=null&&!frame.isRecycled()){
-    float ratio=Math.max(box.width()/frame.getWidth(),box.height()/frame.getHeight());
-    int sw=Math.min(frame.getWidth(),Math.round(box.width()/ratio)),sh=Math.min(frame.getHeight(),Math.round(box.height()/ratio));
-    Rect crop=new Rect((frame.getWidth()-sw)/2,(frame.getHeight()-sh)/2,(frame.getWidth()+sw)/2,(frame.getHeight()+sh)/2);
+   if(frame==null||frame.isRecycled())frame=poster;
+   if(frame!=null&&!frame.isRecycled()&&frame.getWidth()>0&&frame.getHeight()>0){
+    float scale=Math.max(box.width()/frame.getWidth(),box.height()/frame.getHeight());
+    int sw=Math.max(1,Math.min(frame.getWidth(),Math.round(box.width()/scale)));
+    int sh=Math.max(1,Math.min(frame.getHeight(),Math.round(box.height()/scale)));
+    Rect crop=new Rect((frame.getWidth()-sw)/2,(frame.getHeight()-sh)/2,
+                       (frame.getWidth()+sw)/2,(frame.getHeight()+sh)/2);
     canvas.drawBitmap(frame,crop,box,paint);
    }
+   paint.setColor(0x55ffffff);paint.setStrokeWidth(dp(.5f));
+   canvas.drawLine(box.right,box.top,box.right,box.bottom,paint);
   }
-  if(scrubFrames.isEmpty()){
-   paint.setColor(0xffc6c7ce);paint.setTextSize(dp(11));paint.setTextAlign(Paint.Align.CENTER);
-   canvas.drawText("장면 미리보기 준비 중",cx,cy+dp(6),paint);
-   paint.setTextAlign(Paint.Align.LEFT);
-  }
+  float marker=Math.max(slot.left+dp(1),Math.min(slot.right-dp(1),slot.left+(active-origin)*step));
   paint.setColor(Color.WHITE);
-  canvas.drawRoundRect(new RectF(cx-dp(1.5f),0,cx+dp(1.5f),railView.getHeight()),dp(1),dp(1),paint);
+  canvas.drawRoundRect(new RectF(marker-dp(1.4f),slot.top,marker+dp(1.4f),slot.bottom),
+                       dp(1.4f),dp(1.4f),paint);
  }
  private boolean scrubTouch(MotionEvent e,float firstX,float firstTimeMs,int duration){
   if(media==null||!prepared)return true;
