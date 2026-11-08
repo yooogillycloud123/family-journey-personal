@@ -250,7 +250,7 @@ public final class MoaNativeGallery {
   if(Looper.myLooper()!=Looper.getMainLooper()){main.post(this::close);return;}
   open=false;loadToken++;videoToken++;scrubFrameToken++;
   // Never leave Android system bars hidden after closing the gallery.
-  try{activity.getWindow().getDecorView().setSystemUiVisibility(savedSystemUi);}catch(Exception ignored){}
+  if(host!=null)try{activity.getWindow().getDecorView().setSystemUiVisibility(savedSystemUi);}catch(Exception ignored){}
   chromeVisible=true;videoScrubMode=false;scrubFrames.clear();scrubFrameClip="";
   if(motion!=null){motion.cancel();motion=null;}
   teardownPlayer();
@@ -655,9 +655,10 @@ public final class MoaNativeGallery {
    MediaMetadataRetriever grabber=new MediaMetadataRetriever();
    try{
     grabber.setDataSource(activity,uri(clip));
-    for(int order=0;order<count;order++){
-     int i=(order==0)?current:(order%2==1?current+(order+1)/2:current-order/2);
-     if(i<0||i>=count)continue;
+    ArrayList<Integer> priority=new ArrayList<>();
+    for(int i=0;i<count;i++)priority.add(i);
+    priority.sort((a,b)->Integer.compare(Math.abs(a-current),Math.abs(b-current)));
+    for(int i:priority){
      if(token!=scrubFrameToken||!open)break;
      long micros=(long)total*1000L*i/Math.max(1,count-1);
      Bitmap frame=null;
