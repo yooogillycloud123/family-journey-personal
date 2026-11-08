@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/moa-r195-clean-controls-24h-sticky-audio-jump-video-rail-20261108
+      - feature/moa-r197-gallery-transition-voice-sheet-sticky-sharp-day-20261108
     paths:
       - 'experiments/moa-r175/MoaNativeGallery.java'
       - 'experiments/moa-r175/MoaMomentAudioHostActivity_native_unified_gallery.java.txt'
@@ -26,6 +27,16 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: R197 gallery regression contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'r197ScrubExpansion' experiments/moa-r175/MoaNativeGallery.java
+          grep -q 'r197CenterTapPending' experiments/moa-r175/MoaNativeGallery.java
+          grep -q 'texture.setAlpha(0f)' experiments/moa-r175/MoaNativeGallery.java
+          if grep -q 'getWidth()\*videoProgress' experiments/moa-r175/MoaNativeGallery.java; then
+            echo 'ERROR: full-rail white cursor must NOT return'; exit 1
+          fi
       - name: Compile isolated exact R195 native host and gallery
         shell: bash
         run: |
@@ -50,5 +61,5 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: MOA-R195-NATIVE-GALLERY-DEX-EXIF-VOLUME-CAPTURE
+          name: MOA-R197-NATIVE-GALLERY-DEX
           path: build/moa-r195/
