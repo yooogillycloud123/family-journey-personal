@@ -618,6 +618,20 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
    }
    return a.toString();
   }
+  /** Read-only M4A duration, independent of playback state and system media volume.
+   * Validate the same private day/id contract as play() and list(). */
+  @JavascriptInterface public long durationMs(String day,String id){
+   if(!trustedPage||!validDay(day)||!validId(id))return -1L;
+   File target=new File(dayDir(day),id);if(!target.isFile())return -1L;
+   android.media.MediaMetadataRetriever meta=new android.media.MediaMetadataRetriever();
+   try{
+    meta.setDataSource(target.getAbsolutePath());
+    String raw=meta.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION);
+    long duration=Long.parseLong(raw==null?"-1":raw);
+    return duration>0&&duration<86400000L?duration:-1L;
+   }catch(Exception ignored){return -1L;}
+   finally{try{meta.release();}catch(Exception ignored){}}
+  }
   @JavascriptInterface public void play(String day,String id){runOnUiThread(()->MoaMomentAudioHostActivity.this.play(day,id));}
   @JavascriptInterface public String videoUri(String videoId){return MoaMomentAudioHostActivity.this.videoUri(videoId);}
   @JavascriptInterface public void captureVideoFrame(String id,long at){MoaMomentAudioHostActivity.this.captureVideoFrame(id,at);}
