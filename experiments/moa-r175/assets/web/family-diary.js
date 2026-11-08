@@ -765,8 +765,10 @@ function r96Update(){
  if(r97Collapsed)return;
  r97ScheduleIdle();
  const scroll=r96Clamp(S.root.scrollTop,0,max);
- r96Up.disabled=scroll<5;
- r96Down.disabled=max-scroll<5;
+ // R177: use aria-disabled, not HTML disabled, so a long press is still received
+ // on the upper/lower button at the current scroll boundary.
+ r96Up.setAttribute('aria-disabled',scroll<5?'true':'false');
+ r96Down.setAttribute('aria-disabled',max-scroll<5?'true':'false');
 }
 function r96Queue(){
  if(r96Tick)return;
@@ -833,6 +835,8 @@ function r169RailDown(e){
  if(r169HoldTimer)clearTimeout(r169HoldTimer);
  const box=r96Rail.getBoundingClientRect();
  r169Pointer={id:e.pointerId,x:e.clientX,y:e.clientY,left:box.left,top:box.top,active:false,moved:false};
+ // The rail and BOTH arrow buttons have touch-action:none.  Do not rely on a
+ // disabled child target or a WebView long-click/contextmenu event.
  r169HoldTimer=setTimeout(()=>{
   r169HoldTimer=null;if(!r169Pointer||r169Pointer.id!==e.pointerId)return;
   r169Pointer.active=true;r96Drag=r169Pointer;r97CancelIdle();
@@ -900,8 +904,8 @@ function r96InitNav(){
 #moa-r97-nav-settings button{padding:10px;border:0;border-radius:10px;background:#f5e9ed;color:#813d55;flex:1;font:inherit}
 
 #moa-r96-rail{touch-action:none!important;-webkit-touch-callout:none!important;position:fixed;z-index:30;left:auto;right:8px;top:auto;bottom:calc(84px + env(safe-area-inset-bottom));width:46px;display:flex;flex-direction:column;align-items:center;overflow:hidden;border:1px solid #ead4d9;border-radius:22px;background:rgba(255,255,255,.97);box-shadow:0 3px 16px #26364935;user-select:none;-webkit-user-select:none}
-#moa-r96-rail button{display:grid;place-items:center;flex:0 0 auto;width:44px;height:41px;min-height:41px;margin:0;padding:0;border:0;background:transparent;color:#ad526a;font:bold 24px/1 system-ui;cursor:pointer;touch-action:manipulation}
-#moa-r96-rail button:disabled{color:#bdc3cb;opacity:.5}
+#moa-r96-rail button{display:grid;place-items:center;flex:0 0 auto;width:44px;height:41px;min-height:41px;margin:0;padding:0;border:0;background:transparent;color:#ad526a;font:bold 24px/1 system-ui;cursor:pointer;touch-action:none!important;-webkit-user-select:none;user-select:none}
+#moa-r96-rail button[aria-disabled="true"]{color:#bdc3cb;opacity:.5}
 #moa-r96-rail .r96-grip{height:29px;min-height:29px;background:#fcf3f4;color:#697887;font-size:17px;touch-action:none;cursor:pointer}
 #moa-r96-rail.r96-unlocked{border:1.5px dashed #ac657a;background:#fff9f8}
 #moa-r96-rail.r96-unlocked .r96-grip{color:#a24767;cursor:grab}
@@ -934,6 +938,8 @@ function r96InitNav(){
  r96Rail.addEventListener('pointercancel',r169RailUp,true);
  r96State.locked=true;r96Persist();r96UpdateGrip();r97ApplyStyle();
  r96Rail.style.touchAction='none';
+ // R177: child buttons must never override the gesture recognizer with pan/zoom.
+ r96Up.style.touchAction='none';r96Down.style.touchAction='none';
  S.root.addEventListener('scroll',r96Queue,{passive:true});
  S.root.addEventListener('focusin',r96Queue);
  S.root.addEventListener('focusout',()=>setTimeout(r96Queue,120));
