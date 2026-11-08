@@ -1,4 +1,4 @@
-name: MOA R175 Native Unified Gallery - pinch-and-share complete build
+name: MOA R175 Native Unified Gallery - final gesture UI build
 on:
   push:
     branches: [main]
