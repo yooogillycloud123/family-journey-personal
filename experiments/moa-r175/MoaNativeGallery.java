@@ -108,7 +108,14 @@ public final class MoaNativeGallery {
   for(int i=0;i<items.length();i++){
    String s=items.optString(i,"");if(uri(s)==null)return false;validated.add(s);
   }
-  close();browsingRail=false;ids.addAll(validated);index=Math.max(0,Math.min(selected,ids.size()-1));
+  // Readability check BEFORE removing the legacy Web viewer. Any denied or
+  // stale MediaStore id leaves the working R173 viewer available as fallback.
+  final int start=Math.max(0,Math.min(selected,validated.size()-1));
+  Uri first=uri(validated.get(start));
+  try(android.os.ParcelFileDescriptor fd=activity.getContentResolver().openFileDescriptor(first,"r")){
+   if(fd==null)return false;
+  }catch(Exception unavailable){return false;}
+  close();browsingRail=false;ids.addAll(validated);index=start;
   currentDay=date==null?"":date.replaceAll("[^0-9-]","");
   FrameLayout container=activity.findViewById(android.R.id.content);
   if(container==null)return false;
