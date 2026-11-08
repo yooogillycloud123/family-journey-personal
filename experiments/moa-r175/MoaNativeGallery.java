@@ -59,6 +59,7 @@ import java.util.concurrent.Executors;
  * only nearby media thumbnails are cached. Video uses the same stage with
  * TextureView+MediaPlayer, playing muted as soon as ready, not a new Activity.
  * Never imports or invokes Samsung's proprietary Gallery APK code.
+ * R201: original native MediaPlayer pipeline retained; only UI controls and video-frame rail rendering changed.
  */
 public final class MoaNativeGallery {
  private final Activity activity;
