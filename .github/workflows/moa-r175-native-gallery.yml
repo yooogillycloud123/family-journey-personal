@@ -1,0 +1,66 @@
+name: MOA R175 Native Unified Gallery - isolated compile
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/moa-r175-native-gallery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile_gallery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/moa-r175-native-unified-gallery-recycler-rail-fix-20261108
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK 35
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile only R175 native Gallery and original VoiceHost activity
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa175/src/com/juhyeon/familyjourney /tmp/moa175/classes /tmp/moa175/dex build/moa-r175
+          cp experiments/moa-r175/MoaMomentAudioHostActivity_native_unified_gallery.java.txt /tmp/moa175/src/com/juhyeon/familyjourney/MoaMomentAudioHostActivity.java
+          cp experiments/moa-r175/MoaNativeGallery.java /tmp/moa175/src/com/juhyeon/familyjourney/MoaNativeGallery.java
+          cat > /tmp/moa175/src/com/juhyeon/familyjourney/MoaMomentVoiceHostActivity.java <<'JAVA'
+          package com.juhyeon.familyjourney;
+          class MoaMomentVoiceHostActivity extends android.app.Activity {}
+          JAVA
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d /tmp/moa175/classes \
+            /tmp/moa175/src/com/juhyeon/familyjourney/MoaMomentVoiceHostActivity.java \
+            /tmp/moa175/src/com/juhyeon/familyjourney/MoaMomentAudioHostActivity.java \
+            /tmp/moa175/src/com/juhyeon/familyjourney/MoaNativeGallery.java \
+            > build/moa-r175/compile.log 2>&1 || { tail -120 build/moa-r175/compile.log; exit 1; }
+          find /tmp/moa175/classes -type f \( -name 'MoaMomentAudioHostActivity*.class' -o -name 'MoaNativeGallery*.class' \) -print0 |
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa175/dex \
+            >> build/moa-r175/compile.log 2>&1 || { tail -120 build/moa-r175/compile.log; exit 1; }
+          python3 - <<'PY'
+          import pathlib,hashlib,zlib,base64,json
+          d=pathlib.Path('/tmp/moa175/dex/classes.dex').read_bytes()
+          assert d.startswith(b'dex\n') and b'MoaNativeGallery' in d and b'openNativeGallery' in d
+          assert b'MoaMomentAudioHostActivity' in d
+          assert b'MoaMomentVoiceHostActivity;' not in d or b'MoaNativeGallery' in d
+          p=pathlib.Path('build/moa-r175')
+          (p/'classes6.dex.z.b64').write_text(base64.b64encode(zlib.compress(d,9)).decode()+'\n')
+          (p/'manifest.json').write_text(json.dumps({
+            'dex_bytes':len(d),'dex_sha256':hashlib.sha256(d).hexdigest(),
+            'helper_sha256':hashlib.sha256(pathlib.Path('experiments/moa-r175/MoaNativeGallery.java').read_bytes()).hexdigest(),
+            'owner_sha256':hashlib.sha256(pathlib.Path('experiments/moa-r175/MoaMomentAudioHostActivity_native_unified_gallery.java.txt').read_bytes()).hexdigest(),
+            'class_methods':['openNativeGallery','closeNativeGallery','TextureView','MediaPlayer','GalleryRail']
+          },indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R175-NATIVE-UNIFIED-GALLERY-DEX
+          path: build/moa-r175/
