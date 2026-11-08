@@ -1,0 +1,45 @@
+name: MOA R195 Day UI and Voice Location Contracts
+on:
+  push:
+    branches:
+      - feature/moa-r195-clean-controls-24h-sticky-audio-jump-video-rail-20261108
+    paths:
+      - 'experiments/moa-r175/assets/web/family-diary.js'
+      - 'experiments/moa-r175/assets/web/moa-r141-monthly-report.js'
+      - 'experiments/moa-r175/assets/web/moa-r149-voice.js'
+      - 'experiments/moa-r175/assets/web/moa-r149-voice.css'
+      - '.github/workflows/moa-r195-day-ui-static.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ui-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax, safe time range, voice link and compact UI invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r175/assets/web/family-diary.js
+          node --check experiments/moa-r175/assets/web/moa-r141-monthly-report.js
+          node --check experiments/moa-r175/assets/web/moa-r149-voice.js
+          node <<'NODE'
+          const fs=require('fs'),assert=require('assert/strict');
+          const root='experiments/moa-r175/assets/web/';
+          const diary=fs.readFileSync(root+'family-diary.js','utf8');
+          const voice=fs.readFileSync(root+'moa-r149-voice.js','utf8');
+          const css=fs.readFileSync(root+'moa-r149-voice.css','utf8');
+          for(const x of ['R195_STICKY_HEADER_KEY','r195StickyHeader','R193_BUCKET_CHOICES','1440','r195JumpToAudioLocation','MoaDiaryNavigateToVoice','data-moa-media-id','moaMediaId','recordState','moaAudioCompact'])
+            assert(diary.includes(x),'diary marker missing '+x);
+          for(const x of ['moaAudioCompact','moa-r195-jump-to-media','MoaDiaryNavigateToVoice','기록 위치','durationMs'])
+            assert(voice.includes(x),'voice marker missing '+x);
+          for(const x of ['moa-r195-sticky-row','data-record-state="filled"','data-record-state="empty"','white-space:nowrap!important','strong[role="button"]::after','data-moa-r195-sticky="on"'])
+            assert(css.includes(x),'style marker missing '+x);
+          assert(!diary.includes("hasVoice?'🎧 기록'"),'decorative memo title must be absent');
+          assert(!diary.includes("actions.append(elem('summary','','⋯ 기능'))"),'decorative tools title must be absent');
+          console.log('R195 STATIC CONTRACT PASS: 24h+custom, sticky, voice deep-link, record state, horizontal audio');
+          NODE
