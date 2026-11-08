@@ -43,3 +43,13 @@ jobs:
           assert(!diary.includes("actions.append(elem('summary','','⋯ 기능'))"),'decorative tools title must be absent');
           console.log('R195 STATIC CONTRACT PASS: 24h+custom, sticky, voice deep-link, record state, horizontal audio');
           NODE
+      - name: Export only four public R195 web source assets for private local repack
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R195-PUBLIC-WEB-ASSETS-ONLY
+          path: |
+            experiments/moa-r175/assets/web/family-diary.js
+            experiments/moa-r175/assets/web/moa-r149-voice.js
+            experiments/moa-r175/assets/web/moa-r149-voice.css
+          if-no-files-found: error
