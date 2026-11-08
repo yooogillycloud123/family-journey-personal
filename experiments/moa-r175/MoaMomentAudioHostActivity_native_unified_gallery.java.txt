@@ -500,7 +500,14 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
     Runnable open=()->{
      try{
       if(timedOut.get()||isFinishing()||isDestroyed()||!trusted())return;
-      if(unifiedGallery==null)unifiedGallery=new MoaNativeGallery(this);
+      if(unifiedGallery==null)unifiedGallery=new MoaNativeGallery(this, legacy->{
+       if(web==null||!trusted()||legacy==null)return;
+       String[] split=legacy.split("\\|",2);
+       if(split.length!=2||!split[1].matches("v?[0-9]{1,18}"))return;
+       String fn="day".equals(split[0])?"window.MoaUnifiedDiary&&window.MoaUnifiedDiary.openFromDay":"window.MoaR175MonthLegacy";
+       String js="(function(){window.__moaR175BypassNative=true;var f="+fn+";if(typeof f==='function')f("+org.json.JSONObject.quote(split[1])+");})();";
+       web.evaluateJavascript(js,null);
+      });
       result.set(unifiedGallery.open(jsonMediaIds,index,day));
      }catch(Exception ignored){}
      finally{done.countDown();}
