@@ -79,6 +79,7 @@ public final class MoaNativeGallery {
  private boolean chromeVisible=true,videoScrubMode=false,scrubbingVideo=false,scrubWasPlaying=false;
  private float r197ScrubExpansion=0f;private ValueAnimator r197ScrubAnim;
  private boolean r197CenterTapPending=false;private float r197CenterDownX=0f;
+ private boolean r199SideGesture=false;private float r199SideStartX=0f;
  private boolean r187SeekInFlight=false,r187SeekReleased=false;
  private int r187SeekWanted=0,r187SeekIssued=0;
  private long r187LastSeekTime=0;
@@ -193,18 +194,23 @@ public final class MoaNativeGallery {
   FrameLayout.LayoutParams lowerPos=new FrameLayout.LayoutParams(-1,dp(208),Gravity.BOTTOM);
   host.addView(lower,lowerPos);
   lower.addView(new android.widget.Space(activity),new LinearLayout.LayoutParams(-1,0,1f));
-  videoControls=new LinearLayout(activity);videoControls.setGravity(Gravity.CENTER_VERTICAL);
-  videoControls.setBackgroundColor(0x99000000);
-  pause=button("Ⅱ",18);mute=button("소리 켜기",12);still=button("장면 저장",12);
+  // R199: compact three-glyph controls, capture / pause / sound.
+  videoControls=new LinearLayout(activity);videoControls.setGravity(Gravity.CENTER);
+  videoControls.setBackgroundColor(Color.TRANSPARENT);
+  pause=button("Ⅱ",22);mute=button("♪",23);still=button("▣",22);
+  r199StyleVideoButton(still,"현재 동영상 장면 저장");
+  r199StyleVideoButton(pause,"동영상 일시정지");
+  r199StyleVideoButton(mute,"동영상 소리 켜기");
   pause.setOnClickListener(v->toggle());mute.setOnClickListener(v->toggleMute());
   still.setOnClickListener(v->capture());
-  videoControls.addView(pause,new LinearLayout.LayoutParams(dp(52),dp(43)));
-  videoControls.addView(mute,new LinearLayout.LayoutParams(dp(90),dp(43)));
-  videoControls.addView(still,new LinearLayout.LayoutParams(dp(100),dp(43)));
-  videoTime=new TextView(activity);videoTime.setTextColor(0xffdddddd);videoTime.setTextSize(11);videoTime.setText("00:00 / 00:00");
-  videoTime.setGravity(Gravity.CENTER);
-  videoControls.addView(videoTime,new LinearLayout.LayoutParams(0,dp(43),1));
-  lower.addView(videoControls,new LinearLayout.LayoutParams(-1,dp(45)));
+  for(Button control:new Button[]{still,pause,mute}){
+   LinearLayout slot=new LinearLayout(activity);slot.setGravity(Gravity.CENTER);
+   slot.addView(control,new LinearLayout.LayoutParams(dp(43),dp(42)));
+   videoControls.addView(slot,new LinearLayout.LayoutParams(0,dp(46),1f));
+  }
+  videoTime=new TextView(activity);videoTime.setTextColor(0xffeeeeee);videoTime.setTextSize(11);
+  videoTime.setText("00:00 / 00:00");videoTime.setGravity(Gravity.CENTER);
+  lower.addView(videoControls,new LinearLayout.LayoutParams(-1,dp(46)));
   seek=new SeekBar(activity);seek.setMax(1000);seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
    public void onStartTrackingTouch(SeekBar bar){seekInProgress=true;}
    public void onStopTrackingTouch(SeekBar bar){seekInProgress=false;try{if(media!=null&&prepared)media.seekTo(bar.getProgress());}catch(Exception ignored){}}
@@ -219,6 +225,7 @@ public final class MoaNativeGallery {
   videoModeButton.setOnClickListener(v->setVideoScrubMode(!videoScrubMode));
   seekRow.addView(videoModeButton,new LinearLayout.LayoutParams(dp(94),dp(36)));
   seekRow.addView(seek,new LinearLayout.LayoutParams(0,dp(36),1));
+  seekRow.addView(videoTime,new LinearLayout.LayoutParams(dp(104),dp(36)));
   videoModeHint=new TextView(activity);videoModeHint.setTextColor(0xffeeeeee);
   videoModeHint.setTextSize(11);videoModeHint.setGravity(Gravity.CENTER_VERTICAL);
   videoModeHint.setText("영상 장면 좌우 이동 · 선택 영상 미리보기 누르면 탐색");
@@ -253,6 +260,12 @@ public final class MoaNativeGallery {
   lower.addView(rail,new LinearLayout.LayoutParams(-1,dp(72)));
   open=true;registerBack();refreshPages();stage.post(()->{if(open)updatePosition(0);});prepareCurrentVideo();
   host.requestFocus();return true;
+ }
+ private void r199StyleVideoButton(Button b,String label){
+  android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
+  bg.setColor(0xa8121519);bg.setCornerRadius(dp(24));bg.setStroke(dp(1),0x66ffffff);
+  b.setBackgroundTintList(null);b.setBackground(bg);b.setContentDescription(label);
+  b.setPadding(0,0,0,0);b.setMinWidth(0);b.setMinHeight(0);
  }
  private Button button(String label,int size){Button b=new Button(activity);b.setAllCaps(false);b.setText(label);b.setTextSize(size);
   b.setTextColor(-1);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff22242b));
@@ -572,7 +585,7 @@ public final class MoaNativeGallery {
       MediaPlayer player=new MediaPlayer();media=player;player.setSurface(surface);
       player.setDataSource(activity,uri(id));
       player.setOnPreparedListener(p->{if(token!=videoToken||!open)return;
-       prepared=true;p.setVolume(0,0);p.start();mute.setText("소리 켜기");pause.setText("Ⅱ");
+       prepared=true;p.setVolume(0,0);p.start();mute.setText("♪");mute.setContentDescription("동영상 소리 켜기");pause.setText("Ⅱ");
        updateVideoGeometry(p.getVideoWidth(),p.getVideoHeight());startTicker();
        // Prefetch on video prepare, before the user taps the selected thumbnail.
        // It runs only on frameWorker and reveals a single completed batch.
@@ -653,7 +666,7 @@ public final class MoaNativeGallery {
  }};main.post(ticker);}
  private String clock(long ms){long s=Math.max(0,ms)/1000;return String.format(java.util.Locale.US,"%02d:%02d",s/60,s%60);}
  private void toggle(){if(media==null||!prepared)return;try{if(media.isPlaying())media.pause();else media.start();
-  pause.setText(media.isPlaying()?"Ⅱ":"▶");}catch(Exception ignored){}}
+  pause.setText(media.isPlaying()?"Ⅱ":"▶");pause.setContentDescription(media.isPlaying()?"동영상 일시정지":"동영상 재생");}catch(Exception ignored){}}
  private void updateMediaVolume(){
   if(volumeRow==null||lowerControls==null||stage==null||ids.isEmpty())return;
   boolean shown=open&&video(ids.get(index))&&!muted;
@@ -675,7 +688,7 @@ public final class MoaNativeGallery {
   }
  }
  private void toggleMute(){muted=!muted;try{if(media!=null)media.setVolume(muted?0:1,muted?0:1);}catch(Exception ignored){}
-  mute.setText(muted?"소리 켜기":"음소거");updateMediaVolume();}
+  mute.setText(muted?"♪":"♫");mute.setContentDescription(muted?"동영상 소리 켜기":"동영상 소리 끄기");updateMediaVolume();}
  
  // R181: tap-to-immersive (without changing media-selection or video playback).
  private void toggleChrome(){
