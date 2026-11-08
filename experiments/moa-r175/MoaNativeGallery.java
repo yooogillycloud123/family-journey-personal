@@ -473,7 +473,7 @@ public final class MoaNativeGallery {
       float progress=0;
       try{progress=Math.max(0f,Math.min(1f,(float)media.getCurrentPosition()/Math.max(1,media.getDuration())));}catch(Exception ignored){}
       float cursor=box.left+progress*box.width();
-      paint.setColor(0x99ffffff);canvas.drawRect(box.left,box.bottom-dp(3),cursor,box.bottom);
+      paint.setColor(0x99ffffff);canvas.drawRect(box.left,box.bottom-dp(3),cursor,box.bottom,paint);
       paint.setColor(Color.WHITE);canvas.drawRoundRect(new RectF(cursor-dp(1),box.top,cursor+dp(1),box.bottom),dp(1),dp(1),paint);
      }
     }
