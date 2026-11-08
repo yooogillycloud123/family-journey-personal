@@ -742,26 +742,45 @@ public final class MoaNativeGallery {
  private void hideScrubPreview(){
   if(scrubPreview!=null){scrubPreview.setVisibility(View.GONE);scrubPreview.setImageDrawable(null);}
  }
- private void commitVideoSeek(int targetMs,boolean resume){
-  final MediaPlayer player=media;
-  if(player==null||!prepared){hideScrubPreview();return;}
-  final int token=videoToken;
+ // R187: coalesced real decoder seeks during finger motion.
+ // Only one async seek may be active; the newest requested time wins.
+ private void r187DispatchSeek(){
+  if(media==null||!prepared||!open||r187SeekInFlight)return;
+  final MediaPlayer player=media;final int token=videoToken;
+  final int target=Math.max(0,Math.min(videoLengthMs(),r187SeekWanted));
+  r187SeekIssued=target;r187SeekInFlight=true;r187LastSeekTime=SystemClock.uptimeMillis();
   try{
-   player.setOnSeekCompleteListener(p->{
-    if(p!=media||token!=videoToken||!open)return;
-    hideScrubPreview();
-    try{if(resume)p.start();}catch(Exception ignored){}
-    if(videoTime!=null)videoTime.setText(clock(p.getCurrentPosition())+" / "+clock(videoLengthMs()));
+   player.setOnSeekCompleteListener(done->{
+    if(done!=media||token!=videoToken||!open)return;
+    r187SeekInFlight=false;
+    if((scrubbingVideo||r187SeekReleased)&&Math.abs(r187SeekWanted-r187SeekIssued)>45){
+     r187ScheduleSeek();return;
+    }
+    if(r187SeekReleased){
+     r187SeekReleased=false;
+     try{if(scrubWasPlaying)done.start();}catch(Exception ignored){}
+    }
+    try{if(videoTime!=null&&!scrubbingVideo)videoTime.setText(clock(done.getCurrentPosition())+" / "+clock(videoLengthMs()));}catch(Exception ignored){}
     if(rail!=null)rail.invalidate();
    });
-   // Precisely seek once on finger UP rather than queuing repeated seeks during
-   // drag, which caused some HEVC clips to stall/error in R181.
-   if(Build.VERSION.SDK_INT>=26)player.seekTo(targetMs,MediaPlayer.SEEK_CLOSEST);
-   else player.seekTo(targetMs);
-  }catch(Exception ignored){
-   hideScrubPreview();
-   try{if(resume)player.start();}catch(Exception ignoredAgain){}
+   if(Build.VERSION.SDK_INT>=26)player.seekTo(target,MediaPlayer.SEEK_CLOSEST);
+   else player.seekTo(target);
+  }catch(Exception failure){
+   r187SeekInFlight=false;
+   if(r187SeekReleased){r187SeekReleased=false;try{if(scrubWasPlaying)player.start();}catch(Exception ignored){}}
   }
+ }
+ private void r187ScheduleSeek(){
+  if(media==null||!prepared||!open||r187SeekInFlight)return;
+  if(r187PendingDispatch!=null)main.removeCallbacks(r187PendingDispatch);
+  long elapsed=SystemClock.uptimeMillis()-r187LastSeekTime;
+  long delay=r187SeekReleased?0:Math.max(0,85-elapsed);
+  final int token=videoToken;
+  r187PendingDispatch=()->{
+   r187PendingDispatch=null;
+   if(open&&token==videoToken)r187DispatchSeek();
+  };
+  main.postDelayed(r187PendingDispatch,delay);
  }
  private float scrubDownX,scrubDownMs;
  private boolean touchVideoFrames(MotionEvent e){
@@ -769,14 +788,16 @@ public final class MoaNativeGallery {
   int duration=videoLengthMs();
   switch(e.getActionMasked()){
    case MotionEvent.ACTION_DOWN:
+    if(r187PendingDispatch!=null){main.removeCallbacks(r187PendingDispatch);r187PendingDispatch=null;}
+    r187SeekReleased=false;
     scrubDownX=e.getX();scrubDownMs=videoPositionMs();
-    scrubMs=(int)scrubDownMs;scrubbingVideo=true;
+    scrubMs=(int)scrubDownMs;r187SeekWanted=scrubMs;
+    scrubbingVideo=true;
     try{scrubWasPlaying=media.isPlaying();if(scrubWasPlaying)media.pause();}catch(Exception ignored){scrubWasPlaying=false;}
     return true;
    case MotionEvent.ACTION_MOVE:
-    // Only move playhead and a decoded preview. Do not issue MediaPlayer seeks
-    // on every move; exactly one real seek happens upon release.
     scrubTouch(e,scrubDownX,scrubDownMs,duration);
+    r187ScheduleSeek();
     return true;
    case MotionEvent.ACTION_UP:
     scrubTouch(e,scrubDownX,scrubDownMs,duration);
@@ -785,12 +806,14 @@ public final class MoaNativeGallery {
       Math.round(scrubDownMs+(e.getX()-getWidthSafe(rail)/2f)/Math.max(1f,dp(50))*
       duration/Math.max(1f,scrubFrameCount-1f))));
     }
-    scrubbingVideo=false;
-    commitVideoSeek(scrubMs,scrubWasPlaying);
+    r187SeekWanted=scrubMs;scrubbingVideo=false;r187SeekReleased=true;
+    r187ScheduleSeek();
     if(rail!=null)rail.invalidate();
     return true;
    case MotionEvent.ACTION_CANCEL:
-    scrubbingVideo=false;commitVideoSeek((int)scrubDownMs,scrubWasPlaying);
+    r187SeekWanted=(int)scrubDownMs;
+    scrubbingVideo=false;r187SeekReleased=true;
+    r187ScheduleSeek();
     if(rail!=null)rail.invalidate();return true;
    default:return true;
   }
