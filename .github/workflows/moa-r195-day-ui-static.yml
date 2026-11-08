@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/moa-r195-clean-controls-24h-sticky-audio-jump-video-rail-20261108
+      - feature/moa-r197-gallery-transition-voice-sheet-sticky-sharp-day-20261108
     paths:
       - 'experiments/moa-r175/assets/web/family-diary.js'
       - 'experiments/moa-r175/assets/web/moa-r141-monthly-report.js'
