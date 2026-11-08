@@ -120,6 +120,7 @@ public final class MoaNativeGallery {
  private float r205Wave=0f;
  private float r205WavePhase=0f;
  private long r205LastWaveMs=0L;
+ private float r205LastWavePosition=0f;
  private int r205PreviewSerial=0;
  private android.view.View r205Preview;
  private String currentDay="";
@@ -512,7 +513,12 @@ public final class MoaNativeGallery {
  private void updatePosition(float offset){
   fingerOffset=offset;if(!open||stage==null)return;
   int width=Math.max(1,stage.getWidth());
-  for(int j=0;j<3;j++)pages[j].setTranslationX((j-1)*width+offset);
+  for(int j=0;j<3;j++){
+   pages[j].setTranslationX((j-1)*width+offset);
+   float y=(r203FlingFrame!=null)?Math.max(-dp(4),Math.min(dp(4),
+     (float)Math.sin(r205WavePhase+j*.85f)*r205Wave*.4f)):0f;
+   pages[j].setTranslationY(y);
+  }
   if(rail!=null){rail.center=index-offset/Math.max(1,width);rail.invalidate();}
  }
  // R203: unlike R201's one-photo settle, native Android OverScroller keeps
@@ -526,10 +532,20 @@ public final class MoaNativeGallery {
   if(r203FlingFrame!=null){main.removeCallbacks(r203FlingFrame);r203FlingFrame=null;}
   if(r203Scroller!=null){r203Scroller.forceFinished(true);r203Scroller=null;}
   if(r203Snap!=null){ValueAnimator old=r203Snap;r203Snap=null;old.cancel();}
+  r205Wave=0f;r205LastWaveMs=0L;
  }
  private void r203Present(float fractional){
   if(!open||ids.isEmpty()||stage==null)return;
   final float position=r203Clamp(fractional);r203FloatIndex=position;
+  long waveNow=SystemClock.uptimeMillis();
+  if(r205LastWaveMs>0&&waveNow>r205LastWaveMs){
+   float delta=position-r205LastWavePosition;
+   float velocity=Math.abs(delta)*1000f/Math.max(1,waveNow-r205LastWaveMs);
+   float wanted=dp(7.5f)*Math.min(1f,velocity/15f);
+   r205Wave+=(wanted-r205Wave)*(velocity>1.5f?.38f:.16f);
+   r205WavePhase+=delta*1.35f;
+  }
+  r205LastWaveMs=waveNow;r205LastWavePosition=position;
   final int near=Math.max(0,Math.min(ids.size()-1,Math.round(position)));
   if(near!=index){
    index=near;loadToken++;resetPhotoZoom();
@@ -540,7 +556,7 @@ public final class MoaNativeGallery {
  }
  private void r203CompleteFling(){
   if(!open||ids.isEmpty())return;
-  browsingRail=false;
+  browsingRail=false;r205Wave=0f;r205LastWaveMs=0L;
   int near=Math.max(0,Math.min(ids.size()-1,Math.round(r203FloatIndex)));
   if(index!=near){index=near;loadToken++;resetPhotoZoom();}
   refreshPages();updatePosition(0);
@@ -715,6 +731,11 @@ public final class MoaNativeGallery {
     if(i<index)x-=extraHalf;else if(i>index)x+=extraHalf;
     if(x<-stride-extraHalf||x>getWidth()+stride+extraHalf)continue;
     String id=ids.get(i);Bitmap bmp=posters.get(id);
+    float distance=i-center;
+    float lift=-(float)Math.exp(-distance*distance/3.2f)*dp(3.5f);
+    float ripple=(float)Math.sin(distance*1.15f+r205WavePhase)
+      *(float)Math.exp(-Math.abs(distance)*.29f)*r205Wave;
+    canvas.save();canvas.translate(0f,lift+ripple);
     RectF box=new RectF(x-dp(19)-(i==index?extraHalf:0f),ht-dp(23),
       x+dp(19)+(i==index?extraHalf:0f),ht+dp(23));
     paint.setColor(0xff33363a);canvas.drawRoundRect(box,dp(5),dp(5),paint);
@@ -742,6 +763,7 @@ public final class MoaNativeGallery {
       paint.setColor(Color.WHITE);canvas.drawRoundRect(new RectF(cursor-dp(1),box.top,cursor+dp(1),box.bottom),dp(1),dp(1),paint);
      }
     }
+    canvas.restore();
    }
    // Adjacent photo/video thumbnails remain present throughout transition.
   }
