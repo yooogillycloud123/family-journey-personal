@@ -67,7 +67,9 @@ function requestVisibleThumbs(ids){if(!report)return;
 }
 function openViewer(index){if(!shownMonth?.media?.length||!report)return;
  const nativeApi=window.MoaLocalAudio;
- if(typeof nativeApi?.openNativeGallery==='function'){
+ const forceLegacy=window.__moaR175BypassNative===true;
+ if(forceLegacy)window.__moaR175BypassNative=false;
+ if(!forceLegacy && typeof nativeApi?.openNativeGallery==='function'){
   try{
    const items=shownMonth.media;
    const selected=Math.max(0,Math.min(items.length-1,Math.floor(index||0)));
@@ -201,6 +203,10 @@ function init(){const root=$('#fj-diary-root');if(root)new MutationObserver(m=>{
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)wrapBack();});
  schedule();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+window.MoaR175MonthLegacy=function(id){
+ const i=shownMonth?.media?.findIndex(p=>String(p.id)===String(id))??-1;
+ if(i>=0)openViewer(i);
+};
 window.MoaMonthlyInsights={open:show,close,collectMonth,version:'R143'};
 })();
 
