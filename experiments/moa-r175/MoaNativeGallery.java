@@ -223,7 +223,7 @@ public final class MoaNativeGallery {
   LinearLayout centerPill=new LinearLayout(activity);centerPill.setGravity(Gravity.CENTER_VERTICAL);
   android.graphics.drawable.GradientDrawable pillBg=new android.graphics.drawable.GradientDrawable();
   pillBg.setColor(0xc516191f);pillBg.setCornerRadius(dp(19));pillBg.setStroke(dp(1.1f),0x99ffffff);
-  centerPill.setBackground(pillBg);centerPill.setPadding(dp(5),0,dp(6),0);
+  centerPill.setBackground(pillBg);centerPill.setForeground(r205TouchRipple(19));centerPill.setPadding(dp(5),0,dp(6),0);
   // R203: the ENTIRE central capsule is the play/pause hit target.
   centerPill.setClickable(true);centerPill.setFocusable(true);
   centerPill.setContentDescription("동영상 재생·일시정지 및 재생시간");
@@ -295,6 +295,34 @@ public final class MoaNativeGallery {
   open=true;registerBack();refreshPages();stage.post(()->{if(open)updatePosition(0);});prepareCurrentVideo();
   host.requestFocus();return true;
  }
+ // R205: native ripple and press response for full clickable control surface.
+ private void r205PressFeedback(View target,View surface){
+  target.setOnTouchListener((v,e)->{
+   switch(e.getActionMasked()){
+    case MotionEvent.ACTION_DOWN:
+     surface.animate().cancel();
+     surface.animate().scaleX(.94f).scaleY(.94f).alpha(.84f).setDuration(85).start();
+     return false;
+    case MotionEvent.ACTION_UP:
+     surface.animate().cancel();
+     surface.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(155)
+      .setInterpolator(new android.view.animation.OvershootInterpolator(1.25f)).start();
+     if(v.isEnabled())v.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+     return false;
+    case MotionEvent.ACTION_CANCEL:
+     surface.animate().cancel();
+     surface.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(120).start();
+     return false;
+    default:return false;
+   }
+  });
+ }
+ private android.graphics.drawable.RippleDrawable r205TouchRipple(int radiusDp){
+  android.graphics.drawable.GradientDrawable mask=new android.graphics.drawable.GradientDrawable();
+  mask.setColor(Color.WHITE);mask.setCornerRadius(dp(radiusDp));
+  return new android.graphics.drawable.RippleDrawable(
+    android.content.res.ColorStateList.valueOf(0x66ffffff),null,mask);
+ }
  // R201: native vector icons rather than decorative Unicode glyphs.
  private final class R201VideoIconButton extends Button{
   private final int kind;private final Paint iconPaint=new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -306,7 +334,7 @@ public final class MoaNativeGallery {
    bg.setColor(which==1?Color.TRANSPARENT:0xb716191f);
    bg.setCornerRadius(dp(18));
    if(which!=1)bg.setStroke(dp(1.1f),0xaaffffff);
-   setBackgroundTintList(null);setBackground(bg);
+   setBackgroundTintList(null);setBackground(bg);setForeground(r205TouchRipple(18));
   }
   @Override protected void onDraw(Canvas canvas){
    super.onDraw(canvas);
