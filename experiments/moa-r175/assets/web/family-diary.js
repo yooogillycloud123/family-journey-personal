@@ -953,7 +953,8 @@ function r98MountAppSettings(){
  const li=elem('li');li.id='moa-r98-scroll-settings';li.className='moa-r98-settings';
  // Native <details> is intentionally used instead of a simulated clickable row:
  // Android WebView owns open/close and touch/keyboard semantics, no app navigation handler can swallow it.
- const disclosure=elem('details','moa-r99-disclosure'); const summary=elem('summary','moa-r99-summary');
+ const disclosure=elem('details','moa-r99-disclosure');
+ const summary=elem('summary','moa-r99-summary');
  summary.innerHTML='<span class="moa-r98-icon" aria-hidden="true">↕</span><span class="moa-r99-heading-text"><strong>화면 빠른 이동 패널</strong><span class="moa-r99-subtitle">위·아래 이동 버튼 설정</span></span><span class="moa-r99-chevron" aria-hidden="true">⌄</span>';
  disclosure.append(summary);
  const controls=elem('div','moa-r98-controls');disclosure.append(controls);li.append(disclosure);
@@ -1026,6 +1027,7 @@ function mount(){if(S.root)return;S.root=elem('section','fd23-root');S.root.id='
   if(place&&!place.hidden){$('#place-close')?.click();return true;}
   const map=$('#map-root');
   if(map&&!map.hidden){$('#map-close')?.click();return true;}
+  if(document.getElementById('moa-r191-day-shade')){r191CloseDaySheet();return true}
   if(S.open){back();return true}
   return typeof prev==='function'?prev():false;
  };
@@ -1055,7 +1057,7 @@ function chooseDay(day,newEntry=false){
  render();S.root.scrollTop=0;
 }
 function newCurated(){const picked=$('#fd23-newdate')?.value||S.today;const a=new Date(picked+'T12:00:00');if(!/^\d{4}-\d{2}-\d{2}$/.test(picked)||!Number.isFinite(a.getTime())||dateOf(a.getTime())!==picked){alert('먼저 일기를 기록할 날짜를 선택해 주세요.');return}S.month=new Date(a.getFullYear(),a.getMonth(),1);chooseDay(picked,true);openPicker()}
-function render(){if(!S.open||!S.root)return;r74KeepVisible();r37Snapshot();const previousScroll=S.root.scrollTop;S.root.replaceChildren();const banner=elem('div','fd23-banner',S.load?'사진 날짜 정보 읽는 중…':!S.ready?'일기 자료를 불러오는 중 · 달력은 먼저 표시됩니다':metaStatus());banner.id='fd23-status';S.root.append(banner);
+function render(){if(!S.open||!S.root)return;r74KeepVisible();r37Snapshot();const previousScroll=S.root.scrollTop;S.root.replaceChildren();S.root.dataset.page=S.page;const banner=elem('div','fd23-banner',S.load?'사진 날짜 정보 읽는 중…':!S.ready?'일기 자료를 불러오는 중 · 달력은 먼저 표시됩니다':metaStatus());banner.id='fd23-status';S.root.append(banner);
  if(S.page==='calendar'||S.page==='curated'){const h=elem('header','fd23-header');h.append(elem('div','fd23-heading','우리 가족 사진 일기'));S.root.insertBefore(h,banner);
   const switcher=elem('div','fd23-modes');switcher.append(button('내가 고른 사진 일기',()=>chooseMode('curated'),S.mode==='curated'?'active':''),button('자동 사진 달력',()=>chooseMode('automatic'),S.mode==='automatic'?'active':''));S.root.append(switcher);
   renderCalendar();
@@ -1114,30 +1116,126 @@ async function setCalendarCover(mediaId){
   status('대표 표지를 저장하지 못했어요: '+e,true);
  }
 }
-function videoFriendlyTile(p,chosen){
- const tile=elem('div','fd26-tile'),video=isVideo(p),id=String(p.id);
+function videoFriendlyTile(p,chosen,entry){
+ const tile=elem('div','fd26-tile moa-r191-media-tile'),video=isVideo(p),id=String(p.id);
  const item=elem('button','fd23-photo'+(video?' fd26-video':''));item.type='button';
  item.setAttribute('aria-label',video?'동영상 재생':'사진 확대 보기');
  const pic=elem('img');pic.dataset.photoId=id;pic.alt=video?'동영상 미리보기':'사진 미리보기';item.append(pic);
  if(video)item.append(elem('span','fd26-video-mark','▶ '+durationText(p.duration)));
  item.onclick=()=>video?nav('diaryPlayVideo',{id}):openGallery(chosen,chosen.findIndex(x=>x.id===id));
  tile.append(item);
- const row=elem('div','fd29-media-actions');
- row.append(button('공유',()=>nav(video?'diaryShareVideo':'sharePhoto',{id}),'fd29-quick'));
- row.append(button('갤러리',()=>nav(video?'diaryOpenVideoGallery':'openInGallery',{id}),'fd29-quick'));
- tile.append(row);
- tile.append(button('이 사진·영상만 일기에서 제외',()=>removeOneDiaryMedia(id),'fd56-remove-one'));
- const cover=button((S.covers[S.mode]||{})[S.date]===id?'✓ 대표 지정됨':'달력 대표',()=>setCalendarCover(id),'fd29-cover-btn'+((S.covers[S.mode]||{})[S.date]===id?' selected':''));
- cover.dataset.coverId=id;cover.setAttribute('aria-pressed',String((S.covers[S.mode]||{})[S.date]===id));tile.append(cover);
+
+ const related=(entry?.moments||[]).filter(m=>(m.photoIds||[]).some(mid=>String(mid)===id));
+ const memo=elem('details','moa-r191-tile-fold moa-r191-memo-fold');
+ const memoTitle=elem('summary','',related.some(m=>String(m.note||'').trim())?'메모':'메모 없음');
+ memo.append(memoTitle);
+ const memoBody=elem('div','moa-r191-memo-body');
+ if(related.length){
+  for(const m of related){
+   const note=String(m.note||'').trim();
+   if(note)memoBody.append(elem('p','moa-r191-capture-text',note));
+   if(m.uid&&S.manual){
+    memoBody.append(button(note?'메모 수정':'메모 작성',()=>mmShowEditor(entry.day,String(m.uid)),'moa-r191-tile-edit'));
+   }
+  }
+ }else memoBody.append(elem('p','moa-r191-memo-empty','연결된 촬영 메모가 없습니다.'));
+ memo.append(memoBody);tile.append(memo);
+
+ const actions=elem('details','moa-r191-tile-fold moa-r191-tools-fold');
+ actions.append(elem('summary','','기능'));
+ const body=elem('div','moa-r191-tools-body');
+ body.append(button('공유',()=>nav(video?'diaryShareVideo':'sharePhoto',{id}),'fd29-quick'));
+ body.append(button('갤러리',()=>nav(video?'diaryOpenVideoGallery':'openInGallery',{id}),'fd29-quick'));
+ const cover=button((S.covers[S.mode]||{})[S.date]===id?'✓ 대표':'대표 사진',()=>setCalendarCover(id),'fd29-cover-btn'+((S.covers[S.mode]||{})[S.date]===id?' selected':''));
+ cover.dataset.coverId=id;cover.setAttribute('aria-pressed',String((S.covers[S.mode]||{})[S.date]===id));body.append(cover);
  let panel=null;
- const position=button('⌖ 위치 보기',()=>{
-  if(!panel){panel=elem('div','fd28-geochip fd29-geo-panel');tile.append(panel);w.FamilyJourneyDiaryGeo?.attach(panel,id);position.textContent='⌃ 위치 접기';position.setAttribute('aria-expanded','true');return;}
-  const expanded=panel.hidden;panel.hidden=!expanded;position.textContent=expanded?'⌃ 위치 접기':'⌖ 위치 보기';position.setAttribute('aria-expanded',String(expanded));
+ const position=button('위치',()=>{
+  if(!panel){panel=elem('div','fd28-geochip fd29-geo-panel');body.append(panel);w.FamilyJourneyDiaryGeo?.attach(panel,id);position.textContent='위치 접기';position.setAttribute('aria-expanded','true');return;}
+  const expanded=panel.hidden;panel.hidden=!expanded;position.textContent=expanded?'위치 접기':'위치';position.setAttribute('aria-expanded',String(expanded));
  },'fd29-position');
- position.setAttribute('aria-expanded','false');tile.append(position);
+ position.setAttribute('aria-expanded','false');body.append(position);
+ const remove=button('삭제',()=>removeOneDiaryMedia(id),'fd56-remove-one');
+ remove.setAttribute('aria-label','이 사진·영상만 일기에서 제외 (원본은 삭제하지 않음)');
+ remove.title='일기에서만 제외하며 휴대폰의 원본은 보존합니다.';
+ body.append(remove);
+ actions.append(body);tile.append(actions);
  return tile;
 }
-function renderDay(){const day=S.date,entry=entriesForMode().get(day),auto=S.byDay.get(day)||[],chosen=visibleDayPhotos();const header=elem('div','fd23-top');header.append(button('‹ 달력으로',back,'soft'),elem('strong','',readable(day)),button('⋯',()=>{S.editing=!S.editing;render()},'soft'));S.root.append(header);
+// R191: date-level action sheet, no duplicate top buttons.
+function r191CloseDaySheet(){
+ const shade=document.getElementById('moa-r191-day-shade');
+ if(!shade)return;
+ if(S.editing){
+  if(S.dirty&&!confirm('저장하지 않은 일기 수정을 취소할까요?'))return;
+  S.editing=false;S.dirty=false;render();return;
+ }
+ shade.remove();
+}
+function r191OpenDaySheet(edit=false){
+ if(!S.open||S.page!=='day')return;
+ if(edit&&!S.editing){S.editing=true;S.dirty=false;render()}
+ document.getElementById('moa-r191-day-shade')?.remove();
+ const shade=elem('div','moa-r191-day-shade');shade.id='moa-r191-day-shade';
+ const panel=elem('section','moa-r191-day-panel');
+ panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');
+ panel.setAttribute('aria-label','날짜별 일기 관리');
+ const head=elem('header','moa-r191-sheet-head');
+ head.append(elem('strong','',readable(S.date)+(edit?' · 일기 수정':' · 관리')));
+ const close=button('닫기 ×',r191CloseDaySheet,'moa-r191-sheet-close');head.append(close);panel.append(head);
+ if(edit){
+   // Reuse the existing original form, live field bindings, save/remove paths.
+   const form=S.root.querySelector(':scope > .fd23-editor');
+   if(form){form.classList.add('moa-r191-sheet-editor');panel.append(form)}
+   const quick=S.root.querySelector(':scope > .fd68-editor-quickbar');
+   if(quick){
+    quick.style.cssText='position:sticky;bottom:0;z-index:2;display:flex;gap:5px;padding:7px;background:#fff9fc;border-top:1px solid #e8d5df;border-radius:12px;';
+    panel.append(quick);
+   }
+ }else{
+   const actions=elem('div','moa-r191-day-menu');
+   const add=(label,fn,danger=false)=>{
+    const control=button(label,()=>{shade.remove();fn()},danger?'moa-r191-menu-danger':'moa-r191-menu-action');
+    actions.append(control);return control;
+   };
+   add('▦ 이 날짜 전체 사진·영상 보기',()=>{
+    if(!w.MoaUnifiedDiary?.openSheet?.())S.root.querySelector('#moa-r133-open-day-list')?.click();
+   });
+   add('🎙 음성 녹음·저장 목록',()=>{
+    if(w.MoaVoiceDiaryNative?.open)w.MoaVoiceDiaryNative.open();
+    else S.root.querySelector('#moa-r149-open')?.click();
+   });
+   if(S.manual){
+     add('＋ 사진·동영상 추가·변경',openPicker);
+     add('▣ 이 날 사진·영상 전체 선택',()=>{
+      const auto=S.byDay.get(S.date)||[],videos=S.byVideoDay.get(S.date)||[];
+      S.selection=new Set([...auto,...videos].map(p=>String(p.id)));
+      S.editing=true;S.dirty=true;render();r191OpenDaySheet(true);
+     });
+   }
+   add('✎ 제목·본문·시간대 메모 · 일기 수정',()=>r191OpenDaySheet(true));
+   if(entriesForMode().get(S.date))
+     add('일기 삭제',()=>remove(),true);
+   panel.append(actions);
+ }
+ shade.append(panel);S.root.append(shade);
+ shade.addEventListener('click',e=>{if(e.target===shade)r191CloseDaySheet()});
+ panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();r191CloseDaySheet()}});
+ close.focus({preventScroll:true});
+}
+// R191: legacy group activity may contain a copy of the same photo-bound native
+// capture memo. Hide only duplicated display text; never modify persisted data.
+function r191GroupOnlyActivity(entry,g){
+ let text=String((entry?.activities||{})[String(g.start)]||'');
+ for(const m of (entry?.moments||[])){
+  if(!(m.photoIds||[]).some(id=>g.photos.some(p=>String(p.id)===String(id))))continue;
+  const note=String(m.note||'').trim();
+  if(!note)continue;
+  const marker=timeOf(m.at)+' · '+note;
+  if(text.includes(marker))text=text.replace(marker,'');
+ }
+ return text.replace(/\n{3,}/g,'\n\n').trim();
+}
+function renderDay(){const day=S.date,entry=entriesForMode().get(day),auto=S.byDay.get(day)||[],chosen=visibleDayPhotos();const header=elem('div','fd23-top');header.append(button('‹ 달력으로',back,'soft'),elem('strong','',readable(day)),button('⋯',()=>r191OpenDaySheet(S.editing),'soft moa-r191-day-menu-trigger'));S.root.append(header);
  const stat=elem('div','fd23-daystats');stat.append(elem('div','',`사진 ${chosen.filter(p=>!isVideo(p)).length}장 · 동영상 ${chosen.filter(isVideo).length}개 · ${S.manual?'내가 고른 기록':'이날 촬영한 전체 기록'}`));if(auto.length||(S.byVideoDay.get(day)||[]).length)stat.append(elem('small','',`이날 촬영한 사진 ${auto.length}장 · 영상 ${(S.byVideoDay.get(day)||[]).length}개`));S.root.append(stat);
  const jump=elem('div','fd23-shortcuts');
  if(S.manual){
@@ -1147,7 +1245,7 @@ function renderDay(){const day=S.date,entry=entriesForMode().get(day),auto=S.byD
  }
  jump.append(button(entry?'일기 수정':'일기 작성',()=>{S.editing=true;render()}));S.root.append(jump);
  // R42: minute memories appear next to their photos IN the existing timeline, never in a separate block.
- if(entry){const intro=elem('section','fd23-written');intro.append(elem('h2','',entry.title||'우리 가족의 하루'));if(entry.body)intro.append(elem('p','',entry.body));if(entry.feeling||entry.tags?.length)intro.append(elem('small','',[entry.feeling,(entry.tags||[]).join(' · ')].filter(Boolean).join(' · ')));S.root.append(intro)}
+ {const intro=elem('section','fd23-written');intro.append(elem('h2','',entry?.title||'우리 가족의 하루'));if(entry?.body)intro.append(elem('p','',entry.body));if(entry?.feeling||entry?.tags?.length)intro.append(elem('small','',[entry.feeling,(entry.tags||[]).join(' · ')].filter(Boolean).join(' · ')));S.root.append(intro)}
  if(!chosen.length)S.root.append(elem('div','fd23-emptymsg',S.manual?'직접 고른 사진·동영상이 없어요. [사진·동영상 추가·변경]에서 골라 보세요.':'이 날짜에 촬영된 사진이 없어요.'));
  const groups=segments(chosen);
  const timeline=elem('div','fd23-timeline');timeline.append(elem('h3','','사진·영상으로 보는 하루'));
@@ -1156,20 +1254,20 @@ function renderDay(){const day=S.date,entry=entriesForMode().get(day),auto=S.byD
   dt.append(elem('strong','',timeOf(g.slot*FIVE_MIN_MS)+' ~ '+timeOf((g.slot+1)*FIVE_MIN_MS-60000)),elem('span','',counts(g.photos)));
   if(dateOf(g.start)!==day)dt.append(elem('small','','· '+dateOf(g.start)+' 촬영'));
   section.append(dt);
-  const activity=(entry?.activities||{})[String(g.start)];if(activity)section.append(elem('p','fd23-activity',activity));
-  if(S.manual&&entry)mmGroupNotes(entry,g,section);
+  const activity=r191GroupOnlyActivity(entry,g);if(activity){const info=elem('details','moa-r191-group-note');info.append(elem('summary','','이 시간대 메모'),elem('p','fd23-activity',activity));section.append(info)}
+  // Per-capture moments appear under the exact photoIds, not at group top.
   const strip=elem('div','fd23-strip');section.append(strip);
   // The initial 12 and video-first affordance retain R29's original behavior.
   // Later batches are strictly 30, and each tap appends rather than replacing images.
   const first=g.photos.slice(0,12),initial=[...first];
   for(const v of g.photos.filter(isVideo).slice(0,10))if(!initial.some(p=>p.id===v.id))initial.push(v);
   const shown=new Set(initial.map(p=>p.id));
-  for(const p of initial)strip.append(videoFriendlyTile(p,chosen));
+  for(const p of initial)strip.append(videoFriendlyTile(p,chosen,entry));
   const remainder=g.photos.filter(p=>!shown.has(p.id));let offset=0;
   if(remainder.length){
    const more=button('',()=>{
     const batch=remainder.slice(offset,offset+30);offset+=batch.length;
-    for(const p of batch)strip.append(videoFriendlyTile(p,chosen));
+    for(const p of batch)strip.append(videoFriendlyTile(p,chosen,entry));
     thumbs([...strip.querySelectorAll('img[data-photo-id]')].filter(n=>!n.src),R38_BIG_THUMB);
     if(offset>=remainder.length)more.remove();else more.textContent=`사진·영상 더 보기 (${remainder.length-offset}개 남음)`;
    },'fd31-more');
@@ -1192,7 +1290,7 @@ function renderDay(){const day=S.date,entry=entriesForMode().get(day),auto=S.byD
   }
  }
  S.root.append(timeline);if(chosen.length)thumbs(timeline.querySelectorAll('img[data-photo-id]'),R38_BIG_THUMB);
- if(S.editing)renderEditor(entry,chosen);else{const footer=elem('div','fd23-actions');footer.append(button(entry?'일기 편집':'＋ 이 날 일기 남기기',()=>{S.editing=true;render()},'primary wide'));S.root.append(footer)}
+ if(S.editing)renderEditor(entry,chosen); // R191 editor is moved into ⋯ sheet, never duplicated at bottom.
  const bottom=elem('div','fd23-daynav');const prev=new Date(day+'T12:00:00');prev.setDate(prev.getDate()-1);const next=new Date(day+'T12:00:00');next.setDate(next.getDate()+1);bottom.append(button('‹ 전날',()=>chooseDay(dateOf(prev.getTime()))),button('날짜 달력',()=>{S.page='calendar';render()}),button('다음날 ›',()=>chooseDay(dateOf(next.getTime()))));S.root.append(bottom)
 }
 
