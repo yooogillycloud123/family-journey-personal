@@ -486,17 +486,33 @@ public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
   /** Optional HTML5 video source. Browser may reject a content:// URL, so JS must fallback safely. */
   /** One Activity-owned native gallery. No second player Activity or Back-stack. */
   @JavascriptInterface public boolean openNativeGallery(String jsonMediaIds,int index,String day){
-   if(!trustedPage||jsonMediaIds==null||jsonMediaIds.length()>100000)return false;
+   // Return success ONLY if the native gallery actually mounts. The old
+   // asynchronous true return silently hid the working fallback when MediaStore
+   // access was unavailable; this handshake prevents that R171-style failure.
+   if(!trustedPage||jsonMediaIds==null||jsonMediaIds.length()>300000)return false;
    try{
     org.json.JSONArray a=new org.json.JSONArray(jsonMediaIds);
     if(a.length()==0||a.length()>10000||index<0||index>=a.length())return false;
     for(int i=0;i<a.length();i++)if(!a.optString(i,"").matches("v?[0-9]{1,18}"))return false;
-    main.post(()->{
-     if(isFinishing()||isDestroyed()||!trusted())return;
-     if(unifiedGallery==null)unifiedGallery=new MoaNativeGallery(this);
-     unifiedGallery.open(jsonMediaIds,index,day);
-    });
-    return true;
+    java.util.concurrent.atomic.AtomicBoolean result=new java.util.concurrent.atomic.AtomicBoolean(false);
+    java.util.concurrent.atomic.AtomicBoolean timedOut=new java.util.concurrent.atomic.AtomicBoolean(false);
+    java.util.concurrent.CountDownLatch done=new java.util.concurrent.CountDownLatch(1);
+    Runnable open=()->{
+     try{
+      if(timedOut.get()||isFinishing()||isDestroyed()||!trusted())return;
+      if(unifiedGallery==null)unifiedGallery=new MoaNativeGallery(this);
+      result.set(unifiedGallery.open(jsonMediaIds,index,day));
+     }catch(Exception ignored){}
+     finally{done.countDown();}
+    };
+    if(android.os.Looper.myLooper()==android.os.Looper.getMainLooper())open.run();
+    else{
+     main.post(open);
+     if(!done.await(1100,java.util.concurrent.TimeUnit.MILLISECONDS)){
+      timedOut.set(true);return false;
+     }
+    }
+    return result.get();
    }catch(Exception ex){return false;}
   }
   @JavascriptInterface public void closeNativeGallery(){
