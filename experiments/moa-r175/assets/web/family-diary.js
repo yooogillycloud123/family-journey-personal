@@ -121,8 +121,14 @@ const FIVE_MIN_MS=5*60*1000;
 // IndexedDB activity keys and capture-related photoIds untouched.
 const R193_BUCKET_KEY='moa.diary.group.minutes.v1';
 const R193_PHOTO_SIZE_KEY='moa.diary.photo.columns.v1';
-const R193_BUCKET_CHOICES=[5,10,15,30,60,120];
-function r193GroupMinutes(){try{const n=Number(localStorage.getItem(R193_BUCKET_KEY));return R193_BUCKET_CHOICES.includes(n)?n:60}catch(e){return 60}}
+const R193_BUCKET_CHOICES=[5,10,15,20,30,45,60,90,120,180,240,360,480,720,1440];
+const R195_STICKY_HEADER_KEY='moa.diary.day.header.sticky.v1';
+function r193GroupMinutes(){
+ try{const raw=localStorage.getItem(R193_BUCKET_KEY),n=Number(raw);
+  return raw!==null&&Number.isInteger(n)&&n>=5&&n<=1440&&n%5===0?n:60;
+ }catch(e){return 60}
+}
+function r195StickyHeader(){try{return localStorage.getItem(R195_STICKY_HEADER_KEY)!=='off'}catch(e){return true}}
 function r193PhotoColumns(){try{const n=Number(localStorage.getItem(R193_PHOTO_SIZE_KEY));return [1,2,3].includes(n)?n:2}catch(e){return 2}}
 function segments(list,minutes=r193GroupMinutes()){
  const all=[...list].sort((a,b)=>a.t-b.t),result=[];
@@ -1220,16 +1226,18 @@ function r193StartPhotoRecording(photo){
 function r193PhotoAudio(m,day,body,voiceIndex){
  const ids=[...new Set((Array.isArray(m.voiceIds)?m.voiceIds:[]).map(String))];
  for(const fileId of ids){
-  const file=voiceIndex?.get(fileId);if(!file){body.append(elem('small','moa-r193-voice-missing','🎙 연결된 음성 파일을 확인할 수 없어요.'));continue}
+  const file=voiceIndex?.get(fileId);if(!file){body.append(elem('small','moa-r193-voice-missing','연결된 음성 파일을 확인할 수 없어요.'));continue}
   const row=elem('div','moa-r193-photo-voice');
-  const label=elem('span','','🎧 사진에 남긴 음성');
   const play=button('▶ 듣기',()=>w.MoaVoicePlaybackUI?.play?.(day,fileId,play),'moa-r193-audio-play');
   play.dataset.moaAudioPlay=day+'/'+fileId;play.dataset.moaAudioTitle='사진 음성';
-  row.append(label,play);body.append(row);
+  play.dataset.moaAudioCompact='true';
+  play.setAttribute('aria-label','이 사진에 남긴 음성 재생');
+  row.append(play);body.append(row);
  }
 }
 function videoFriendlyTile(p,chosen,entry,voiceIndex){
  const tile=elem('div','fd26-tile moa-r191-media-tile'),video=isVideo(p),id=String(p.id);
+ tile.dataset.moaMediaId=id;tile.dataset.moaMediaTime=String(Number(p.t)||0);
  const item=elem('button','fd23-photo'+(video?' fd26-video':''));item.type='button';
  item.setAttribute('aria-label',video?'동영상 재생':'사진 확대 보기');
  const pic=elem('img');pic.dataset.photoId=id;pic.alt=video?'동영상 미리보기':'사진 미리보기';item.append(pic);
@@ -1240,7 +1248,8 @@ function videoFriendlyTile(p,chosen,entry,voiceIndex){
  const related=(entry?.moments||[]).filter(m=>(m.photoIds||[]).some(mid=>String(mid)===id));
  const hasText=related.some(m=>String(m.note||'').trim()),hasVoice=related.some(m=>(m.voiceIds||[]).length);
  const memo=elem('details','moa-r191-tile-fold moa-r191-memo-fold');
- const memoTitle=elem('summary','',hasVoice?'🎧 기록':hasText?'✎ 기록':'✚ 기록');
+ memo.dataset.recordState=hasVoice||hasText?'filled':'empty';
+ const memoTitle=elem('summary','','기록');
  memoTitle.setAttribute('aria-label',hasVoice?'이 사진의 메모와 음성 기록 펼치기':hasText?'사진 메모 펼치기':'이 사진에 메모 추가');
  memo.append(memoTitle);
  const memoBody=elem('div','moa-r191-memo-body');
@@ -1250,14 +1259,14 @@ function videoFriendlyTile(p,chosen,entry,voiceIndex){
    if(note)memoBody.append(elem('p','moa-r191-capture-text',note));
    r193PhotoAudio(m,entry?.day||S.date,memoBody,voiceIndex);
    if(m.uid&&S.manual){
-    memoBody.append(button(note?'✎ 수정':'＋ 메모 남기기',()=>mmShowEditor(entry.day,String(m.uid)),'moa-r191-tile-edit'));
-    memoBody.append(button('🎙 이 사진에 녹음',()=>r193StartPhotoRecording(p),'moa-r191-tile-edit'));
+    memoBody.append(button(note?'수정':'메모 추가',()=>mmShowEditor(entry.day,String(m.uid)),'moa-r191-tile-edit'));
+    memoBody.append(button('녹음',()=>r193StartPhotoRecording(p),'moa-r191-tile-edit moa-r195-record-button'));
    }
   }
  }else {
   memoBody.append(elem('p','moa-r191-memo-empty','아직 기록이 없어요. 나중에도 추가할 수 있어요.'));
-  if(S.manual){memoBody.append(button('＋ 메모 남기기',()=>r193CreatePhotoMoment(p),'moa-r191-tile-edit'));
-   memoBody.append(button('🎙 이 사진에 녹음',()=>r193StartPhotoRecording(p),'moa-r191-tile-edit'))}
+  if(S.manual){memoBody.append(button('메모 추가',()=>r193CreatePhotoMoment(p),'moa-r191-tile-edit'));
+   memoBody.append(button('녹음',()=>r193StartPhotoRecording(p),'moa-r191-tile-edit moa-r195-record-button'))}
  }
  if(S.manual&&related.length){
   // Legacy native capture records were ACKed without their audio IDs in old
@@ -1265,7 +1274,7 @@ function videoFriendlyTile(p,chosen,entry,voiceIndex){
   const assigned=new Set((entry?.moments||[]).flatMap(m=>Array.isArray(m.voiceIds)?m.voiceIds:[]));
   const available=[...(voiceIndex?.values()||[])].filter(f=>!assigned.has(f.id));
   if(available.length&&related[0]?.uid){
-   const picker=elem('details','moa-r193-audio-attach');picker.append(elem('summary','','🎙 기존 녹음 연결'));
+   const picker=elem('details','moa-r193-audio-attach');picker.append(elem('summary','','기존 녹음 연결'));
    const selection=elem('select');selection.setAttribute('aria-label','이 사진과 연결할 음성 선택');
    for(const f of available){const opt=elem('option','',new Date(Number(f.time)).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' · '+Math.round((Number(f.bytes)||0)/1024)+'KB');opt.value=f.id;selection.append(opt)}
    picker.append(selection,button('이 사진에 연결',()=>r193ConnectPhotoVoice(entry.day,String(related[0].uid),selection.value),'moa-r191-tile-edit'));
@@ -1275,7 +1284,7 @@ function videoFriendlyTile(p,chosen,entry,voiceIndex){
  memo.append(memoBody);tile.append(memo);
 
  const actions=elem('details','moa-r191-tile-fold moa-r191-tools-fold');
- actions.append(elem('summary','','⋯ 기능'));
+ actions.append(elem('summary','','기능'));
  const body=elem('div','moa-r191-tools-body');
  body.append(button('공유',()=>nav(video?'diaryShareVideo':'sharePhoto',{id}),'fd29-quick'));
  body.append(button('갤러리',()=>nav(video?'diaryOpenVideoGallery':'openInGallery',{id}),'fd29-quick'));
@@ -1398,6 +1407,7 @@ function r191GroupOnlyActivity(entry,g){
 }
 function renderDay(){const day=S.date,entry=entriesForMode().get(day),auto=S.byDay.get(day)||[],chosen=visibleDayPhotos();
  S.root.dataset.moaR193Columns=String(r193PhotoColumns());
+ S.root.dataset.moaR195Sticky=r195StickyHeader()?'on':'off';
  const voiceIndex=r193DayVoices(day);
  const header=elem('div','fd23-top');header.append(button('‹ 달력으로',back,'soft'),elem('strong','',readable(day)),button('⋯',()=>r191OpenDaySheet(S.editing),'soft moa-r191-day-menu-trigger'));S.root.append(header);
  const stat=elem('div','fd23-daystats');stat.append(elem('div','',`사진 ${chosen.filter(p=>!isVideo(p)).length}장 · 동영상 ${chosen.filter(isVideo).length}개 · ${S.manual?'내가 고른 기록':'이날 촬영한 전체 기록'}`));if(auto.length||(S.byVideoDay.get(day)||[]).length)stat.append(elem('small','',`이날 촬영한 사진 ${auto.length}장 · 영상 ${(S.byVideoDay.get(day)||[]).length}개`));S.root.append(stat);
@@ -1416,6 +1426,7 @@ function renderDay(){const day=S.date,entry=entriesForMode().get(day),auto=S.byD
  for(const g of groups){
   const section=elem('section','fd23-log'),dt=elem('div','fd23-logtime');
   section.dataset.groupStart=String(g.groupStart);section.dataset.groupEnd=String(g.groupEnd);
+  section.dataset.moaTimelineDay=day;
   dt.append(elem('strong','',timeOf(g.groupStart)+' ~ '+timeOf(g.groupEnd-60000)),elem('span','',counts(g.photos)));
   if(dateOf(g.start)!==day)dt.append(elem('small','','· '+dateOf(g.start)+' 촬영'));
   section.append(dt);
