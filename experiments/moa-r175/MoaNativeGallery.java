@@ -609,6 +609,8 @@ public final class MoaNativeGallery {
  private final class GalleryRail extends View{
   private final Paint paint=new Paint(3);
   private float center,indexAtDown,xAtDown;
+  private android.view.VelocityTracker r203RailVelocity;
+  private boolean r203RailMoved;
    // R201 scene painting only within selected thumbnail.
   private long downAt;
   GalleryRail(){super(activity);setLayerType(View.LAYER_TYPE_HARDWARE,null);setOnTouchListener(this::touch);}
@@ -700,29 +702,60 @@ public final class MoaNativeGallery {
     return MoaNativeGallery.this.touchVideoFrames(e);
    }
    switch(e.getActionMasked()){
-    case MotionEvent.ACTION_DOWN:
-     browsingRail=true;xAtDown=e.getX();indexAtDown=center;downAt=SystemClock.uptimeMillis();return true;
-    case MotionEvent.ACTION_MOVE:{
-     float next=Math.max(0,Math.min(ids.size()-1,indexAtDown+(xAtDown-e.getX())/dp(44)));
-     center=next;invalidate();
-     // Stage motion is always tied to the SAME fractional index as the rail.
-     int near=Math.round(next);if(near!=index){index=near;loadToken++;resetPhotoZoom();teardownPlayer();refreshPages();}
-     updatePosition((index-next)*Math.max(1,stage.getWidth()));return true;
+    case MotionEvent.ACTION_DOWN:{
+     r203CancelFling();
+     if(r203RailVelocity!=null)r203RailVelocity.recycle();
+     r203RailVelocity=android.view.VelocityTracker.obtain();
+     r203RailVelocity.addMovement(e);
+     r203RailMoved=false;browsingRail=true;
+     xAtDown=e.getX();indexAtDown=center;
+     downAt=SystemClock.uptimeMillis();return true;
     }
-    case MotionEvent.ACTION_UP:{
-     float next=Math.max(0,Math.min(ids.size()-1,indexAtDown+(xAtDown-e.getX())/dp(44)));
-     if(Math.abs(e.getX()-xAtDown)<dp(5)&&ids.size()>1){next=index+Math.round((e.getX()-getWidth()*.5f)/dp(44));}
-     browsingRail=false;int selected=Math.round(Math.max(0,Math.min(ids.size()-1,next)));
-     if(Math.abs(e.getX()-xAtDown)<dp(8)&&selected>=0&&selected<ids.size()&&video(ids.get(selected))){
-      if(selected!=index)navigate(selected);
-      else if(media==null)prepareCurrentVideo();
-      updatePosition(0);setVideoScrubMode(true);return true;
+    case MotionEvent.ACTION_MOVE:{
+     if(r203RailVelocity!=null)r203RailVelocity.addMovement(e);
+     float dx=e.getX()-xAtDown;
+     if(!r203RailMoved&&Math.abs(dx)>=dp(4)){
+      r203RailMoved=true;
+      // The one video player is released only once when actual rail dragging begins.
+      if(media!=null||texture!=null)teardownPlayer();
      }
-     if(selected==index){refreshPages();updatePosition(0);if(video(ids.get(index))&&media==null)prepareCurrentVideo();}
-     else navigate(selected);
+     if(!r203RailMoved)return true;
+     float next=r203Clamp(indexAtDown-dx/Math.max(1,dp(44)));
+     r203Present(next);
      return true;
     }
-    case MotionEvent.ACTION_CANCEL:browsingRail=false;refreshPages();updatePosition(0);if(video(ids.get(index))&&!prepared&&media==null)prepareCurrentVideo();return true;
+    case MotionEvent.ACTION_UP:{
+     if(r203RailVelocity!=null)r203RailVelocity.addMovement(e);
+     float vx=0;
+     if(r203RailVelocity!=null){
+      r203RailVelocity.computeCurrentVelocity(1000,12000f);
+      vx=r203RailVelocity.getXVelocity();
+      r203RailVelocity.recycle();r203RailVelocity=null;
+     }
+     float dx=e.getX()-xAtDown;
+     if(!r203RailMoved&&Math.abs(dx)<dp(8)){
+      browsingRail=false;
+      int tapped=Math.max(0,Math.min(ids.size()-1,
+       Math.round(center+(e.getX()-getWidth()*.5f)/Math.max(1,dp(44)))));
+      if(tapped!=index){
+       navigate(tapped);
+      }else{
+       refreshPages();updatePosition(0);
+       if(video(ids.get(index))&&media==null)prepareCurrentVideo();
+      }
+      if(video(ids.get(tapped)))setVideoScrubMode(true);
+      return true;
+     }
+     float next=r203Clamp(indexAtDown-dx/Math.max(1,dp(44)));
+     // Android physics, not one-image snap: flick velocity determines travel.
+     r203ReleaseWithVelocity(next,vx,1f);
+     return true;
+    }
+    case MotionEvent.ACTION_CANCEL:{
+     if(r203RailVelocity!=null){r203RailVelocity.recycle();r203RailVelocity=null;}
+     r203ReleaseWithVelocity(r203FloatIndex,0f,1f);
+     return true;
+    }
     default:return true;
    }
   }
