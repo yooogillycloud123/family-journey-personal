@@ -267,11 +267,22 @@ public final class MoaNativeGallery {
   // R179: system MUSIC volume is independent of MediaPlayer's mute/unmute.
   // Show a slider only while sound is enabled; never raise device volume automatically.
   volumeRow=new LinearLayout(activity);volumeRow.setGravity(Gravity.CENTER_VERTICAL);
-  volumeRow.setBackgroundColor(0x99000000);
-  mediaVolumeText=new TextView(activity);mediaVolumeText.setTextSize(11);mediaVolumeText.setTextColor(Color.WHITE);
-  mediaVolumeText.setGravity(Gravity.CENTER_VERTICAL);mediaVolumeText.setPadding(dp(9),0,0,0);
-  volumeRow.addView(mediaVolumeText,new LinearLayout.LayoutParams(dp(104),dp(34)));
-  mediaVolumeSeek=new SeekBar(activity);
+  volumeRow.setPadding(dp(19),0,dp(19),0);volumeRow.setBackgroundColor(Color.TRANSPARENT);
+  // R207: compact translucent Samsung-gallery-style slim sound pill instead of a full-width black bar.
+  LinearLayout volumePill=new LinearLayout(activity);volumePill.setGravity(Gravity.CENTER_VERTICAL);
+  volumePill.setPadding(dp(10),0,dp(12),0);
+  android.graphics.drawable.GradientDrawable soundPillBg=new android.graphics.drawable.GradientDrawable();
+  soundPillBg.setColor(0xdb24262a);soundPillBg.setCornerRadius(dp(18));
+  soundPillBg.setStroke(dp(.7f),0x8aa6a9b1);volumePill.setBackground(soundPillBg);
+  volumeRow.addView(volumePill,new LinearLayout.LayoutParams(-1,dp(32)));
+  mediaVolumeText=new TextView(activity);mediaVolumeText.setTextSize(11);mediaVolumeText.setTextColor(0xffeff0f2);
+  mediaVolumeText.setGravity(Gravity.CENTER_VERTICAL);mediaVolumeText.setSingleLine(true);
+  mediaVolumeText.setPadding(dp(3),0,0,0);
+  volumePill.addView(mediaVolumeText,new LinearLayout.LayoutParams(dp(67),dp(30)));
+  mediaVolumeSeek=new SeekBar(activity);mediaVolumeSeek.setPadding(0,0,0,0);
+  mediaVolumeSeek.setProgressTintList(android.content.res.ColorStateList.valueOf(0xfff0f1f4));
+  mediaVolumeSeek.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0x667f848d));
+  mediaVolumeSeek.setThumbTintList(android.content.res.ColorStateList.valueOf(0xfffafafa));
   AudioManager volumeAudio=(AudioManager)activity.getSystemService(Activity.AUDIO_SERVICE);
   int maxAudio=volumeAudio==null?15:Math.max(1,volumeAudio.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
   mediaVolumeSeek.setMax(maxAudio);
@@ -285,7 +296,7 @@ public final class MoaNativeGallery {
     updateMediaVolume();
    }
   });
-  volumeRow.addView(mediaVolumeSeek,new LinearLayout.LayoutParams(0,dp(34),1));
+  volumePill.addView(mediaVolumeSeek,new LinearLayout.LayoutParams(0,dp(30),1));
   volumeRow.setVisibility(View.GONE);
   lower.addView(volumeRow,new LinearLayout.LayoutParams(-1,dp(36)));
   rail=new GalleryRail();rail.setBackgroundColor(0xa8000000);
@@ -939,7 +950,7 @@ public final class MoaNativeGallery {
      int max=Math.max(1,audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
      int current=audio.getStreamVolume(AudioManager.STREAM_MUSIC);
      mediaVolumeSeek.setMax(max);mediaVolumeSeek.setProgress(current);
-     mediaVolumeText.setText(current<=0?"미디어 음량 0":"미디어 음량 "+Math.round(current*100f/max)+"%");
+     mediaVolumeText.setText("음량 "+Math.round(current*100f/max)+"%");
      mediaVolumeSeek.setEnabled(!audio.isVolumeFixed());
     }
    }catch(Exception ignored){}
