@@ -344,6 +344,8 @@ public final class MoaNativeGallery {
  }}
  public void close(){
   if(Looper.myLooper()!=Looper.getMainLooper()){main.post(this::close);return;}
+  r203CancelFling();
+  if(r203StageVelocity!=null){r203StageVelocity.recycle();r203StageVelocity=null;}
   open=false;loadToken++;videoToken++;scrubFrameToken++;
   // Never leave Android system bars hidden after closing the gallery.
   if(host!=null)try{activity.getWindow().getDecorView().setSystemUiVisibility(savedSystemUi);}catch(Exception ignored){}
@@ -545,6 +547,7 @@ public final class MoaNativeGallery {
  }
  private void navigate(int next){
   if(!open||next<0||next>=ids.size()||next==index)return;
+  r203CancelFling();
   if(motion!=null){motion.cancel();motion=null;}
   index=next;loadToken++;resetPhotoZoom();teardownPlayer();refreshPages();updatePosition(0);prepareCurrentVideo();
  }
@@ -556,6 +559,10 @@ public final class MoaNativeGallery {
    boolean photo=!video(ids.get(index));
    switch(e.getActionMasked()){
     case MotionEvent.ACTION_DOWN:
+     r203CancelFling();
+     if(r203StageVelocity!=null)r203StageVelocity.recycle();
+     r203StageVelocity=android.view.VelocityTracker.obtain();
+     r203StageVelocity.addMovement(e);
      if(motion!=null){motion.cancel();motion=null;}
      pinch=false;startX=lastX=e.getX();startY=lastY=e.getY();startTime=SystemClock.uptimeMillis();return true;
     case MotionEvent.ACTION_POINTER_DOWN:
@@ -564,6 +571,7 @@ public final class MoaNativeGallery {
       initialZoom=photoZoom;pinch=true;return true;
      }return true;
     case MotionEvent.ACTION_MOVE:{
+     if(r203StageVelocity!=null)r203StageVelocity.addMovement(e);
      if(photo&&pinch&&e.getPointerCount()>1){
       float dist=(float)Math.hypot(e.getX(0)-e.getX(1),e.getY(0)-e.getY(1));
       if(initialDistance>3){photoZoom=Math.max(1f,Math.min(4.5f,initialZoom*dist/initialDistance));applyPhotoZoom();}
@@ -581,6 +589,13 @@ public final class MoaNativeGallery {
     case MotionEvent.ACTION_POINTER_UP:
      if(pinch){lastX=e.getX(0);lastY=e.getY(0);}return true;
     case MotionEvent.ACTION_UP:{
+     float releaseVelocity=0f;
+     if(r203StageVelocity!=null){
+      r203StageVelocity.addMovement(e);
+      r203StageVelocity.computeCurrentVelocity(1000,14000f);
+      releaseVelocity=r203StageVelocity.getXVelocity();
+      r203StageVelocity.recycle();r203StageVelocity=null;
+     }
      if(pinch){pinch=false;if(photoZoom<1.03f)resetPhotoZoom();return true;}
      float dx=e.getX()-startX,dy=e.getY()-startY;
      if(photo&&photoZoom>1.01f){
@@ -596,12 +611,22 @@ public final class MoaNativeGallery {
       }
       lastTap=SystemClock.uptimeMillis();return true;
      }
+     // Fast stage flick: velocity-based multi-media OverScroller on the same
+     // fractional index shared with the filmstrip; slow drags retain one-step settle.
+     if(Math.abs(releaseVelocity)>680f&&Math.abs(dx)>dp(19)
+        &&Math.abs(dx)>Math.abs(dy)*1.12f&&photoZoom<=1.01f&&ids.size()>1){
+      float starting=r203Clamp(index-dx/Math.max(1f,stage.getWidth()));
+      r203ReleaseWithVelocity(starting,releaseVelocity,.88f);
+      return true;
+     }
      float velocity=Math.abs(dx)/dt;
      int toward=(Math.abs(dx)>stage.getWidth()*.23f||velocity>0.62f)?(dx<0?-1:1):0;
      if((index==0&&toward>0)||(index==ids.size()-1&&toward<0))toward=0;
      settle(toward,Math.max(-stage.getWidth(),Math.min(stage.getWidth(),dx)));return true;
     }
-    case MotionEvent.ACTION_CANCEL:pinch=false;settle(0,fingerOffset);return true;
+    case MotionEvent.ACTION_CANCEL:
+     if(r203StageVelocity!=null){r203StageVelocity.recycle();r203StageVelocity=null;}
+     pinch=false;settle(0,fingerOffset);return true;
     default:return true;
    }
   }
