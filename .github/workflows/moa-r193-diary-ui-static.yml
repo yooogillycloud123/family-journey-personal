@@ -1,0 +1,51 @@
+name: MOA R193 Diary Grouping Voice Media UI Static Gate
+on:
+  push:
+    branches:
+      - feature/moa-r193-photo-voice-ui-grouping-playback-20261108
+    paths:
+      - 'experiments/moa-r175/assets/web/family-diary.js'
+      - 'experiments/moa-r175/assets/web/moa-r141-monthly-report.js'
+      - 'experiments/moa-r175/assets/web/moa-r149-voice.js'
+      - 'experiments/moa-r175/assets/web/moa-r149-voice.css'
+      - '.github/workflows/moa-r193-diary-ui-static.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ui-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JS syntax and source-driven UI invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r175/assets/web/family-diary.js
+          node --check experiments/moa-r175/assets/web/moa-r141-monthly-report.js
+          node --check experiments/moa-r175/assets/web/moa-r149-voice.js
+          node <<'NODE'
+          const fs=require('node:fs');
+          const assert=require('node:assert/strict');
+          const base='experiments/moa-r175/assets/web/';
+          const diary=fs.readFileSync(base+'family-diary.js','utf8');
+          const timeline=fs.readFileSync(base+'moa-r141-monthly-report.js','utf8');
+          const voice=fs.readFileSync(base+'moa-r149-voice.js','utf8');
+          const css=fs.readFileSync(base+'moa-r149-voice.css','utf8');
+          for (const marker of ['r193CloseTopLayer','r193GroupMinutes','r193PhotoColumns','r193CreatePhotoMoment','r193DayVoices','recordForPhoto','voiceIds','memoSaved']) {
+            assert(diary.includes(marker),'missing diary contract: '+marker);
+          }
+          for (const marker of ['fd23-logtime','photoVoice','showRecorder(d,slot)']) {
+            assert(timeline.includes(marker),'missing time-slot or audio exclusion: '+marker);
+          }
+          for (const marker of ['durationMs','recordForPhoto','updatePlayback']) {
+            assert(voice.includes(marker),'missing audio playback contract: '+marker);
+          }
+          for (const marker of ['moa-r193','fd23-logtime']) {
+            assert(css.includes(marker),'missing media layout contract: '+marker);
+          }
+          console.log('R193 syntax + media ID linkage + grouping + voice length + back + responsive UI source contract: PASS');
+          NODE

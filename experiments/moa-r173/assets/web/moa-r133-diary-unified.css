@@ -1,0 +1,90 @@
+/* MOA R133: Diary-only UI; no map, calendar, camera, IndexedDB layout changes. */
+#moa-r133-open-day-list.moa-r133-open-day{display:block;margin:8px 12px 14px;width:calc(100% - 24px);border:1px solid #e9c9d6;border-radius:13px;background:#fff0f5;color:#a80051;font-weight:700;padding:13px;font-size:14px;cursor:pointer}
+#moa-r133-day-sheet,#moa-r133-mixed-viewer{position:fixed;inset:0;z-index:2147483500;font-family:system-ui,-apple-system,sans-serif;box-sizing:border-box;}
+#moa-r133-day-sheet *,#moa-r133-mixed-viewer *{box-sizing:border-box}
+#moa-r133-day-sheet{display:flex;align-items:flex-end;justify-content:center;overscroll-behavior:contain}
+#moa-r133-day-sheet .moa-r133-dim{position:absolute;inset:0;background:rgba(0,0,0,.58)}
+#moa-r133-day-sheet .moa-r133-panel{position:relative;background:#fffdfd;width:100%;max-width:740px;max-height:84dvh;min-height:36vh;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px 16px calc(28px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;box-shadow:0 0 26px #0002;}
+#moa-r133-day-sheet .moa-r133-handle{width:40px;height:5px;border-radius:9px;background:#d5c6cc;margin:1px auto 16px;}
+#moa-r133-day-sheet .moa-r133-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px;color:#302735;}
+#moa-r133-day-sheet .moa-r133-sheet-title{display:flex;flex-direction:column;gap:2px;min-width:0;}
+#moa-r133-day-sheet .moa-r133-sheet-title strong{font-size:19px;}
+#moa-r133-day-sheet .moa-r133-sheet-title small{font-size:13px;color:#7a6473;}
+#moa-r133-day-sheet button{font:inherit;cursor:pointer}
+#moa-r133-day-sheet .moa-r133-small-close{border:0;border-radius:12px;background:#eff0f3;color:#332c38;padding:11px 13px;font-weight:600;flex-shrink:0}
+#moa-r133-day-sheet .moa-r133-intro{color:#6e6673;font-size:12px;line-height:1.55;margin:0 0 13px;}
+#moa-r133-day-sheet .moa-r133-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;}
+#moa-r133-day-sheet .moa-r133-tile{position:relative;aspect-ratio:1/1;border:0;border-radius:12px;padding:0;overflow:hidden;background:#e8ebf0;min-width:0;display:flex;align-items:center;justify-content:center;}
+#moa-r133-day-sheet .moa-r133-tile img{width:100%;height:100%;object-fit:cover;}
+#moa-r133-day-sheet .moa-r133-playmark{position:absolute;bottom:6px;left:6px;color:white;background:rgba(0,0,0,.66);padding:3px 7px;font-size:12px;border-radius:8px;}
+#moa-r133-day-sheet .moa-r133-paging{font-size:12px;color:#8d8390;text-align:center;margin:10px 0 0;}
+#moa-r133-mixed-viewer{z-index:2147483501;background:#090b10;color:#fff;display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:contain}
+#moa-r133-mixed-viewer button{font:inherit;cursor:pointer}
+#moa-r133-mixed-viewer .moa-r133-viewer-head{flex:none;display:flex;align-items:center;gap:9px;min-height:57px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;}
+#moa-r133-mixed-viewer .moa-r133-viewer-close{border:0;border-radius:10px;padding:11px 13px;background:#ffffff29;color:#fff;white-space:nowrap;}
+#moa-r133-mixed-viewer .moa-r133-viewer-title{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-size:14px;}
+#moa-r133-mixed-viewer .moa-r133-counter{white-space:nowrap;min-width:46px;text-align:right;}
+#moa-r133-mixed-viewer .moa-r133-viewer-info{height:96px;flex:0 0 96px;padding:6px 14px 8px;border-bottom:1px solid #353846;overflow:hidden;display:flex;flex-direction:column;gap:5px;font-size:13px;}
+#moa-r133-mixed-viewer .moa-r133-stamp{height:22px;line-height:22px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#moa-r133-mixed-viewer .moa-r133-geoinfo{height:49px;display:flex;align-items:center;gap:8px;min-width:0}
+#moa-r133-mixed-viewer .moa-r133-address{flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;line-height:18px;color:#b6bdca;}
+#moa-r133-mixed-viewer .moa-r133-navermap{flex:none;max-width:43%;padding:10px 8px;color:#eef3ff;border-radius:11px;border:1px solid #4c5364;background:#252b36;font-size:11px;}
+#moa-r133-mixed-viewer .moa-r133-navermap[hidden]{display:none!important}
+#moa-r133-mixed-viewer .moa-r133-stage{position:relative;flex:1;min-height:0;overflow:hidden;background:#090b10;touch-action:none;user-select:none;-webkit-user-select:none;}
+#moa-r133-mixed-viewer .moa-r133-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transform-origin:center;pointer-events:none;}
+#moa-r133-mixed-viewer .moa-r133-video-poster{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;background:#0f1219;}
+#moa-r133-mixed-viewer .moa-r133-video-poster[hidden],#moa-r133-mixed-viewer .moa-r133-image[hidden]{display:none!important}
+#moa-r133-mixed-viewer .moa-r133-video-poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;}
+#moa-r133-mixed-viewer .moa-r133-video-play{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;width:74px;height:74px;min-width:74px;min-height:74px;padding:0 0 0 4px;border:1px solid rgba(255,255,255,.66);border-radius:50%;background:rgba(24,28,33,.55);color:#fff;font-family:system-ui,sans-serif;font-size:30px;font-weight:650;line-height:1;box-shadow:0 8px 35px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.16);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);transition:transform .2s cubic-bezier(.2,.8,.25,1),opacity .2s ease,background .2s ease;-webkit-tap-highlight-color:transparent;}
+#moa-r133-mixed-viewer .moa-r133-video-play:active,#moa-r133-mixed-viewer .moa-r133-video-play.moa-r163-opening{transform:scale(.91);opacity:.74;background:rgba(34,38,42,.42);}
+@media (prefers-reduced-motion:reduce){#moa-r133-mixed-viewer .moa-r133-video-play{transition:none;}}
+
+#moa-r133-mixed-viewer .moa-r133-loading{position:absolute;top:12px;left:12px;right:12px;font-size:12px;color:#c4cada;text-align:center;pointer-events:none;}
+#moa-r133-mixed-viewer .moa-r133-left,#moa-r133-mixed-viewer .moa-r133-right{position:absolute;top:50%;transform:translateY(-50%);border:0;border-radius:50%;height:42px;width:42px;background:#212632ab;color:#fff;font-size:29px;z-index:3;}
+#moa-r133-mixed-viewer .moa-r133-left{left:8px}#moa-r133-mixed-viewer .moa-r133-right{right:8px}
+#moa-r133-mixed-viewer .moa-r133-left:disabled,#moa-r133-mixed-viewer .moa-r133-right:disabled{opacity:.25}
+#moa-r133-mixed-viewer .moa-r133-footer{flex:none;padding:12px 12px calc(env(safe-area-inset-bottom) + 12px);}
+#moa-r133-mixed-viewer .moa-r133-actions{display:flex;gap:10px;}
+#moa-r133-mixed-viewer .moa-r133-action{flex:1;min-width:0;background:#171c27;border:1px solid #4d5360;border-radius:15px;padding:12px 6px;color:#e5eaf4;font-weight:600;font-size:14px;}
+#moa-r133-mixed-viewer .moa-r133-guidance{text-align:center;font-size:12px;color:#c7ceda;padding-top:10px;}
+
+/* R169: in-place video on supported Android WebView MediaStore URIs.
+   Existing native external player is retained as safe fallback. */
+.moa-r169-video-layer{position:absolute;inset:0;z-index:2;background:#08090d;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:0}
+.moa-r169-video-layer[hidden]{display:none!important}
+.moa-r169-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#050505}
+.moa-r169-video-controls{position:absolute;bottom:max(8px,env(safe-area-inset-bottom));left:4px;right:4px;z-index:5;background:#09090ae8;color:white;display:flex;flex-wrap:wrap;gap:7px;align-items:center;justify-content:center;border-radius:16px;padding:9px;box-shadow:0 3px 25px #0009;font:12px/1.35 system-ui}
+.moa-r169-video-controls button{border:0;border-radius:10px;padding:9px 10px;min-height:34px;background:#ffffff30;color:#fff;font:12px system-ui;font-weight:650;white-space:nowrap}
+.moa-r169-video-controls input{flex:1 1 100%;min-width:50%;height:16px;accent-color:#ee1572}
+.moa-r169-video-time{font-size:12px;color:#fff;white-space:nowrap}
+.moa-r169-video-message{position:absolute;top:9px;left:12px;right:12px;z-index:5;color:#fff;font-size:12px;pointer-events:none;text-align:center;background:#19182170;border-radius:6px}
+#moa-r143-month-viewer .moa-r143-left,#moa-r143-month-viewer .moa-r143-right{z-index:4}
+
+/* R171 compact Samsung-like strip; always bounded to 13 surrounding media. */
+#moa-r133-mixed-viewer .moa-r171-filmstrip{height:58px;display:flex;align-items:center;gap:5px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;padding:2px 1px 6px;scroll-snap-type:x proximity}
+#moa-r133-mixed-viewer .moa-r171-filmstrip::-webkit-scrollbar{display:none}
+#moa-r133-mixed-viewer .moa-r171-frame{position:relative;flex:0 0 49px;width:49px;height:46px;border:2px solid transparent;border-radius:8px;padding:0;overflow:hidden;background:#252938;opacity:.72;scroll-snap-align:center}
+#moa-r133-mixed-viewer .moa-r171-frame.is-active{border-color:#fff;opacity:1;box-shadow:0 0 0 1px #111}
+#moa-r133-mixed-viewer .moa-r171-frame img{width:100%;height:100%;object-fit:cover;display:block}
+#moa-r133-mixed-viewer .moa-r171-mark{position:absolute;right:2px;bottom:2px;color:white;font-size:11px;text-shadow:0 1px 4px black}
+#moa-r133-mixed-viewer .moa-r133-footer{padding-top:4px}
+
+/* R173 — continuous synchronized Gallery rail and sliding full-media previews. */
+.moa-r173-railwrap{width:100%;min-width:0;position:relative;flex:0 0 58px;height:58px;box-sizing:border-box}
+.moa-r173-centerline{pointer-events:none;position:absolute;z-index:9;left:calc(50% - 1px);top:3px;bottom:8px;width:2px;border-radius:4px;background:rgba(255,255,255,.94);box-shadow:0 0 5px rgba(0,0,0,.95)}
+.moa-r173-track{position:relative;height:53px;overflow:visible;contain:layout style}
+.moa-r173-thumb{position:absolute;top:3px;display:block;box-sizing:border-box;border:2px solid transparent;border-radius:7px;width:49px;height:47px;padding:0;overflow:hidden;background:#222632;opacity:.7;transition:opacity .11s ease,border-color .11s ease,transform .11s ease;will-change:transform}
+.moa-r173-thumb.is-active{opacity:1;border-color:#fff;transform:scale(1.07);box-shadow:0 1px 7px #000a}
+.moa-r173-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.moa-r173-video-badge{position:absolute;right:2px;bottom:1px;font-weight:750;font-size:10px;color:#fff;text-shadow:0 1px 4px #000}
+.moa-r173-preview{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden;background:#080a0e;contain:paint}
+.moa-r173-preview[hidden]{display:none!important}
+.moa-r173-slide{position:absolute;left:0;top:0;width:100%;height:100%;will-change:transform;display:flex;align-items:center;justify-content:center;background:#080a0e}
+.moa-r173-slide img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+
+#moa-r133-mixed-viewer .moa-r171-filmstrip{height:58px;display:block;position:relative;min-width:0;padding:0!important;overflow-x:auto;overflow-y:hidden;scroll-snap-type:none!important;overscroll-behavior-x:contain;touch-action:pan-x;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#moa-r133-mixed-viewer .moa-r171-filmstrip::-webkit-scrollbar{display:none}
+#moa-r133-mixed-viewer .moa-r173-preview{z-index:4}
+#moa-r133-mixed-viewer .moa-r133-left,#moa-r133-mixed-viewer .moa-r133-right{z-index:7;opacity:.48}
+#moa-r133-mixed-viewer .moa-r133-loading{z-index:8}
+#moa-r133-mixed-viewer .moa-r133-video-poster{z-index:2}

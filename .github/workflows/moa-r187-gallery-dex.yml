@@ -1,0 +1,54 @@
+name: MOA R187 fixed thumbnail baseline + coalesced full-res native seek native DEX
+on:
+  push:
+    branches:
+      - feature/moa-r187-fixed-rail-live-video-seek-20261108
+    paths:
+      - 'experiments/moa-r175/MoaNativeGallery.java'
+      - 'experiments/moa-r175/MoaMomentAudioHostActivity_native_unified_gallery.java.txt'
+      - '.github/workflows/moa-r187-gallery-dex.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gallery_dex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile isolated exact R187 native host and gallery
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa187/src/com/juhyeon/familyjourney /tmp/moa187/classes /tmp/moa187/dex build/moa-r187
+          cp experiments/moa-r175/MoaMomentAudioHostActivity_native_unified_gallery.java.txt /tmp/moa187/src/com/juhyeon/familyjourney/MoaMomentAudioHostActivity.java
+          cp experiments/moa-r175/MoaNativeGallery.java /tmp/moa187/src/com/juhyeon/familyjourney/MoaNativeGallery.java
+          cat > /tmp/moa187/src/com/juhyeon/familyjourney/MoaMomentVoiceHostActivity.java <<'JAVA'
+          package com.juhyeon.familyjourney;
+          class MoaMomentVoiceHostActivity extends android.app.Activity {}
+          JAVA
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa187/classes /tmp/moa187/src/com/juhyeon/familyjourney/*.java > build/moa-r187/compile.log 2>&1 || { cat build/moa-r187/compile.log; exit 1; }
+          find /tmp/moa187/classes -type f \( -name 'MoaMomentAudioHostActivity*.class' -o -name 'MoaNativeGallery*.class' \) -print0 |
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa187/dex >> build/moa-r187/compile.log 2>&1 || { cat build/moa-r187/compile.log; exit 1; }
+          python3 - <<'PY'
+          import pathlib,hashlib,zlib,base64,json
+          b=pathlib.Path('/tmp/moa187/dex/classes.dex').read_bytes()
+          assert b.startswith(b'dex\n') and b'MoaNativeGallery' in b and b'MoaMomentAudioHostActivity' in b
+          q=pathlib.Path('build/moa-r187')
+          (q/'classes6.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+          (q/'manifest.json').write_text(json.dumps({'dex_sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b),'gallery_source_sha256':hashlib.sha256(pathlib.Path('experiments/moa-r175/MoaNativeGallery.java').read_bytes()).hexdigest(),'status':'isolated_compile_only; no full signed APK or physical device claim'},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R187-NATIVE-GALLERY-DEX-EXIF-VOLUME-CAPTURE
+          path: build/moa-r187/

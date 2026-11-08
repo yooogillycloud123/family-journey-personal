@@ -1,0 +1,67 @@
+name: MOA R161 capture recorder isolated DEX build
+on:
+  push:
+    branches:
+      - feature/moa-r161-capture-record-stt-20261107
+    paths:
+      - 'android/app/src/main/java/com/juhyeon/familyjourney/MoaMomentMemoRecorderActivity.java'
+      - '.github/workflows/moa-r161-capture-recorder-dex.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  dex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile exact isolated new recorder Activity
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p android --no-daemon :app:compileDebugJavaWithJavac
+          CLS_DIR="$(find android/app/build -type f -name 'MoaMomentMemoRecorderActivity.class' -printf '%h\n' | head -1)"
+          test -n "$CLS_DIR"
+          mkdir -p /tmp/moa-r161-native
+          find "$CLS_DIR" -maxdepth 1 -type f -name 'MoaMomentMemoRecorderActivity*.class' -print0 |
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa-r161-native
+          test -s /tmp/moa-r161-native/classes.dex
+          mkdir -p build/moa-r161-native
+          python3 - <<'PY'
+          import pathlib,zlib,base64,json,hashlib,struct
+          b=pathlib.Path('/tmp/moa-r161-native/classes.dex').read_bytes()
+          assert b.startswith(b'dex\n') and b'MoaMomentMemoRecorderActivity' in b
+          assert b'MoaMomentMemoActivity;' not in b
+          p=pathlib.Path('build/moa-r161-native')
+          (p/'memo-recorder.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+          (p/'manifest.json').write_text(json.dumps({'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'class':'MoaMomentMemoRecorderActivity','base':'R159 original signed APK'},indent=2))
+          PY
+      - name: Commit compiled DEX base64 into feature branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f build/moa-r161-native/memo-recorder.dex.z.b64 build/moa-r161-native/manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "build(moa-r161): verified isolated native recorder DEX"
+            git push origin HEAD:feature/moa-r161-capture-record-stt-20261107 ||
+              echo "Bot push unavailable; compiled output remains in workflow artifact"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R161-CAPTURE-MEMO-DEX-VERIFIED
+          path: build/moa-r161-native/

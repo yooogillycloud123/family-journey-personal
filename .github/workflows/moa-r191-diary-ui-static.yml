@@ -1,0 +1,37 @@
+name: MOA R191 Daily Diary UI Source Contract (NO private APK or signer)
+on:
+  push:
+    branches:
+      - feature/moa-r191-compact-day-popup-media-memo-voice-20261108
+    paths:
+      - 'experiments/moa-r175/assets/web/family-diary.js'
+      - 'experiments/moa-r175/assets/web/moa-r141-monthly-report.js'
+      - 'experiments/moa-r175/assets/web/moa-r149-voice.css'
+      - '.github/workflows/moa-r191-diary-ui-static.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and diary UI source-contract gates
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r175/assets/web/family-diary.js
+          node --check experiments/moa-r175/assets/web/moa-r141-monthly-report.js
+          node <<'NODE'
+          const fs=require('fs'),assert=require('assert');
+          const a=fs.readFileSync('experiments/moa-r175/assets/web/family-diary.js','utf8');
+          const v=fs.readFileSync('experiments/moa-r175/assets/web/moa-r141-monthly-report.js','utf8');
+          const css=fs.readFileSync('experiments/moa-r175/assets/web/moa-r149-voice.css','utf8');
+          for(const s of ['r191OpenDaySheet','r191CloseDaySheet','moa-r191-memo-fold','moa-r191-tools-fold','r191GroupOnlyActivity','MoaUnifiedDiary?.openSheet','MoaVoiceDiaryNative?.open','videoFriendlyTile(p,chosen,entry)'])assert(a.includes(s),'missing '+s);
+          for(const s of ['moa-r191-round-mic','section.querySelector(\'.fd23-logtime\')','showRecorder(d,slot)','bar.hidden=attached.length===0','standalone.hidden=others.length===0'])assert(v.includes(s),'missing '+s);
+          for(const s of ['moa-r191-day-shade','moa-r191-media-tile','moa-r191-round-mic','fd23-daystats','fd23-shortcuts','moa-r151-slot-record'])assert(css.includes(s),'missing '+s);
+          assert(!a.includes('function videoFriendlyTile(p,chosen){'),'non-bound legacy tile');
+          console.log('R191 JS syntax, daily-action routing, media memo binding, voice slot wiring, compact layout contract: PASS');
+          NODE

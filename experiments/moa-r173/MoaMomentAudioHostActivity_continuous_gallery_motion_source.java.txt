@@ -1,0 +1,620 @@
+package com.juhyeon.familyjourney;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+import android.content.Intent;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
+import android.view.View;
+import android.view.ViewGroup;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.UUID;
+
+/** R149: Legacy host remains intact. No WebChromeClient replacement.
+ * Original STT UI calls a separate native SpeechRecognizer; original audio is
+ * recorded with Android MediaRecorder, not WebView getUserMedia.
+ */
+public class MoaMomentAudioHostActivity extends MoaMomentVoiceHostActivity {
+ private static final int MIC_REQUEST=4949;
+ private final Handler main=new Handler(Looper.getMainLooper());
+ private WebView web; private boolean interfaceAdded=false, reloadIssued=false; private volatile boolean trustedPage=false;
+ private MediaRecorder recorder; private MediaPlayer player; private File currentFile;
+ private String activePlayback="";
+
+ // R171: render native media IN THE EXISTING WebView gallery Activity.
+ private android.widget.FrameLayout videoOverlay;
+ private android.widget.VideoView videoWidget;
+ private android.media.MediaPlayer preparedVideo;
+ private android.widget.SeekBar videoSeek;
+ private android.widget.TextView videoTime;
+ private android.widget.Button videoPlay,videoMute;
+ private String videoActiveId="";
+ private boolean videoReady=false,videoMuted=true,videoSeeking=false;
+ private int vdp(float d){return (int)(d*getResources().getDisplayMetrics().density+.5f);}
+ private String vtime(long m){long n=Math.max(0,m)/1000;return String.format(java.util.Locale.US,"%02d:%02d",n/60,n%60);}
+ private void videoEvent(String type,String id){
+  try{if(web!=null)web.evaluateJavascript("window.MoaNativeInline&&window.MoaNativeInline.onState("+org.json.JSONObject.quote(id)+","+org.json.JSONObject.quote(type)+")",null);}catch(Exception ignored){}
+ }
+ private final Runnable vTicker=new Runnable(){
+  public void run(){if(!videoReady||videoWidget==null)return;
+   try{int t=videoWidget.getCurrentPosition(),d=Math.max(1,videoWidget.getDuration());
+    if(videoSeek!=null&&!videoSeeking){videoSeek.setMax(d);videoSeek.setProgress(t);}
+    if(videoTime!=null)videoTime.setText(vtime(t)+" / "+vtime(d));
+    if(videoPlay!=null)videoPlay.setText(videoWidget.isPlaying()?"Ⅱ":"▶");
+   }catch(Exception ignored){}
+   main.postDelayed(this,350);
+  }
+ };
+ private android.widget.Button vb(String label){
+  android.widget.Button b=new android.widget.Button(this);b.setAllCaps(false);b.setText(label);
+  b.setMinWidth(0);b.setMinimumWidth(0);b.setMinHeight(0);b.setMinimumHeight(0);
+  b.setTextSize(12);b.setTextColor(-1);b.setPadding(vdp(2),0,vdp(2),0);
+  b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xb5252b37));return b;
+ }
+ private void closeVideoOverlay(){
+  main.removeCallbacks(vTicker);
+  android.widget.VideoView v=videoWidget;videoWidget=null;videoReady=false;videoSeeking=false;
+  if(v!=null)try{v.stopPlayback();}catch(Exception ignored){}
+  preparedVideo=null;videoActiveId="";
+  android.widget.FrameLayout l=videoOverlay;videoOverlay=null;
+  if(l!=null&&l.getParent() instanceof android.view.ViewGroup)
+   ((android.view.ViewGroup)l.getParent()).removeView(l);
+ }
+ private void openVideoOverlay(String id,float x,float y,float w,float h,float viewportWidth){
+  if(isFinishing()||isDestroyed()||web==null)return;
+  android.net.Uri uri=safeVideoUri(id);
+  android.widget.FrameLayout root=findViewById(android.R.id.content);
+  if(uri==null||root==null||viewportWidth<=0){videoEvent("error",id);return;}
+  closeVideoOverlay();
+  try{
+   int[] a=new int[2],b=new int[2];web.getLocationOnScreen(a);root.getLocationOnScreen(b);
+   float factor=web.getWidth()/viewportWidth;
+   if(!Float.isFinite(factor)||factor<.1f||factor>10)throw new IllegalArgumentException("scale");
+   int left=Math.max(0,a[0]-b[0]+Math.round(x*factor));
+   int top=Math.max(0,a[1]-b[1]+Math.round(y*factor));
+   int width=Math.min(Math.round(w*factor),root.getWidth()-left);
+   int height=Math.min(Math.round(h*factor),root.getHeight()-top);
+   if(width<vdp(100)||height<vdp(120))throw new IllegalArgumentException("bounds");
+   android.widget.FrameLayout l=new android.widget.FrameLayout(this);l.setBackgroundColor(0xff080808);l.setAlpha(0f);
+   android.widget.FrameLayout.LayoutParams pos=new android.widget.FrameLayout.LayoutParams(width,height);
+   pos.leftMargin=left;pos.topMargin=top;root.addView(l,pos);videoOverlay=l;videoActiveId=id;videoMuted=true;
+   android.widget.VideoView v=new android.widget.VideoView(this);videoWidget=v;
+   l.addView(v,new android.widget.FrameLayout.LayoutParams(-1,-1));
+   final float[] touch=new float[4];final boolean[] swiping=new boolean[1];
+   v.setOnTouchListener((view,e)->{
+    switch(e.getActionMasked()){
+     case android.view.MotionEvent.ACTION_DOWN:
+      touch[0]=e.getRawX();touch[1]=e.getRawY();
+      touch[2]=android.os.SystemClock.uptimeMillis();touch[3]=0;swiping[0]=false;
+      l.animate().cancel();return true;
+     case android.view.MotionEvent.ACTION_MOVE:{
+      float dx=e.getRawX()-touch[0],dy=e.getRawY()-touch[1];
+      if(!swiping[0]&&Math.abs(dx)>vdp(9)&&Math.abs(dx)>Math.abs(dy)*1.15f)swiping[0]=true;
+      if(swiping[0]){
+       float bounded=Math.max(-l.getWidth(),Math.min(l.getWidth(),dx));
+       l.setTranslationX(bounded);
+       l.setAlpha(Math.max(.22f,1f-.57f*Math.abs(bounded)/Math.max(1,l.getWidth())));
+       long now=android.os.SystemClock.uptimeMillis();
+       if(now-touch[3]>=16){touch[3]=now;
+        videoEvent("drag:"+String.format(java.util.Locale.US,"%.4f",-bounded/Math.max(1,l.getWidth())),id);
+       }
+      }return true;
+     }
+     case android.view.MotionEvent.ACTION_UP:{
+      float dx=e.getRawX()-touch[0],dy=e.getRawY()-touch[1];
+      if(swiping[0]){
+       float elapsed=Math.max(1,android.os.SystemClock.uptimeMillis()-touch[2]);
+       boolean leave=Math.abs(dx)>l.getWidth()*.23f||
+           (Math.abs(dx)>vdp(28)&&Math.abs(dx)/elapsed>1.15f);
+       if(leave){
+        String direction=dx<0?"next":"prev";
+        l.animate().translationX(dx<0?-l.getWidth():l.getWidth()).alpha(.16f)
+         .setDuration(175).setInterpolator(new android.view.animation.DecelerateInterpolator())
+         .withEndAction(()->{if(videoOverlay==l)videoEvent(direction,id);}).start();
+       }else{
+        l.animate().translationX(0).alpha(1f).setDuration(165)
+         .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+        videoEvent("drag:0",id);
+       }
+      }else if(videoReady&&videoWidget==v){
+       if(v.isPlaying())v.pause();else v.start();
+      }
+      return true;
+     }
+     case android.view.MotionEvent.ACTION_CANCEL:
+      l.animate().translationX(0).alpha(1f).setDuration(125).start();
+      videoEvent("drag:0",id);return true;
+     default:return true;
+    }
+   });
+   android.widget.LinearLayout panel=new android.widget.LinearLayout(this);
+   panel.setOrientation(android.widget.LinearLayout.VERTICAL);
+   panel.setPadding(vdp(6),vdp(5),vdp(6),vdp(6));panel.setBackgroundColor(0x990a0a14);
+   android.widget.LinearLayout controls=new android.widget.LinearLayout(this);
+   controls.setGravity(android.view.Gravity.CENTER_VERTICAL);
+   android.widget.Button prev=vb("‹"),play=vb("▶"),next=vb("›"),mute=vb("소리 켜기"),still=vb("장면 저장");
+   videoPlay=play;videoMute=mute;
+   prev.setOnClickListener(view->videoEvent("prev",id));
+   next.setOnClickListener(view->videoEvent("next",id));
+   play.setOnClickListener(view->{if(videoWidget==v&&videoReady){if(v.isPlaying())v.pause();else v.start();main.removeCallbacks(vTicker);main.post(vTicker);}});
+   mute.setOnClickListener(view->{videoMuted=!videoMuted;
+    try{if(preparedVideo!=null)preparedVideo.setVolume(videoMuted?0:1,videoMuted?0:1);}catch(Exception ignored){}
+    mute.setText(videoMuted?"소리 켜기":"음소거");});
+   still.setOnClickListener(view->{if(videoWidget==v&&videoReady)captureVideoFrame(id,v.getCurrentPosition());});
+   controls.addView(prev,new android.widget.LinearLayout.LayoutParams(0,vdp(41),.6f));
+   controls.addView(play,new android.widget.LinearLayout.LayoutParams(0,vdp(41),.75f));
+   controls.addView(next,new android.widget.LinearLayout.LayoutParams(0,vdp(41),.6f));
+   controls.addView(mute,new android.widget.LinearLayout.LayoutParams(0,vdp(41),1.15f));
+   controls.addView(still,new android.widget.LinearLayout.LayoutParams(0,vdp(41),1.35f));
+   android.widget.LinearLayout seeking=new android.widget.LinearLayout(this);
+   seeking.setGravity(android.view.Gravity.CENTER_VERTICAL);
+   android.widget.TextView time=new android.widget.TextView(this);
+   videoTime=time;time.setTextSize(11);time.setTextColor(-1);time.setText("00:00 / 00:00");
+   android.widget.SeekBar bar=new android.widget.SeekBar(this);videoSeek=bar;bar.setMax(1000);
+   bar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener(){
+    public void onStartTrackingTouch(android.widget.SeekBar s){videoSeeking=true;}
+    public void onStopTrackingTouch(android.widget.SeekBar s){if(videoWidget==v&&videoReady)v.seekTo(s.getProgress());videoSeeking=false;}
+    public void onProgressChanged(android.widget.SeekBar s,int progress,boolean fromUser){}
+   });
+   seeking.addView(time,new android.widget.LinearLayout.LayoutParams(vdp(85),vdp(35)));
+   seeking.addView(bar,new android.widget.LinearLayout.LayoutParams(0,vdp(35),1f));
+   panel.addView(controls);panel.addView(seeking);
+   l.addView(panel,new android.widget.FrameLayout.LayoutParams(-1,-2,android.view.Gravity.BOTTOM));
+   v.setOnErrorListener((mp,what,extra)->{if(videoWidget==v){closeVideoOverlay();videoEvent("error",id);}return true;});
+   v.setOnPreparedListener(mp->{if(videoWidget!=v)return;
+    videoReady=true;preparedVideo=mp;mp.setVolume(0,0);v.start();
+    l.animate().alpha(1f).setDuration(150).start();
+    videoEvent("started",id);main.removeCallbacks(vTicker);main.post(vTicker);
+   });
+   v.setOnCompletionListener(mp->{if(videoWidget==v){play.setText("▶");videoEvent("ended",id);}});
+   v.setVideoURI(uri);v.requestFocus();
+  }catch(Exception e){closeVideoOverlay();videoEvent("error",id);}
+ }
+
+ private long recordStart=0; private String recordDay="",pendingDay="",pendingSpeech="";
+ private SpeechRecognizer recognizer; private String recognitionToken="";
+ private static boolean validDay(String s){return s!=null&&s.matches("[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])");}
+ private static boolean validId(String s){return s!=null&&s.matches("[0-9a-zA-Z_-]{8,90}\\.m4a");}
+ @Override protected void onCreate(Bundle b){super.onCreate(b);schedule();}
+ @Override protected void onResume(){super.onResume();schedule();}
+ private void schedule(){main.postDelayed(this::attach,60);main.postDelayed(this::attach,300);main.postDelayed(this::attach,1000);}
+ private static WebView find(View v){if(v instanceof WebView)return(WebView)v;
+  if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++){WebView w=find(g.getChildAt(i));if(w!=null)return w;}}
+  return null;
+ }
+ private boolean trusted(){try{
+   if(web==null)return false;Uri u=Uri.parse(web.getUrl());
+   return u!=null && "https".equalsIgnoreCase(u.getScheme()) &&
+     "familyjourney.local".equalsIgnoreCase(u.getHost()) && (u.getPort()==-1||u.getPort()==443);
+  }catch(Exception e){return false;}}
+ private void attach(){
+  if(isFinishing()||isDestroyed())return;
+  WebView w=find(getWindow().getDecorView());if(w==null)return;
+  if(w!=web){web=w;interfaceAdded=false;reloadIssued=false;} trustedPage=trusted();
+  if(!interfaceAdded){w.addJavascriptInterface(new LocalBridge(),"MoaLocalAudio");interfaceAdded=true;}
+  // Android addJavascriptInterface normally becomes visible after navigation.
+  main.postDelayed(()->{
+   if(web!=w||reloadIssued||!trusted())return;
+   w.evaluateJavascript("!!window.MoaLocalAudio",result->{
+    if(web==w&&!reloadIssued&&"false".equals(result)&&trusted()){
+      reloadIssued=true;w.reload();
+    }
+   });
+  },400);
+ }
+ private void send(String event,String message){try{
+  JSONObject o=new JSONObject().put("event",event).put("message",message==null?"":message);
+  String code="window.__moaNativeAudioEvent&&window.__moaNativeAudioEvent("+o.toString()+")";
+  if(web!=null)web.evaluateJavascript(code,null);
+ }catch(Exception ignored){}}
+ private void speechEvent(String token,String payload,String phase){
+  if(web==null)return;
+  String code="window.__moaVoiceNativeResult&&window.__moaVoiceNativeResult("+JSONObject.quote(token)+","+JSONObject.quote(payload==null?"":payload)+","+JSONObject.quote(phase)+")";
+  web.evaluateJavascript(code,null);
+ }
+ private File dayDir(String day){File d=new File(getFilesDir(),"moa-original-audio/"+day);if(!d.exists())d.mkdirs();return d;}
+ private void record(String day){
+  if(!trusted()||!validDay(day)){send("record_error","내부 일기 날짜가 유효하지 않습니다.");return;}
+  if(recorder!=null){send("record_error","이미 녹음 중입니다.");return;}
+  cancelSpeech();
+  File f=new File(dayDir(day),System.currentTimeMillis()+"-"+UUID.randomUUID().toString().replace("-","")+".m4a");
+  MediaRecorder r=null;
+  try{
+   r=new MediaRecorder();r.setAudioSource(MediaRecorder.AudioSource.MIC);
+   r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+   r.setAudioEncodingBitRate(96000);r.setAudioSamplingRate(44100);r.setOutputFile(f.getAbsolutePath());
+   r.prepare();r.start();recorder=r;currentFile=f;recordStart=System.currentTimeMillis();recordDay=day;
+   send("record_started","녹음 중입니다. 종료·저장을 눌러 주세요.");
+  }catch(Exception e){
+   try{if(r!=null)r.release();}catch(Exception ignored){}
+   if(f.exists())f.delete();
+   recorder=null;currentFile=null;send("record_error","Android 녹음 시작 실패: "+e.getClass().getSimpleName()+": "+e.getMessage());
+  }
+ }
+ private void stopRecord(){
+  MediaRecorder r=recorder;File f=currentFile;
+  recorder=null;currentFile=null;
+  if(r==null){send("record_error","진행 중인 녹음이 없습니다.");return;}
+  boolean valid=false;try{r.stop();valid=f!=null&&f.exists()&&f.length()>0;}catch(RuntimeException e){send("record_error","녹음 종료 실패: "+e.getMessage());}
+  finally{try{r.reset();r.release();}catch(Exception ignored){}}
+  if(!valid){if(f!=null)f.delete();send("record_error","음성파일이 비어 저장하지 못했습니다.");return;}
+  send("record_saved","날짜별 음성파일 저장 완료 · "+((System.currentTimeMillis()-recordStart)/1000)+"초");
+ }
+ private void play(String day,String id){
+  if(!validDay(day)||!validId(id)||!trusted())return;
+  File f=new File(dayDir(day),id);if(!f.exists())return;
+  try{
+   if(player!=null){try{player.stop();}catch(Exception ignored){}player.release();player=null;}
+    activePlayback="";
+   MediaPlayer p=new MediaPlayer();p.setDataSource(f.getAbsolutePath());
+   p.setOnCompletionListener(mp->{mp.release();if(player==mp){player=null;activePlayback="";}send("play_finished","재생 완료");});
+   p.prepare();p.start();player=p;activePlayback=day+"/"+id;send("play_started","녹음 재생 중");
+  }catch(Exception e){send("play_error","재생 실패: "+e.getMessage());}
+ }
+ private void togglePlayback(String day,String id){
+   if(!trusted()||!validDay(day)||!validId(id))return;
+   if(player==null||!(day+"/"+id).equals(activePlayback)){play(day,id);return;}
+   try{
+    if(player.isPlaying()){player.pause();send("play_paused","원본 녹음 일시정지");}
+    else{player.start();send("play_resumed","원본 녹음 이어듣기");}
+   }catch(Exception e){send("play_error","일시정지·재개 실패: "+e.getMessage());}
+  }
+  private void startSpeech(String token){
+  if(!trusted()||token==null||token.length()>128)return;
+  cancelSpeech();recognitionToken=token;
+  if(!SpeechRecognizer.isRecognitionAvailable(this)){speechEvent(token,"기기 음성인식 서비스가 없습니다.","error");speechEvent(token,"","finished");return;}
+  try{
+   recognizer=SpeechRecognizer.createSpeechRecognizer(this);
+   recognizer.setRecognitionListener(new RecognitionListener(){
+    public void onReadyForSpeech(Bundle params){speechEvent(token,"","listening");}
+    public void onBeginningOfSpeech(){}
+    public void onRmsChanged(float rms){}
+    public void onBufferReceived(byte[] buf){}
+    public void onEndOfSpeech(){}
+    public void onError(int error){speechEvent(token,"음성 인식 오류 "+error,"error");speechEvent(token,"","finished");cancelSpeech();}
+    private void publish(Bundle b,String phase){
+     ArrayList<String> a=b==null?null:b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+     if(a!=null&&!a.isEmpty())speechEvent(token,a.get(0),phase);
+    }
+    public void onResults(Bundle results){publish(results,"success");speechEvent(token,"","finished");cancelSpeech();}
+    public void onPartialResults(Bundle partial){publish(partial,"partial");}
+    public void onEvent(int event,Bundle b){}
+   });
+   Intent i=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+   i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+   i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"ko-KR");i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,true);
+   recognizer.startListening(i);
+  }catch(Exception e){speechEvent(token,"음성 인식 시작 실패: "+e.getMessage(),"error");speechEvent(token,"","finished");cancelSpeech();}
+ }
+ private void cancelSpeech(){if(recognizer!=null){try{recognizer.cancel();recognizer.destroy();}catch(Exception ignored){}recognizer=null;}recognitionToken="";}
+ @Override public void onRequestPermissionsResult(int code,String[] permissions,int[] results){
+  super.onRequestPermissionsResult(code,permissions,results);
+  if(code==MIC_REQUEST){
+   boolean ok=results.length>0&&results[0]==PackageManager.PERMISSION_GRANTED;
+   String d=pendingDay,t=pendingSpeech;pendingDay="";pendingSpeech="";
+   if(ok){if(!d.isEmpty())record(d);else if(!t.isEmpty())startSpeech(t);}
+   else{if(!d.isEmpty())send("record_error","마이크 권한이 거부되었습니다.");
+        if(!t.isEmpty()){speechEvent(t,"마이크 권한이 거부되었습니다.","permission");speechEvent(t,"","finished");}}
+  }
+ }
+ @Override protected void onPause(){closeVideoOverlay();if(recorder!=null)stopRecord();cancelSpeech();endFileSpeech();super.onPause();}
+ @Override protected void onDestroy(){closeVideoOverlay();endFileSpeech();if(recorder!=null)stopRecord();cancelSpeech();if(player!=null){try{player.release();}catch(Exception ignored){}player=null;}super.onDestroy();}
+
+ // Optional recorded-file speech recognition. Never touches the working microphone recorder or live STT.
+ private android.speech.SpeechRecognizer fileSpeech;
+ private android.os.ParcelFileDescriptor fileRead, fileWrite;
+ private volatile boolean fileSpeechBusy=false;
+ private String fileSpeechTarget="";
+ private final java.util.ArrayList<String> fileSegments=new java.util.ArrayList<>();
+ private void sendTranscript(String type,String day,String id,String value){
+  try{
+   org.json.JSONObject data=new org.json.JSONObject();
+   data.put("day",day).put("id",id).put("text",value==null?"":value);
+   send(type,data.toString());
+  }catch(Exception ex){send("transcribe_error","결과 처리 오류");}
+ }
+ private void endFileSpeech(){
+  fileSpeechBusy=false;fileSpeechTarget="";
+  try{if(fileSpeech!=null){fileSpeech.cancel();fileSpeech.destroy();}}catch(Exception ignored){}
+  fileSpeech=null;
+  try{if(fileRead!=null)fileRead.close();}catch(Exception ignored){}
+  try{if(fileWrite!=null)fileWrite.close();}catch(Exception ignored){}
+  fileRead=null;fileWrite=null;fileSegments.clear();
+ }
+ private void startFileSpeech(String d,String id){
+  if(!trusted()||!validDay(d)||!validId(id))return;
+  if(fileSpeechBusy){send("transcribe_error","다른 파일의 글 변환이 진행 중입니다.");return;}
+  if(recorder!=null){send("transcribe_error","녹음을 종료한 후 글로 변환해 주세요.");return;}
+  final java.io.File source=new java.io.File(dayDir(d),id);
+  if(!source.exists()||source.length()==0){send("transcribe_error","음성파일을 찾지 못했습니다.");return;}
+  if(android.os.Build.VERSION.SDK_INT<33){send("transcribe_error","Android 13 이상에서 지원하는 기능입니다.");return;}
+  if(!android.speech.SpeechRecognizer.isRecognitionAvailable(this)){send("transcribe_error","사용 가능한 기기 음성인식 서비스가 없습니다.");return;}
+  cancelSpeech();fileSegments.clear();fileSpeechBusy=true;fileSpeechTarget=d+"/"+id;
+  try{
+   android.os.ParcelFileDescriptor[] pair=android.os.ParcelFileDescriptor.createPipe();
+   fileRead=pair[0];fileWrite=pair[1];
+   fileSpeech=android.speech.SpeechRecognizer.createSpeechRecognizer(this);
+   final String target=fileSpeechTarget;
+   fileSpeech.setRecognitionListener(new android.speech.RecognitionListener(){
+    public void onReadyForSpeech(android.os.Bundle b){}
+    public void onBeginningOfSpeech(){}
+    public void onRmsChanged(float v){}
+    public void onBufferReceived(byte[] b){}
+    public void onEndOfSpeech(){}
+    public void onError(int code){
+     if(!target.equals(fileSpeechTarget))return;
+     sendTranscript("transcribe_error",d,id,"저장된 음성 인식 실패("+code+"). 음성인식 서비스에서 파일 입력을 지원하지 않을 수 있습니다.");
+     endFileSpeech();
+    }
+    public void onResults(android.os.Bundle b){
+     if(!target.equals(fileSpeechTarget))return;
+     java.util.ArrayList<String> list=b==null?null:b.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION);
+     String recognized=(list!=null&&!list.isEmpty())?list.get(0):String.join(" ",fileSegments);
+     if(recognized.trim().isEmpty())sendTranscript("transcribe_error",d,id,"인식된 문장이 없습니다.");
+     else sendTranscript("transcribe_result",d,id,recognized.trim());
+     endFileSpeech();
+    }
+    public void onPartialResults(android.os.Bundle b){}
+    public void onEvent(int code,android.os.Bundle b){}
+    public void onSegmentResults(android.os.Bundle b){
+     java.util.ArrayList<String> x=b==null?null:b.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION);
+     if(x!=null&&!x.isEmpty())fileSegments.add(x.get(0));
+    }
+    public void onEndOfSegmentedSession(){
+     if(!target.equals(fileSpeechTarget))return;
+     String combined=String.join(" ",fileSegments).trim();
+     if(combined.isEmpty())sendTranscript("transcribe_error",d,id,"인식된 문장이 없습니다.");
+     else sendTranscript("transcribe_result",d,id,combined);
+     endFileSpeech();
+    }
+   });
+   android.content.Intent intent=new android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE,"ko-KR");
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_AUDIO_SOURCE,fileRead);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT,1);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING,android.media.AudioFormat.ENCODING_PCM_16BIT);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE,16000);
+   intent.putExtra(android.speech.RecognizerIntent.EXTRA_SEGMENTED_SESSION,android.speech.RecognizerIntent.EXTRA_AUDIO_SOURCE);
+   fileSpeech.startListening(intent);
+   sendTranscript("transcribe_started",d,id,"저장된 파일을 기기 음성인식 서비스에 전달하고 있습니다.");
+   final android.os.ParcelFileDescriptor destination=fileWrite;
+   new Thread(()->{
+    try{streamPcm16k(source,destination,target);}
+    catch(Exception e){runOnUiThread(()->{
+      if(target.equals(fileSpeechTarget)){sendTranscript("transcribe_error",d,id,"오디오 디코딩 실패: "+e.getMessage());endFileSpeech();}
+    });}
+   },"moa-audio-file-transcriber").start();
+  }catch(Exception e){
+   sendTranscript("transcribe_error",d,id,"음성 변환 시작 실패: "+e.getClass().getSimpleName()+": "+e.getMessage());
+   endFileSpeech();
+  }
+ }
+ private void streamPcm16k(java.io.File source,android.os.ParcelFileDescriptor fd,String target)throws Exception{
+  android.media.MediaExtractor extractor=new android.media.MediaExtractor();
+  android.media.MediaCodec decoder=null;
+  try(java.io.OutputStream output=new android.os.ParcelFileDescriptor.AutoCloseOutputStream(fd)){
+   extractor.setDataSource(source.getAbsolutePath());
+   int track=-1;android.media.MediaFormat format=null;
+   for(int i=0;i<extractor.getTrackCount();i++){
+    android.media.MediaFormat m=extractor.getTrackFormat(i);
+    String type=m.getString(android.media.MediaFormat.KEY_MIME);
+    if(type!=null&&type.startsWith("audio/")){track=i;format=m;break;}
+   }
+   if(track<0||format==null)throw new java.io.IOException("M4A 오디오 트랙이 없습니다.");
+   extractor.selectTrack(track);
+   decoder=android.media.MediaCodec.createDecoderByType(format.getString(android.media.MediaFormat.KEY_MIME));
+   decoder.configure(format,null,null,0);decoder.start();
+   android.media.MediaCodec.BufferInfo bufferInfo=new android.media.MediaCodec.BufferInfo();
+   boolean inputDone=false,outputDone=false;
+   long outSamples=0,started=android.os.SystemClock.elapsedRealtime();
+   long accumulator=0;
+   int sampleRate=format.containsKey(android.media.MediaFormat.KEY_SAMPLE_RATE)?format.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE):44100;
+   int channels=format.containsKey(android.media.MediaFormat.KEY_CHANNEL_COUNT)?format.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT):1;
+   while(!outputDone&&fileSpeechBusy&&target.equals(fileSpeechTarget)){
+    if(!inputDone){
+     int index=decoder.dequeueInputBuffer(12000);
+     if(index>=0){
+      java.nio.ByteBuffer input=decoder.getInputBuffer(index);input.clear();
+      int length=extractor.readSampleData(input,0);
+      if(length<0){decoder.queueInputBuffer(index,0,0,0,android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM);inputDone=true;}
+      else{decoder.queueInputBuffer(index,0,length,extractor.getSampleTime(),0);extractor.advance();}
+     }
+    }
+    int outputIndex=decoder.dequeueOutputBuffer(bufferInfo,12000);
+    if(outputIndex==android.media.MediaCodec.INFO_OUTPUT_FORMAT_CHANGED){
+     android.media.MediaFormat fmt=decoder.getOutputFormat();
+     sampleRate=fmt.containsKey(android.media.MediaFormat.KEY_SAMPLE_RATE)?fmt.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE):sampleRate;
+     channels=fmt.containsKey(android.media.MediaFormat.KEY_CHANNEL_COUNT)?fmt.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT):channels;
+     int encoding=fmt.containsKey(android.media.MediaFormat.KEY_PCM_ENCODING)?fmt.getInteger(android.media.MediaFormat.KEY_PCM_ENCODING):android.media.AudioFormat.ENCODING_PCM_16BIT;
+     if(encoding!=android.media.AudioFormat.ENCODING_PCM_16BIT)throw new java.io.IOException("지원되지 않는 PCM 인코딩");
+    }else if(outputIndex>=0){
+     java.nio.ByteBuffer decoded=decoder.getOutputBuffer(outputIndex);
+     if(decoded!=null&&bufferInfo.size>0){
+      decoded.position(bufferInfo.offset);decoded.limit(bufferInfo.offset+bufferInfo.size);
+      decoded.order(java.nio.ByteOrder.LITTLE_ENDIAN);
+      int frames=bufferInfo.size/Math.max(2,channels*2);
+      java.io.ByteArrayOutputStream block=new java.io.ByteArrayOutputStream(frames*2);
+      for(int i=0;i<frames;i++){
+       int total=0;for(int ch=0;ch<channels;ch++)total+=decoded.getShort();
+       short sample=(short)(total/channels);
+       accumulator+=16000;
+       if(accumulator>=sampleRate){
+        accumulator-=sampleRate;block.write(sample&255);block.write((sample>>>8)&255);outSamples++;
+       }
+      }
+      byte[] bytes=block.toByteArray();if(bytes.length>0){output.write(bytes);output.flush();}
+      long expectedMs=outSamples*1000/16000;
+      long wait=expectedMs-(android.os.SystemClock.elapsedRealtime()-started);
+      if(wait>10)Thread.sleep(Math.min(wait,700));
+     }
+     outputDone=(bufferInfo.flags&android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;
+     decoder.releaseOutputBuffer(outputIndex,false);
+    }
+   }
+  }finally{
+   extractor.release();
+   try{if(decoder!=null){decoder.stop();decoder.release();}}catch(Exception ignored){}
+  }
+ }
+
+  private android.net.Uri safeVideoUri(String videoId){
+   if(!trusted()||videoId==null||!videoId.matches("v[0-9]{1,18}"))return null;
+   try{
+     long mediaId=Long.parseLong(videoId.substring(1));
+     android.net.Uri uri=android.content.ContentUris.withAppendedId(android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,mediaId);
+     try(android.database.Cursor c=getContentResolver().query(uri,new String[]{android.provider.MediaStore.Video.Media._ID},null,null,null)){
+       if(c!=null&&c.moveToFirst())return uri;
+     }
+   }catch(Exception ignored){}
+   return null;
+  }
+  /** Optional HTML5 video source. Browser may reject a content:// URL, so JS must fallback safely. */
+  @JavascriptInterface public boolean openInlineVideo(String id,float x,float y,float w,float h,float viewportW){
+   if(!trusted()||safeVideoUri(id)==null)return false;
+   runOnUiThread(()->openVideoOverlay(id,x,y,w,h,viewportW));return true;
+  }
+  @JavascriptInterface public void closeInlineVideo(){runOnUiThread(()->closeVideoOverlay());}
+  /** WebView thumbnail rail drives the native VideoView transform on each drag frame. */
+  @JavascriptInterface public void shiftInlineVideo(float progress){
+   if(!trusted()||!Float.isFinite(progress))return;
+   final float value=Math.max(-1.4f,Math.min(1.4f,progress));
+   runOnUiThread(()->{
+    android.widget.FrameLayout layer=videoOverlay;
+    if(layer!=null&&!isFinishing()){
+     layer.animate().cancel();
+     layer.setTranslationX(-value*Math.max(1,layer.getWidth()));
+     layer.setAlpha(Math.max(.20f,1f-.55f*Math.abs(value)));
+    }
+   });
+  }
+  @JavascriptInterface public String videoUri(String videoId){
+   android.net.Uri uri=safeVideoUri(videoId);return uri==null?"":uri.toString();
+  }
+  /** Explicit user-tap capture from this source video; stores a NEW JPEG without editing original. */
+  @JavascriptInterface public void captureVideoFrame(String videoId,long millis){
+   android.net.Uri src=safeVideoUri(videoId);
+   if(src==null){main.post(()->send("video_capture_error","원본 동영상을 찾을 수 없습니다."));return;}
+   new Thread(()->{
+     android.media.MediaMetadataRetriever retriever=new android.media.MediaMetadataRetriever();
+     android.net.Uri dest=null;boolean published=false;
+     try{
+       retriever.setDataSource(MoaMomentAudioHostActivity.this,src);
+       android.graphics.Bitmap bitmap=retriever.getFrameAtTime(Math.max(0,millis)*1000,android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+       if(bitmap==null)throw new java.io.IOException("해당 시각의 화면을 추출하지 못했습니다.");
+       android.content.ContentValues values=new android.content.ContentValues();
+       values.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME,"MOA_video_"+System.currentTimeMillis()+".jpg");
+       values.put(android.provider.MediaStore.Images.Media.MIME_TYPE,"image/jpeg");
+       if(android.os.Build.VERSION.SDK_INT>=29){
+         values.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH,android.os.Environment.DIRECTORY_PICTURES+"/MOA-Video-Captures/");
+         values.put(android.provider.MediaStore.Images.Media.IS_PENDING,1);
+       }
+       android.content.ContentResolver cr=getContentResolver();
+       dest=cr.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);
+       if(dest==null)throw new java.io.IOException("사진 저장 공간을 열지 못했습니다.");
+       try(java.io.OutputStream out=cr.openOutputStream(dest,"w")){
+         if(out==null||!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,94,out))
+           throw new java.io.IOException("JPEG 저장 실패");
+       }finally{bitmap.recycle();}
+       if(android.os.Build.VERSION.SDK_INT>=29){
+         android.content.ContentValues ready=new android.content.ContentValues();
+         ready.put(android.provider.MediaStore.Images.Media.IS_PENDING,0);
+         if(cr.update(dest,ready,null,null)<1)throw new java.io.IOException("캡처 공개 처리 실패");
+       }
+       published=true;
+       main.post(()->send("video_capture_saved","Pictures/MOA-Video-Captures에 현재 화면 저장 완료"));
+     }catch(Exception e){
+       final String err=e.getMessage();main.post(()->send("video_capture_error","동영상 캡처 실패: "+err));
+     }finally{
+       try{retriever.release();}catch(Exception ignored){}
+       if(!published&&dest!=null)try{getContentResolver().delete(dest,null,null);}catch(Exception ignored){}
+     }
+   },"moa-r169-video-frame").start();
+  }
+
+ public final class LocalBridge {
+  @JavascriptInterface public void transcribe(String day,String id){runOnUiThread(()->startFileSpeech(day,id));}
+  @JavascriptInterface public void recordStart(String day){runOnUiThread(()->{
+   if(!trusted()||!validDay(day))return;
+   if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){pendingDay=day;requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MIC_REQUEST);}
+   else record(day);
+  });}
+  @JavascriptInterface public void recordStop(){runOnUiThread(()->{if(trusted())stopRecord();});}
+  @JavascriptInterface public void speechStart(String token){runOnUiThread(()->{
+   if(!trusted())return;
+   if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){pendingSpeech=token;requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MIC_REQUEST);}
+   else startSpeech(token);
+  });}
+  @JavascriptInterface public void speechStop(String token){runOnUiThread(()->{if(recognizer!=null)recognizer.stopListening();});}
+  @JavascriptInterface public void speechCancel(){runOnUiThread(()->cancelSpeech());}
+  @JavascriptInterface public String list(String day){
+   JSONArray a=new JSONArray();if(!trustedPage||!validDay(day))return a.toString();
+   File[] files=dayDir(day).listFiles();if(files==null)return a.toString();
+   java.util.Arrays.sort(files,(l,r)->Long.compare(r.lastModified(),l.lastModified()));
+   for(File f:files)if(f.isFile()&&validId(f.getName())){
+    try{a.put(new JSONObject().put("id",f.getName()).put("bytes",f.length()).put("time",f.lastModified()).put("day",day));}catch(Exception ignored){}
+   }
+   return a.toString();
+  }
+  @JavascriptInterface public void play(String day,String id){runOnUiThread(()->MoaMomentAudioHostActivity.this.play(day,id));}
+  @JavascriptInterface public String videoUri(String videoId){return MoaMomentAudioHostActivity.this.videoUri(videoId);}
+  @JavascriptInterface public void captureVideoFrame(String id,long at){MoaMomentAudioHostActivity.this.captureVideoFrame(id,at);}
+  @JavascriptInterface public void togglePlayback(String day,String id){runOnUiThread(()->MoaMomentAudioHostActivity.this.togglePlayback(day,id));}
+  /** Read-only original M4A-to-text from camera Quick Record metadata. */
+  @JavascriptInterface public String captureTranscripts(String day){
+   if(!trusted()||!validDay(day))return "{}";
+   org.json.JSONObject found=new org.json.JSONObject();
+   try{
+    java.util.Map<String,?> entries=getSharedPreferences("moa_camera_native_v1",MODE_PRIVATE).getAll();
+    for(java.util.Map.Entry<String,?> ent:entries.entrySet()){
+      if(!ent.getKey().startsWith("m:")||!(ent.getValue() instanceof String))continue;
+      org.json.JSONObject record;
+      try{record=new org.json.JSONObject((String)ent.getValue());}catch(Exception ex){continue;}
+      String id=record.optString("voiceFileId","");
+      if(day.equals(record.optString("voiceDay",""))&&validId(id)){
+        org.json.JSONObject m=new org.json.JSONObject();
+        m.put("autoTranscript",record.optString("voiceAutoTranscript",""));
+        m.put("autoStatus",record.optString("voiceAutoStatus",""));
+        m.put("captureNote",record.optString("note",""));
+        found.put(id,m);
+      }
+      org.json.JSONArray history=record.optJSONArray("voiceRecords");
+      if(history==null)continue;
+      for(int n=0;n<history.length();n++){
+        org.json.JSONObject item=history.optJSONObject(n);if(item==null)continue;
+        String file=item.optString("id","");
+        if(!validId(file)||!day.equals(item.optString("day","")))continue;
+        org.json.JSONObject data=found.optJSONObject(file);
+        if(data==null)data=new org.json.JSONObject();
+        String transcript=item.optString("autoTranscript","");
+        if(!transcript.isEmpty()||!data.has("autoTranscript"))data.put("autoTranscript",transcript);
+        data.put("autoStatus",item.optString("autoStatus",""));
+        if(!data.has("captureNote"))data.put("captureNote",record.optString("note",""));
+        found.put(file,data);
+      }
+    }
+   }catch(Exception ignored){}
+   return found.toString();
+  }
+  @JavascriptInterface public boolean openInlineVideo(String id,float x,float y,float w,float h,float viewportW){
+   return MoaMomentAudioHostActivity.this.openInlineVideo(id,x,y,w,h,viewportW);
+  }
+  @JavascriptInterface public void closeInlineVideo(){MoaMomentAudioHostActivity.this.closeInlineVideo();}
+  @JavascriptInterface public void shiftInlineVideo(float progress){MoaMomentAudioHostActivity.this.shiftInlineVideo(progress);}
+  @JavascriptInterface public void delete(String day,String id){runOnUiThread(()->{if(!trusted()||!validDay(day)||!validId(id))return;
+    File f=new File(dayDir(day),id);send("delete",f.delete()?"삭제되었습니다.":"삭제하지 못했습니다.");});}
+ }
+}
