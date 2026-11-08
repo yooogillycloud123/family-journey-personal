@@ -77,6 +77,10 @@ public final class MoaNativeGallery {
  private TextView videoModeHint;
  private LinearLayout seekRow;
  private boolean chromeVisible=true,videoScrubMode=false,scrubbingVideo=false,scrubWasPlaying=false;
+ private boolean r187SeekInFlight=false,r187SeekReleased=false;
+ private int r187SeekWanted=0,r187SeekIssued=0;
+ private long r187LastSeekTime=0;
+ private Runnable r187PendingDispatch;
  private int scrubMs=0;
  private long lastLiveSeek=0;
  private String scrubFrameClip="";
@@ -182,11 +186,13 @@ public final class MoaNativeGallery {
    });popup.show();
   });
   header.setPadding(dp(95),0,dp(60),0);
-  LinearLayout lower=new LinearLayout(activity);lowerControls=lower;lower.setOrientation(LinearLayout.VERTICAL);lower.setBackgroundColor(0xb9000000); // overlay, don't resize the media
+  LinearLayout lower=new LinearLayout(activity);lowerControls=lower;lower.setOrientation(LinearLayout.VERTICAL);lower.setBackgroundColor(Color.TRANSPARENT); // R187 fixed overlay; rows have own translucent backgrounds
   activity.setVolumeControlStream(AudioManager.STREAM_MUSIC);
-  FrameLayout.LayoutParams lowerPos=new FrameLayout.LayoutParams(-1,dp(165),Gravity.BOTTOM);
+  FrameLayout.LayoutParams lowerPos=new FrameLayout.LayoutParams(-1,dp(208),Gravity.BOTTOM);
   host.addView(lower,lowerPos);
+  lower.addView(new android.widget.Space(activity),new LinearLayout.LayoutParams(-1,0,1f));
   videoControls=new LinearLayout(activity);videoControls.setGravity(Gravity.CENTER_VERTICAL);
+  videoControls.setBackgroundColor(0x99000000);
   pause=button("Ⅱ",18);mute=button("소리 켜기",12);still=button("장면 저장",12);
   pause.setOnClickListener(v->toggle());mute.setOnClickListener(v->toggleMute());
   still.setOnClickListener(v->capture());
@@ -206,6 +212,7 @@ public final class MoaNativeGallery {
   // The video time-filmstrip is deliberately an alternative to the old seekbar,
   // not another unrelated horizontal media gallery.
   seekRow=new LinearLayout(activity);seekRow.setGravity(Gravity.CENTER_VERTICAL);
+  seekRow.setBackgroundColor(0x99000000);
   videoModeButton=button("‹ 목록",12);videoModeButton.setVisibility(View.GONE);
   videoModeButton.setOnClickListener(v->setVideoScrubMode(!videoScrubMode));
   seekRow.addView(videoModeButton,new LinearLayout.LayoutParams(dp(94),dp(36)));
@@ -219,6 +226,7 @@ public final class MoaNativeGallery {
   // R179: system MUSIC volume is independent of MediaPlayer's mute/unmute.
   // Show a slider only while sound is enabled; never raise device volume automatically.
   volumeRow=new LinearLayout(activity);volumeRow.setGravity(Gravity.CENTER_VERTICAL);
+  volumeRow.setBackgroundColor(0x99000000);
   mediaVolumeText=new TextView(activity);mediaVolumeText.setTextSize(11);mediaVolumeText.setTextColor(Color.WHITE);
   mediaVolumeText.setGravity(Gravity.CENTER_VERTICAL);mediaVolumeText.setPadding(dp(9),0,0,0);
   volumeRow.addView(mediaVolumeText,new LinearLayout.LayoutParams(dp(104),dp(34)));
@@ -239,7 +247,8 @@ public final class MoaNativeGallery {
   volumeRow.addView(mediaVolumeSeek,new LinearLayout.LayoutParams(0,dp(34),1));
   volumeRow.setVisibility(View.GONE);
   lower.addView(volumeRow,new LinearLayout.LayoutParams(-1,dp(36)));
-  rail=new GalleryRail();lower.addView(rail,new LinearLayout.LayoutParams(-1,dp(72)));
+  rail=new GalleryRail();rail.setBackgroundColor(0xa8000000);
+  lower.addView(rail,new LinearLayout.LayoutParams(-1,dp(72)));
   open=true;registerBack();refreshPages();stage.post(()->{if(open)updatePosition(0);});prepareCurrentVideo();
   host.requestFocus();return true;
  }
@@ -509,11 +518,8 @@ public final class MoaNativeGallery {
   try{
    texture=new TextureView(activity);texture.setOpaque(false);
    pages[1].addView(texture,new FrameLayout.LayoutParams(-1,-1));
-   scrubPreview=new ImageView(activity);
-   scrubPreview.setScaleType(ImageView.ScaleType.FIT_CENTER);
-   scrubPreview.setBackgroundColor(Color.BLACK);
-   scrubPreview.setVisibility(View.GONE);
-   pages[1].addView(scrubPreview,new FrameLayout.LayoutParams(-1,-1));
+   // Never scale tiny timeline thumbnails up to the full-resolution video stage.
+   scrubPreview=null;
    texture.setSurfaceTextureListener(new TextureView.SurfaceTextureListener(){
     @Override public void onSurfaceTextureAvailable(SurfaceTexture st,int w,int h){if(!open||token!=videoToken)return;
      try{
@@ -573,7 +579,10 @@ public final class MoaNativeGallery {
   activity.startActivity(android.content.Intent.createChooser(send,"사진·영상 공유"));
  }catch(Exception e){android.widget.Toast.makeText(activity,"공유 화면을 열지 못했어요",0).show();}}
  private void teardownPlayer(){
-  if(ticker!=null){main.removeCallbacks(ticker);ticker=null;}prepared=false;
+  if(ticker!=null){main.removeCallbacks(ticker);ticker=null;}
+  if(r187PendingDispatch!=null){main.removeCallbacks(r187PendingDispatch);r187PendingDispatch=null;}
+  r187SeekInFlight=false;r187SeekReleased=false;r187LastSeekTime=0;
+  prepared=false;
   if(media!=null){try{media.reset();media.release();}catch(Exception ignored){}media=null;}
   if(mediaSurface!=null){try{mediaSurface.release();}catch(Exception ignored){}mediaSurface=null;}
   if(texture!=null){TextureView old=texture;texture=null;old.setSurfaceTextureListener(null);if(old.getParent() instanceof ViewGroup)((ViewGroup)old.getParent()).removeView(old);}
@@ -588,7 +597,7 @@ public final class MoaNativeGallery {
     if(videoScrubMode && rail!=null && !scrubbingVideo)rail.invalidate();
    pause.setText(media.isPlaying()?"Ⅱ":"▶");
   }catch(Exception ignored){}
-  main.postDelayed(this,300);
+  main.postDelayed(this,videoScrubMode?80:300);
  }};main.post(ticker);}
  private String clock(long ms){long s=Math.max(0,ms)/1000;return String.format(java.util.Locale.US,"%02d:%02d",s/60,s%60);}
  private void toggle(){if(media==null||!prepared)return;try{if(media.isPlaying())media.pause();else media.start();
@@ -629,13 +638,10 @@ public final class MoaNativeGallery {
  }
  private void updateChromeLayout(){
   if(stage==null||lowerControls==null||ids.isEmpty())return;
-  boolean isVideo=video(ids.get(index));
-  int needed=isVideo?(45+36+72+12):72;
-  if(isVideo&&!muted)needed+=36;
-  if(!chromeVisible)needed=0;
+  // R187: the 72dp rail is always bottom-aligned; spacer absorbs hidden rows.
   ViewGroup.LayoutParams lowerParams=lowerControls.getLayoutParams();
-  if(lowerParams!=null&&lowerParams.height!=dp(needed)){lowerParams.height=dp(needed);lowerControls.setLayoutParams(lowerParams);}
-  // Stable full-stage canvas. Chrome overlays media without causing image/video rescale.
+  if(lowerParams!=null&&lowerParams.height!=dp(208)){lowerParams.height=dp(208);lowerControls.setLayoutParams(lowerParams);}
+  // ImageView / TextureView canvas is unchanged in all modes.
  }
  private void setVideoScrubMode(boolean enabled){
   if(!open||ids.isEmpty()||!video(ids.get(index)))return;
@@ -683,7 +689,7 @@ public final class MoaNativeGallery {
      }catch(Exception ignored){}
      if(frame!=null){final Bitmap bmp=frame;final int at=i;
       main.post(()->{if(open&&token==scrubFrameToken&&videoScrubMode){
-       scrubFrames.put(at,bmp);if(rail!=null)rail.invalidate();if(scrubbingVideo)showScrubPreview(scrubMs);
+       scrubFrames.put(at,bmp);if(rail!=null)rail.invalidate();// full-resolution decoder rendering replaces the blurry overlay
       }else bmp.recycle();});
      }
     }
@@ -719,7 +725,7 @@ public final class MoaNativeGallery {
   scrubMs=Math.max(0,Math.min(duration,target));
   if(rail!=null)rail.invalidate();
   if(videoTime!=null)videoTime.setText(clock(scrubMs)+" / "+clock(duration));
-  showScrubPreview(scrubMs);
+  r187SeekWanted=scrubMs;
   return true;
  }
  private void showScrubPreview(int positionMs){
