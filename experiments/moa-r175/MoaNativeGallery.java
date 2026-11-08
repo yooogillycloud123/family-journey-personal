@@ -197,7 +197,7 @@ public final class MoaNativeGallery {
   lower.addView(new android.widget.Space(activity),new LinearLayout.LayoutParams(-1,0,1f));
   // R201: Galaxy layout - capture left, central play+elapsed/total, mute right.
   videoControls=new LinearLayout(activity);videoControls.setGravity(Gravity.CENTER_VERTICAL);
-  videoControls.setPadding(dp(7),0,dp(7),0);videoControls.setBackgroundColor(Color.TRANSPARENT);
+  videoControls.setPadding(dp(3),0,dp(3),0);videoControls.setBackgroundColor(Color.TRANSPARENT);
   still=new R201VideoIconButton(activity,0);pause=new R201VideoIconButton(activity,1);
   mute=new R201VideoIconButton(activity,2);
   still.setContentDescription("현재 동영상 장면 저장");
@@ -206,22 +206,28 @@ public final class MoaNativeGallery {
   pause.setText("Ⅱ");mute.setText("♪");
   still.setOnClickListener(v->capture());pause.setOnClickListener(v->toggle());mute.setOnClickListener(v->toggleMute());
   LinearLayout leftIcon=new LinearLayout(activity);leftIcon.setGravity(Gravity.CENTER);
-  leftIcon.addView(still,new LinearLayout.LayoutParams(dp(48),dp(48)));
-  videoControls.addView(leftIcon,new LinearLayout.LayoutParams(dp(62),dp(54)));
+  leftIcon.addView(still,new LinearLayout.LayoutParams(dp(37),dp(37)));
+  videoControls.addView(leftIcon,new LinearLayout.LayoutParams(0,dp(45),1f));
   LinearLayout centerPill=new LinearLayout(activity);centerPill.setGravity(Gravity.CENTER_VERTICAL);
   android.graphics.drawable.GradientDrawable pillBg=new android.graphics.drawable.GradientDrawable();
-  pillBg.setColor(0xc216191f);pillBg.setCornerRadius(dp(28));pillBg.setStroke(dp(1),0x447f838c);
-  centerPill.setBackground(pillBg);centerPill.setPadding(dp(8),0,dp(7),0);
-  centerPill.addView(pause,new LinearLayout.LayoutParams(dp(44),dp(46)));
-  videoTime=new TextView(activity);videoTime.setTextColor(Color.WHITE);videoTime.setTextSize(14);
+  pillBg.setColor(0xb816191f);pillBg.setCornerRadius(dp(22));pillBg.setStroke(dp(.7f),0x507d8288);
+  centerPill.setBackground(pillBg);centerPill.setPadding(dp(5),0,dp(6),0);
+  // R203: the ENTIRE central capsule is the play/pause hit target.
+  centerPill.setClickable(true);centerPill.setFocusable(true);
+  centerPill.setContentDescription("동영상 재생·일시정지 및 재생시간");
+  centerPill.setOnClickListener(v->toggle());
+  centerPill.addView(pause,new LinearLayout.LayoutParams(dp(31),dp(36)));
+  videoTime=new TextView(activity);videoTime.setTextColor(Color.WHITE);videoTime.setTextSize(12);
   videoTime.setSingleLine(true);videoTime.setGravity(Gravity.CENTER);
   videoTime.setTypeface(android.graphics.Typeface.MONOSPACE);videoTime.setText("00:00 / 00:00");
-  centerPill.addView(videoTime,new LinearLayout.LayoutParams(0,dp(47),1f));
-  videoControls.addView(centerPill,new LinearLayout.LayoutParams(0,dp(50),1f));
+  videoTime.setClickable(true);videoTime.setContentDescription("동영상 재생·일시정지");
+  videoTime.setOnClickListener(v->toggle());
+  centerPill.addView(videoTime,new LinearLayout.LayoutParams(0,dp(37),1f));
+  videoControls.addView(centerPill,new LinearLayout.LayoutParams(dp(154),dp(40)));
   LinearLayout rightIcon=new LinearLayout(activity);rightIcon.setGravity(Gravity.CENTER);
-  rightIcon.addView(mute,new LinearLayout.LayoutParams(dp(48),dp(48)));
-  videoControls.addView(rightIcon,new LinearLayout.LayoutParams(dp(62),dp(54)));
-  lower.addView(videoControls,new LinearLayout.LayoutParams(-1,dp(56)));
+  rightIcon.addView(mute,new LinearLayout.LayoutParams(dp(37),dp(37)));
+  videoControls.addView(rightIcon,new LinearLayout.LayoutParams(0,dp(45),1f));
+  lower.addView(videoControls,new LinearLayout.LayoutParams(-1,dp(46)));
   seek=new SeekBar(activity);seek.setMax(1000);seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
    public void onStartTrackingTouch(SeekBar bar){seekInProgress=true;}
    public void onStopTrackingTouch(SeekBar bar){seekInProgress=false;try{if(media!=null&&prepared)media.seekTo(bar.getProgress());}catch(Exception ignored){}}
