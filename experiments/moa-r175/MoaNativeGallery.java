@@ -308,11 +308,21 @@ public final class MoaNativeGallery {
   open=true;registerBack();refreshPages();stage.post(()->{if(open)updatePosition(0);});prepareCurrentVideo();
   host.requestFocus();return true;
  }
+ // R209: Transparent white icon silhouette isolated from user-supplied reference screenshot.
+ // Contains NO private background photo/diary/video pixels.
+ private static final String R209_MUTE_ICON_PNG="iVBORw0KGgoAAAANSUhEUgAAAEgAAABJCAYAAACesWDiAAAFJ0lEQVR42u2cf2iVVRjHP3dpdddSik2zgkE/7JelZZIRUoKrJCMK3f4oGTFMLFLJkrLSImdmYhFW0BIS/9BVKyTE1tAVFSTBAhErpdgfYyAFidoomfv2x3tu3tZ9z/tu933P+967+4XDuPc87znPvjvneZ/zPM9ZRhIV+KOqhHXPJEFQA7Da/Ewr6oGtQA/QBTwR62yScm25/otuSZPy+tPQFks6of/j+bjmzP/QW2DiA5KmpYScVfLH8bjmzeQZ6ePAxAKL7GdgGdCd0JYaD+wAmgLkaoA/47RBnT4y1wD7gXsSIOdSY2uaQsgOxG2km4B3LbKfA8sdkvMg0AdMC2tO4zbSudYqOzY6sDdPauSI3UgPV3DQosz2GMnZqtHBKUFIapH0u0WhjoiVqZW0V6OHc4KQ9ICkwxalPpGUjUCRuT5uRuoJQtIsSd9aFOuWdFURSqyU1KfikRhBueX/lUW5ryVdPwoFNksaUDRIlKAcSR0WBQ9JmhNyrKykdxQtEicISVWStlmU7Je0KMQ4CxQ9YiFopOGOIaAFeNWnf4pxNh8PGOcH4PuSCKoUwe5bAX/RlQHPVxvbVVZbbHjbImnIovSGEGPsLmeCkLQ6QPE2SecGjPFpOROEpLUByn8oqSZgjB2lStCagHNZWPRImhBirlQRlLFkNeYCe4BshO+E34A7gKMWmWbgg7QE8f1e83cC70dMDkCdecU/bJHZDtw7iujgOJcELQauiMmzuADYZLInfugEZgesNDdpoAL7bo6kY3KDpwNswE2SukKONd6VJ30jMMmRn/o60GrpPwgsAT5LU2a11rEOa4A3Lf29QKOxic5j0lWujF0AVgDtlv6/zEp6I+Cc6ISgpPL1jSaVPNUi8xSwMektlmRBwzxgCzDDIvMc8GySBJ1OOMBwn3EUb7PIvAa8UCCzOmbKX6YD24D7LTKtwELgb/P51FgiCOAGQ9KjFpkO4BHgp7iM9DjSjTrgbeASSxTzY+CwSxuUNmSBDcBmi8yYJiiHVcBHafCk04yFwKEKQcHGuzdJgoZKgKR6YBA4v7KC/HGOWUnXVQjyx2Rgn/G+KwT5YIpxGFvKOdxRLM4D2vBiSxUj7YOMOZ9tipuggRLfcs9gD74VTdAJ4EyJk9Ro7FJ1HATtB/rLwHg/BOw2B91ICTpiTsjlgHnATuN9j86w+aSeJwO7gLtKiIyTwIU+fUfxkqEHovKDjgFLge+I4YJITFgHfOnTdzWw1xx2I1lB+ZiPF/+dbt5wp/DivxPy3ng5onPx7Gq8FLNL1Bh92oFFPjJnzEraGXrUmO9crI+odGak5S9B5YEvuS6gsrVmRwQNr2JbFyDfnhaCctX6/Q5XUK4tDXimu5gCqqhxEfAFcGuMB+9Cv0wDXqh2os9zPcDMNJzm/wBmmUOlS3ThXc7zqzW6xbz+65Iw0n5tRQxbLBMw52WSDlqe/0XStUnZoELt7ggvsoQhCEkXS+oMIGlBWghC0u3mEowrgsLcNxmQNCMtBCHpckl7HBKUa21hblOmIeTah1ek8J7jeZcAL/r01eYyJmmJSQ+Zs9/LnK3WcIH1ePVGJ4d9vw+vqo00/V+OfM+7PyJHMWxrMMb7R3MtPpuEozgSzDfx5ZtHGJOOPtCd4n+wNBWv6n52SPnsv9si5qB9WnAE70pE2OjmYFznlzTjtIntvFIhyI61JgjvF938Jq6J02yDCmGmSefUD/v+SuDXCkFn0Qw8hld6tyyu7VXKBDlDVYUCO/4Bt8Q6slJaMUIAAAAASUVORK5CYII=";
  // R201: native vector icons rather than decorative Unicode glyphs.
  private final class R201VideoIconButton extends Button{
   private final int kind;private final Paint iconPaint=new Paint(Paint.ANTI_ALIAS_FLAG);
+   private final Bitmap r209MuteBitmap;
   R201VideoIconButton(Activity owner,int which){
    super(owner);kind=which;setAllCaps(false);setTextSize(1);
+    Bitmap exact=null;
+    if(which==2)try{
+     byte[] raw=android.util.Base64.decode(R209_MUTE_ICON_PNG,android.util.Base64.DEFAULT);
+     exact=BitmapFactory.decodeByteArray(raw,0,raw.length);
+    }catch(Exception ignored){}
+    r209MuteBitmap=exact;
    setTextColor(Color.TRANSPARENT);setPadding(0,0,0,0);
    setMinWidth(0);setMinHeight(0);setMinimumWidth(0);setMinimumHeight(0);
    android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
@@ -328,6 +338,11 @@ public final class MoaNativeGallery {
   @Override protected void onDraw(Canvas canvas){
    super.onDraw(canvas);
    float cx=getWidth()/2f,cy=getHeight()/2f;
+   if(kind==2&&String.valueOf(getText()).equals("♪")&&r209MuteBitmap!=null){
+    float w=dp(19.5f),h=w*r209MuteBitmap.getHeight()/Math.max(1f,r209MuteBitmap.getWidth());
+    canvas.drawBitmap(r209MuteBitmap,null,new RectF(cx-w*.5f,cy-h*.5f,cx+w*.5f,cy+h*.5f),iconPaint);
+    return;
+   }
    canvas.save();canvas.scale(.75f,.75f,cx,cy);
    iconPaint.setColor(Color.WHITE);iconPaint.setStrokeWidth(dp(2f));
    iconPaint.setStrokeCap(Paint.Cap.ROUND);iconPaint.setStrokeJoin(Paint.Join.ROUND);
