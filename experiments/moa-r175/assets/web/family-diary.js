@@ -1974,6 +1974,61 @@ function mmSuppressNativePrompt(covered){
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.open&&!S.editing)refreshCuratedFromDatabase().then(render)});window.addEventListener('focus',()=>{if(S.open&&!S.editing)refreshCuratedFromDatabase().then(render)});
 w.__moaR73SyncDiagnostics=()=>({firstCuratedMs:R73.firstCuratedMs,lastFullScanMs:R73.lastFullScanMs,selectedMediaRefs:R73.fast.size,missingOriginalCount:R73.confirmedMissing.size});
+// R195: the voice manager's "기록 위치" navigates to an existing diary item.
+// It never opens a popup/viewer and NEVER guesses a photo association by time.
+async function r195JumpToAudioLocation(day,fileId){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(day))||! /^[A-Za-z0-9_-]{8,90}\.m4a$/.test(String(fileId)))return false;
+ try{
+  if(!S.open)await open();
+  const curated=S.curatedEntries.get(day);
+  const attached=(curated?.moments||[]).find(m=>(Array.isArray(m.voiceIds)?m.voiceIds:[]).map(String).includes(String(fileId)));
+  const attachedId=(attached?.photoIds||[]).map(String).find(x=>!(curated?.removedMediaIds||[]).map(String).includes(x)&& (curated?.photoIds||[]).map(String).includes(x))||'';
+  if(attached&&curated&&S.mode!=='curated'){S.mode='curated';}
+  if(S.date!==day||S.page!=='day')chooseDay(day);
+  const dayFiles=r193DayVoices(day),info=dayFiles.get(fileId);
+  if(!info&&!attached)return false;
+  let time=Number(info?.time)||Number(attached?.at)||0;
+  const store=localStorage.getItem('moa.voice.timeline.links.v1');
+  try{
+   const val=JSON.parse(store||'{}')[day+'/'+fileId];
+   if(/^([01]\d|2[0-3]):[0-5]\d$/.test(String(val))){
+    const translated=Date.parse(day+'T'+val+':00');
+    if(Number.isFinite(translated))time=translated;
+   }
+  }catch(e){}
+  await new Promise(ok=>requestAnimationFrame(()=>requestAnimationFrame(ok)));
+  let target=null;
+  if(attachedId){
+   const selector='.moa-r191-media-tile[data-moa-media-id="'+attachedId+'"]';
+   target=S.root.querySelector(selector);
+   // Existing 30-item lazy batches stay intact: only extend the target group.
+   const itemTime=Number(S.byId.get(attachedId)?.t)||Number(attached?.at)||0;
+   const group=[...S.root.querySelectorAll('.fd23-log')].find(n=>itemTime>=Number(n.dataset.groupStart)&&itemTime<Number(n.dataset.groupEnd));
+   for(let attempt=0;!target&&group&&attempt<100;attempt++){
+    const more=group.querySelector('button.fd31-more');if(!more)break;
+    more.click();target=group.querySelector(selector);
+   }
+   if(target){
+    const memo=target.querySelector('details.moa-r191-memo-fold');if(memo)memo.open=true;
+   }
+  }
+  if(!target&&time>0){
+   target=[...S.root.querySelectorAll('.fd23-log')].find(n=>time>=Number(n.dataset.groupStart)&&time<Number(n.dataset.groupEnd))||null;
+  }
+  if(!target){
+   status('이 날짜에 연결된 사진·영상이 보이지 않습니다. 원본 음성은 그대로 보존됩니다.',true);
+   return false;
+  }
+  target.scrollIntoView({behavior:'smooth',block:attachedId?'center':'start',inline:'nearest'});
+  target.classList.add('moa-r195-jump-target');
+  setTimeout(()=>target?.classList.remove('moa-r195-jump-target'),2500);
+  return true;
+ }catch(e){
+  status('녹음 위치로 이동하지 못했습니다: '+String(e),true);
+  return false;
+ }
+}
+w.MoaDiaryNavigateToVoice=r195JumpToAudioLocation;
 w.FamilyJourneyDiary={open,close,selectDay:chooseDay,loadIndex,suppressNativePrompt:mmSuppressNativePrompt,momentToggle:mmToggle,momentStatus:()=>({enabled:mmEnabled,armedAt:mmArmedAt,pending:!!mmPendingPopup}),get state(){return S},groups:segments,localDay:dateOf};
 })(window);
 
