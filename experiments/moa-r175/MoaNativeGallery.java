@@ -539,7 +539,10 @@ public final class MoaNativeGallery {
       player.setDataSource(activity,uri(id));
       player.setOnPreparedListener(p->{if(token!=videoToken||!open)return;
        prepared=true;p.setVolume(0,0);p.start();mute.setText("소리 켜기");pause.setText("Ⅱ");
-       updateVideoGeometry(p.getVideoWidth(),p.getVideoHeight());startTicker();if(videoScrubMode)requestScrubFrames();});
+       updateVideoGeometry(p.getVideoWidth(),p.getVideoHeight());startTicker();
+       // Prefetch on video prepare, before the user taps the selected thumbnail.
+       // It runs only on frameWorker and reveals a single completed batch.
+       requestScrubFrames();});
       player.setOnInfoListener((p,what,extra)->{if(what==MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START&&token==videoToken){
        images[1].setVisibility(View.INVISIBLE);return true;}return false;});
       player.setOnErrorListener((p,what,extra)->{if(token==videoToken&&open)videoFailure();return true;});
