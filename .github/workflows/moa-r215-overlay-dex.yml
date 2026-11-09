@@ -18,9 +18,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - name: Install pinned SDK 35
-        run: yes | sdkmanager 'platforms;android-35' 'build-tools;35.0.0' >/dev/null
+      # The hosted image already provides Android 35. Do NOT invoke flaky sdkmanager repository update.
+      - name: Verify preinstalled Android 35
+        run: |
+          ls -l "$ANDROID_HOME/platforms/android-35/android.jar"
+          ls -l "$ANDROID_HOME/build-tools/35.0.0/d8"
       - name: Compile complete isolated native quickrecord overlay
         run: |
           set -euo pipefail
