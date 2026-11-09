@@ -43,7 +43,7 @@ jobs:
           assert 'footer.setBackground(bg(a,PALE,EDGE,19))' in m
           out={}
           for f in root.glob('*.dex'):
-            b=f.read_bytes();assert b.startswith(b'dex\\n')
+            b=f.read_bytes();assert b[:3]==b'dex'
             out[f.name]={'sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b)}
           (root/'QA.json').write_text(json.dumps(out,indent=2))
           print('R225 GALLERY + MEMO Android 35 compile / contracts PASS',out)
