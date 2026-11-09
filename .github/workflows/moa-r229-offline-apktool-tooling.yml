@@ -1,0 +1,26 @@
+name: MOA R229 public Apktool Offline Installer (NO PRIVATE DATA)
+on:
+  push:
+    branches: [feature/moa-r229-nav-return-qa-gated-20261109]
+    paths: ['.github/workflows/moa-r229-offline-apktool-tooling.yml']
+permissions: {contents: read}
+jobs:
+  public_apktool:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch published official public Apktool 2.10.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tools
+          curl -fL --retry 3 --connect-timeout 30 \
+            https://github.com/iBotPeaches/Apktool/releases/download/v2.10.0/apktool_2.10.0.jar \
+            -o tools/apktool_2.10.0.jar
+          file tools/apktool_2.10.0.jar
+          java -jar tools/apktool_2.10.0.jar --version
+          sha256sum tools/apktool_2.10.0.jar > tools/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Apktool-2.10.0-Public-Offline-Jar
+          path: tools/
+          retention-days: 7
