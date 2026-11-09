@@ -1,0 +1,26 @@
+name: MOA R225 scoped native gallery source staging
+on:
+  push:
+    branches:
+      - feature/moa-r225-restore-native-gallery-metadata-compact-ime-20261109
+    paths:
+      - '.github/workflows/moa-r225-native-staging.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export exact source for native fixes
+        run: |
+          mkdir -p payload
+          cp experiments/moa-r175/MoaNativeGallery.java payload/MoaNativeGallery_R223.java
+          cp experiments/moa-r223/MoaR217MemoPolish.java payload/MoaR217MemoPolish_R223.java
+          sha256sum payload/* > payload/SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R225-STAGING-SOURCES
+          path: payload/
+          retention-days: 2
