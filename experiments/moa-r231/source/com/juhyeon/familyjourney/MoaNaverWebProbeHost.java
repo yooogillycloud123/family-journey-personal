@@ -71,22 +71,54 @@ public final class MoaNaverWebProbeHost {
       settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);
       settings.setJavaScriptCanOpenWindowsAutomatically(false);
       settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+      // R233: R231's mobile WebView UA was redirected to NAVER's install/open app landing.
+      // Request the official web map's desktop layout only in this opt-in isolated probe.
+      // Do not modify MOA's production gallery or normal WebView UA.
+      settings.setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
+      settings.setUseWideViewPort(true);
+      settings.setLoadWithOverviewMode(true);
+      settings.setSupportZoom(true);
+      settings.setBuiltInZoomControls(true);
+      settings.setDisplayZoomControls(false);
       CookieManager.getInstance().setAcceptCookie(true);
       // Test browser login is entered only directly at NAVER origin by the user.
       // We DO NOT import Naver native-app cookies, read cookies or inject credentials.
       CookieManager.getInstance().setAcceptThirdPartyCookies(web,true);
       web.setWebViewClient(new WebViewClient(){
         @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest req){
+          // Never break non-main-frame navigation such as about:blank/blob worker frames.
+          if(!req.isForMainFrame())return false;
           Uri u=req.getUrl();String scheme=u.getScheme(),host=u.getHost();
-          boolean safe="https".equalsIgnoreCase(scheme)&&isNaverDomain(host);
-          if(!safe){reporter.status("NON_NAVER_NAVIGATION_BLOCKED");return true;}
+          if(scheme==null){reporter.status("UNKNOWN_NAVIGATION_BLOCKED");return true;}
+          if(!"https".equalsIgnoreCase(scheme)){
+            // The NAVER mobile install landing often launches an nmap:// or intent:// URI.
+            // Suppressing app opening is intentional; it is NOT a NAVER login failure.
+            if("intent".equalsIgnoreCase(scheme)||"nmap".equalsIgnoreCase(scheme)||
+               "market".equalsIgnoreCase(scheme))
+              reporter.status("NAVER_APP_OPEN_REQUEST_SUPPRESSED_WEB_ONLY");
+            else reporter.status("NON_HTTPS_NAVIGATION_BLOCKED");
+            return true;
+          }
+          if(!isNaverDomain(host)){
+            reporter.status("EXTERNAL_WEB_NAVIGATION_BLOCKED");return true;
+          }
           return false;
         }
         @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail d){
           reporter.status("WEBVIEW_RENDERER_GONE");dispose();return true;
         }
         @Override public void onPageFinished(WebView v,String url){
-          if(!disposed)reporter.status(hiddenMode?"HIDDEN_PAGE_FINISHED_UNVERIFIED":"VISIBLE_PAGE_FINISHED_UNVERIFIED");
+          if(disposed)return;
+          // Only assess a boolean app-store link presence. Never read account, text or cookies.
+          v.evaluateJavascript("(function(){return !!document.querySelector('a[href*=\"com.nhn.android.nmap\"],a[href^=\"market://\"],a[href^=\"intent://\"]');})()",
+            isInstallLanding->{
+              if(disposed)return;
+              if("true".equals(isInstallLanding))
+                reporter.status("NAVER_APP_INSTALL_LANDING_DESKTOP_REQUEST_UNSUCCESSFUL");
+              else reporter.status(hiddenMode?"HIDDEN_DESKTOP_PAGE_FINISHED_UNVERIFIED":
+                "VISIBLE_DESKTOP_PAGE_FINISHED_UNVERIFIED");
+            });
         }
       });
       WebViewCompat.addWebMessageListener(web,"MoaNaverProbeBridge",ORIGINS,
@@ -131,6 +163,9 @@ public final class MoaNaverWebProbeHost {
   public void dispose(){
     if(disposed)return;disposed=true;
     if(web!=null){
+      // Flush browser-managed NAVER cookies for a possible future same-MOA session.
+      // This does NOT share the native NAVER Maps app's login or bypass expiry.
+      try{CookieManager.getInstance().flush();}catch(Exception ignored){}
       try{web.stopLoading();web.loadUrl("about:blank");}catch(Exception ignored){}
       if(holder!=null)holder.removeView(web);
       try{web.destroy();}catch(Exception ignored){}web=null;
