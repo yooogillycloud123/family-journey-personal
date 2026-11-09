@@ -1,0 +1,55 @@
+name: MOA R225 Native fixed metadata overlay + keyboard-safe memo
+on:
+  push:
+    branches:
+      - feature/moa-r225-restore-native-gallery-metadata-compact-ime-20261109
+    paths:
+      - 'experiments/moa-r175/MoaNativeGallery.java'
+      - 'experiments/moa-r225/**'
+      - '.github/workflows/moa-r225-native-metadata.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile isolated Android35 Gallery + Memo DEX
+        run: |
+          set -euo pipefail
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          mkdir -p /tmp/r225/classes /tmp/r225/gallery /tmp/r225/memo build/r225
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/r225/classes \
+            experiments/moa-r175/MoaNativeGallery.java experiments/moa-r225/MoaR217MemoPolish.java
+          find /tmp/r225/classes -name 'MoaNativeGallery*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r225/gallery
+          find /tmp/r225/classes -name 'MoaR217MemoPolish*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r225/memo
+          cp /tmp/r225/gallery/classes.dex build/r225/gallery-classes.dex
+          cp /tmp/r225/memo/classes.dex build/r225/memo-classes.dex
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          root=Path('build/r225')
+          j=Path('experiments/moa-r175/MoaNativeGallery.java').read_text()
+          m=Path('experiments/moa-r225/MoaR217MemoPolish.java').read_text()
+          assert 'r225LoadWebIndex' in j and 'r225LoadMediaMetadata' in j and 'r225OpenNaver' in j
+          assert 'host.addView(r225Info,infoPos)' in j and 'stagePos.topMargin=0;stagePos.bottomMargin=0;' in j
+          assert 'backButton.bringToFront();menuButton.bringToFront();' in j
+          assert 'collectImeDetails' in m and 'WindowInsets.Type.ime()' in m
+          assert 'footer.setBackground(bg(a,PALE,EDGE,19))' in m
+          out={}
+          for f in root.glob('*.dex'):
+            b=f.read_bytes();assert b.startswith(b'dex\\n')
+            out[f.name]={'sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b)}
+          (root/'QA.json').write_text(json.dumps(out,indent=2))
+          print('R225 GALLERY + MEMO Android 35 compile / contracts PASS',out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R225-GALLERY-METADATA-MEMO-DEX
+          path: build/r225
+          retention-days: 7
