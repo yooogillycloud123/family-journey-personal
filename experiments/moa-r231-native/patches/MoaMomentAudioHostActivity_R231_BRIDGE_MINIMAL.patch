@@ -1,0 +1,19 @@
+--- R229/MoaMomentAudioHostActivity.smali
++++ R231/MoaMomentAudioHostActivity.smali
+@@ -678,6 +678,7 @@
+ 
+     iput-boolean v1, p0, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->trustedPage:Z
+ 
++    invoke-static {p0, v0}, Lcom/juhyeon/familyjourney/MoaNaverFeaturesBridge;->install(Landroid/app/Activity;Landroid/webkit/WebView;)V
+     iget-boolean v1, p0, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->interfaceAdded:Z
+ 
+     if-nez v1, :cond_3
+@@ -5948,6 +5949,8 @@
+ .method protected onDestroy()V
+     .locals 2
+ 
++    invoke-static {}, Lcom/juhyeon/familyjourney/MoaNaverFeaturesBridge;->cleanup()V
++
+     iget-object v0, p0, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->unifiedGallery:Lcom/juhyeon/familyjourney/MoaNativeGallery;
+ 
+     const/4 v1, 0x0
