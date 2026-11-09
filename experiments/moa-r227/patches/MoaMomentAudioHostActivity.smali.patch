@@ -1,0 +1,36 @@
+--- R225/MoaMomentAudioHostActivity.smali
++++ R227/MoaMomentAudioHostActivity.smali
+@@ -6008,6 +6008,14 @@
+ 
+     iget-object v0, p0, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->unifiedGallery:Lcom/juhyeon/familyjourney/MoaNativeGallery;
+ 
++    invoke-virtual {v0}, Lcom/juhyeon/familyjourney/MoaNativeGallery;->r227RetainForExternalMap()Z
++
++    move-result v0
++
++    if-nez v0, :cond_0
++
++    iget-object v0, p0, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->unifiedGallery:Lcom/juhyeon/familyjourney/MoaNativeGallery;
++
+     invoke-virtual {v0}, Lcom/juhyeon/familyjourney/MoaNativeGallery;->close()V
+ 
+     :cond_0
+@@ -6120,10 +6128,17 @@
+ .end method
+ 
+ .method protected onResume()V
+-    .locals 0
++    .locals 1
+ 
+     invoke-super {p0}, Lcom/juhyeon/familyjourney/MoaMomentVoiceHostActivity;->onResume()V
+ 
++    iget-object v0, p0, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->unifiedGallery:Lcom/juhyeon/familyjourney/MoaNativeGallery;
++
++    if-eqz v0, :r227_no_gallery_resume
++
++    invoke-virtual {v0}, Lcom/juhyeon/familyjourney/MoaNativeGallery;->r227ResumeFromExternalMap()V
++
++    :r227_no_gallery_resume
+     invoke-direct {p0}, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->schedule()V
+ 
+     return-void
