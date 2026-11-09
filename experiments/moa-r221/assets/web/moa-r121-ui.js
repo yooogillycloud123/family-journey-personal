@@ -198,7 +198,7 @@ function init(){
  function readNative(){try{const b=bridge();if(b&&typeof b.quickPopupPrefs==='function'){
   const got=JSON.parse(b.quickPopupPrefs()||'{}');state={...DEFAULTS,...got};
  }}catch(e){console.warn('MOA R215 native settings fetch',e)}return state;}
- function save(patch){try{const b=bridge();if(b&&typeof b.setQuickPopupPrefs==='function')b.setQuickPopupPrefs(JSON.stringify(patch));else console.warn('MOA R215 native popup bridge not found');}catch(e){console.warn('MOA R215 settings write',e)}state={...state,...patch};paint();}
+ function save(patch){try{const b=bridge();if(b&&typeof b.setQuickPopupPrefs==='function')b.setQuickPopupPrefs(JSON.stringify(patch));else console.warn('MOA R215 native popup bridge not found');}catch(e){console.warn('MOA R215 settings write',e)}state={...state,...patch};if('sizePct' in patch||patch.resetSize){state.hasCustomDimensions=false;state.widthDp=0;state.heightDp=0}paint();}
  function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;}
  function fieldRow(label,control){let r=el('div','moa-r215-row');r.append(el('label','',label));r.append(control);return r;}
  function sel(key,options){let s=el('select');for(const [value,label] of Object.entries(options)){let o=el('option','',label);o.value=value;s.append(o)}s.value=String(state[key]);s.addEventListener('change',()=>save({[key]:key==='hideSec'?Number(s.value):s.value}));return s;}
