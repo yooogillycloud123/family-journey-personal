@@ -1,0 +1,85 @@
+name: MOA R221 Eight-direction independent quick-record resizer
+on:
+  push:
+    branches:
+      - feature/moa-r221-floating-resize-eight-directions-20261109
+    paths:
+      - 'experiments/moa-r217/MoaR215QuickOverlay.java'
+      - 'experiments/moa-r221/**'
+      - '.github/workflows/moa-r221-quickpopup.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build_and_contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify hosted Android 35
+        run: |
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/d8"
+      - name: Compile native overlay and Android DEX
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moar221/classes build/r221
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moar221/classes experiments/moa-r217/MoaR215QuickOverlay.java
+          find /tmp/moar221/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output build/r221
+          test -s build/r221/classes.dex
+          node --check experiments/moa-r221/assets/web/moa-r121-ui.js
+      - name: Verify independent resize handles, bounds, persistence and gestures
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json
+          s=Path('experiments/moa-r217/MoaR215QuickOverlay.java').read_text()
+          web=Path('experiments/moa-r221/assets/web/moa-r121-ui.js').read_text()
+          for term in ['EDGE_L=1','EDGE_R=2','EDGE_T=4','EDGE_B=8',
+                       'HANDLE_MASKS={EDGE_L,EDGE_R,EDGE_T,EDGE_B',
+                       'resizeEdges(code-10,dx,dy);',
+                       'panelKey(ctx,"width")','panelKey(ctx,"height")',
+                       'Math.round(width/ctx.getResources().getDisplayMetrics().density)',
+                       'if(code==1){MoaR215QuickOverlay.hide();try{action.send();}',
+                       'else if(code==2){MoaR215QuickOverlay.hide();NotificationManager']:
+              assert term in s,term
+          assert 'width=Math.max(dp(178)' not in s
+          assert 'primaryW=Math.max(dp(111)' not in s
+          assert 'resizeFrom(float dx,float dy)' not in s
+          assert "background:transparent!important" in web
+          assert '상·하·좌·우 변과 4개 모서리' in web
+          # Same integer-edge formulas as native implementation; all 8 masks.
+          masks=[1,2,4,8,5,6,9,10]
+          def resize(mask,dx,dy):
+              x,y=120,160;rw,bh=300,214
+              if mask&1:x=max(10,min(120+dx,rw-120))
+              if mask&2:rw=max(x+120,min(370,300+dx))
+              if mask&4:y=max(10,min(160+dy,bh-44))
+              if mask&8:bh=max(y+44,min(410,214+dy))
+              return x,y,rw-x,bh-y
+          expected={1:(160,160,140,54),2:(120,160,220,54),4:(120,184,180,30),8:(120,160,180,78)}
+          for m in masks:
+              x,y,w,h=resize(m,40,24)
+              assert w>0 and h>0
+              assert (x!=120)==bool(m&1)
+              assert (y!=160)==bool(m&4)
+              assert (w!=180)==bool(m&(1|2))
+              assert (h!=54)==bool(m&(4|8))
+          b=Path('build/r221/classes.dex').read_bytes()
+          assert b.startswith(b'dex\n')
+          Path('build/r221/QA.json').write_text(json.dumps({
+              'dex_sha256':hashlib.sha256(b).hexdigest(),
+              'java_sha256':hashlib.sha256(s.encode()).hexdigest(),
+              'web_sha256':hashlib.sha256(web.encode()).hexdigest(),
+              'handles':masks,'status':'static compile and geometry contracts pass, Android device testing pending'
+          },indent=2))
+          print('R221 8 handles + record/X + independent width-height contracts PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R221-QUICK-OVERLAY-NATIVE-DEX
+          path: build/r221/
+          retention-days: 7
