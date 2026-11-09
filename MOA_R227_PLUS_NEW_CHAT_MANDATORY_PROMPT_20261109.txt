@@ -1,0 +1,22 @@
+MOA R227+ 장기 플랫폼 개발 계속. 아래 지침과 자료를 어떤 분석·소스수정·빌드보다 먼저 읽고 현재 최신 작업 상태부터 이어가라.
+
+[필독 순서]
+1. yooogillycloud123/workexcel-devbridge main AA_AirPods_FINAL_READ_FIRST_v1.0_20261005.md 전체 (MOA 작업에서 AA 오디오 소스 변경 금지).
+2. yooogillycloud123/family-journey-personal main MOA_READ_FIRST_NEW_CHAT_R227_20261109.md 전체.
+3. 같은 저장소 MOA_R227_MASTER_HANDOFF_FOR_NEW_CHAT_20261109.md 전체.
+4. 같은 저장소 MOA_R227_USER_DESIGNATED_GOLDEN_LOCK_20261109.md, MOA_WIP_CHECKPOINT_CURRENT.md, MOA_RELEASE_LEDGER_CURRENT.md, MOA_R227_GALLERY_BACK_SAME_PHOTO_NAVER_DIRECT_EXIF_FULL_VIDEO_HANDOFF_20261109.md.
+5. [NEW MANDATORY] 같은 저장소 MOA_R227_PLUS_LIFELONG_FAMILY_KNOWLEDGE_PLATFORM_CANONICAL_20261109.md **처음부터 끝까지**. 이 파일의 1~4 요구 상세, 네이버 화면 비점유 및 리스트 자동 생성, 갤러리 복귀, 바로기록 연계, 영어·지리·역사 연상학습, 가족 앨범·프린트·PC 동기화·미래 생활 확장과 구조/데이터/영향지도/QA 규칙을 생략하지 말 것.
+6. 개인 Library /모아_프로젝트_근거_20261103/GOLDEN_R227_20261109/의 original signed APK/ZIP, 130-member 해시 매니페스트, 최신 작업 파일/브랜치/CI를 대조할 것.
+
+[보존]
+R227 immutable Golden package com.juhyeon.familyjournea versionCode 227 original APK SHA256 53c4c04ce32ad13de3c0613f4e5ec7abbc75ccbdfe9db5da05d8fa9b806ec6cd, original signer certificate SHA256 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15. R219/R209/R203/R187도 보존. R227은 정적 PASS이나 네이버 내부 Back/동일 사진 복귀/EXIF GPS/영상 필름스트립 실기기 QA OPEN. 모든 기기 PASS로 둔갑시키지 말 것.
+
+[제품 목표]
+MOA는 단순 일기 앱이 아닌 가족 평생 기록·개인 지식·학습 기반 플랫폼. 가족 사진·영상·촬영정보·GPS·녹음·음성→텍스트·메모·일기에서 위치 기반 MOA/네이버 즐겨찾기, 자동 리스트, 여행앨범, PC/Android 동기화, 자연스러운 원어민 영어 문장·발음/단어/복습·역사·지리 배경지식의 연쇄 학습·프린트 학습자료·사진책, 나중에 가족 일정·가계부·생활도구 등으로 확장. 하나의 경험을 여러 기능에서 재사용. 개인 데이터 보호, 출처·추정 분리, 온라인 선택·로컬 우선.
+
+[개발 규칙]
+R227 원본 APK·frozen branch 직접 수정/교체 금지. 신규 feature branch+더 높은 versionCode, 원래 package/signature, 앱 삭제·데이터 초기화 금지. 정상 갤러리 한 장 스와이프/하단 관성·뮤트·캡처·영상 확장·지도 팝업 OFF·촬영/GPS/네이버 복귀·음성 종료·바로기록 8방향 크기조절·녹음/전사 종료·M4A/일기 저장 등 보존.
+새 기능은 작은 범위 수정 + 변경 전후 source/DEX/ZIP/설정/DB/Native-Web 브리지/영향관계 문서 + 정적/실기기 QA. 네이버 계정에 저장했다고 주장하려면 실제 리스트 readback 필요. 공식 nmap://place 열기는 즐겨찾기 저장 API가 아님; 가상디스플레이/백그라운드 자동화는 별도 실기기 PoC와 권한·정책 검증이 필요. PC v0.3 사용자 진술을 최신 작업파일과 대조하기 전 존재/완성 단정 금지. PC v0.1 pcApp은 실제 있는 과거 코드. 개인 사진/GPS·아이 목소리·원본 서명키·일기는 공개 GitHub에 업로드 금지.
+APK를 새로 완성하면 v2/서명/전체 해시/DEX/ZIP CRC/업데이트 설치를 검증하고 단독 APK와 **동일 APK를 포함하는 다운로드 가능한 ZIP**을 항상 함께 제시. 아직 빌드하지 않았다면 완료 주장 금지.
+
+먼저 최신 확인 결과를 짧게 보고하고 사용자가 새 기능을 말하면 이미 정한 목표를 되묻지 말고 즉시 영향 분석→설계→구현 가능한 산출물로 이어갈 것.
