@@ -1,7 +1,7 @@
 name: MOA Naver Background Engine R1 - source unit and Android source compile
 on:
   push:
-    branches: [feature/moa-r235-naver-background-real-favorites-engine-20261110]
+    branches: [feature/moa-r235-naver-background-real-favorites-engine-20261110, feature/moa-r236-strict-naver-readback-safety-20261110]
     paths: ['experiments/moa-naver-background-r1/**','.github/workflows/moa-naver-background-r1-tests.yml']
   workflow_dispatch:
 permissions:
