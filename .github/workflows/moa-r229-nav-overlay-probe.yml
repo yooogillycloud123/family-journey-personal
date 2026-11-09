@@ -70,6 +70,18 @@ jobs:
             > build/moa-r229/compile-webview-probe.log 2>&1 || { tail -120 build/moa-r229/compile-webview-probe.log; exit 1; }
           test -n "$(find experiments/moa-r229-native/probe-android/build -name 'MoaNaverWebProbeHost.class' -print -quit)"
           echo 'WEBVIEW_PROBE_JAVAC=PASS' >> build/moa-r229/compile-webview-probe.log
+      - name: Export only the new overlay helper DEX for private offline assembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa229/overlay-only
+          find /tmp/moa229/classes -type f -name 'MoaNaverReturnOverlay*.class' -print0 | xargs -0 \
+            "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 \
+            --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa229/overlay-only
+          test -s /tmp/moa229/overlay-only/classes.dex
+          cp /tmp/moa229/overlay-only/classes.dex build/moa-r229/MoaNaverReturnOverlay_only.dex
+          sha256sum build/moa-r229/MoaNaverReturnOverlay_only.dex > build/moa-r229/MoaNaverReturnOverlay_only.dex.sha256
+          echo 'OVERLAY_HELPER_ONLY_DEX=PASS' >> build/moa-r229/compile-gallery-overlay.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
