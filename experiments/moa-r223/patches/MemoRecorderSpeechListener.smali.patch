@@ -1,0 +1,29 @@
+--- /mnt/data/r219_work/decoded/smali_classes7/com/juhyeon/familyjourney/MoaMomentMemoRecorderActivity$3.smali	2026-11-09 04:21:53.594772513 +0000
++++ /mnt/data/r223_work/decoded/smali_classes7/com/juhyeon/familyjourney/MoaMomentMemoRecorderActivity$3.smali	2026-11-09 05:22:37.644241941 +0000
+@@ -53,7 +53,7 @@
+ 
+     move-result-object v0
+ 
+-    const-string v1, "\ud83c\udf99 \uc74c\uc131\uc73c\ub85c \ub9d0\ud558\uae30"
++    const-string v1, "음성 기록"
+ 
+     invoke-virtual {v0, v1}, Landroid/widget/Button;->setText(Ljava/lang/CharSequence;)V
+ 
+@@ -79,7 +79,7 @@
+ 
+     move-result-object v0
+ 
+-    const-string v1, "\ub4e3\ub294 \uc911\u2026"
++    const-string v1, "기록 종료"
+ 
+     invoke-virtual {v0, v1}, Landroid/widget/Button;->setText(Ljava/lang/CharSequence;)V
+ 
+@@ -89,7 +89,7 @@
+ 
+     move-result-object v0
+ 
+-    const/4 v1, 0x0
++    const/4 v1, 0x1
+ 
+     invoke-virtual {v0, v1}, Landroid/widget/Button;->setEnabled(Z)V
+ 
