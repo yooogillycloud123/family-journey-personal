@@ -1,0 +1,38 @@
+# MOA R219 — Native audio exit stop, live popup opacity and 7:3 layout, anchored vertical volume, unified quick memo (2026-11-09)
+
+## Verification status (do not overclaim)
+**Signed original-cert Android update APK and bit-identical ZIP verified. Isolated Java Android35 CI compiled successfully; local APK v2 signature RSA PKCS1 SHA256 and full signed content digest independently verified; ZIP CRC, all DEX SHA1/Adler and stored-entry alignment PASS. Real Galaxy installation / audio silence / volume gesture / on-device layout NOT YET TESTED. R219 is BETA, NOT GOLDEN.**
+
+The user provided private screenshots `1794197209811.png`, `1794197229706.png`, `1794197480275.png` and videos `19841.mp4`, `19842.mp4`, `19843.mp4`, `19854.mp4` showing continuing diary audio after Back/record fold/Home, unreadable dark Settings selection popovers, floating Record/X sizing and opacity problems, old 2-row native quick memo order, and inconvenient video media volume bar displacing controls. Private family imagery/video was inspected in runtime ONLY; never published in repository.
+
+## Exact signed artifact and freeze
+- Package `com.juhyeon.familyjournea`; **versionCode 219**.
+- Direct APK `MOA_R219_AUDIO_STOP_FLOATING_POPUP_VERTICAL_VOLUME_MEMO_UI_BETA.apk`, **5,751,199 bytes**, SHA256 **`d45d976a8c08a011a5e8cc5590a3634d37d6369d7f364e46dea6e93f91c338c1`**.
+- ZIP `MOA_R219_APK_WITH_ZIP_BACKUP_20261109.zip`, **5,408,749 bytes**, SHA256 **`b8cc57114f43037b84af31686cf6b8a71d705d3fb2ad9a3e69f648d5467b6289`**, includes direct APK with **exact matching SHA256**, QA JSON, install guidance, SHA256SUMS.
+- Signer certificate unchanged SHA256 **`5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`**; independent v2 RSA/full signed content digest validated.
+- Original parent R217 exact signed SHA256 **`0891ff4cfa5f797583ea2bab1daf057f0359749aafd5fdce65625d53fd7db983`**. Total **130** APK ZIP members, **123 byte-for-byte uncompressed content unchanged**, exactly 7 changes:
+  1. `AndroidManifest.xml` code217→219
+  2. `assets/web/family-diary.js`
+  3. `assets/web/moa-r121-ui.js`
+  4. `assets/web/moa-r149-voice.js`
+  5. `classes6.dex`: native Gallery vertical volume, existing R217 audio host retained
+  6. `classes8.dex`: existing native quick overlay tuned
+  7. `classes9.dex`: same native memoir UI helper, themed and rearranged.
+- `classes7.dex` **identical R217 byte-for-byte**, including existing memo recorder activities / listeners. Original R211 map, gallery stage one-step / lower inertial rail from R215, diary storage and recording files unchanged.
+- Both exact files, QA JSON and synthetic Settings preview kept PRIVATE in `/모아_프로젝트_근거_20261103/`.
+
+## Specific fixes and rationale
+1. **Root of audio leak:** Android `MoaMomentAudioHostActivity.onPause` ends playback only when Activity leaves foreground. In-app diary day→calendar, back, or tab change does not pause Android Activity. Worse, old `moa-r149-voice.js` returned early if its JS-only `playing` pointer had already cleared, even though the native `MediaPlayer` could still play. R219 **unconditionally** calls original native `MoaLocalAudio.stopPlayback()` on diary close/back, Android Back hook, and bottom tab navigation, with JS early guard removed. Native `r217StopPlayback` / bridge remain present. Synthetic Chromium verifies stop request even when JS `playing` is null and immediate request on Home tab click. Never delete M4A or stop a recording mid-save.
+2. **Popup Settings:** previous custom select had CSS `background:var(--bg-card,#24252a);color:inherit` causing near-black text on black native options; R219 explicit readable light text/background/color-scheme on select/option/number inputs. Entire top-level Settings card styled like native MOA light rounded setting sections. Maintains existing position/size/style and precise 1/2/3/5/7/10/15/20/30/60s + numeric 1–60s, preview and reset. Synthetic Chromium verified actual computed white select, contrasting text, live 40% preview opacity, and bridge save of 7 seconds. Settings card remains mounted on delayed navigation.
+3. **Floating Record/X:** native `MoaR215QuickOverlay` still owns same PendingIntent for Record and dismiss, same move/resize and orientation-aware persistence, but main record action dominates ~7:3 relative to X. X **no opaque/circular backing disc**, only small white cross with at least 44dp actual hit area. User opacity now sets `root.setAlpha(opacity/100f)` for **the entire popup**, not just a mostly obscured semi-transparent container; no double opacity multiplication. Red action pill includes optional '기록', defaults to compact AssistiveTouch-inspired styling.
+4. **Volume bubble:** removed old `volumeRow` from `lowerControls`; an independent **vertical pill anchored above the ACTUAL mute View** is overlaid in `host`. Touch swipe up/down maps to the Android MUSIC stream using `AudioManager.setStreamVolume(..., flags=0)`; current volume is not increased automatically. Mute button toggles visibility (only unmuted video and visible chrome). Main play/capture/mute row + video seeking + fixed bottom rail geometry never need shifting. Vertical volume native Android SDK35 CI `42562107492` SUCCESS.
+5. **Instant quick memo design:** existing `MoaMomentMemoRecorderActivity` and all original Button instances and click listeners stay (original `classes7.dex` byte-identical). `MoaR217MemoPolish.apply` in changed classes9 programmatically rearranges **row1** [음성 녹음 | 음성 기록 (= former 음성으로 말하기, no microphone emoji)], **row2** [녹음 듣기 | 내용 전체 지우기], **row3** full-width 모아 일기에 기록 저장. Unified light neutral button fills, MOA pink only Save, visible 10dp inter-button gutters and rounded input frame, expanded EditText writing area. Optional recording backup/retention setting moved beneath the editor and remains collapsed by default, with original safe-storage controls not deleted. Android35 memo + overlay CI `42562110971` SUCCESS.
+
+## Source and checks
+- Native source branch `feature/moa-r219-audio-stop-settings-overlay-volume-memo-20261109`.
+- Gallery Java `experiments/moa-r175/MoaNativeGallery.java` edited only for independent vertical volume; existing single-stage swipe/lower rail logic preserved. Overlay and memoir Java in `experiments/moa-r217/` updated; exact changed JS source under `experiments/moa-r219/assets/web/`. Signing key, password, archive and family media **not uploaded to GitHub**.
+- Apktool 2.10.0 rebuilt targeted classes6 with old native audio host + new Gallery smali, but original R217 classes7 left identical. Full APK v2 public-key verify+ZIP CRC+DEX SHA/Adler+alignment succeeded. Browser synthetic voice `MoaVoicePlaybackUI.stop()` unconditional and Home tab click PASS. Settings synthetic test PASS.
+- `R219` is **NOT** a device success. Check Back from audio playing day→calendar, close diary, tab Home/map, phone Home; media volume from mute tap; popup live opacity + Record/X touch; opening/closing keyboard with correct 2×2 quick memo arrangement; all original record/save/backup/voice files. App uninstall/data wipe not allowed.
+
+## Permanent guardrails
+R209 user-scoped Galaxy Gallery Golden immutable, R203 inertia and R187 older Goldens also immutable; R211 Map OFF native-gallery routing preserved; R215 one-photo stage swipe vs multi-photo LOWER-RAIL inertia preserved. No AA AirPods / Android Auto source or daemon touched. Future signed APKs MUST always ship with byte-identical ZIP backup; use update-install, no uninstall/data reset and no mismatched signer. If R219 fails Galaxy QA, issue higher-code signed narrow fix or documented exact-code-forward safe restoration, not a blind downgrade.
