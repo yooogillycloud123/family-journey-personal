@@ -847,7 +847,8 @@ public final class MoaNativeGallery {
   float starting=r203Clamp(initial);
   r203Present(starting);
   if(Math.abs(fingerVelocity)<380f||ids.size()<2){
-   r203SnapNearest(starting);return;  }
+   r203SnapNearest(starting);return;
+  }
   int stride=Math.max(1,dp(44)),startPx=Math.round(starting*stride);
   int minPx=Math.max(0,Math.round((starting-45f)*stride));
   int maxPx=Math.min(Math.round((ids.size()-1f)*stride),Math.round((starting+45f)*stride));
