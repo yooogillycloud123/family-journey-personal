@@ -114,7 +114,11 @@ public final class MoaNativeGallery {
  // Never change the stage's dimensions or position in response to metadata.
  private LinearLayout r225Info;
  private TextView r225CaptureTime,r225Address;
- private Button r225Naver;
+ private View r225Naver;
+ private boolean r227ExternalMapPending=false,r227VideoWasPlaying=false;
+ private float r227ScrubDownX=0f,r227ScrubDownY=0f;
+ private boolean r227ScrubDragged=false;
+
  private Runnable r225PendingMeta;
  private int r225MetaSeq=0;
  private String r225MetaId="",r225ResolvedAddress="";
@@ -225,33 +229,49 @@ public final class MoaNativeGallery {
    });popup.show();
   });
    header.setPadding(dp(95),0,dp(60),0);
-   r225Info=new LinearLayout(activity);r225Info.setOrientation(LinearLayout.VERTICAL);
-   r225Info.setPadding(dp(14),dp(5),dp(12),dp(5));
-   android.graphics.drawable.GradientDrawable infoBg=new android.graphics.drawable.GradientDrawable();
-   infoBg.setColor(0xbb1d1e23);infoBg.setCornerRadius(dp(11));
-   r225Info.setBackground(infoBg);
-   r225CaptureTime=new TextView(activity);r225CaptureTime.setTextColor(Color.WHITE);
-   r225CaptureTime.setTextSize(12.5f);r225CaptureTime.setSingleLine(true);
-   r225CaptureTime.setEllipsize(TextUtils.TruncateAt.END);
-   r225CaptureTime.setText("촬영 시간 확인 중…");
-   r225Info.addView(r225CaptureTime,new LinearLayout.LayoutParams(-1,dp(28)));
-   LinearLayout infoLine=new LinearLayout(activity);infoLine.setGravity(Gravity.CENTER_VERTICAL);
-   r225Address=new TextView(activity);r225Address.setTextColor(0xffe4e7ed);
-   r225Address.setTextSize(11.5f);r225Address.setSingleLine(true);
-   r225Address.setEllipsize(TextUtils.TruncateAt.END);r225Address.setText("사진 위치 확인 중…");
-   infoLine.addView(r225Address,new LinearLayout.LayoutParams(0,dp(32),1f));
-   r225Naver=button("지도 보기 ›",11);r225Naver.setVisibility(View.GONE);
-   r225Naver.setContentDescription("선택 사진 위치를 네이버 지도에서 열기");
-   r225Naver.setOnClickListener(v->r225OpenNaver());
-   infoLine.addView(r225Naver,new LinearLayout.LayoutParams(dp(88),dp(31)));
-   r225Info.addView(infoLine,new LinearLayout.LayoutParams(-1,dp(34)));
-   FrameLayout.LayoutParams infoPos=new FrameLayout.LayoutParams(-1,dp(72),Gravity.TOP);
-   infoPos.leftMargin=dp(9);infoPos.rightMargin=dp(9);infoPos.topMargin=dp(50);
-   host.addView(r225Info,infoPos);
-   // Fixed and click-safe controls live in a separate top row, above metadata.
-   backButton.setClickable(true);menuButton.setClickable(true);
-   backButton.setElevation(dp(14));menuButton.setElevation(dp(14));
-   backButton.bringToFront();menuButton.bringToFront();
+  // R227: user requested NO bogus upper Close / count / three-dot chrome.
+  // Android hardware/gesture Back still closes the native viewer.
+  header.setVisibility(View.GONE);backButton.setVisibility(View.GONE);menuButton.setVisibility(View.GONE);
+  // A single adjustable-height metadata card. Do not change stage/rail bounds.
+  r225Info=new LinearLayout(activity);r225Info.setOrientation(LinearLayout.VERTICAL);
+  r225Info.setPadding(dp(14),dp(8),dp(10),dp(9));
+  android.graphics.drawable.GradientDrawable infoBg=new android.graphics.drawable.GradientDrawable();
+  infoBg.setColor(0xb51d1e23);infoBg.setCornerRadius(dp(12));
+  infoBg.setStroke(dp(.7f),0x474f5562);
+  r225Info.setBackground(infoBg);
+  r225CaptureTime=new TextView(activity);r225CaptureTime.setTextColor(0xfff2f2f3);
+  r225CaptureTime.setTextSize(12.5f);r225CaptureTime.setGravity(Gravity.CENTER_VERTICAL);
+  r225CaptureTime.setSingleLine(true);
+  r225CaptureTime.setText("촬영 시간 확인 중…");
+  r225Info.addView(r225CaptureTime,new LinearLayout.LayoutParams(-1,dp(26)));
+  LinearLayout infoLine=new LinearLayout(activity);infoLine.setGravity(Gravity.CENTER_VERTICAL);
+  r225Address=new TextView(activity);r225Address.setTextColor(0xffe6e9ec);
+  r225Address.setTextSize(11.5f);r225Address.setGravity(Gravity.CENTER_VERTICAL);
+  r225Address.setSingleLine(false);r225Address.setMaxLines(6);
+  r225Address.setBreakStrategy(android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY);
+  r225Address.setText("위치 확인 중…");
+  LinearLayout.LayoutParams addressLp=new LinearLayout.LayoutParams(0,-2,1f);
+  addressLp.rightMargin=dp(6);infoLine.addView(r225Address,addressLp);
+  r225Naver=new R227NaverPin();r225Naver.setVisibility(View.GONE);
+  r225Naver.setContentDescription("현재 사진 촬영 위치를 네이버 지도에서 보기");
+  r225Naver.setOnClickListener(v->r225OpenNaver());
+  infoLine.addView(r225Naver,new LinearLayout.LayoutParams(dp(44),dp(44)));
+  r225Info.addView(infoLine,new LinearLayout.LayoutParams(-1,-2));
+  FrameLayout.LayoutParams infoPos=new FrameLayout.LayoutParams(-1,-2,Gravity.TOP);
+  infoPos.leftMargin=dp(9);infoPos.rightMargin=dp(9);infoPos.topMargin=dp(11);
+  host.addView(r225Info,infoPos);
+  // Long-press the information card to reach original Gallery/Share/Details actions
+  // without rendering unwanted top controls; use a popup anchored to the card.
+  r225Info.setOnLongClickListener(v->{
+   android.widget.PopupMenu p=new android.widget.PopupMenu(activity,r225Info);
+   p.getMenu().add(0,1,0,"원본 갤러리에서 열기");
+   p.getMenu().add(0,2,1,"사진·영상 공유");
+   p.getMenu().add(0,3,2,"모아 기존 상세·GPS 보기");
+   p.setOnMenuItemClickListener(it->{if(it.getItemId()==1){openOriginal();return true;}
+    if(it.getItemId()==2){shareOriginal();return true;}
+    if(it.getItemId()==3){openLegacyDetails();return true;}return false;});
+   p.show();return true;
+  });
   LinearLayout lower=new LinearLayout(activity);lowerControls=lower;lower.setOrientation(LinearLayout.VERTICAL);lower.setBackgroundColor(Color.TRANSPARENT); // R187 fixed overlay; rows have own translucent backgrounds
   activity.setVolumeControlStream(AudioManager.STREAM_MUSIC);
   FrameLayout.LayoutParams lowerPos=new FrameLayout.LayoutParams(-1,dp(208),Gravity.BOTTOM);
@@ -423,6 +443,29 @@ public final class MoaNativeGallery {
    return false;
   });
  }
+ // Map pin vector, consistent with the muted glass native Gallery controls.
+ private final class R227NaverPin extends View{
+  final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+  R227NaverPin(){super(activity);setClickable(true);setFocusable(true);
+   android.graphics.drawable.GradientDrawable base=new android.graphics.drawable.GradientDrawable();
+   base.setColor(0xd1323741);base.setCornerRadius(dp(12));base.setStroke(dp(1),0x8e697382);
+   android.graphics.drawable.GradientDrawable mask=new android.graphics.drawable.GradientDrawable();
+   mask.setColor(Color.WHITE);mask.setCornerRadius(dp(12));
+   setBackground(new android.graphics.drawable.RippleDrawable(
+    android.content.res.ColorStateList.valueOf(0x44ffffff),base,mask));
+  }
+  @Override protected void onDraw(Canvas c){super.onDraw(c);
+   float cx=getWidth()/2f,cy=getHeight()/2f;
+   p.setColor(0xfff6f7fa);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(dp(1.9f));
+   p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);
+   android.graphics.Path pin=new android.graphics.Path();
+   pin.moveTo(cx,cy+dp(12));
+   pin.cubicTo(cx-dp(4),cy+dp(6),cx-dp(10),cy+dp(1),cx-dp(9),cy-dp(5));
+   pin.cubicTo(cx-dp(9),cy-dp(17),cx+dp(9),cy-dp(17),cx+dp(9),cy-dp(5));
+   pin.cubicTo(cx+dp(10),cy+dp(1),cx+dp(4),cy+dp(6),cx,cy+dp(12));
+   c.drawPath(pin,p);c.drawCircle(cx,cy-dp(5),dp(3),p);
+  }
+ }
  private Button button(String label,int size){Button b=new Button(activity);b.setAllCaps(false);b.setText(label);b.setTextSize(size);
   b.setTextColor(-1);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff22242b));
   b.setMinHeight(0);b.setMinimumHeight(0);b.setMinWidth(0);b.setMinimumWidth(0);return b;}
@@ -539,7 +582,17 @@ public final class MoaNativeGallery {
   }catch(Exception ignored){}
   try{
    if(!video(mediaId)){
-    try(InputStream in=activity.getContentResolver().openInputStream(u)){
+    Uri original=u;
+    // MediaStore redacts EXIF GPS on Android 10+ without this exact original path.
+    // HostActivity already uses this permission-aware original URI when indexing.
+    if(Build.VERSION.SDK_INT>=29&&activity.checkSelfPermission(
+      "android.permission.ACCESS_MEDIA_LOCATION")==android.content.pm.PackageManager.PERMISSION_GRANTED){
+     try{original=MediaStore.setRequireOriginal(u);}catch(Exception ignored){original=u;}
+    }
+    InputStream stream=null;
+    try{stream=activity.getContentResolver().openInputStream(original);}
+    catch(SecurityException permission){stream=activity.getContentResolver().openInputStream(u);}
+    try(InputStream in=stream){
      if(in!=null){android.media.ExifInterface exif=new android.media.ExifInterface(in);
       float[] gps=new float[2];if(exif.getLatLong(gps)){lat=gps[0];lon=gps[1];}
       if(taken<315532800000L){
@@ -570,16 +623,49 @@ public final class MoaNativeGallery {
    if(when>0)r225SetTime(serial,mediaId,when,precise);
    else if(!r225HasTime)r225CaptureTime.setText("촬영 시간 정보 없음");
    if(r225GoodGps(plat,plon))r225SetGps(serial,mediaId,plat,plon,"");
-   else if(!r225GoodGps(r225Lat,r225Lon))r225Address.setText("원본 GPS·주소 정보 없음");
+   else if(!r225GoodGps(r225Lat,r225Lon)){
+    boolean permission=Build.VERSION.SDK_INT>=29 && activity.checkSelfPermission(
+       "android.permission.ACCESS_MEDIA_LOCATION")!=android.content.pm.PackageManager.PERMISSION_GRANTED;
+    r225Address.setText(permission?"원본 위치정보 접근 권한 필요 · 지도 색인 확인 중":
+       "원본 GPS 정보가 없는 사진 · 지도 색인 확인 중");
+   }
   });
  }
+ // R227: Android host onPause MUST NOT close a gallery while opening Naver Maps.
+ public boolean r227RetainForExternalMap(){return open&&r227ExternalMapPending;}
+ public void r227ResumeFromExternalMap(){
+  if(!r227ExternalMapPending)return;
+  r227ExternalMapPending=false;
+  // Keep precisely the same media/index/filmstrip; resume if video was playing.
+  if(open&&r227VideoWasPlaying&&media!=null&&prepared){
+   try{media.start();if(pause!=null)pause.setText("Ⅱ");}catch(Exception ignored){}
+  }
+  r227VideoWasPlaying=false;
+ }
  private void r225OpenNaver(){
-  if(!r225GoodGps(r225Lat,r225Lon))return;
+  if(!r225GoodGps(r225Lat,r225Lon)||!open)return;
   if(!(r225Lat>=31.43&&r225Lat<=44.35&&r225Lon>=122.37&&r225Lon<=132))return;
-  String query=r225ResolvedAddress.isEmpty()?String.format(Locale.US,"%.6f, %.6f",r225Lat,r225Lon):r225ResolvedAddress;
-  String link="https://map.naver.com/p/search/"+Uri.encode(query);
-  try{activity.startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(link)));}
-  catch(Exception e){android.widget.Toast.makeText(activity,"네이버 지도를 열 수 없어요",0).show();}
+  final String name=r225ResolvedAddress.isEmpty()?"사진 촬영 위치":r225ResolvedAddress;
+  // Naver Maps official direct place scheme avoids HTTPS /search page stacks.
+  String link=String.format(Locale.US,
+    "nmap://place?lat=%.7f&lng=%.7f&name=%s&appname=%s",
+    r225Lat,r225Lon,Uri.encode(name),Uri.encode(activity.getPackageName()));
+  Intent nav=new Intent(Intent.ACTION_VIEW,Uri.parse(link));
+  nav.addCategory(Intent.CATEGORY_BROWSABLE);nav.setPackage("com.nhn.android.nmap");
+  r227ExternalMapPending=true;
+  r227VideoWasPlaying=false;
+  try{if(media!=null&&prepared&&media.isPlaying()){
+   r227VideoWasPlaying=true;media.pause();if(pause!=null)pause.setText("▶");
+  }}catch(Exception ignored){}
+  try{activity.startActivity(nav);}
+  catch(Exception unavailable){
+   // If Naver Maps isn't installed, fall back to existing verified HTTPS link.
+   String query=r225ResolvedAddress.isEmpty()?String.format(Locale.US,"%.6f, %.6f",r225Lat,r225Lon):r225ResolvedAddress;
+   try{activity.startActivity(new Intent(Intent.ACTION_VIEW,
+       Uri.parse("https://map.naver.com/p/search/"+Uri.encode(query))));}
+   catch(Exception failed){r227ResumeFromExternalMap();
+    android.widget.Toast.makeText(activity,"네이버 지도를 열 수 없어요",0).show();}
+  }
  }
  private void registerBack(){if(Build.VERSION.SDK_INT>=33){
   try{backCallback=()->{if(r207SavedPhotoViewer!=null)r207CloseSavedPhoto();else close();};activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
@@ -596,7 +682,8 @@ public final class MoaNativeGallery {
    ((ViewGroup)r207SavedPhotoViewer.getParent()).removeView(r207SavedPhotoViewer);
   if(r207SavedPhotoImage!=null)r207SavedPhotoImage.setImageDrawable(null);
   r207SavedPhotoViewer=null;r207SavedPhotoImage=null;r207ResumeVideoAfterPhoto=false;
-  open=false;loadToken++;videoToken++;scrubFrameToken++;
+  open=false;r227ExternalMapPending=false;r227VideoWasPlaying=false;
+  loadToken++;videoToken++;scrubFrameToken++;
   // Never leave Android system bars hidden after closing the gallery.
   if(host!=null)try{activity.getWindow().getDecorView().setSystemUiVisibility(savedSystemUi);}catch(Exception ignored){}
   chromeVisible=true;videoScrubMode=false;scrubFrames.clear();scrubFrameClip="";
@@ -898,15 +985,24 @@ public final class MoaNativeGallery {
    float stride=dp(44),cw=getWidth()*.5f,ht=getHeight()*.5f;
    // Samsung-like effect: one selected thumbnail pops up, all other Y positions stay fixed.
    int lo=Math.max(0,(int)Math.floor(center)-12),hi=Math.min(ids.size()-1,(int)Math.ceil(center)+12);
-   final float extraHalf=dp(86)*Math.max(0f,r197ScrubExpansion);
+   // R227: selected video timeline spreads across the RAIL to the right,
+   // pushing earlier stills left and later photos right like Samsung Gallery.
+   float expanded=Math.max(0f,Math.min(1f,r197ScrubExpansion));
+   boolean activeScene=expanded>.001f&&video(ids.get(index));
+   float leftVideo=(cw-dp(19))+(dp(52)-(cw-dp(19)))*expanded;
+   float rightVideo=(cw+dp(19))+(getWidth()-dp(16)-(cw+dp(19)))*expanded;
    for(int i=lo;i<=hi;i++){
     float x=cw+(i-center)*stride;
-    if(i<index)x-=extraHalf;else if(i>index)x+=extraHalf;
-    if(x<-stride-extraHalf||x>getWidth()+stride+extraHalf)continue;
-    String id=ids.get(i);Bitmap bmp=posters.get(id);
-    float localY=i==index?-dp(8)*Math.max(0f,1f-Math.abs(i-center)) : 0f;
-    RectF box=new RectF(x-dp(19)-(i==index?extraHalf:0f),ht-dp(23)+localY,
-      x+dp(19)+(i==index?extraHalf:0f),ht+dp(23)+localY);
+     if(activeScene){
+      if(i<index)x+=(leftVideo-(cw-dp(19)));
+      if(i>index)x+=(rightVideo-(cw+dp(19)));
+     }
+     if(x<-stride-getWidth()||x>getWidth()*2f)continue;
+     String id=ids.get(i);Bitmap bmp=posters.get(id);
+     float localY=i==index?-dp(8)*Math.max(0f,1f-Math.abs(i-center)) : 0f;
+     RectF box=(i==index&&activeScene)?new RectF(leftVideo,ht-dp(23)+localY,
+       rightVideo,ht+dp(23)+localY):new RectF(x-dp(19),ht-dp(23)+localY,
+       x+dp(19),ht+dp(23)+localY);
     paint.setColor(0xff33363a);canvas.drawRoundRect(box,dp(5),dp(5),paint);
     if(bmp!=null&&!(i==index&&r197ScrubExpansion>0.001f)){
      float ratio=Math.max((float)box.width()/bmp.getWidth(),(float)box.height()/bmp.getHeight());
@@ -949,38 +1045,34 @@ public final class MoaNativeGallery {
   private boolean touch(View v,MotionEvent e){
    if(!open)return false;
    if(videoScrubMode && !ids.isEmpty() && video(ids.get(index))){
-    int action=e.getActionMasked();
+    final int action=e.getActionMasked();
     if(action==MotionEvent.ACTION_DOWN){
-     r199SideStartX=e.getX();
-     r199SideGesture=Math.abs(e.getX()-getWidth()*.5f)>dp(19)+dp(86)*r197ScrubExpansion+dp(3);
-     if(r199SideGesture)return true;
-    }else if(r199SideGesture){
-     if(action==MotionEvent.ACTION_UP){
-      float dx=e.getX()-r199SideStartX;
-      int direction=Math.abs(dx)>dp(24)?(dx>0?-1:1):(r199SideStartX<getWidth()*.5f?-1:1);
-      r199SideGesture=false;int next=Math.max(0,Math.min(ids.size()-1,index+direction));
-      setVideoScrubMode(false);if(next!=index)navigate(next);return true;
+     r227ScrubDownX=e.getX();r227ScrubDownY=e.getY();r227ScrubDragged=false;
+     return true;
+    }
+    if(action==MotionEvent.ACTION_MOVE){
+     if(!r227ScrubDragged){
+      if(Math.abs(e.getX()-r227ScrubDownX)<dp(7)&&
+         Math.abs(e.getY()-r227ScrubDownY)<dp(10))return true;
+      r227ScrubDragged=true;
+      MotionEvent down=MotionEvent.obtain(e);down.setAction(MotionEvent.ACTION_DOWN);
+      down.setLocation(r227ScrubDownX,r227ScrubDownY);
+      MoaNativeGallery.this.touchVideoFrames(down);down.recycle();
      }
-     if(action==MotionEvent.ACTION_CANCEL)r199SideGesture=false;
-     return true;
+     return MoaNativeGallery.this.touchVideoFrames(e);
     }
-    // Tap the selected central scene thumbnail again to collapse to media.
-    if(action==MotionEvent.ACTION_DOWN){
-     r197CenterDownX=e.getX();
-     r197CenterTapPending=Math.abs(e.getX()-getWidth()*.5f)<=dp(19)+dp(86)*Math.max(0f,r197ScrubExpansion)+dp(4);
-     if(r197CenterTapPending)return true;
-    }else if(r197CenterTapPending&&action==MotionEvent.ACTION_MOVE){
-     if(Math.abs(e.getX()-r197CenterDownX)<dp(8))return true;
-     r197CenterTapPending=false;
-     MotionEvent synthetic=MotionEvent.obtain(e);synthetic.setAction(MotionEvent.ACTION_DOWN);
-     synthetic.setLocation(r197CenterDownX,e.getY());
-     MoaNativeGallery.this.touchVideoFrames(synthetic);synthetic.recycle();
-    }else if(r197CenterTapPending&&(action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL)){
-     r197CenterTapPending=false;
-     if(action==MotionEvent.ACTION_UP)setVideoScrubMode(false);
-     return true;
+    if(action==MotionEvent.ACTION_UP){
+     if(!r227ScrubDragged){
+      setVideoScrubMode(false);return true; // Tap ANY part of filmstrip to fold.
+     }
+     r227ScrubDragged=false;
+     return MoaNativeGallery.this.touchVideoFrames(e);
     }
-    return MoaNativeGallery.this.touchVideoFrames(e);
+    if(action==MotionEvent.ACTION_CANCEL){
+     if(r227ScrubDragged)MoaNativeGallery.this.touchVideoFrames(e);
+     r227ScrubDragged=false;return true;
+    }
+    return true;
    }
    switch(e.getActionMasked()){
     case MotionEvent.ACTION_DOWN:{
@@ -1203,10 +1295,10 @@ public final class MoaNativeGallery {
  private void toggleChrome(){
   if(!open)return;
   chromeVisible=!chromeVisible;
-   if(header!=null)header.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
+   if(header!=null)header.setVisibility(View.GONE);
    if(r225Info!=null)r225Info.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
-  if(backButton!=null)backButton.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
-  if(menuButton!=null)menuButton.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
+   if(backButton!=null)backButton.setVisibility(View.GONE);
+   if(menuButton!=null)menuButton.setVisibility(View.GONE);
   if(lowerControls!=null)lowerControls.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
   // Hide/show the anchored popup with chrome; preserve all main-control positions.
   updateMediaVolume();
@@ -1259,7 +1351,7 @@ public final class MoaNativeGallery {
   final int total=videoLengthMs();
   // Limit independent random-seek decodes and reveal the strip in one batch,
   // rather than posting 20+ individual frames that visually climb in stair steps.
-  scrubFrameCount=Math.max(8,Math.min(14, (int)Math.ceil(total/2200f)+1));
+  scrubFrameCount=Math.max(10,Math.min(20, (int)Math.ceil(total/2500f)+1));
   final int count=scrubFrameCount;
   final int current=(int)((long)videoPositionMs()*(count-1)/Math.max(1,total));
   // Decode/scale only on the worker. Start near current playback, then expand out.
@@ -1325,8 +1417,8 @@ public final class MoaNativeGallery {
  }
  private boolean scrubTouch(MotionEvent e,float firstX,float firstTimeMs,int duration){
   if(media==null||!prepared)return true;
-  int target=Math.round(firstTimeMs+(firstX-e.getX())/Math.max(1,dp(42))*
-                  duration/Math.max(1f,scrubFrameCount-1f));
+  float width=Math.max(dp(100),getWidthSafe(rail)-dp(72));
+  int target=Math.round(firstTimeMs+(firstX-e.getX())/width*duration);
   scrubMs=Math.max(0,Math.min(duration,target));
   if(rail!=null)rail.invalidate();
   if(videoTime!=null)videoTime.setText(clock(scrubMs)+" / "+clock(duration));
@@ -1406,12 +1498,7 @@ public final class MoaNativeGallery {
     return true;
    case MotionEvent.ACTION_UP:
     scrubTouch(e,scrubDownX,scrubDownMs,duration);
-    if(Math.abs(e.getX()-scrubDownX)<dp(6)){
-     scrubMs=Math.max(0,Math.min(duration,
-      Math.round(scrubDownMs+(e.getX()-getWidthSafe(rail)/2f)/Math.max(1f,dp(42))*
-      duration/Math.max(1f,scrubFrameCount-1f))));
-    }
-    r187SeekWanted=scrubMs;scrubbingVideo=false;r187SeekReleased=true;
+     r187SeekWanted=scrubMs;scrubbingVideo=false;r187SeekReleased=true;
     r187ScheduleSeek();
     if(rail!=null)rail.invalidate();
     return true;
