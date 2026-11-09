@@ -1,0 +1,20 @@
+{
+  "app.js": {
+    "before_sha256": "0151c659154c5aa832596289728e90ef44db40bf12ab03aebba0e6e18fe9a940",
+    "after_sha256": "a12b3701b7823d1110a67e0febd8785668f02e32b17b37baff07cc909e3222b3",
+    "before_bytes": 187756,
+    "after_bytes": 189453
+  },
+  "fj-naver-favorites.js": {
+    "before_sha256": "a4cdb0e1d08762968ebccd0f61a8a777989e10e793157525c5f98d50c88ca478",
+    "after_sha256": "a89ba35c00524c7db404048e0ebfa6e55404fc2d546ed8ec321426a5f51d95cd",
+    "before_bytes": 38099,
+    "after_bytes": 39912
+  },
+  "moa-r141-monthly-report.js": {
+    "before_sha256": "83aea8ec0400d94171b162dc4854506472b67d884020005eb9fe61bd50ef28e9",
+    "after_sha256": "823f0c6fdfc2f5ee6e3a8ac12729e4284c0d19d11451e0f041b29d17892b9f19",
+    "before_bytes": 51659,
+    "after_bytes": 51676
+  }
+}
