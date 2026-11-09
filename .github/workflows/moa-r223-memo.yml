@@ -1,0 +1,54 @@
+name: MOA R223 memo speech stop and keyboard layout isolated native CI
+on:
+  push:
+    branches:
+      - feature/moa-r223-memo-dictation-stop-4char-ime-layout-20261109
+    paths:
+      - 'experiments/moa-r223/**'
+      - '.github/workflows/moa-r223-memo.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  memo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile isolated Android35 UI helper
+        run: |
+          set -euo pipefail
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          mkdir -p /tmp/moar223/classes build/r223
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moar223/classes experiments/moa-r223/MoaR217MemoPolish.java
+          find /tmp/moar223/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output build/r223
+          mv build/r223/classes.dex build/r223/classes9.dex
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          dex=Path('build/r223/classes9.dex').read_bytes()
+          java=Path('experiments/moa-r223/MoaR217MemoPolish.java').read_text()
+          p1=Path('experiments/moa-r223/patches/MemoRecorderActivity.smali.patch').read_text()
+          p2=Path('experiments/moa-r223/patches/MemoRecorderSpeechListener.smali.patch').read_text()
+          assert dex.startswith(b'dex\n')
+          assert '"기록 종료"' in p1 and 'MoaMomentVoice;->finish()V' in p1
+          assert '"기록 종료"' in p2 and '"음성 기록"' in p2
+          assert '"전체 삭제"' in java and '"일기 저장"' in java
+          assert 'fp.leftMargin=dp(a,16)' in java and 'fp.rightMargin=dp(a,16)' in java
+          assert 'Build.VERSION.SDK_INT>=30' in java
+          Path('build/r223/verify.json').write_text(json.dumps({
+           'helper_sha256':hashlib.sha256(dex).hexdigest(),
+           'helper_java_sha256':hashlib.sha256(java.encode()).hexdigest(),
+           'speech_patch_sha256':hashlib.sha256(p1.encode()).hexdigest(),
+           'speech_listener_patch_sha256':hashlib.sha256(p2.encode()).hexdigest(),
+           'result':'isolated helper compile and source contract PASS; hardware UX still unverified'
+          },indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R223-MEMO-UI-DEX
+          path: build/r223/
+          retention-days: 7
