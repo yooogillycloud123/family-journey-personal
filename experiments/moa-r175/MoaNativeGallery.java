@@ -582,15 +582,15 @@ public final class MoaNativeGallery {
   }catch(Exception ignored){}
   try{
    if(!video(mediaId)){
-    Uri original=u;
+    Uri originalUri=u;
     // MediaStore redacts EXIF GPS on Android 10+ without this exact original path.
     // HostActivity already uses this permission-aware original URI when indexing.
     if(Build.VERSION.SDK_INT>=29&&activity.checkSelfPermission(
       "android.permission.ACCESS_MEDIA_LOCATION")==android.content.pm.PackageManager.PERMISSION_GRANTED){
-     try{original=MediaStore.setRequireOriginal(u);}catch(Exception ignored){original=u;}
+     try{originalUri=MediaStore.setRequireOriginal(u);}catch(Exception ignored){originalUri=u;}
     }
     InputStream stream=null;
-    try{stream=activity.getContentResolver().openInputStream(original);}
+    try{stream=activity.getContentResolver().openInputStream(originalUri);}
     catch(SecurityException permission){stream=activity.getContentResolver().openInputStream(u);}
     try(InputStream in=stream){
      if(in!=null){android.media.ExifInterface exif=new android.media.ExifInterface(in);
