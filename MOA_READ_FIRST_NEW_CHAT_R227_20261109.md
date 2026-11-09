@@ -1,0 +1,21 @@
+# MOA — 새 대화에서 무조건 먼저 읽기 (R227 골든 체크포인트, 2026-11-09)
+
+**최신 사용자 지정 보존 골든:** `com.juhyeon.familyjournea` **versionCode 227** (R227), APK SHA-256 `53c4c04ce32ad13de3c0613f4e5ec7abbc75ccbdfe9db5da05d8fa9b806ec6cd`.
+
+**상태 주의:** 사용자가 R227까지 만든 결과를 골든에 추가하라고 직접 요청하여 **변경 불가 기준본/복원 기준**으로 보관한다. 과거 R227 릴리스의 **정적·서명·컴파일 검증은 PASS**지만 모든 실기기 동작이 PASS된 것은 아니다. 무조건 완성·최종이라고 주장하지 말 것.
+
+## 첫 행동 순서
+1. 프로젝트 최상위 안내인 `yooogillycloud123/workexcel-devbridge` main `AA_AirPods_FINAL_READ_FIRST_v1.0_20261005.md` 전체 읽기. **모아 작업에서 AA AirPods/Android Auto 핵심 소스 수정 금지.**
+2. 현재 저장소 `yooogillycloud123/family-journey-personal` main의 `MOA_R227_MASTER_HANDOFF_FOR_NEW_CHAT_20261109.md` **전부 읽기**. 과거 실수, 성공한 기능, 미검증 내용, 릴리스 해시와 수정 원칙이 모두 들어있다.
+3. 같은 저장소의 `MOA_R227_USER_DESIGNATED_GOLDEN_LOCK_20261109.md`, `MOA_R227_GALLERY_BACK_SAME_PHOTO_NAVER_DIRECT_EXIF_FULL_VIDEO_HANDOFF_20261109.md`, `MOA_WIP_CHECKPOINT_CURRENT.md`, `MOA_RELEASE_LEDGER_CURRENT.md` 확인.
+4. 개인 Library `/모아_프로젝트_근거_20261103/GOLDEN_R227_20261109/`의 동결 APK·130개 멤버 해시·원본 ZIP·시작 프롬프트를 확인하고 SHA 대조.
+5. 최신 산출물이나 신규 사용자 승인 버전이 있으면 검증한 뒤 **현재 최신 작업 상태부터** 이어가기. 무턱대고 R227에 최신 코드를 덮어씌우지 말 것.
+
+## 꼭 기억할 불변 조건
+- **위쪽 큰 사진/영상은 한 번 스와이프에 한 장**, 아래 필름스트립만 다중 관성, 위 사진은 아래 선택에 동기화. 영상 타임라인은 아래 전체 너비로 펼쳐져야 하며 주변 썸네일을 밀고, 드래그 seek·탭 접기.
+- 촬영 시각/주소/GPS/네이버 핀, 지도 팝업 OFF 시 즉시 네이티브 갤러리. 네이버에서 돌아와 같은 선택 사진이 유지되도록 하는 `onPause` 보호. GPS 없는 사진은 추정 위치로 위조하지 않기.
+- 기록 플로팅 팝업(작은 빨간 원/작은 X, 8방향 리사이즈)·모아 설정·순간기록·음성 기록 시작/종료·M4A/일기 저장·Back/Home 시 오디오 정지 모두 보호.
+- R227 원본 서명 cert SHA `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`. **원본 APK 골든을 직접 수정하지 말고 더 높은 코드로 새 버전**을 만들 것. 앱 삭제/데이터 초기화/서명 교체 금지.
+- 새 APK와 **그 APK가 바이트 단위로 동일하게 들어간 ZIP**을 매번 함께 제공. `Library file not found` 링크 실패 경험이 있으므로 실제 sandbox 경로 확인. 각 패치의 변경 멤버·CI·APK v2/DEX/ZIP·실기기 QA 상태를 투명하게 표시.
+
+**새 채팅에 붙여 넣을 전체 명령:** `MOA_R227_NEW_CHAT_START_PROMPT_20261109.txt` (같은 골든 폴더 및 다운로드 제공). 사용자가 바로 다음 보완사항을 설명할 수 있도록 이미 제공된 과거 내용을 다시 묻지 않는다.
