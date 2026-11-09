@@ -136,13 +136,26 @@ public final class MoaR215QuickOverlay {
    wp=new WindowManager.LayoutParams(0,0,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT);
    KeyguardManager guard=(KeyguardManager)ctx.getSystemService(Context.KEYGUARD_SERVICE);
-   if(guard!=null&&guard.isKeyguardLocked())wp.flags|=0x80100; // identical lockscreen flags to previous popup
+   boolean locked=guard!=null&&guard.isKeyguardLocked();
+   if(locked)wp.flags|=0x80100; // identical lockscreen flags to previous popup
+   ctx.getSharedPreferences("moa_camera_native_v1",Context.MODE_PRIVATE).edit()
+    .putBoolean("r77LastOverlayKeyguard",locked)
+    .putInt("r77LastOverlayFlags",wp.flags)
+    .putLong("r77LastOverlayAttemptAt",System.currentTimeMillis()).apply();
    wp.gravity=Gravity.TOP|Gravity.LEFT;
    applySize();
    final String kx=positionKey(ctx,"x"),ky=positionKey(ctx,"y");
    int rangeX=Math.max(1,safeRight-safeLeft-width),rangeY=Math.max(1,safeBottom-safeTop-height);
-   float dx=clampf(p.getFloat(kx,1f),0f,1f),dy=clampf(p.getFloat(ky,.78f),0f,1f);
-   wp.x=safeLeft+Math.round(dx*rangeX);wp.y=safeTop+Math.round(dy*rangeY);
+   if(p.contains(kx)&&p.contains(ky)){
+    float dx=clampf(p.getFloat(kx,1f),0f,1f),dy=clampf(p.getFloat(ky,.78f),0f,1f);
+    wp.x=safeLeft+Math.round(dx*rangeX);wp.y=safeTop+Math.round(dy*rangeY);
+   }else{
+    // Preserve older R77/R209 location when a user upgrades to editable panel.
+    SharedPreferences legacy=ctx.getSharedPreferences("moa_camera_native_v1",Context.MODE_PRIVATE);
+    wp.x=legacy.getInt("thumbOverlaySide",1)==0?safeLeft:Math.max(safeLeft,safeRight-width);
+    int legacyBottomDp=clamp(legacy.getInt("thumbOverlayBottomDp",310),180,530);
+    wp.y=safeBottom-height-dp(legacyBottomDp);
+   }
    constrain();wm.addView(root,wp);applyPreferences();
   }
   GradientDrawable makeBg(int color,int radius,int border){
