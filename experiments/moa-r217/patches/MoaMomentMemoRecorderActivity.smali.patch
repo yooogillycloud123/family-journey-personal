@@ -1,0 +1,12 @@
+--- R215/MoaMomentMemoRecorderActivity.smali
++++ R217/MoaMomentMemoRecorderActivity.smali
+@@ -5156,6 +5156,9 @@
+ 
+     iget-object p1, p0, Lcom/juhyeon/familyjourney/MoaMomentMemoRecorderActivity;->text:Landroid/widget/EditText;
+ 
++    # R217: cosmetic activity styling only, preserves original click/record/save listeners.
++    invoke-static {p0}, Lcom/juhyeon/familyjourney/MoaR217MemoPolish;->apply(Landroid/app/Activity;)V
++
+     invoke-virtual {p1}, Landroid/widget/EditText;->requestFocus()Z
+ 
+     return-void
