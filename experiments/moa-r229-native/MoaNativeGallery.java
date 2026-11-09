@@ -847,7 +847,8 @@ public final class MoaNativeGallery {
   if(motion!=null){ValueAnimator old=motion;motion=null;old.cancel();}
   if(r197ScrubAnim!=null){r197ScrubAnim.cancel();r197ScrubAnim=null;}
   videoScrubMode=false;r197ScrubExpansion=0f;
-  if(media!=null||texture!=null)teardownPlayer();  browsingRail=true;
+  if(media!=null||texture!=null)teardownPlayer();
+  browsingRail=true;
   float starting=r203Clamp(initial);
   r203Present(starting);
   if(Math.abs(fingerVelocity)<380f||ids.size()<2){
