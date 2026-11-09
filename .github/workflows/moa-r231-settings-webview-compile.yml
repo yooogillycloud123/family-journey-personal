@@ -1,7 +1,7 @@
 name: MOA R231 NAVER Settings + WebView Runtime DEX Compile (NO APK RELEASE)
 on:
   push:
-    branches: [feature/moa-r231-settings-naver-webview-poc-20261109]
+    branches: [feature/moa-r231-settings-naver-webview-poc-20261109, feature/moa-r233-webview-mobile-landing-fix-20261110]
     paths:
       - 'experiments/moa-r231/**'
       - '.github/workflows/moa-r231-settings-webview-compile.yml'
