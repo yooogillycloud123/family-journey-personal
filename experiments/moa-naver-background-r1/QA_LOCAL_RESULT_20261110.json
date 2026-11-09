@@ -1,0 +1,23 @@
+{
+  "artifact_type": "SOURCE_ONLY_PC_BRIDGE_NO_ANDROID_APK",
+  "date": "2026-11-10",
+  "project": "MOA",
+  "goal_unchanged": "No-Shizuku real NAVER account favorites + new list creation without occupying Android screen",
+  "qa": {
+    "python_pytest": "PASS 6 tests",
+    "chromium_mock_dom": "PASS real local headless Chromium set_content: iframe list input and click, no NAVER network",
+    "http_api_token_and_duplicate": "PASS",
+    "sqlite_crash_requeue_and_idempotency": "PASS",
+    "unverified_click_cannot_claim_saved": "PASS",
+    "android_client_java17_android35": "PASS compile against public android.jar",
+    "real_naver_account_list_create": "NOT_TESTED",
+    "real_naver_favorite_post_and_readback": "NOT_TESTED",
+    "phone_moa_app_bridge_integration": "NOT_IMPLEMENTED",
+    "phone_screen_uninterrupted_e2e": "NOT_TESTED",
+    "android_only_no_pc": "NOT_IMPLEMENTED",
+    "original_r227_immutable_sha256": "53c4c04ce32ad13de3c0613f4e5ec7abbc75ccbdfe9db5da05d8fa9b806ec6cd",
+    "r229_user_confirmed_return_sha256": "823bed41210be28b971860c88879bbc43e934793cf9847d1f0cb7e3e4f1cef74"
+  },
+  "external_dependency": "PC Windows with user-owned Chromium profile, Playwright, Python; real NAVER login once in user's browser",
+  "privacy": "No private photos, accounts, passwords, cookies, session state, logs, signing keys included in archive"
+}

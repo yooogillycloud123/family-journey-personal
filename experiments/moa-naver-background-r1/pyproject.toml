@@ -1,0 +1,16 @@
+[project]
+name = "moa-naver-background-engine"
+version = "0.1.0"
+description = "MOA local-first Naver Maps favorites queue with user-owned browser and verified readback"
+requires-python = ">=3.11"
+dependencies = ["fastapi>=0.110,<1", "uvicorn>=0.30,<1", "playwright>=1.45,<2"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "pytest-asyncio>=0.23,<2", "httpx>=0.27,<1"]
+
+[project.scripts]
+moa-naver = "moa_naver_bridge.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

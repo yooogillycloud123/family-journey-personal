@@ -1,0 +1,11 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+*.sqlite3*
+*cookie*
+*session*
+*.pem
+private*
+*.log
+*profile*/
