@@ -46,7 +46,7 @@ public final class MoaR215QuickOverlay {
   try{
    j.put("show",p.getBoolean("show",true));
    j.put("style",style(p.getString("style","A")));
-   j.put("xStyle",xStyle(p.getString("xStyle","round")));
+   j.put("xStyle",xStyle(p.getString("xStyle","basic")));
    j.put("text",p.getBoolean("text",false));
    j.put("move",p.getBoolean("move",true));
    j.put("resize",p.getBoolean("resize",true));
@@ -166,20 +166,21 @@ public final class MoaR215QuickOverlay {
    row.removeAllViews();
    float factor=sizePct/100f;
    int opacity=clamp(p.getInt("opacity",85),40,100);
-   int bg=((int)(opacity*2.55f)<<24)|0x242630;
-   root.setBackground(makeBg(bg,34,editing?0xffff7189:0x88bcc2cf));
-   int primaryW=dp(((p.getBoolean("text",false)||style(p.getString("style","A")).equals("B"))?106:75)*factor);
-   int primaryH=dp(55*factor);
-   primaryW=Math.max(dp(58),primaryW);primaryH=Math.max(dp(44),primaryH);
+   // R219: opacity applies to the WHOLE native overlay, including red action,
+   // not only its black background. One alpha multiplier, no double dimming.
+   root.setAlpha(opacity/100f);
+   root.setBackground(makeBg(0xee242630,34,editing?0xffff7189:0x88bcc2cf));
+   int rightHit=Math.max(dp(44),dp(44*factor));
+   int horizontalPad=dp(7*factor),between=dp(7*factor);
+   int primaryW=Math.max(dp(111),width-rightHit-horizontalPad*2-between-dp(1));
+   int primaryH=Math.max(dp(42),height-dp(10*factor));
    record.setLayoutParams(new LinearLayout.LayoutParams(primaryW,primaryH));row.addView(record);
-   if(p.getBoolean("text",false)||style(p.getString("style","A")).equals("B")){
-    text.setTextSize(14*factor);row.addView(text,new LinearLayout.LayoutParams(0,-1,1));
-   }
-   LinearLayout.LayoutParams line=new LinearLayout.LayoutParams(dp(1),dp(29*factor));line.leftMargin=dp(4);line.rightMargin=dp(6);
+   LinearLayout.LayoutParams line=new LinearLayout.LayoutParams(dp(1),dp(24*factor));
+   line.leftMargin=dp(4*factor);line.rightMargin=dp(3*factor);
    row.addView(divider,line);
-   LinearLayout.LayoutParams x=new LinearLayout.LayoutParams(Math.max(dp(44),dp(50*factor)),Math.max(dp(44),dp(54*factor)));
+   LinearLayout.LayoutParams x=new LinearLayout.LayoutParams(rightHit,Math.max(dp(44),height-dp(8*factor)));
    row.addView(close,x);
-   row.setPadding(dp(9*factor),0,dp(9*factor),0);
+   row.setPadding(horizontalPad,0,horizontalPad,0);
    done.setVisibility(editing?View.VISIBLE:View.GONE);
    grip.setVisibility(editing&&p.getBoolean("resize",true)?View.VISIBLE:View.GONE);
    record.invalidate();close.invalidate();
@@ -187,8 +188,8 @@ public final class MoaR215QuickOverlay {
   void applySize(){
    boolean showText=p.getBoolean("text",false)||style(p.getString("style","A")).equals("B");
    float f=sizePct/100f;
-   width=dp((showText?230:160)*f);height=dp(60*f);
-   width=Math.max(dp(134),width);height=Math.max(dp(50),height);
+   width=dp((showText?225:202)*f);height=dp(56*f);
+   width=Math.max(dp(178),width);height=Math.max(dp(49),height);
    if(wp!=null){wp.width=width;wp.height=height;}
    rebuild();
    if(wm!=null&&root!=null&&root.getWindowToken()!=null){constrain();wm.updateViewLayout(root,wp);}
@@ -297,26 +298,34 @@ public final class MoaR215QuickOverlay {
     super.onDraw(c);float cx=getWidth()/2f,cy=getHeight()/2f,base=Math.min(getWidth(),getHeight());
     float u=base/60f;String st=style(p.getString("style","A"));
     if(primary){
-     int shade=st.equals("F")?0xaaec2236:0xfff0243d;
-     set(shade,Paint.Style.FILL,0);float radius=base*(st.equals("C")?.34f:.365f);
-     c.drawCircle(cx,cy,radius,paint);
-     if(st.equals("E")){set(Color.WHITE,Paint.Style.STROKE,Math.max(dp(2),3*u));c.drawCircle(cx,cy,base*.25f,paint);}
-     else if(st.equals("C")||st.equals("F")){
-      set(Color.WHITE,Paint.Style.STROKE,Math.max(dp(2),3*u));
-      c.drawRoundRect(cx-11*u,cy-13*u,cx+10*u,cy+13*u,2*u,2*u,paint);
-      c.drawLine(cx-5*u,cy+5*u,cx+9*u,cy-9*u,paint);
+     int shade=st.equals("F")?0xffdf3450:0xffef3157;
+     set(shade,Paint.Style.FILL,0);
+     c.drawRoundRect(dp(2),dp(3),getWidth()-dp(2),getHeight()-dp(3),base*.43f,base*.43f,paint);
+     float dotX=getWidth()*.235f;
+     if(st.equals("C")||st.equals("F")){
+      set(Color.WHITE,Paint.Style.STROKE,dp(2.1f));
+      c.drawRoundRect(dotX-dp(8),cy-dp(9),dotX+dp(9),cy+dp(9),dp(2),dp(2),paint);
+      c.drawLine(dotX-dp(4),cy+dp(5),dotX+dp(7),cy-dp(6),paint);
      }else if(st.equals("D")){
-      set(Color.WHITE,Paint.Style.FILL,0);c.drawRoundRect(cx-14*u,cy-11*u,cx+14*u,cy+11*u,3*u,3*u,paint);
-      set(shade,Paint.Style.FILL,0);c.drawCircle(cx,cy,6*u,paint);
-     }else{set(Color.WHITE,Paint.Style.FILL,0);c.drawCircle(cx,cy,base*.15f,paint);}
+      set(Color.WHITE,Paint.Style.FILL,0);c.drawRoundRect(dotX-dp(9),cy-dp(7),dotX+dp(9),cy+dp(7),dp(2),dp(2),paint);
+      set(shade,Paint.Style.FILL,0);c.drawCircle(dotX,cy,dp(3),paint);
+     }else if(st.equals("E")){
+      set(Color.WHITE,Paint.Style.STROKE,dp(2.2f));c.drawCircle(dotX,cy,dp(8),paint);
+     }else{set(Color.WHITE,Paint.Style.FILL,0);c.drawCircle(dotX,cy,dp(8),paint);}
+     if(p.getBoolean("text",false)||st.equals("B")){
+      set(Color.WHITE,Paint.Style.FILL,0);paint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+      paint.setTextSize(dp(14));
+      c.drawText("기록",getWidth()*.49f,cy-(paint.ascent()+paint.descent())*.5f,paint);
+     }
     }else{
-     String xs=xStyle(p.getString("xStyle","round"));
-     float rad=base*.245f;set(editing?0x99b52340:0x55434a56,Paint.Style.FILL,0);c.drawCircle(cx,cy,rad,paint);
-     set(Color.WHITE,Paint.Style.STROKE,Math.max(dp(xs.equals("basic")?1.3f:2.0f),(xs.equals("bold")?3.1f:2.0f)*u));
-     if(editing){c.drawLine(cx-9*u,cy,cx-2*u,cy+7*u,paint);c.drawLine(cx-2*u,cy+7*u,cx+11*u,cy-9*u,paint);return;}
-     float d=xs.equals("badge")?7*u:8*u;
+     String xs=xStyle(p.getString("xStyle","basic"));
+     // R219: NO O/X-like extra circle behind the close glyph. A 44dp INVISIBLE
+     // touch area remains; visible X stays small and pushed to the right edge.
+     set(Color.WHITE,Paint.Style.STROKE,xs.equals("bold")?dp(2.8f):dp(1.9f));
+     float d=dp(6.5f);
+     if(editing){c.drawLine(cx-d,cy,cx,cy+d,paint);c.drawLine(cx,cy+d,cx+d,cy-d,paint);return;}
      c.drawLine(cx-d,cy-d,cx+d,cy+d,paint);c.drawLine(cx+d,cy-d,cx-d,cy+d,paint);
-     if(xs.equals("ring")){set(0xaadce0e8,Paint.Style.STROKE,Math.max(1,dp(1.1f)));c.drawCircle(cx,cy,base*.29f,paint);}
+     if(xs.equals("ring")){set(0xaadce0e8,Paint.Style.STROKE,dp(1));c.drawCircle(cx,cy,dp(10),paint);}
     }
    }
   }
