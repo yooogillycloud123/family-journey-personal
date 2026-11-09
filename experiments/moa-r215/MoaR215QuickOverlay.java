@@ -155,11 +155,11 @@ public final class MoaR215QuickOverlay {
    int opacity=clamp(p.getInt("opacity",85),40,100);
    int bg=((int)(opacity*2.55f)<<24)|0x242630;
    root.setBackground(makeBg(bg,34,editing?0xffff7189:0x88bcc2cf));
-   int primaryW=dp((p.getBoolean("text",false)?116:82)*factor);
+   int primaryW=dp(((p.getBoolean("text",false)||style(p.getString("style","A")).equals("B"))?116:82)*factor);
    int primaryH=dp(58*factor);
    primaryW=Math.max(dp(58),primaryW);primaryH=Math.max(dp(44),primaryH);
    record.setLayoutParams(new LinearLayout.LayoutParams(primaryW,primaryH));row.addView(record);
-   if(p.getBoolean("text",false)){
+   if(p.getBoolean("text",false)||style(p.getString("style","A")).equals("B")){
     text.setTextSize(14*factor);row.addView(text,new LinearLayout.LayoutParams(0,-1,1));
    }
    LinearLayout.LayoutParams line=new LinearLayout.LayoutParams(dp(1),dp(29*factor));line.leftMargin=dp(4);line.rightMargin=dp(6);
@@ -172,7 +172,7 @@ public final class MoaR215QuickOverlay {
    record.invalidate();close.invalidate();
   }
   void applySize(){
-   boolean showText=p.getBoolean("text",false);
+   boolean showText=p.getBoolean("text",false)||style(p.getString("style","A")).equals("B");
    float f=sizePct/100f;
    width=dp((showText?250:174)*f);height=dp(64*f);
    width=Math.max(dp(134),width);height=Math.max(dp(50),height);
@@ -195,6 +195,10 @@ public final class MoaR215QuickOverlay {
   }
   void persist(){
    if(wp==null)return;constrain();
+   if(p.getBoolean("snap",false)){
+    wp.x=(wp.x+width/2>(safeLeft+safeRight)/2)?Math.max(safeLeft,safeRight-width):safeLeft;
+    if(root!=null&&root.getWindowToken()!=null)wm.updateViewLayout(root,wp);
+   }
    int rx=Math.max(1,safeRight-safeLeft-width),ry=Math.max(1,safeBottom-safeTop-height);
    p.edit().putFloat(positionKey(ctx,"x"),clampf((wp.x-safeLeft)/(float)rx,0f,1f))
     .putFloat(positionKey(ctx,"y"),clampf((wp.y-safeTop)/(float)ry,0f,1f))
