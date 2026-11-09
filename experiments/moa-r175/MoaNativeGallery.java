@@ -679,14 +679,10 @@ public final class MoaNativeGallery {
       }
       lastTap=SystemClock.uptimeMillis();return true;
      }
-     // Fast stage flick: velocity-based multi-media OverScroller on the same
-     // fractional index shared with the filmstrip; slow drags retain one-step settle.
-     if(Math.abs(releaseVelocity)>680f&&Math.abs(dx)>dp(19)
-        &&Math.abs(dx)>Math.abs(dy)*1.12f&&photoZoom<=1.01f&&ids.size()>1){
-      float starting=r203Clamp(index-dx/Math.max(1f,stage.getWidth()));
-      r203ReleaseWithVelocity(starting,releaseVelocity,.88f);
-      return true;
-     }
+     // R213: full-size stage ALWAYS settles at most one neighboring image.
+     // Momentum multi-item fling is intentionally reserved for the lower GalleryRail.
+     // Its r203ReleaseWithVelocity() still calls r203Present() to move the upper
+     // full-size photo/video in sync when the *lower rail* is flung.
      float velocity=Math.abs(dx)/dt;
      int toward=(Math.abs(dx)>stage.getWidth()*.23f||velocity>0.62f)?(dx<0?-1:1):0;
      if((index==0&&toward>0)||(index==ids.size()-1&&toward<0))toward=0;
