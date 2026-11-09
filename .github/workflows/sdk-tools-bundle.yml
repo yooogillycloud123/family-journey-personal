@@ -1,4 +1,4 @@
-name: Android SDK Public Tools for Offline Signing
+name: Android SDK Public Tools for Offline Signing R237
 on:
   workflow_dispatch:
   push:
@@ -28,11 +28,12 @@ jobs:
           cp "$ANDROID_HOME/build-tools/35.0.0/aapt2" package/
           cp "$ANDROID_HOME/build-tools/35.0.0/aapt" package/
           cp "$ANDROID_HOME/build-tools/35.0.0/lib64/libc++.so" package/ || true
+          curl -fL --retry 3 -o package/apktool.jar https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar
           chmod +x package/zipalign package/aapt package/aapt2
           sha256sum package/* > package/SHA256SUMS
           ls -lah package
       - uses: actions/upload-artifact@v4
         with:
-          name: Android-SDK-35-Offline-Tools
+          name: Android-SDK-35-Offline-Tools-R237
           path: package/
           if-no-files-found: error
