@@ -53,7 +53,10 @@ public final class MoaR215QuickOverlay {
    j.put("snap",p.getBoolean("snap",false));
    j.put("opacity",clamp(p.getInt("opacity",85),40,100));
    j.put("hideSec",clamp(p.getInt("hideSec",5),0,60));
-   j.put("sizePct",clamp(p.getInt(sizeKey(c),p.getInt("sizePct",85)),70,150));
+   j.put("sizePct",clamp(p.getInt(sizeKey(c),p.getInt("sizePct",85)),55,200));
+   j.put("widthDp",p.getInt(panelKey(c,"width"),0));
+   j.put("heightDp",p.getInt(panelKey(c,"height"),0));
+   j.put("hasCustomDimensions",p.contains(panelKey(c,"width"))&&p.contains(panelKey(c,"height")));
    j.put("orientation",orientation(c));
    j.put("hasPosition",p.contains(positionKey(c,"x"))&&p.contains(positionKey(c,"y")));
   }catch(Exception ignored){}
@@ -70,13 +73,16 @@ public final class MoaR215QuickOverlay {
    if(j.has("opacity"))e.putInt("opacity",clamp(j.optInt("opacity",85),40,100));
    if(j.has("hideSec"))e.putInt("hideSec",clamp(j.optInt("hideSec",5),0,60));
    if(j.has("sizePct")){
-    int v=clamp(j.optInt("sizePct",85),70,150);e.putInt(sizeKey(c),v);e.putInt("sizePct",v);
+    int v=clamp(j.optInt("sizePct",85),55,200);e.putInt(sizeKey(c),v);e.putInt("sizePct",v);
+    e.remove(panelKey(c,"width")).remove(panelKey(c,"height"));
    }
    if(j.optBoolean("resetPosition",false)){
     e.remove("position_portrait_x").remove("position_portrait_y").remove("position_landscape_x").remove("position_landscape_y");
    }
    if(j.optBoolean("resetSize",false)){
     e.remove("size_portrait").remove("size_landscape").remove("sizePct");
+    e.remove("panel_width_portrait").remove("panel_height_portrait");
+    e.remove("panel_width_landscape").remove("panel_height_landscape");
    }
    e.apply();
    MAIN.post(()->{if(current!=null&&current.ctx.getPackageName().equals(c.getPackageName()))current.applyPreferences();});
@@ -84,6 +90,7 @@ public final class MoaR215QuickOverlay {
  }
  private static String orientation(Context c){return c.getResources().getConfiguration().orientation==Configuration.ORIENTATION_LANDSCAPE?"landscape":"portrait";}
  private static String sizeKey(Context c){return "size_"+orientation(c);}
+ private static String panelKey(Context c,String dim){return "panel_"+dim+"_"+orientation(c);}
  private static String positionKey(Context c,String axis){return "position_"+orientation(c)+"_"+axis;}
  public static void show(Context c,PendingIntent target,int notificationId){
   if(Looper.myLooper()!=Looper.getMainLooper()){
@@ -102,10 +109,13 @@ public final class MoaR215QuickOverlay {
   final Context ctx;final PendingIntent action;final int notificationId;
   final WindowManager wm;final Handler h=MAIN;final SharedPreferences p;
   WindowManager.LayoutParams wp;FrameLayout root;LinearLayout row;
-  IconView record,close;TextView text,done,grip;View divider;
+  IconView record,close;TextView text;View divider;
+  final View[] resizeHandles=new View[8];
+  static final int EDGE_L=1,EDGE_R=2,EDGE_T=4,EDGE_B=8;
+  static final int[] HANDLE_MASKS={EDGE_L,EDGE_R,EDGE_T,EDGE_B,EDGE_L|EDGE_T,EDGE_R|EDGE_T,EDGE_L|EDGE_B,EDGE_R|EDGE_B};
   Runnable expiration,longPress;
   boolean editing=false,downEditing=false,gestureMoved=false,longTriggered=false,resizing=false;
-  float downRawX,downRawY;int beginX,beginY,beginSize;int sizePct;
+  float downRawX,downRawY;int beginX,beginY,beginWidth,beginHeight;int sizePct;
   int safeLeft,safeTop,safeRight,safeBottom;int width,height;
   int touchSlop;
   Instance(Context c,PendingIntent pi,int nid){ctx=c;action=pi;notificationId=nid;wm=(WindowManager)c.getSystemService(Context.WINDOW_SERVICE);p=prefs(c);touchSlop=ViewConfiguration.get(c).getScaledTouchSlop();}
@@ -118,21 +128,15 @@ public final class MoaR215QuickOverlay {
    safeTop=inset.top+dp(8);safeBottom=r.height()-inset.bottom-dp(8);
   }
   void mount(){
-   bounds();sizePct=clamp(p.getInt(sizeKey(ctx),p.getInt("sizePct",85)),70,150);
+   bounds();sizePct=clamp(p.getInt(sizeKey(ctx),p.getInt("sizePct",85)),55,200);
    root=new FrameLayout(ctx);root.setClipChildren(false);root.setClipToPadding(false);
    row=new LinearLayout(ctx);row.setOrientation(LinearLayout.HORIZONTAL);row.setGravity(Gravity.CENTER_VERTICAL);
    root.addView(row,new FrameLayout.LayoutParams(-1,-1));
    record=new IconView(ctx,true);close=new IconView(ctx,false);
    record.setContentDescription("모아 바로기록");close.setContentDescription("바로기록 팝업 닫기");
-   text=new TextView(ctx);text.setText("기록");text.setTextColor(Color.WHITE);text.setGravity(Gravity.CENTER_VERTICAL);
    divider=new View(ctx);divider.setBackgroundColor(0x668f919b);
-   done=new TextView(ctx);done.setText("완료");done.setTextColor(Color.WHITE);done.setGravity(Gravity.CENTER);
-   done.setBackground(makeBg(0xaabf2336,14,0x77ffffff));done.setOnClickListener(v->finishEdit());
-   grip=new TextView(ctx);grip.setText("◢");grip.setTextColor(0xffffa3b1);grip.setGravity(Gravity.CENTER);
-   grip.setContentDescription("드래그해서 팝업 크기 조절");
-   root.addView(done,new FrameLayout.LayoutParams(dp(40),dp(22),Gravity.TOP|Gravity.RIGHT));
-   root.addView(grip,new FrameLayout.LayoutParams(dp(27),dp(27),Gravity.BOTTOM|Gravity.RIGHT));
-   installTouch(root,0);installTouch(record,1);installTouch(close,2);installTouch(grip,3);
+   installTouch(root,0);installTouch(record,1);installTouch(close,2);
+   addResizeHandles();
    wp=new WindowManager.LayoutParams(0,0,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT);
    KeyguardManager guard=(KeyguardManager)ctx.getSystemService(Context.KEYGUARD_SERVICE);
@@ -161,44 +165,75 @@ public final class MoaR215QuickOverlay {
   GradientDrawable makeBg(int color,int radius,int border){
    GradientDrawable g=new GradientDrawable();g.setColor(color);g.setCornerRadius(dp(radius));g.setStroke(Math.max(1,dp(.85f)),border);return g;
   }
+  int minWidth(){return dp(132);} // only the accessible X target & tiny record hit target, NOT old forced 178dp
+  int minHeight(){return dp(44);}
+  int maxWidth(){return Math.max(minWidth(),Math.min(dp(470),safeRight-safeLeft));}
+  int maxHeight(){return Math.max(minHeight(),Math.min(dp(130),safeBottom-safeTop));}
+  int defaultWidth(){return dp((p.getBoolean("text",false)||style(p.getString("style","A")).equals("B")?197:176)*sizePct/100f);}
+  int defaultHeight(){return dp(51*sizePct/100f);}
+  void readDimensions(){
+   int wDp=p.getInt(panelKey(ctx,"width"),0),hDp=p.getInt(panelKey(ctx,"height"),0);
+   width=clamp(wDp>0?dp(wDp):defaultWidth(),minWidth(),maxWidth());
+   height=clamp(hDp>0?dp(hDp):defaultHeight(),minHeight(),maxHeight());
+  }
+  void addResizeHandles(){
+   for(int i=0;i<HANDLE_MASKS.length;i++){
+    View v=new View(ctx);resizeHandles[i]=v;
+    int mask=HANDLE_MASKS[i];
+    boolean corner=(mask&(EDGE_L|EDGE_R))!=0&&(mask&(EDGE_T|EDGE_B))!=0;
+    int gripSize=corner?dp(22):dp(22), shortSide=dp(15);
+    FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(
+      (mask&(EDGE_T|EDGE_B))==0?shortSide:gripSize,
+      (mask&(EDGE_L|EDGE_R))==0?shortSide:gripSize);
+    // Edge-only handles sit at the center of the corresponding side.
+    if(mask==EDGE_L)lp.gravity=Gravity.LEFT|Gravity.CENTER_VERTICAL;
+    else if(mask==EDGE_R)lp.gravity=Gravity.RIGHT|Gravity.CENTER_VERTICAL;
+    else if(mask==EDGE_T)lp.gravity=Gravity.TOP|Gravity.CENTER_HORIZONTAL;
+    else if(mask==EDGE_B)lp.gravity=Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL;
+    else if(mask==(EDGE_L|EDGE_T))lp.gravity=Gravity.LEFT|Gravity.TOP;
+    else if(mask==(EDGE_R|EDGE_T))lp.gravity=Gravity.RIGHT|Gravity.TOP;
+    else if(mask==(EDGE_L|EDGE_B))lp.gravity=Gravity.LEFT|Gravity.BOTTOM;
+    else lp.gravity=Gravity.RIGHT|Gravity.BOTTOM;
+    GradientDrawable d=new GradientDrawable();d.setColor(corner?0xfffa8a9d:0xffe4e8ef);
+    d.setCornerRadius(dp(10));d.setStroke(Math.max(1,dp(.8f)),0xff5c6476);
+    v.setBackground(d);v.setContentDescription("팝업 "+new String[]{"왼쪽","오른쪽","위쪽","아래쪽","왼쪽 위","오른쪽 위","왼쪽 아래","오른쪽 아래"}[i]+" 크기 조절");
+    v.setVisibility(View.GONE);installTouch(v,10+mask);root.addView(v,lp);
+   }
+  }
   void rebuild(){
    if(root==null||row==null)return;
    row.removeAllViews();
-   float factor=sizePct/100f;
+   float scale=clampf(height/(float)dp(51),.55f,2.2f);
    int opacity=clamp(p.getInt("opacity",85),40,100);
-   // R219: opacity applies to the WHOLE native overlay, including red action,
-   // not only its black background. One alpha multiplier, no double dimming.
    root.setAlpha(opacity/100f);
-   root.setBackground(makeBg(0xee242630,34,editing?0xffff7189:0x88bcc2cf));
-   int rightHit=Math.max(dp(44),dp(44*factor));
-   int horizontalPad=dp(7*factor),between=dp(7*factor);
-   int primaryW=Math.max(dp(111),width-rightHit-horizontalPad*2-between-dp(1));
-   int primaryH=Math.max(dp(42),height-dp(10*factor));
-   record.setLayoutParams(new LinearLayout.LayoutParams(primaryW,primaryH));row.addView(record);
-   LinearLayout.LayoutParams line=new LinearLayout.LayoutParams(dp(1),dp(24*factor));
-   line.leftMargin=dp(4*factor);line.rightMargin=dp(3*factor);
-   row.addView(divider,line);
-   LinearLayout.LayoutParams x=new LinearLayout.LayoutParams(rightHit,Math.max(dp(44),height-dp(8*factor)));
-   row.addView(close,x);
-   row.setPadding(horizontalPad,0,horizontalPad,0);
-   done.setVisibility(editing?View.VISIBLE:View.GONE);
-   grip.setVisibility(editing&&p.getBoolean("resize",true)?View.VISIBLE:View.GONE);
+   GradientDrawable bg=new GradientDrawable();bg.setColor(0xe5252830);
+   bg.setCornerRadius(Math.min(width,height)*.5f);
+   bg.setStroke(Math.max(1,dp(editing?1.5f:.85f)),editing?0xffff6c8a:0x9dd2d7df);
+   root.setBackground(bg);
+   int pad=dp(Math.max(3f,4f*scale));
+   int dividerW=dp(1),margin=dp(Math.max(2f,3f*scale));
+   int rightHit=Math.max(dp(44),Math.min(dp(58),Math.round(width*.27f)));
+   // Allocate ~75% of the usable hit surface to Record; the glyph itself stays small.
+   int primaryW=Math.max(dp(65),width-rightHit-pad*2-dividerW-margin*2);
+   row.setPadding(pad,0,pad,0);
+   row.addView(record,new LinearLayout.LayoutParams(primaryW,Math.max(minHeight(),height-dp(4))));
+   LinearLayout.LayoutParams sep=new LinearLayout.LayoutParams(dividerW,Math.max(dp(19),Math.round(height*.50f)));
+   sep.leftMargin=margin;sep.rightMargin=margin;
+   row.addView(divider,sep);
+   row.addView(close,new LinearLayout.LayoutParams(rightHit,Math.max(minHeight(),height-dp(4))));
+   for(View h:resizeHandles)if(h!=null)h.setVisibility(editing&&p.getBoolean("resize",true)?View.VISIBLE:View.GONE);
    record.invalidate();close.invalidate();
   }
   void applySize(){
-   boolean showText=p.getBoolean("text",false)||style(p.getString("style","A")).equals("B");
-   float f=sizePct/100f;
-   width=dp((showText?225:202)*f);height=dp(56*f);
-   width=Math.max(dp(178),width);height=Math.max(dp(49),height);
+   bounds();readDimensions();
    if(wp!=null){wp.width=width;wp.height=height;}
    rebuild();
    if(wm!=null&&root!=null&&root.getWindowToken()!=null){constrain();wm.updateViewLayout(root,wp);}
   }
   void applyPreferences(){
    if(root==null)return;
-   int requested=clamp(p.getInt(sizeKey(ctx),p.getInt("sizePct",85)),70,150);
-   if(!editing&&requested!=sizePct){sizePct=requested;applySize();}
-   else rebuild();
+   sizePct=clamp(p.getInt(sizeKey(ctx),p.getInt("sizePct",85)),55,200);
+   applySize();
    if(!p.getBoolean("show",true)){MoaR215QuickOverlay.hide();return;}
    restartTimer();
   }
@@ -216,7 +251,9 @@ public final class MoaR215QuickOverlay {
    int rx=Math.max(1,safeRight-safeLeft-width),ry=Math.max(1,safeBottom-safeTop-height);
    p.edit().putFloat(positionKey(ctx,"x"),clampf((wp.x-safeLeft)/(float)rx,0f,1f))
     .putFloat(positionKey(ctx,"y"),clampf((wp.y-safeTop)/(float)ry,0f,1f))
-    .putInt(sizeKey(ctx),sizePct).apply();
+    .putInt(sizeKey(ctx),sizePct)
+    .putInt(panelKey(ctx,"width"),Math.round(width/ctx.getResources().getDisplayMetrics().density))
+    .putInt(panelKey(ctx,"height"),Math.round(height/ctx.getResources().getDisplayMetrics().density)).apply();
   }
   void cancelTimer(){if(expiration!=null){h.removeCallbacks(expiration);expiration=null;}}
   void restartTimer(){
@@ -237,10 +274,24 @@ public final class MoaR215QuickOverlay {
   void move(int x,int y){
    wp.x=x;wp.y=y;constrain();wm.updateViewLayout(root,wp);
   }
-  void resizeFrom(float dx,float dy){
-   float change=(dx+dy*.6f)/dp(1f)*.55f;
-   sizePct=clamp(Math.round(beginSize+change),70,150);
-   applySize();constrain();
+  void resizeEdges(int mask,float dx,float dy){
+   // Every side is independent; opposite edge is fixed unless both axes requested at a corner.
+   bounds();int x=beginX,y=beginY,right=beginX+beginWidth,bottom=beginY+beginHeight;
+   int dw=Math.round(dx),dh=Math.round(dy);
+   if((mask&EDGE_L)!=0)x=clamp(beginX+dw,safeLeft,right-minWidth());
+   if((mask&EDGE_R)!=0)right=clamp(beginX+beginWidth+dw,x+minWidth(),safeRight);
+   if((mask&EDGE_T)!=0)y=clamp(beginY+dh,safeTop,bottom-minHeight());
+   if((mask&EDGE_B)!=0)bottom=clamp(beginY+beginHeight+dh,y+minHeight(),safeBottom);
+   if(right-x>maxWidth()){
+    if((mask&EDGE_L)!=0)x=right-maxWidth();else right=x+maxWidth();
+   }
+   if(bottom-y>maxHeight()){
+    if((mask&EDGE_T)!=0)y=bottom-maxHeight();else bottom=y+maxHeight();
+   }
+   width=Math.max(minWidth(),right-x);height=Math.max(minHeight(),bottom-y);
+   wp.x=x;wp.y=y;wp.width=width;wp.height=height;
+   rebuild();
+   wm.updateViewLayout(root,wp);
   }
   void installTouch(View node,int code){
    node.setOnTouchListener((v,e)->{
@@ -248,8 +299,8 @@ public final class MoaR215QuickOverlay {
     if(act==MotionEvent.ACTION_DOWN){
      cancelLong();cancelTimer();
      downRawX=e.getRawX();downRawY=e.getRawY();
-     beginX=wp==null?0:wp.x;beginY=wp==null?0:wp.y;beginSize=sizePct;
-     gestureMoved=false;longTriggered=false;downEditing=editing;resizing=editing&&code==3;
+     beginX=wp==null?0:wp.x;beginY=wp==null?0:wp.y;beginWidth=width;beginHeight=height;
+     gestureMoved=false;longTriggered=false;downEditing=editing;resizing=editing&&code>=10;
      if(!editing&&(p.getBoolean("move",true)||p.getBoolean("resize",true))){
       longPress=()->enterEdit();h.postDelayed(longPress,ViewConfiguration.getLongPressTimeout());
      }
@@ -259,8 +310,8 @@ public final class MoaR215QuickOverlay {
      float dx=e.getRawX()-downRawX,dy=e.getRawY()-downRawY;
      if(Math.abs(dx)+Math.abs(dy)>touchSlop)gestureMoved=true;
      if(!editing){if(gestureMoved)cancelLong();return true;}
-     if(code==3&&p.getBoolean("resize",true)){
-      resizeFrom(dx,dy);
+     if(code>=10&&p.getBoolean("resize",true)){
+      resizeEdges(code-10,dx,dy);
      }else if(p.getBoolean("move",true)){
       move(beginX+Math.round(dx),beginY+Math.round(dy));
      }
@@ -296,36 +347,39 @@ public final class MoaR215QuickOverlay {
    void set(int col,Paint.Style st,float stroke){paint.setColor(col);paint.setStyle(st);paint.setStrokeWidth(stroke);paint.setStrokeCap(Paint.Cap.ROUND);paint.setStrokeJoin(Paint.Join.ROUND);}
    @Override protected void onDraw(Canvas c){
     super.onDraw(c);float cx=getWidth()/2f,cy=getHeight()/2f,base=Math.min(getWidth(),getHeight());
-    float u=base/60f;String st=style(p.getString("style","A"));
+    String st=style(p.getString("style","A"));
     if(primary){
-     int shade=st.equals("F")?0xffdf3450:0xffef3157;
-     set(shade,Paint.Style.FILL,0);
-     c.drawRoundRect(dp(2),dp(3),getWidth()-dp(2),getHeight()-dp(3),base*.43f,base*.43f,paint);
-     float dotX=getWidth()*.235f;
-     if(st.equals("C")||st.equals("F")){
-      set(Color.WHITE,Paint.Style.STROKE,dp(2.1f));
-      c.drawRoundRect(dotX-dp(8),cy-dp(9),dotX+dp(9),cy+dp(9),dp(2),dp(2),paint);
-      c.drawLine(dotX-dp(4),cy+dp(5),dotX+dp(7),cy-dp(6),paint);
+     boolean label=p.getBoolean("text",false)||st.equals("B");
+     if(getWidth()<dp(102))label=false; // Never force a huge panel just to fit text.
+     float dotRadius=clampf(base*.30f,dp(7.5f),dp(16));
+     float iconCx=label?Math.max(dp(20),Math.min(dp(29),getWidth()*.26f)):cx;
+     int shade=st.equals("F")?0xffff5069:0xffef3157;
+     set(shade,Paint.Style.FILL,0);c.drawCircle(iconCx,cy,dotRadius,paint);
+     if(st.equals("E")){
+      set(0xfffce0e6,Paint.Style.STROKE,dp(1.2f));c.drawCircle(iconCx,cy,dotRadius*.82f,paint);
+     }else if(st.equals("C")||st.equals("F")){
+      set(Color.WHITE,Paint.Style.STROKE,dp(1.8f));
+      float q=dotRadius*.38f;c.drawRoundRect(iconCx-q,cy-q,iconCx+q,cy+q,dp(1.5f),dp(1.5f),paint);
      }else if(st.equals("D")){
-      set(Color.WHITE,Paint.Style.FILL,0);c.drawRoundRect(dotX-dp(9),cy-dp(7),dotX+dp(9),cy+dp(7),dp(2),dp(2),paint);
-      set(shade,Paint.Style.FILL,0);c.drawCircle(dotX,cy,dp(3),paint);
-     }else if(st.equals("E")){
-      set(Color.WHITE,Paint.Style.STROKE,dp(2.2f));c.drawCircle(dotX,cy,dp(8),paint);
-     }else{set(Color.WHITE,Paint.Style.FILL,0);c.drawCircle(dotX,cy,dp(8),paint);}
-     if(p.getBoolean("text",false)||st.equals("B")){
-      set(Color.WHITE,Paint.Style.FILL,0);paint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-      paint.setTextSize(dp(14));
-      c.drawText("기록",getWidth()*.49f,cy-(paint.ascent()+paint.descent())*.5f,paint);
+      set(Color.WHITE,Paint.Style.FILL,0);float q=dotRadius*.38f;
+      c.drawRoundRect(iconCx-q,cy-q*.8f,iconCx+q,cy+q*.8f,dp(1.4f),dp(1.4f),paint);
+     }else{
+      set(Color.WHITE,Paint.Style.FILL,0);c.drawCircle(iconCx,cy,dotRadius*.40f,paint);
+     }
+     if(label){
+      set(0xfff6f7fb,Paint.Style.FILL,0);paint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+      paint.setTextSize(clampf(base*.28f,dp(9),dp(14)));
+      float x=iconCx+dotRadius+dp(7);
+      if(x+paint.measureText("기록")<getWidth()-dp(3))
+       c.drawText("기록",x,cy-(paint.ascent()+paint.descent())*.5f,paint);
      }
     }else{
      String xs=xStyle(p.getString("xStyle","basic"));
-     // R219: NO O/X-like extra circle behind the close glyph. A 44dp INVISIBLE
-     // touch area remains; visible X stays small and pushed to the right edge.
-     set(Color.WHITE,Paint.Style.STROKE,xs.equals("bold")?dp(2.8f):dp(1.9f));
-     float d=dp(6.5f);
-     if(editing){c.drawLine(cx-d,cy,cx,cy+d,paint);c.drawLine(cx,cy+d,cx+d,cy-d,paint);return;}
+     set(Color.WHITE,Paint.Style.STROKE,xs.equals("bold")?dp(2.6f):dp(1.9f));
+     float d=clampf(base*.15f,dp(4.5f),dp(8));
+     if(editing){c.drawLine(cx-d,cy,cx-d*.16f,cy+d,paint);c.drawLine(cx-d*.16f,cy+d,cx+d,cy-d,paint);return;}
      c.drawLine(cx-d,cy-d,cx+d,cy+d,paint);c.drawLine(cx+d,cy-d,cx-d,cy+d,paint);
-     if(xs.equals("ring")){set(0xaadce0e8,Paint.Style.STROKE,dp(1));c.drawCircle(cx,cy,dp(10),paint);}
+     // No extra badge/circle behind X; its INVISIBLE hit area is still >=44dp.
     }
    }
   }
