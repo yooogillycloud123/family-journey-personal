@@ -71,22 +71,50 @@ public final class MoaNaverWebProbeHost {
       settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);
       settings.setJavaScriptCanOpenWindowsAutomatically(false);
       settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+      // R233: mobile WebView currently shows NAVER's install/open mobile-app landing.
+      // Try the official desktop web-map layout in this opt-in diagnostic only.
+      settings.setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
+      settings.setUseWideViewPort(true);
+      settings.setLoadWithOverviewMode(true);
+      settings.setSupportZoom(true);
+      settings.setBuiltInZoomControls(true);
+      settings.setDisplayZoomControls(false);
       CookieManager.getInstance().setAcceptCookie(true);
       // Test browser login is entered only directly at NAVER origin by the user.
       // We DO NOT import Naver native-app cookies, read cookies or inject credentials.
       CookieManager.getInstance().setAcceptThirdPartyCookies(web,true);
       web.setWebViewClient(new WebViewClient(){
         @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest req){
+          if(!req.isForMainFrame())return false;
           Uri u=req.getUrl();String scheme=u.getScheme(),host=u.getHost();
-          boolean safe="https".equalsIgnoreCase(scheme)&&isNaverDomain(host);
-          if(!safe){reporter.status("NON_NAVER_NAVIGATION_BLOCKED");return true;}
+          if(scheme==null){reporter.status("UNKNOWN_NAVIGATION_BLOCKED");return true;}
+          if(!"https".equalsIgnoreCase(scheme)){
+            if("intent".equalsIgnoreCase(scheme)||"nmap".equalsIgnoreCase(scheme)||
+               "market".equalsIgnoreCase(scheme))
+              reporter.status("NAVER_APP_OPEN_REQUEST_SUPPRESSED_WEB_ONLY");
+            else reporter.status("NON_HTTPS_NAVIGATION_BLOCKED");
+            return true;
+          }
+          if(!isNaverDomain(host)){
+            reporter.status("EXTERNAL_WEB_NAVIGATION_BLOCKED");return true;
+          }
           return false;
         }
         @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail d){
           reporter.status("WEBVIEW_RENDERER_GONE");dispose();return true;
         }
         @Override public void onPageFinished(WebView v,String url){
-          if(!disposed)reporter.status(hiddenMode?"HIDDEN_PAGE_FINISHED_UNVERIFIED":"VISIBLE_PAGE_FINISHED_UNVERIFIED");
+          if(disposed)return;
+          // Report a boolean app-link detector, never inspect user data or credentials.
+          v.evaluateJavascript("(function(){return !!document.querySelector('a[href*=\"com.nhn.android.nmap\"],a[href^=\"market://\"],a[href^=\"intent://\"]');})()",
+            isInstallLanding->{
+              if(disposed)return;
+              if("true".equals(isInstallLanding))
+                reporter.status("NAVER_APP_INSTALL_LANDING_DESKTOP_REQUEST_UNSUCCESSFUL");
+              else reporter.status(hiddenMode?"HIDDEN_DESKTOP_PAGE_FINISHED_UNVERIFIED":
+                "VISIBLE_DESKTOP_PAGE_FINISHED_UNVERIFIED");
+            });
         }
       });
       WebViewCompat.addWebMessageListener(web,"MoaNaverProbeBridge",ORIGINS,
@@ -131,6 +159,9 @@ public final class MoaNaverWebProbeHost {
   public void dispose(){
     if(disposed)return;disposed=true;
     if(web!=null){
+      // A subsequent MOA WebView can use persisted web cookies; native NAVER Maps
+      // app account login is independent and never copied into the WebView.
+      try{CookieManager.getInstance().flush();}catch(Exception ignored){}
       try{web.stopLoading();web.loadUrl("about:blank");}catch(Exception ignored){}
       if(holder!=null)holder.removeView(web);
       try{web.destroy();}catch(Exception ignored){}web=null;
