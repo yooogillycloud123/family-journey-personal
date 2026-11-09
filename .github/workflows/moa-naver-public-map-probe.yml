@@ -1,0 +1,30 @@
+name: MOA NAVER PC map public browser live feasibility (NO LOGIN)
+on:
+  push:
+    branches: [feature/moa-r235-naver-background-real-favorites-engine-20261110]
+    paths:
+      - 'experiments/moa-naver-background-r1/ci_public_map_probe.py'
+      - '.github/workflows/moa-naver-public-map-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Playwright/Chromium setup
+        run: |
+          python -m pip install playwright
+          python -m playwright install chromium --with-deps
+      - name: Public Naver PC map read-only DOM smoke (no cookies/login)
+        run: python experiments/moa-naver-background-r1/ci_public_map_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-NAVER-PUBLIC-UNAUTH-PC-MAP-ONLY
+          path: MOA_NAVER_PUBLIC_MAP_CI_RESULT.json
+          if-no-files-found: warn
+          retention-days: 7
