@@ -1,0 +1,17 @@
+{
+  "release": "R217",
+  "scenario": "synthetic Chromium DOM late native settings insertion",
+  "tested": {
+    "late_settings_mount": true,
+    "top_level_menu": true,
+    "timeout_1_and_7_presets": true,
+    "custom_7_seconds_saved_via_bridge": true,
+    "menu_remount_after_DOM_recreated": true
+  },
+  "native_audio": [
+    "onPause releases player",
+    "JS close requests stopPlayback",
+    "recording saved separately"
+  ],
+  "device": "NOT_TESTED"
+}
