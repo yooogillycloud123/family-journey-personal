@@ -1,0 +1,52 @@
+name: MOA R227 native gallery map-return and full-width video rail
+on:
+  push:
+    branches: [feature/moa-r227-gallery-nav-return-original-gps-expanded-video-20261109]
+    paths:
+      - 'experiments/moa-r175/MoaNativeGallery.java'
+      - '.github/workflows/moa-r227-gallery-native.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gallery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android 35 native gallery compiler
+        run: |
+          set -euo pipefail
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          mkdir -p /tmp/moar227/classes build/r227
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moar227/classes experiments/moa-r175/MoaNativeGallery.java
+          find /tmp/moar227/classes -name 'MoaNativeGallery*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output build/r227
+          test -s build/r227/classes.dex
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          s=Path('experiments/moa-r175/MoaNativeGallery.java').read_text()
+          d=Path('build/r227/classes.dex').read_bytes()
+          for exact in ['r227RetainForExternalMap','r227ResumeFromExternalMap','setRequireOriginal(u)',
+             'r225Address.setMaxLines(6)','r225Naver=new R227NaverPin()',
+             'nmap://place?lat=','r227ScrubDragged','r227ScrubDownX',
+             'if(!r227ScrubDragged){','setVideoScrubMode(false);return true;',
+             'r203ReleaseWithVelocity(next,vx,1f)',
+             'stagePos.topMargin=0;stagePos.bottomMargin=0;']:
+             assert exact in s,exact
+          assert 'width=Math.max(dp(100),getWidthSafe(rail)-dp(72))' in s
+          assert d.startswith(b'dex')
+          j={'dex_sha256':hashlib.sha256(d).hexdigest(),
+             'java_sha256':hashlib.sha256(s.encode()).hexdigest(),
+             'dex_bytes':len(d),'status':'Java17 / Android35 + contract PASS, no physical Galaxy test'}
+          Path('build/r227/QA.json').write_text(json.dumps(j,indent=2))
+          print(j)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R227-NATIVE-GALLERY-DEX
+          path: build/r227/
+          retention-days: 7
