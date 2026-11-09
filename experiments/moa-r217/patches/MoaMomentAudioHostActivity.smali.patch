@@ -1,0 +1,41 @@
+--- R215/MoaMomentAudioHostActivity.smali
++++ R217/MoaMomentAudioHostActivity.smali
+@@ -5999,6 +5999,29 @@
+     return-void
+ .end method
+ 
++.method public r217StopPlayback()V
++    .locals 3
++
++    iget-object v0, p0, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->player:Landroid/media/MediaPlayer;
++    if-eqz v0, :r217_done
++    :try_start_r217
++    invoke-virtual {v0}, Landroid/media/MediaPlayer;->release()V
++    :try_end_r217
++    .catch Ljava/lang/Exception; {:try_start_r217 .. :try_end_r217} :r217_catch
++    goto :r217_done
++    :r217_catch
++    move-exception v1
++    :r217_done
++    const/4 v1, 0x0
++    iput-object v1, p0, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->player:Landroid/media/MediaPlayer;
++    const-string v1, ""
++    iput-object v1, p0, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->activePlayback:Ljava/lang/String;
++    const-string v0, "play_finished"
++    const-string v2, "녹음 재생 종료"
++    invoke-direct {p0, v0, v2}, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->send(Ljava/lang/String;Ljava/lang/String;)V
++    return-void
++.end method
++
+ .method protected onPause()V
+     .locals 1
+ 
+@@ -6023,6 +6046,8 @@
+     invoke-direct {p0}, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->cancelSpeech()V
+ 
+     invoke-direct {p0}, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->endFileSpeech()V
++
++    invoke-virtual {p0}, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->r217StopPlayback()V
+ 
+     invoke-super {p0}, Lcom/juhyeon/familyjourney/MoaMomentVoiceHostActivity;->onPause()V
+ 
