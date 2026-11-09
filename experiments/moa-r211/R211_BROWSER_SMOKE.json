@@ -1,0 +1,94 @@
+{
+  "map_off": {
+    "calls": [
+      {
+        "ids": [
+          "101",
+          "v102",
+          "103"
+        ],
+        "i": 0,
+        "day": ""
+      }
+    ],
+    "placeHidden": true,
+    "fallback": null
+  },
+  "map_on": {
+    "calls": [],
+    "placeHidden": false,
+    "tiles": 3
+  },
+  "map_on_photo_click": {
+    "calls": [
+      {
+        "ids": [
+          "101",
+          "v102",
+          "103"
+        ],
+        "i": 0,
+        "day": ""
+      }
+    ],
+    "last": {
+      "ids": [
+        "101",
+        "v102",
+        "103"
+      ],
+      "i": 0,
+      "day": ""
+    }
+  },
+  "map_unset": {
+    "calls": [
+      {
+        "ids": [
+          "101",
+          "103"
+        ],
+        "i": 0,
+        "day": ""
+      }
+    ],
+    "hidden": true
+  },
+  "map_native_failure": {
+    "calls": [],
+    "hidden": true,
+    "fallback": 0
+  },
+  "naver_available": "function",
+  "naver_off": {
+    "calls": [
+      {
+        "ids": [
+          "201",
+          "v202"
+        ],
+        "i": 0,
+        "d": ""
+      }
+    ],
+    "sheet": false
+  },
+  "naver_on": {
+    "sheet": true,
+    "buttons": 2,
+    "calls": []
+  },
+  "naver_on_tile": {
+    "calls": [
+      {
+        "ids": [
+          "201",
+          "v202"
+        ],
+        "i": 0,
+        "d": ""
+      }
+    ],
+    "htmlViewer": false
+  }
+}
