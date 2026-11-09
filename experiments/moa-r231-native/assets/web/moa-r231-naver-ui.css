@@ -1,0 +1,33 @@
+/* MOA R231 native Naver return & WebView feasibility Settings. Additive and scoped. */
+#moa-r231-naver-return-settings,#moa-r231-naver-webview-settings{list-style:none;margin:10px 0 14px;overflow:hidden;border-radius:22px;border:1px solid #e9e1e4;background:#fcfafc;color:#2a2933;box-shadow:0 5px 24px #32292e09}
+#moa-r231-naver-return-settings *,#moa-r231-naver-webview-settings *{box-sizing:border-box}
+#moa-r231-naver-return-settings .moa-r231-title,#moa-r231-naver-webview-settings .moa-r231-title{appearance:none;display:flex;align-items:center;justify-content:space-between;min-height:86px;width:100%;padding:17px 19px;border:0;background:#fff!important;text-align:left;color:#292733!important;cursor:pointer;box-shadow:none!important}
+#moa-r231-naver-return-settings .moa-r231-title strong,#moa-r231-naver-webview-settings .moa-r231-title strong{display:block;font-size:17px;font-weight:760;line-height:1.4}
+#moa-r231-naver-return-settings .moa-r231-title small,#moa-r231-naver-webview-settings .moa-r231-title small{display:block;font-size:12px;opacity:.67;margin-top:5px}
+#moa-r231-naver-return-settings .moa-r231-caret,#moa-r231-naver-webview-settings .moa-r231-caret{font-size:19px;transition:transform .2s;color:#66616c}
+#moa-r231-naver-return-settings [aria-expanded=true] .moa-r231-caret,#moa-r231-naver-webview-settings [aria-expanded=true] .moa-r231-caret{transform:rotate(180deg)}
+#moa-r231-naver-return-settings .moa-r231-panel[hidden],#moa-r231-naver-webview-settings .moa-r231-panel[hidden]{display:none!important}
+#moa-r231-naver-return-settings .moa-r231-panel,#moa-r231-naver-webview-settings .moa-r231-panel{padding:18px 16px 20px;border-top:1px solid #ece7ea;display:grid;gap:17px;background:#fcfafc;color:#292735}
+.moa-r231-info,.moa-r231-help{font-size:12px;color:#6e6974;line-height:1.6;margin:0}
+.moa-r231-info{background:#f7f2f5;padding:12px;border-radius:12px}
+.moa-r231-section{font-size:12px;font-weight:700;color:#66616b;margin-top:9px}
+.moa-r231-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:52px}
+.moa-r231-row label{font-size:14px;font-weight:650;flex:1;min-width:0}
+.moa-r231-row select{background:#fff!important;color:#2a2933!important;border:1px solid #d7ced3!important;border-radius:13px!important;max-width:57%;min-height:42px;min-width:115px;padding:8px 10px;font-size:13px}
+.moa-r231-row input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#ed3156}
+.moa-r231-sliderwrap{display:grid;gap:13px;margin:3px 0}
+.moa-r231-sliderhead{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;font-weight:650}
+.moa-r231-sliderhead output{font-size:15px;font-weight:550}
+.moa-r231-sliderwrap input[type=range]{width:100%;accent-color:#ee3154;margin:3px 0 8px}
+.moa-r231-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.moa-r231-actions button,.moa-r231-web-actions button{min-height:45px;border:1px solid #d3cbd0;background:#f0eff0;color:#292735!important;border-radius:12px;padding:7px 4px;font-size:12px;box-shadow:none}
+.moa-r231-previewbox{min-height:98px;display:flex;justify-content:center;align-items:center;padding:16px;overflow:hidden;border-radius:14px;background:radial-gradient(ellipse at top,#444854,#191b22 80%)}
+.moa-r231-preview{display:flex;align-items:center;justify-content:space-between;gap:3px;max-width:100%;border:1px solid #a9b1bd;border-radius:999px;background:#252830;color:#fff;box-shadow:0 8px 20px #0006;overflow:hidden;padding:0 7px;font-size:12px;font-weight:700}
+.moa-r231-preview[data-style=peach]{background:#eccccd;color:#272630}
+.moa-r231-preview[data-style=light]{background:#fafafa;color:#272630}
+.moa-r231-previewprimary{flex:1;text-align:center;white-space:nowrap}
+.moa-r231-divider{background:#afb4bc;width:1px;height:50%}
+.moa-r231-x{width:30px;text-align:center;font-size:19px;font-weight:400}
+.moa-r231-web-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.moa-r231-web-actions .moa-r231-primary{grid-column:1/-1;background:#2b2e36;color:white!important;border-color:#2b2e36}
+.moa-r231-result{font-size:12px;background:#f4f3f5;color:#5c5863;border-radius:12px;padding:12px;margin:0;overflow-wrap:anywhere;line-height:1.6}
