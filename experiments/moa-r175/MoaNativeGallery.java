@@ -1,6 +1,17 @@
 package com.juhyeon.familyjourney;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.database.Cursor;
+import android.location.Geocoder;
+import android.location.Address;
+import android.webkit.WebView;
+import android.text.TextUtils;
+import java.util.Date;
+import java.util.Locale;
+import java.util.List;
+import java.text.SimpleDateFormat;
+
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
@@ -67,6 +78,7 @@ public final class MoaNativeGallery {
  private final java.util.function.Consumer<String> legacyDetails;
  private final Handler main=new Handler(Looper.getMainLooper());
  private final ExecutorService background=Executors.newFixedThreadPool(2);
+ private final ExecutorService r225MetadataWorker=Executors.newFixedThreadPool(2);
  private final LruCache<String,Bitmap> posters=new LruCache<String,Bitmap>(20*1024*1024){
   @Override protected int sizeOf(String k,Bitmap b){return b==null?0:b.getByteCount();}
  };
@@ -98,6 +110,17 @@ public final class MoaNativeGallery {
  private FrameLayout[] pages=new FrameLayout[3];
  private ImageView[] images=new ImageView[3];
  private TextView header,videoTime,videoStatus;
+ // R225 fixed overlay restores formerly working photo capture time/GPS/Naver link.
+ // Never change the stage's dimensions or position in response to metadata.
+ private LinearLayout r225Info;
+ private TextView r225CaptureTime,r225Address;
+ private Button r225Naver;
+ private Runnable r225PendingMeta;
+ private int r225MetaSeq=0;
+ private String r225MetaId="",r225ResolvedAddress="";
+ private double r225Lat=Double.NaN,r225Lon=Double.NaN;
+ private boolean r225HasTime=false;
+
  private Button pause,mute,still;
  private ImageView r205CapturePreview;private Runnable r205PreviewDismiss;
   private FrameLayout r207SavedPhotoViewer;
@@ -201,7 +224,34 @@ public final class MoaNativeGallery {
     return false;
    });popup.show();
   });
-  header.setPadding(dp(95),0,dp(60),0);
+   header.setPadding(dp(95),0,dp(60),0);
+   r225Info=new LinearLayout(activity);r225Info.setOrientation(LinearLayout.VERTICAL);
+   r225Info.setPadding(dp(14),dp(5),dp(12),dp(5));
+   android.graphics.drawable.GradientDrawable infoBg=new android.graphics.drawable.GradientDrawable();
+   infoBg.setColor(0xbb1d1e23);infoBg.setCornerRadius(dp(11));
+   r225Info.setBackground(infoBg);
+   r225CaptureTime=new TextView(activity);r225CaptureTime.setTextColor(Color.WHITE);
+   r225CaptureTime.setTextSize(12.5f);r225CaptureTime.setSingleLine(true);
+   r225CaptureTime.setEllipsize(TextUtils.TruncateAt.END);
+   r225CaptureTime.setText("촬영 시간 확인 중…");
+   r225Info.addView(r225CaptureTime,new LinearLayout.LayoutParams(-1,dp(28)));
+   LinearLayout infoLine=new LinearLayout(activity);infoLine.setGravity(Gravity.CENTER_VERTICAL);
+   r225Address=new TextView(activity);r225Address.setTextColor(0xffe4e7ed);
+   r225Address.setTextSize(11.5f);r225Address.setSingleLine(true);
+   r225Address.setEllipsize(TextUtils.TruncateAt.END);r225Address.setText("사진 위치 확인 중…");
+   infoLine.addView(r225Address,new LinearLayout.LayoutParams(0,dp(32),1f));
+   r225Naver=button("지도 보기 ›",11);r225Naver.setVisibility(View.GONE);
+   r225Naver.setContentDescription("선택 사진 위치를 네이버 지도에서 열기");
+   r225Naver.setOnClickListener(v->r225OpenNaver());
+   infoLine.addView(r225Naver,new LinearLayout.LayoutParams(dp(88),dp(31)));
+   r225Info.addView(infoLine,new LinearLayout.LayoutParams(-1,dp(34)));
+   FrameLayout.LayoutParams infoPos=new FrameLayout.LayoutParams(-1,dp(72),Gravity.TOP);
+   infoPos.leftMargin=dp(9);infoPos.rightMargin=dp(9);infoPos.topMargin=dp(50);
+   host.addView(r225Info,infoPos);
+   // Fixed and click-safe controls live in a separate top row, above metadata.
+   backButton.setClickable(true);menuButton.setClickable(true);
+   backButton.setElevation(dp(14));menuButton.setElevation(dp(14));
+   backButton.bringToFront();menuButton.bringToFront();
   LinearLayout lower=new LinearLayout(activity);lowerControls=lower;lower.setOrientation(LinearLayout.VERTICAL);lower.setBackgroundColor(Color.TRANSPARENT); // R187 fixed overlay; rows have own translucent backgrounds
   activity.setVolumeControlStream(AudioManager.STREAM_MUSIC);
   FrameLayout.LayoutParams lowerPos=new FrameLayout.LayoutParams(-1,dp(208),Gravity.BOTTOM);
@@ -376,6 +426,161 @@ public final class MoaNativeGallery {
  private Button button(String label,int size){Button b=new Button(activity);b.setAllCaps(false);b.setText(label);b.setTextSize(size);
   b.setTextColor(-1);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff22242b));
   b.setMinHeight(0);b.setMinimumHeight(0);b.setMinWidth(0);b.setMinimumWidth(0);return b;}
+ // R225: metadata overlays the photo with constant geometry: never resize the
+ // stage, change ImageView scale, or add rows to the lower thumbnail filmstrip.
+ private void r225ScheduleMeta(){
+  if(!open||ids.isEmpty()||r225CaptureTime==null)return;
+  final String mediaId=ids.get(index);
+  if(mediaId.equals(r225MetaId))return;
+  r225MetaId=mediaId;r225HasTime=false;r225Lat=Double.NaN;r225Lon=Double.NaN;r225ResolvedAddress="";
+  r225CaptureTime.setText("촬영 날짜·시간 확인 중…");
+  r225Address.setText("위치 확인 중…");r225Naver.setVisibility(View.GONE);
+  final int serial=++r225MetaSeq;
+  if(r225PendingMeta!=null)main.removeCallbacks(r225PendingMeta);
+  r225PendingMeta=()->{
+   r225PendingMeta=null;
+   if(!r225MetadataCurrent(serial,mediaId))return;
+   r225LoadWebIndex(serial,mediaId);
+   r225MetadataWorker.execute(()->r225LoadMediaMetadata(serial,mediaId));
+  };
+  main.postDelayed(r225PendingMeta,browsingRail?170:65);
+ }
+ private boolean r225MetadataCurrent(int serial,String mediaId){
+  return open&&r225CaptureTime!=null&&serial==r225MetaSeq&&mediaId.equals(r225MetaId);
+ }
+ private void r225SetTime(int serial,String mediaId,long ms,boolean precise){
+  if(!r225MetadataCurrent(serial,mediaId)||ms<315532800000L||ms>4102444800000L)return;
+  if(r225HasTime&&!precise)return;
+  r225HasTime=true;
+  String stamp=new SimpleDateFormat("yyyy.MM.dd HH:mm:ss",Locale.KOREA).format(new Date(ms));
+  r225CaptureTime.setText((precise?"촬영 · ":"기록된 시간 · ")+stamp);
+ }
+ private static boolean r225GoodGps(double lat,double lon){
+  return !Double.isNaN(lat)&&!Double.isNaN(lon)&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180&&(lat!=0||lon!=0);
+ }
+ private void r225SetGps(int serial,String mediaId,double lat,double lon,String address){
+  if(!r225MetadataCurrent(serial,mediaId)||!r225GoodGps(lat,lon))return;
+  if(r225GoodGps(r225Lat,r225Lon))return;
+  r225Lat=lat;r225Lon=lon;
+  r225ResolvedAddress=address==null?"":address.trim();
+  r225Address.setText(r225ResolvedAddress.isEmpty()?String.format(Locale.KOREA,
+    "GPS %.6f, %.6f · 상세주소 확인 중",lat,lon):r225ResolvedAddress);
+  boolean korean=lat>=31.43&&lat<=44.35&&lon>=122.37&&lon<=132.0;
+  r225Naver.setVisibility(korean?View.VISIBLE:View.GONE);
+  if(!r225ResolvedAddress.isEmpty())return;
+  r225MetadataWorker.execute(()->{
+   String addr="";
+   try{
+    Geocoder coder=new Geocoder(activity,Locale.KOREAN);
+    List<Address> found=coder.getFromLocation(lat,lon,1);
+    if(found!=null&&!found.isEmpty()&&found.get(0)!=null){
+     Address first=found.get(0);
+     String full=first.getAddressLine(0);
+     if(full!=null)addr=full.trim();
+    }
+   }catch(Exception ignored){}
+   final String shown=addr;
+   main.post(()->{
+    if(!r225MetadataCurrent(serial,mediaId)||r225Lat!=lat||r225Lon!=lon)return;
+    if(!shown.isEmpty()){r225ResolvedAddress=shown;r225Address.setText(shown);}
+    else r225Address.setText(String.format(Locale.KOREA,"GPS %.6f, %.6f · 상세주소 미확인",lat,lon));
+   });
+  });
+ }
+ private WebView r225FindWebView(View node){
+  if(node instanceof WebView)return (WebView)node;
+  if(node instanceof ViewGroup){ViewGroup group=(ViewGroup)node;
+   for(int i=0;i<group.getChildCount();i++){
+    WebView w=r225FindWebView(group.getChildAt(i));if(w!=null)return w;
+   }
+  }
+  return null;
+ }
+ private void r225LoadWebIndex(int serial,String mediaId){
+  // Reuse the preexisting indexed diary capture times + GPS map-index positions.
+  // The old R121 browser-only metadata banner cannot appear over a NATIVE gallery.
+  WebView web=r225FindWebView(activity.findViewById(android.R.id.content));
+  if(web==null)return;
+  String script="(function(){try{var id="+org.json.JSONObject.quote(mediaId)+";"+
+   "var diary=window.FamilyJourneyDiary&&window.FamilyJourneyDiary.state;"+
+   "var it=diary&&diary.byId&&diary.byId.get&&(diary.byId.get(id)||diary.byId.get(id.replace(/^v/,'')));"+
+   "var data=window.FamilyJourneyExtension&&window.FamilyJourneyExtension.getData&&window.FamilyJourneyExtension.getData();"+
+   "var rows=data&&Array.isArray(data.photos)?data.photos:[];var row=null;"+
+   "for(var i=0;i<rows.length;i++){if(Array.isArray(rows[i])&&(String(rows[i][0])===id||String(rows[i][0])===id.replace(/^v/,''))){row=rows[i];break}}"+
+   "var t=it&&Number(it.t)||0;"+
+   "return JSON.stringify({t:t,lat:row?Number(row[1]):null,lon:row?Number(row[2]):null});"+
+   "}catch(e){return '{}'}})();";
+  try{web.evaluateJavascript(script,result->{
+   if(!r225MetadataCurrent(serial,mediaId)||result==null)return;
+   try{
+    Object decoded=new org.json.JSONTokener(result).nextValue();
+    org.json.JSONObject o=new org.json.JSONObject(String.valueOf(decoded));
+    long t=o.optLong("t",0);
+    if(t>0)r225SetTime(serial,mediaId,t,true);
+    if(!o.isNull("lat")&&!o.isNull("lon")){
+     double lat=o.optDouble("lat",Double.NaN),lon=o.optDouble("lon",Double.NaN);
+     r225SetGps(serial,mediaId,lat,lon,"");
+    }
+   }catch(Exception ignored){}
+  });}catch(Exception ignored){}
+ }
+ private void r225LoadMediaMetadata(int serial,String mediaId){
+  Uri u=uri(mediaId);if(u==null)return;
+  long taken=0,added=0;double lat=Double.NaN,lon=Double.NaN;
+  // DATE_TAKEN is the shot's metadata, not file import date. Do not rename DATE_ADDED as shooting time.
+  try(Cursor c=activity.getContentResolver().query(u,new String[]{
+      MediaStore.MediaColumns.DATE_TAKEN,MediaStore.MediaColumns.DATE_ADDED},null,null,null)){
+   if(c!=null&&c.moveToFirst()){
+    int t=c.getColumnIndex(MediaStore.MediaColumns.DATE_TAKEN);
+    int a=c.getColumnIndex(MediaStore.MediaColumns.DATE_ADDED);
+    if(t>=0&&!c.isNull(t))taken=c.getLong(t);
+    if(a>=0&&!c.isNull(a))added=c.getLong(a)*1000L;
+   }
+  }catch(Exception ignored){}
+  try{
+   if(!video(mediaId)){
+    try(InputStream in=activity.getContentResolver().openInputStream(u)){
+     if(in!=null){android.media.ExifInterface exif=new android.media.ExifInterface(in);
+      float[] gps=new float[2];if(exif.getLatLong(gps)){lat=gps[0];lon=gps[1];}
+      if(taken<315532800000L){
+       String original=exif.getAttribute(android.media.ExifInterface.TAG_DATETIME_ORIGINAL);
+       if(original!=null){try{
+        java.text.SimpleDateFormat parser=new java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss",Locale.US);
+        parser.setLenient(false);Date d=parser.parse(original);if(d!=null)taken=d.getTime();
+       }catch(Exception ignored){}}
+      }
+     }
+    }
+   }else{
+    MediaMetadataRetriever m=new MediaMetadataRetriever();
+    try{m.setDataSource(activity,u);
+     String location=m.extractMetadata(MediaMetadataRetriever.METADATA_KEY_LOCATION);
+     if(location!=null){java.util.regex.Matcher match=java.util.regex.Pattern.compile(
+      "([+-][0-9]+(?:\\.[0-9]+)?)([+-][0-9]+(?:\\.[0-9]+)?)").matcher(location);
+      if(match.find()){lat=Double.parseDouble(match.group(1));lon=Double.parseDouble(match.group(2));}
+     }
+    }finally{m.release();}
+   }
+  }catch(Exception ignored){}
+  final long when=taken>315532800000L?taken:added;
+  final boolean precise=taken>315532800000L;
+  final double plat=lat,plon=lon;
+  main.post(()->{
+   if(!r225MetadataCurrent(serial,mediaId))return;
+   if(when>0)r225SetTime(serial,mediaId,when,precise);
+   else if(!r225HasTime)r225CaptureTime.setText("촬영 시간 정보 없음");
+   if(r225GoodGps(plat,plon))r225SetGps(serial,mediaId,plat,plon,"");
+   else if(!r225GoodGps(r225Lat,r225Lon))r225Address.setText("원본 GPS·주소 정보 없음");
+  });
+ }
+ private void r225OpenNaver(){
+  if(!r225GoodGps(r225Lat,r225Lon))return;
+  if(!(r225Lat>=31.43&&r225Lat<=44.35&&r225Lon>=122.37&&r225Lon<=132))return;
+  String query=r225ResolvedAddress.isEmpty()?String.format(Locale.US,"%.6f, %.6f",r225Lat,r225Lon):r225ResolvedAddress;
+  String link="https://map.naver.com/p/search/"+Uri.encode(query);
+  try{activity.startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(link)));}
+  catch(Exception e){android.widget.Toast.makeText(activity,"네이버 지도를 열 수 없어요",0).show();}
+ }
  private void registerBack(){if(Build.VERSION.SDK_INT>=33){
   try{backCallback=()->{if(r207SavedPhotoViewer!=null)r207CloseSavedPhoto();else close();};activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
     android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY,backCallback);backRegistered=true;}catch(Exception ignored){}
@@ -403,11 +608,14 @@ public final class MoaNativeGallery {
   if(host!=null&&host.getParent() instanceof ViewGroup)((ViewGroup)host.getParent()).removeView(host);
   for(int i=0;i<loadedPageIds.length;i++)loadedPageIds[i]=null;
   pendingPosters.clear();scrubPreview=null;
+  if(r225PendingMeta!=null){main.removeCallbacks(r225PendingMeta);r225PendingMeta=null;}
+  r225MetaSeq++;r225MetaId="";r225Info=null;r225CaptureTime=null;r225Address=null;r225Naver=null;
   host=null;stage=null;rail=null;lowerControls=null;volumeRow=null;volumeBubble=null;volumeRail=null;videoModeButton=null;videoModeHint=null;seekRow=null;backButton=null;menuButton=null;ids.clear();
  }
  private void refreshPages(){
   if(!open)return;
-  header.setText((currentDay.isEmpty()?"사진·영상":currentDay)+"   "+(index+1)+" / "+ids.size());
+  header.setText("사진·영상   "+(index+1)+" / "+ids.size());
+  r225ScheduleMeta();
   for(int j=0;j<3;j++){
    final int p=index+j-1;
    pages[j].setVisibility(p>=0&&p<ids.size()?View.VISIBLE:View.INVISIBLE);
@@ -995,7 +1203,8 @@ public final class MoaNativeGallery {
  private void toggleChrome(){
   if(!open)return;
   chromeVisible=!chromeVisible;
-  if(header!=null)header.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
+   if(header!=null)header.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
+   if(r225Info!=null)r225Info.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
   if(backButton!=null)backButton.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
   if(menuButton!=null)menuButton.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
   if(lowerControls!=null)lowerControls.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
