@@ -1,0 +1,20 @@
+--- R209/moa-r141-monthly-report.js
++++ R211/moa-r141-monthly-report.js
+@@ -219,7 +219,7 @@
+ (()=>{'use strict';
+  const KEY='moa.gallery.return.sheet.v1', SLOT='moa.voice.timeline.links.v1';
+  const $=(s,root=document)=>root.querySelector(s);
+- const enabled=()=>{try{return localStorage.getItem(KEY)!=='off';}catch(_){return true;}};
++ const enabled=()=>{try{return localStorage.getItem(KEY)==='on';}catch(_){return false;}};
+  const setEnabled=on=>{try{localStorage.setItem(KEY,on?'on':'off');}catch(_){}syncToggle();};
+  window.MoaGalleryPreference={enabled,setEnabled};
+  const mk=(tag,cls,content)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(content!=null)n.textContent=content;return n;};
+@@ -229,7 +229,7 @@
+   if(!list)return;
+   const li=mk('li','moa-r151-pref-row');li.id='moa-r151-popup-pref';
+   const label=mk('label','moa-r151-pref-label');
+-  const copy=mk('span','moa-r151-pref-copy');copy.append(mk('strong','','사진 전체보기 후 목록으로 돌아가기'),mk('small','','켜기: 사진 목록 창으로 복귀 · 끄기: 이전 일기/지도 화면으로 바로 복귀'));
++  const copy=mk('span','moa-r151-pref-copy');copy.append(mk('strong','','사진 전체보기 후 목록으로 돌아가기'),mk('small','','켜기: 사진 목록 창 사용 · 끄기(기본): 지도·일기에서 최신 갤러리 직접 보기 및 복귀'));
+   const input=mk('input');input.type='checkbox';input.id='moa-r151-popup-checkbox';input.checked=enabled();
+   input.setAttribute('role','switch');input.addEventListener('change',()=>setEnabled(input.checked));
+   const track=mk('span','moa-r151-toggle-track');label.append(copy,input,track);li.append(label);list.append(li);
