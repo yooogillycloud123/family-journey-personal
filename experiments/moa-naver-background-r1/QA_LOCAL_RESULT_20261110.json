@@ -5,6 +5,7 @@
   "goal_unchanged": "No-Shizuku real NAVER account favorites + new list creation without occupying Android screen",
   "qa": {
     "python_pytest": "PASS 6 tests",
+    "python_pip_wheel": "PASS no-deps no-build-isolation after setuptools package selector fix",
     "chromium_mock_dom": "PASS real local headless Chromium set_content: iframe list input and click, no NAVER network",
     "http_api_token_and_duplicate": "PASS",
     "sqlite_crash_requeue_and_idempotency": "PASS",
