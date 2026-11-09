@@ -1,0 +1,28 @@
+--- R227_MoaNativeGallery.java
++++ MoaNativeGallery.java
+@@ -634,6 +634,7 @@
+  // R227: Android host onPause MUST NOT close a gallery while opening Naver Maps.
+  public boolean r227RetainForExternalMap(){return open&&r227ExternalMapPending;}
+  public void r227ResumeFromExternalMap(){
++  MoaNaverReturnOverlay.hide();
+   if(!r227ExternalMapPending)return;
+   r227ExternalMapPending=false;
+   // Keep precisely the same media/index/filmstrip; resume if video was playing.
+@@ -657,6 +658,9 @@
+   try{if(media!=null&&prepared&&media.isPlaying()){
+    r227VideoWasPlaying=true;media.pause();if(pause!=null)pause.setText("▶");
+   }}catch(Exception ignored){}
++  // One-action return to the R227 retained gallery, using existing user-granted overlay permission.
++  // If permission is absent, NAVER still opens normally and the app offers its original Back path.
++  MoaNaverReturnOverlay.show(activity);
+   try{activity.startActivity(nav);}
+   catch(Exception unavailable){
+    // If Naver Maps isn't installed, fall back to existing verified HTTPS link.
+@@ -672,6 +676,7 @@
+     android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY,backCallback);backRegistered=true;}catch(Exception ignored){}
+  }}
+  public void close(){
++  MoaNaverReturnOverlay.hide();
+   if(Looper.myLooper()!=Looper.getMainLooper()){main.post(this::close);return;}
+   r203CancelFling();
+   if(r203StageVelocity!=null){r203StageVelocity.recycle();r203StageVelocity=null;}
