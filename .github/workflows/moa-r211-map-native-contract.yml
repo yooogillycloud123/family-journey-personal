@@ -1,0 +1,54 @@
+name: MOA R211 Map native Gallery and setting OFF source contracts
+on:
+  push:
+    branches:
+      - feature/moa-r211-map-native-gallery-off-sheet-fix-20261109
+    paths:
+      - 'experiments/moa-r211/**'
+      - '.github/workflows/moa-r211-map-native-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r211_map_contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse complete patched web assets
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r211/assets/web/app.js
+          node --check experiments/moa-r211/assets/web/fj-naver-favorites.js
+          node --check experiments/moa-r211/assets/web/moa-r141-monthly-report.js
+      - name: Signed-source hashes and simulated route contracts
+        run: |
+          python3 - <<'PY'
+          import pathlib,json,hashlib
+          root=pathlib.Path('experiments/moa-r211')
+          manifest=json.loads((root/'R211_WEB_PATCH_MANIFEST.json').read_text())
+          for name,meta in manifest.items():
+              b=(root/'assets/web'/name).read_bytes()
+              assert hashlib.sha256(b).hexdigest()==meta['after_sha256'],name
+              assert len(b)==meta['after_bytes'],name
+          result=json.loads((root/'R211_BROWSER_SMOKE.json').read_text())
+          assert result['map_off']['placeHidden']
+          assert result['map_off']['calls'][0]['ids']==['101','v102','103']
+          assert result['map_on']['placeHidden']==False
+          assert result['map_on']['tiles']==3
+          assert result['map_on_photo_click']['last']['ids']==['101','v102','103']
+          assert result['map_unset']['hidden']
+          assert result['map_native_failure']['hidden'] and result['map_native_failure']['fallback']==0
+          assert result['naver_off']['sheet']==False and result['naver_off']['calls']
+          assert result['naver_on']['sheet']==True and result['naver_on']['buttons']==2
+          assert not result['naver_on_tile']['htmlViewer'] and result['naver_on_tile']['calls']
+          app=(root/'assets/web/app.js').read_text()
+          naver=(root/'assets/web/fj-naver-favorites.js').read_text()
+          prefs=(root/'assets/web/moa-r141-monthly-report.js').read_text()
+          assert "if (!mapR211SheetAllowed())" in app and "mapR211OpenNative(z, null)" in app
+          assert "if(!r211PlaceSheetEnabled())" in naver and "r211OpenNative(ids,0)" in naver
+          assert "localStorage.getItem(KEY)==='on'" in prefs
+          print('MOA R211 web source SHA and route contracts PASS')
+          PY
