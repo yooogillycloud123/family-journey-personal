@@ -1,3 +1,5 @@
+> **Emergency-only code-forward prepared separately (NOT routine installation, Galaxy recovery untested):** Exact original signed R217 app payload at higher versionCode220 `MOA_R220_EMERGENCY_R217_FEATURES_CODE_FORWARD_ONLY.apk`, APK SHA256 `342bd821bc04943c3256c5106f80b4676f5a9f9bec65ecd8350109113c6ec9d2`, 5,745,310B. Only Manifest versionCode217→220 changed (129/130 APK entries byte-identical to R217). Original signer, APKv2 RSA/full content digest, ZIP130/DEX checks PASS; paired ZIP `MOA_R220_EMERGENCY_R217_FEATURES_BACKUP.zip` SHA256 `ebfff1320275dbb4a2b3aea4ddbc4fa208f4556899aa66b164f31844281ec93c` SHA-matching original APK included. Both and QA archived privately in `/모아_프로젝트_근거_20261103/`. This also restores old R217 bugs, so do not tell user to install unless specifically warranted by new evidence. No uninstall/data clear.
+
 # MOA R219 — Native audio exit stop, live popup opacity and 7:3 layout, anchored vertical volume, unified quick memo (2026-11-09)
 
 ## Verification status (do not overclaim)
