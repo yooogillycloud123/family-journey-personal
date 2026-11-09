@@ -10,6 +10,7 @@ import android.graphics.ImageDecoder;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
@@ -104,8 +105,8 @@ public final class MoaNativeGallery {
   private boolean r207ResumeVideoAfterPhoto=false;
   private int r207SavedPhotoLoadGeneration=0;
  private LinearLayout videoControls, volumeRow, lowerControls;
- private SeekBar mediaVolumeSeek;
- private TextView mediaVolumeText;
+ private View volumeBubble;
+ private VerticalMediaVolume volumeRail;
  private SeekBar seek;
  private TextureView texture;
  private MediaPlayer media;
@@ -268,41 +269,17 @@ public final class MoaNativeGallery {
   seekRow.addView(videoModeHint,new LinearLayout.LayoutParams(0,dp(36),1));
   seekRow.setVisibility(View.GONE);
   lower.addView(seekRow,new LinearLayout.LayoutParams(-1,dp(36)));
-  // R179: system MUSIC volume is independent of MediaPlayer's mute/unmute.
-  // Show a slider only while sound is enabled; never raise device volume automatically.
-  volumeRow=new LinearLayout(activity);volumeRow.setGravity(Gravity.CENTER_VERTICAL);
-  volumeRow.setPadding(dp(19),0,dp(19),0);volumeRow.setBackgroundColor(Color.TRANSPARENT);
-  // R207: compact translucent Samsung-gallery-style slim sound pill instead of a full-width black bar.
-  LinearLayout volumePill=new LinearLayout(activity);volumePill.setGravity(Gravity.CENTER_VERTICAL);
-  volumePill.setPadding(dp(10),0,dp(12),0);
-  android.graphics.drawable.GradientDrawable soundPillBg=new android.graphics.drawable.GradientDrawable();
-  soundPillBg.setColor(0xdb24262a);soundPillBg.setCornerRadius(dp(18));
-  soundPillBg.setStroke(dp(.7f),0x8aa6a9b1);volumePill.setBackground(soundPillBg);
-  volumeRow.addView(volumePill,new LinearLayout.LayoutParams(-1,dp(32)));
-  mediaVolumeText=new TextView(activity);mediaVolumeText.setTextSize(11);mediaVolumeText.setTextColor(0xffeff0f2);
-  mediaVolumeText.setGravity(Gravity.CENTER_VERTICAL);mediaVolumeText.setSingleLine(true);
-  mediaVolumeText.setPadding(dp(3),0,0,0);
-  volumePill.addView(mediaVolumeText,new LinearLayout.LayoutParams(dp(67),dp(30)));
-  mediaVolumeSeek=new SeekBar(activity);mediaVolumeSeek.setPadding(0,0,0,0);
-  mediaVolumeSeek.setProgressTintList(android.content.res.ColorStateList.valueOf(0xfff0f1f4));
-  mediaVolumeSeek.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0x667f848d));
-  mediaVolumeSeek.setThumbTintList(android.content.res.ColorStateList.valueOf(0xfffafafa));
-  AudioManager volumeAudio=(AudioManager)activity.getSystemService(Activity.AUDIO_SERVICE);
-  int maxAudio=volumeAudio==null?15:Math.max(1,volumeAudio.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-  mediaVolumeSeek.setMax(maxAudio);
-  mediaVolumeSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
-   @Override public void onStartTrackingTouch(SeekBar bar){}
-   @Override public void onStopTrackingTouch(SeekBar bar){}
-   @Override public void onProgressChanged(SeekBar bar,int progress,boolean fromUser){
-    if(!fromUser)return;
-    try{if(volumeAudio!=null&&!volumeAudio.isVolumeFixed())volumeAudio.setStreamVolume(AudioManager.STREAM_MUSIC,progress,0);}
-    catch(SecurityException blocked){android.widget.Toast.makeText(activity,"기기에서 미디어 음량 변경을 허용하지 않았습니다.",0).show();}
-    updateMediaVolume();
-   }
-  });
-  volumePill.addView(mediaVolumeSeek,new LinearLayout.LayoutParams(0,dp(30),1));
-  volumeRow.setVisibility(View.GONE);
-  lower.addView(volumeRow,new LinearLayout.LayoutParams(-1,dp(36)));
+  // R219: a Samsung-like VERTICAL media-volume pill anchored ABOVE Mute.
+  // Never add extra rows to lowerControls: playback/capture/mute must stay fixed.
+  volumeRow=null;
+  FrameLayout bubble=new FrameLayout(activity);volumeBubble=bubble;
+  android.graphics.drawable.GradientDrawable bubbleBg=new android.graphics.drawable.GradientDrawable();
+  bubbleBg.setColor(0xe525272d);bubbleBg.setCornerRadius(dp(29));
+  bubbleBg.setStroke(dp(.8f),0x9dc7cbd3);bubble.setBackground(bubbleBg);
+  bubble.setElevation(dp(9));bubble.setVisibility(View.GONE);
+  volumeRail=new VerticalMediaVolume();
+  bubble.addView(volumeRail,new FrameLayout.LayoutParams(-1,-1));
+  host.addView(bubble,new FrameLayout.LayoutParams(dp(58),dp(187),Gravity.TOP|Gravity.LEFT));
   rail=new GalleryRail();rail.setBackgroundColor(0xa8000000);
   lower.addView(rail,new LinearLayout.LayoutParams(-1,dp(72)));
   open=true;registerBack();refreshPages();stage.post(()->{if(open)updatePosition(0);});prepareCurrentVideo();
@@ -426,7 +403,7 @@ public final class MoaNativeGallery {
   if(host!=null&&host.getParent() instanceof ViewGroup)((ViewGroup)host.getParent()).removeView(host);
   for(int i=0;i<loadedPageIds.length;i++)loadedPageIds[i]=null;
   pendingPosters.clear();scrubPreview=null;
-  host=null;stage=null;rail=null;lowerControls=null;volumeRow=null;mediaVolumeSeek=null;mediaVolumeText=null;videoModeButton=null;videoModeHint=null;seekRow=null;backButton=null;menuButton=null;ids.clear();
+  host=null;stage=null;rail=null;lowerControls=null;volumeRow=null;volumeBubble=null;volumeRail=null;videoModeButton=null;videoModeHint=null;seekRow=null;backButton=null;menuButton=null;ids.clear();
  }
  private void refreshPages(){
   if(!open)return;
@@ -956,25 +933,60 @@ public final class MoaNativeGallery {
  private String clock(long ms){long s=Math.max(0,ms)/1000;return String.format(java.util.Locale.US,"%02d:%02d",s/60,s%60);}
  private void toggle(){if(media==null||!prepared)return;try{if(media.isPlaying())media.pause();else media.start();
   pause.setText(media.isPlaying()?"Ⅱ":"▶");pause.setContentDescription(media.isPlaying()?"동영상 일시정지":"동영상 재생");}catch(Exception ignored){}}
+ private void anchorVolumeBubble(){
+  if(host==null||mute==null||volumeBubble==null||volumeBubble.getParent()!=host)return;
+  if(host.getWidth()==0||mute.getWidth()==0){volumeBubble.post(()->{if(open)anchorVolumeBubble();});return;}
+  int[] a=new int[2],h=new int[2];mute.getLocationInWindow(a);host.getLocationInWindow(h);
+  int w=dp(58),height=dp(187);
+  FrameLayout.LayoutParams pos=(FrameLayout.LayoutParams)volumeBubble.getLayoutParams();
+  pos.gravity=Gravity.TOP|Gravity.LEFT;
+  pos.leftMargin=Math.max(dp(5),Math.min(Math.max(dp(5),host.getWidth()-w-dp(5)),
+   a[0]-h[0]+mute.getWidth()/2-w/2));
+  pos.topMargin=Math.max(dp(9),a[1]-h[1]-height-dp(11));
+  volumeBubble.setLayoutParams(pos);
+ }
+ private final class VerticalMediaVolume extends View{
+  final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+  VerticalMediaVolume(){super(activity);setContentDescription("미디어 음량, 위아래로 밀어 조절");setClickable(true);}
+  private int streamMax(){try{AudioManager a=(AudioManager)activity.getSystemService(Activity.AUDIO_SERVICE);return a==null?15:Math.max(1,a.getStreamMaxVolume(AudioManager.STREAM_MUSIC));}catch(Exception e){return 15;}}
+  private int streamNow(){try{AudioManager a=(AudioManager)activity.getSystemService(Activity.AUDIO_SERVICE);return a==null?0:a.getStreamVolume(AudioManager.STREAM_MUSIC);}catch(Exception e){return 0;}}
+  @Override protected void onDraw(Canvas c){
+   super.onDraw(c);float cx=getWidth()/2f,top=dp(42),bottom=getHeight()-dp(23);
+   int max=streamMax(),value=Math.max(0,Math.min(max,streamNow()));
+   float level=value/(float)Math.max(1,max);
+   p.setStyle(Paint.Style.FILL);
+   p.setColor(0x666f7581);c.drawRoundRect(cx-dp(5),top,cx+dp(5),bottom,dp(5),dp(5),p);
+   float y=bottom-(bottom-top)*level;
+   p.setColor(0xfff1f3f7);c.drawRoundRect(cx-dp(5),y,cx+dp(5),bottom,dp(5),dp(5),p);
+   p.setColor(Color.WHITE);c.drawCircle(cx,y,dp(10),p);
+   p.setTextAlign(Paint.Align.CENTER);p.setTextSize(dp(12));p.setTypeface(Typeface.DEFAULT_BOLD);
+   c.drawText(Math.round(100f*level)+"%",cx,dp(25),p);
+  }
+  @Override public boolean onTouchEvent(MotionEvent e){
+   int action=e.getActionMasked();
+   if(action==MotionEvent.ACTION_DOWN||action==MotionEvent.ACTION_MOVE){
+    if(!open||muted)return true;
+    float top=dp(42),bottom=getHeight()-dp(23);
+    float frac=Math.max(0f,Math.min(1f,(bottom-e.getY())/Math.max(1f,bottom-top)));
+    try{
+     AudioManager a=(AudioManager)activity.getSystemService(Activity.AUDIO_SERVICE);
+     if(a!=null&&!a.isVolumeFixed())a.setStreamVolume(AudioManager.STREAM_MUSIC,
+      Math.round(frac*Math.max(1,a.getStreamMaxVolume(AudioManager.STREAM_MUSIC))),0);
+    }catch(SecurityException ignored){}
+    invalidate();return true;
+   }
+   return true;
+  }
+ }
  private void updateMediaVolume(){
-  if(volumeRow==null||lowerControls==null||stage==null||ids.isEmpty())return;
-  boolean shown=open&&video(ids.get(index))&&!muted;
-  if(volumeRow.getVisibility()!=(shown?View.VISIBLE:View.GONE)){
-   volumeRow.setVisibility(shown?View.VISIBLE:View.GONE);
+  if(volumeBubble==null||host==null||ids.isEmpty())return;
+  boolean shown=open&&chromeVisible&&video(ids.get(index))&&!muted;
+  volumeBubble.setVisibility(shown?View.VISIBLE:View.GONE);
+  if(shown){
+   volumeBubble.post(()->{if(open&&volumeBubble!=null)anchorVolumeBubble();});
+   if(volumeRail!=null)volumeRail.invalidate();
   }
-  updateChromeLayout();
-  if(shown&&mediaVolumeSeek!=null){
-   try{
-    AudioManager audio=(AudioManager)activity.getSystemService(Activity.AUDIO_SERVICE);
-    if(audio!=null){
-     int max=Math.max(1,audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-     int current=audio.getStreamVolume(AudioManager.STREAM_MUSIC);
-     mediaVolumeSeek.setMax(max);mediaVolumeSeek.setProgress(current);
-     mediaVolumeText.setText("음량 "+Math.round(current*100f/max)+"%");
-     mediaVolumeSeek.setEnabled(!audio.isVolumeFixed());
-    }
-   }catch(Exception ignored){}
-  }
+  // Do not resize or reposition the main 3-button control strip.
  }
  private void toggleMute(){muted=!muted;try{if(media!=null)media.setVolume(muted?0:1,muted?0:1);}catch(Exception ignored){}
   mute.setText(muted?"♪":"♫");mute.setContentDescription(muted?"동영상 소리 켜기":"동영상 소리 끄기");updateMediaVolume();}
@@ -987,6 +999,8 @@ public final class MoaNativeGallery {
   if(backButton!=null)backButton.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
   if(menuButton!=null)menuButton.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
   if(lowerControls!=null)lowerControls.setVisibility(chromeVisible?View.VISIBLE:View.GONE);
+  // Hide/show the anchored popup with chrome; preserve all main-control positions.
+  updateMediaVolume();
   // Do not toggle OS window insets; their Surface resize was changing image/video sizes.
   updateChromeLayout();
  }
