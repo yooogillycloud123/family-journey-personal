@@ -1,0 +1,72 @@
+--- R209/app.js
++++ R211/app.js
+@@ -848,11 +848,47 @@
+   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+   canvas.addEventListener('wheel', (e) => { e.preventDefault(); const p = cpos(e); zoomAt(p[0], p[1], -e.deltaY / 250); redraw(); }, { passive: false });
+ }
++// R211: Map photo markers must use the SAME native mixed-media gallery as Diary.
++// Only an explicit ON for the existing user setting permits a bottom-up photo sheet.
++function mapR211SheetAllowed() {
++  try { return localStorage.getItem('moa.gallery.return.sheet.v1') === 'on'; }
++  catch (_) { return false; }
++}
++function mapR211MediaId(raw) {
++  const x = String(raw == null ? '' : raw);
++  if (/^[0-9]{1,18}\|v$/.test(x)) return 'v' + x.slice(0, -2);
++  return /^v?[0-9]{1,18}$/.test(x) ? x : '';
++}
++function mapR211OpenNative(z, selectedRaw) {
++  const all = Array.isArray(z?.ids) ? z.ids : [];
++  const valid = all.map((raw, pos) => ({ id: mapR211MediaId(raw), raw: String(raw), pos })).filter(p => !!p.id);
++  if (!valid.length || typeof window.MoaLocalAudio?.openNativeGallery !== 'function') return false;
++  const wanted = selectedRaw == null ? 0 : Math.max(0, all.findIndex(x => String(x) === String(selectedRaw)));
++  const nearest = valid.findIndex(p => p.pos >= wanted);
++  const active = nearest < 0 ? valid.length - 1 : nearest;
++  // Native gallery accepts up to 10,000 IDs, preserving selected index and order.
++  const first = Math.max(0, Math.min(active - 4500, Math.max(0, valid.length - 10000)));
++  const media = valid.slice(first, first + 10000).map(p => p.id);
++  try { return !!window.MoaLocalAudio.openNativeGallery(JSON.stringify(media), active - first, ''); }
++  catch (err) { console.warn('Map R211 native gallery fallback', err); return false; }
++}
+ // ---- 장소 시트 + 사진 뷰어 ----
+ let placeZone = null, placeShown = 0, viewerIdx = 0;
+ const homeAsZone = () => ({ key: 'home', name: Z.home.name, flag: '', trips: 0, days: Z.home.days, n: Z.home.n, ids: Z.home.ids || [], stopIdx: Z.home.stopIdx || [], isHome: true });
+ function openPlace(z) {
+   placeZone = z; placeShown = 0;
++  // OFF: no Map photo list sheet at all, not merely hide it after Back.
++  if (!mapR211SheetAllowed()) {
++    $('#place-root').hidden = true;
++    if (mapR211OpenNative(z, null)) return;
++    // Demo/cloud/unavailable MediaStore: preserve the old FULL-SCREEN safe fallback,
++    // never create the bottom-rising place sheet while OFF.
++    if (Array.isArray(z?.ids) && z.ids.length) {
++      document.body.style.overflow = 'hidden';
++      openViewer(0);
++    }
++    return;
++  }
+   $('#place-title').innerHTML = `${z.isHome ? icon('home') : (z.icon ? icon(z.icon) : ccBadge(z.cc))} ${escH(z.name)}`;
+   $('#place-meta').textContent = z.isSpot ? tr('이 자리에서 찍은 사진 {n}장', { n: fmtN(z.n) }) : z.isHome ? tr('집 · {d}일 · 사진 {n}장', { d: fmtN(z.days), n: fmtN(z.n) }) : tr('{v}번 방문 · {d}일 · 사진 {n}장 · 처음 {first}', { v: z.trips, d: z.days, n: fmtN(z.n), first: fmtYMD(parseLocal(z.first + 'T12:00:00')) });
+   const badge = $('#place-badge'); badge.hidden = !(z.tier || z.isNew); badge.textContent = z.tier ? tr('제{n}의 고향', { n: ord(z.tier) }) : 'NEW';
+@@ -869,15 +905,13 @@
+     const d = document.createElement('div'); d.className = 'tile';
+     if (id.endsWith('|v')) d.innerHTML = '<span class="v">' + icon('play') + '</span>';
+     d.addEventListener('click', () => {
+-      // Original place/region/spot order is preserved across all pages of '사진 더 보기'.
+-      // Use the proven R29 swipe/pinch/share in-app MediaStore viewer for real photos.
+-      const photoIds = z.ids.filter(value => /^[0-9]{1,18}$/.test(String(value)));
+-      const index = photoIds.indexOf(String(id));
+-      const gallery = window.FamilyJourneyNaver?.openFullGallery;
+-      if (index >= 0 && typeof gallery === 'function') {
+-        gallery(photoIds, index, String(z.name || '방문 장소')); return;
++      // R211: no separate Naver HTML viewer for normal Map photos/videos.
++      // Keeps exact place/region/spot order, including MediaStore |v videos.
++      if (mapR211OpenNative(z, id)) {
++        if (!mapR211SheetAllowed()) $('#place-root').hidden = true;
++        return;
+       }
+-      // Videos, cloud-only items and older sample data keep their original handler.
++      // MediaStore unavailable/denied, demo or cloud: retain the old full-screen fallback.
+       openViewer(base + i);
+     });
+     grid.appendChild(d); return d;
