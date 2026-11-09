@@ -1,0 +1,20 @@
+--- R215/MoaMomentAudioHostActivity$LocalBridge.smali
++++ R217/MoaMomentAudioHostActivity$LocalBridge.smali
+@@ -1196,6 +1196,17 @@
+     return-void
+ .end method
+ 
++.method public stopPlayback()V
++    .locals 2
++    .annotation runtime Landroid/webkit/JavascriptInterface;
++    .end annotation
++    iget-object v0, p0, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity$LocalBridge;->this$0:Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;
++    new-instance v1, Lcom/juhyeon/familyjourney/MoaR217StopPlaybackRunnable;
++    invoke-direct {v1, v0}, Lcom/juhyeon/familyjourney/MoaR217StopPlaybackRunnable;-><init>(Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;)V
++    invoke-virtual {v0, v1}, Lcom/juhyeon/familyjourney/MoaMomentAudioHostActivity;->runOnUiThread(Ljava/lang/Runnable;)V
++    return-void
++.end method
++
+ .method public togglePlayback(Ljava/lang/String;Ljava/lang/String;)V
+     .locals 2
+     .annotation runtime Landroid/webkit/JavascriptInterface;
