@@ -47,3 +47,42 @@ def test_working_job_requeued_after_pc_crash(tmp_path):
     assert q2.get(f.job_id)['status']==Status.QUEUED
     assert q2.next_job()==f
     q2.close()
+
+
+def test_requested_memo_alias_readback_must_be_verified_too():
+    # A place being in the right folder does not prove its extra fields saved.
+    item=good(naver_place_id='12345',alias='엄마랑',memo='아기 의자 있음')
+    assert not json_bookmark_matches({'bookmarkList':[{'sid':'12345'}]},item)
+    assert not json_bookmark_matches({'bookmarkList':[{'sid':'12345','alias':'엄마랑'}]},item)
+    assert not json_bookmark_matches({'bookmarkList':[{'sid':'12345','alias':'다른 별명','memo':'아기 의자 있음'}]},item)
+    assert not json_bookmark_matches({'bookmarkList':[{'sid':'12345','alias':'엄마랑','memo':'다른 메모'}]},item)
+    assert json_bookmark_matches({'bookmarkList':[{'sid':'12345','alias':'엄마랑','memo':'아기 의자 있음'}]},item)
+    assert not json_bookmark_matches({'bookmarkList':[{'sid':'99999','alias':'엄마랑','memo':'아기 의자 있음'}]},item)
+
+@pytest.mark.asyncio
+async def test_existing_place_with_unreadable_metadata_never_toggles_save():
+    from moa_naver_bridge.browser import NaverPlaywrightWorker
+
+    class FakePage:
+        async def close(self):pass
+
+    class FakeContext:
+        async def new_page(self):return FakePage()
+
+    class SafeWorker(NaverPlaywrightWorker):
+        def __init__(self):
+            self.context=FakeContext()
+            self.calls=[]
+            self.headed_worker=False
+        async def start(self,headed=False):pass
+        async def _read_list(self,item):
+            self.calls.append(('read',bool(item.alias),bool(item.memo)))
+            return (not item.alias and not item.memo,'MOCK_ONLY')
+        async def ensure_list(self,*args):raise AssertionError('existing place must not be changed')
+        async def save_via_ui(self,*args):raise AssertionError('save toggle could UNSAVE existing place')
+
+    worker=SafeWorker()
+    status,detail=await worker.process(good(naver_place_id='12345',alias='친구랑',memo='방문 기록'))
+    assert status==Status.SUBMITTED_UNVERIFIED
+    assert detail=='EXISTING_PLACE_FIELDS_NOT_VERIFIED'
+    assert worker.calls==[('read',False,False),('read',True,True)]
