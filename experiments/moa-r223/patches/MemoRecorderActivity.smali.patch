@@ -1,6 +1,6 @@
 --- /mnt/data/r219_work/decoded/smali_classes7/com/juhyeon/familyjourney/MoaMomentMemoRecorderActivity.smali	2026-11-09 04:21:53.674789897 +0000
-+++ /mnt/data/r223_work/decoded/smali_classes7/com/juhyeon/familyjourney/MoaMomentMemoRecorderActivity.smali	2026-11-09 05:22:37.644010722 +0000
-@@ -2873,76 +2873,73 @@
++++ /mnt/data/r223_work/decoded/smali_classes7/com/juhyeon/familyjourney/MoaMomentMemoRecorderActivity.smali	2026-11-09 05:27:36.356284646 +0000
+@@ -2873,76 +2873,75 @@
  .end method
  
  .method private startDictation()V
@@ -45,13 +45,15 @@
 +    invoke-virtual {v1, v2}, Ljava/lang/String;->contentEquals(Ljava/lang/CharSequence;)Z
 +    move-result v1
 +    if-eqz v1, :r223_discard_completed
-+    # User-tap STOP requests final recognition results, not silent cancellation.
-+    invoke-virtual {v0}, Lcom/juhyeon/familyjourney/MoaMomentVoice;->finish()V
++    # Set finishing state FIRST: onResults/onFinished may run immediately.
++    # Never re-disable the button after an already-delivered completion callback.
++    move-object v2, v0
 +    iget-object v0, p0, Lcom/juhyeon/familyjourney/MoaMomentMemoRecorderActivity;->micButton:Landroid/widget/Button;
 +    const-string v1, "인식 정리"
 +    invoke-virtual {v0, v1}, Landroid/widget/Button;->setText(Ljava/lang/CharSequence;)V
 +    const/4 v1, 0x0
 +    invoke-virtual {v0, v1}, Landroid/widget/Button;->setEnabled(Z)V
++    invoke-virtual {v2}, Lcom/juhyeon/familyjourney/MoaMomentVoice;->finish()V
      return-void
  
 -    :cond_1
@@ -119,7 +121,7 @@
      return-void
  .end method
  
-@@ -3220,7 +3217,7 @@
+@@ -3220,7 +3219,7 @@
  
      iget-object v0, p0, Lcom/juhyeon/familyjourney/MoaMomentMemoRecorderActivity;->micButton:Landroid/widget/Button;
  
@@ -128,7 +130,7 @@
  
      invoke-virtual {v0, v3}, Landroid/widget/Button;->setText(Ljava/lang/CharSequence;)V
  
-@@ -4945,7 +4942,7 @@
+@@ -4945,7 +4944,7 @@
  
      iget-object v5, p0, Lcom/juhyeon/familyjourney/MoaMomentMemoRecorderActivity;->micButton:Landroid/widget/Button;
  
