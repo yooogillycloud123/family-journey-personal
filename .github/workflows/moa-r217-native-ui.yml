@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/moa-r217-audio-exit-quickpopup-settings-memo-ui-20261109
+      - feature/moa-r219-audio-stop-settings-overlay-volume-memo-20261109
     paths:
       - 'experiments/moa-r217/**'
       - '.github/workflows/moa-r217-native-ui.yml'
