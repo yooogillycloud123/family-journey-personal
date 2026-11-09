@@ -1,0 +1,43 @@
+name: MOA R215 isolated quickrecord overlay Android 35 dex
+on:
+  push:
+    branches:
+      - feature/moa-r213-stage-one-step-rail-inertia-quickrecord-20261109
+    paths:
+      - 'experiments/moa-r215/**'
+      - '.github/workflows/moa-r215-overlay-dex.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install pinned SDK 35
+        run: yes | sdkmanager 'platforms;android-35' 'build-tools;35.0.0' >/dev/null
+      - name: Compile complete isolated native quickrecord overlay
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moar215/src/com/juhyeon/familyjourney /tmp/moar215/classes /tmp/moar215/dex build/moa-r215
+          cp experiments/moa-r215/MoaR215QuickOverlay.java /tmp/moar215/src/com/juhyeon/familyjourney/
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moar215/classes /tmp/moar215/src/com/juhyeon/familyjourney/*.java
+          find /tmp/moar215/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moar215/dex
+          python3 - <<'PY'
+          import pathlib,hashlib,json,zlib,base64
+          b=pathlib.Path('/tmp/moar215/dex/classes.dex').read_bytes()
+          assert b.startswith(b'dex\n') and b'MoaR215QuickOverlay' in b
+          d=pathlib.Path('build/moa-r215')
+          (d/'classes8.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+          (d/'manifest.json').write_text(json.dumps({'dex_sha256':hashlib.sha256(b).hexdigest(),'size':len(b),'source_sha256':hashlib.sha256(pathlib.Path('experiments/moa-r215/MoaR215QuickOverlay.java').read_bytes()).hexdigest(),'status':'compiled native helper only, requires original classes4 smali hooking and signed APK'},indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R215-QUICK-OVERLAY-DEX
+          path: build/moa-r215/
+          retention-days: 7
