@@ -18,19 +18,39 @@ def json_folder_match(raw, list_name):
     matches=[x for x in rows if isinstance(x,dict) and norm(str(x.get('name',x.get('folderName',''))))==norm(list_name)]
     return matches[0] if len(matches)==1 else None
 
+def _verified_text_field(row:dict, expected:str, keys:tuple[str,...])->bool:
+    """A missing field is NEVER proof that a requested memo or alias was saved.
+
+    This is deliberately fail-closed. Keys must be validated against the real
+    NAVER readback schema before expanding their accepted spellings.
+    """
+    if not expected:return True
+    for key in keys:
+        value=row.get(key)
+        if isinstance(value,str) and value.strip()==expected.strip():
+            return True
+    return False
+
 def json_bookmark_matches(raw,item:Favorite):
     rows=raw if isinstance(raw,list) else raw.get('bookmarkList',raw.get('bookmarks',raw.get('data',[])))
     if isinstance(rows,dict):rows=rows.get('bookmarkList',rows.get('bookmarks',rows.get('list',[])))
     if not isinstance(rows,list):return False
-    # Stable Naver POI id preferred over ambiguous geocoded text; don't guess GPS.
+    # The record must match BOTH the place identity and all requested fields.
+    # Real NAVER JSON schemas are not yet verified: unknown keys stay UNVERIFIED.
     for r in rows:
         if not isinstance(r,dict):continue
         sid=str(r.get('sid',r.get('placeId',''))).strip()
         if item.naver_place_id:
-            if sid and sid==item.naver_place_id:return True
+            place_ok=bool(sid and sid==item.naver_place_id)
+        else:
+            place_ok=(norm(str(r.get('name','')))==norm(item.place_name)
+                      and norm(str(r.get('address','')))==norm(item.address))
+        if not place_ok:continue
+        if not _verified_text_field(r,item.alias,('alias','nickname','nickName','aliasName')):
             continue
-        if norm(str(r.get('name','')))==norm(item.place_name) and norm(str(r.get('address','')))==norm(item.address):
-            return True
+        if not _verified_text_field(r,item.memo,('memo','memoText','memoContent')):
+            continue
+        return True
     return False
 
 class NaverPlaywrightWorker:
@@ -89,8 +109,14 @@ class NaverPlaywrightWorker:
         await self.start(headed=self.headed_worker)
         page=await self.context.new_page()
         try:
-            exists,_=await self._read_list(item)
-            if exists:return Status.VERIFIED,'READBACK_MATCH'
+            # A bookmark can already exist while its memo/alias differs.
+            # Never click a save toggle on an existing bookmark: that can UNSAVE.
+            place_only=Favorite(**{**item.__dict__,'memo':'','alias':''})
+            place_exists,_=await self._read_list(place_only)
+            if place_exists:
+                fields_verified,_=await self._read_list(item)
+                if fields_verified:return Status.VERIFIED,'READBACK_MATCH'
+                return Status.SUBMITTED_UNVERIFIED,'EXISTING_PLACE_FIELDS_NOT_VERIFIED'
             await self.ensure_list(page,item.list_name)
             sid=await self.search_and_select(page,item)
             await self.save_via_ui(page,item)
