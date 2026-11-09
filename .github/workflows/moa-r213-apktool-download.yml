@@ -1,0 +1,24 @@
+name: MOA tooling - fetch pinned APKTool for local protected DEX review
+on:
+  push:
+    branches: [feature/moa-r213-stage-one-step-rail-inertia-quickrecord-20261109]
+    paths: ['.github/workflows/moa-r213-apktool-download.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve standalone upstream Apktool
+        run: |
+          set -euxo pipefail
+          mkdir -p package
+          curl --fail --location --retry 3 --max-time 120 -o package/apktool.jar https://github.com/iBotPeaches/Apktool/releases/download/v2.10.0/apktool_2.10.0.jar
+          java -jar package/apktool.jar --version
+          sha256sum package/apktool.jar | tee package/SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R213-PRIVATE-RUNTIME-APKTOOL
+          path: package
+          retention-days: 1
