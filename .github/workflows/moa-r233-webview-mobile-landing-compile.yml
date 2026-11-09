@@ -1,10 +1,10 @@
 name: MOA R233 NAVER Settings + WebView Runtime DEX Compile (NO APK RELEASE)
 on:
   push:
-    branches: [feature/moa-r233-settings-naver-webview-poc-20261109]
+    branches: [feature/moa-r233-webview-mobile-landing-diagnostic-20261110]
     paths:
       - 'experiments/moa-r231/**'
-      - '.github/workflows/moa-r233-settings-webview-compile.yml'
+      - '.github/workflows/moa-r233-webview-mobile-landing-compile.yml'
   workflow_dispatch:
 permissions: {contents: read}
 jobs:
