@@ -1,0 +1,51 @@
+name: MOA R217 native popup and memo presentation Android 35 compilation
+on:
+  push:
+    branches:
+      - feature/moa-r217-audio-exit-quickpopup-settings-memo-ui-20261109
+    paths:
+      - 'experiments/moa-r217/**'
+      - '.github/workflows/moa-r217-native-ui.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify preinstalled Android 35 (do not run flaky sdkmanager)
+        run: |
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/d8"
+      - name: Compile overlay and memo GUI as isolated DEX files
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/compile/classes /tmp/compile/overlay /tmp/compile/memo build/r217
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/compile/classes experiments/moa-r217/MoaR215QuickOverlay.java experiments/moa-r217/MoaR217MemoPolish.java
+          find /tmp/compile/classes -name 'MoaR215QuickOverlay*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/compile/overlay
+          find /tmp/compile/classes -name 'MoaR217MemoPolish*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/compile/memo
+          cp /tmp/compile/overlay/classes.dex build/r217/classes8.dex
+          cp /tmp/compile/memo/classes.dex build/r217/classes9.dex
+          python3 - <<'PY'
+          import pathlib,hashlib,json
+          p=pathlib.Path('build/r217')
+          d={}
+          for f in p.glob('*.dex'):
+              b=f.read_bytes()
+              assert b.startswith(b'dex\n')
+              d[f.name]={'size':len(b),'sha256':hashlib.sha256(b).hexdigest()}
+          (p/'native-compile.json').write_text(json.dumps(d,indent=2))
+          print(d)
+          PY
+          node --check experiments/moa-r217/assets/web/moa-r121-ui.js
+          node --check experiments/moa-r217/assets/web/moa-r149-voice.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R217-NATIVE-UX-DEX
+          path: build/r217/
+          retention-days: 7
