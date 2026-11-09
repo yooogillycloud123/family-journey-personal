@@ -1,0 +1,71 @@
+name: MOA R233 NAVER Settings + WebView Runtime DEX Compile (NO APK RELEASE)
+on:
+  push:
+    branches: [feature/moa-r233-settings-naver-webview-poc-20261109]
+    paths:
+      - 'experiments/moa-r231/**'
+      - '.github/workflows/moa-r233-settings-webview-compile.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.11.1'}
+      - name: Android 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Compile overlay-only Java and DEX for private R229 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/r233/overlay/classes /tmp/r233/overlay/dex build/moa-r233
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/r233/overlay/classes \
+            experiments/moa-r231/source/com/juhyeon/familyjourney/MoaNaverReturnOverlay.java
+          find /tmp/r233/overlay/classes -type f -name 'MoaNaverReturnOverlay*.class' -print0 |
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r233/overlay/dex
+          cp /tmp/r233/overlay/dex/classes.dex build/moa-r233/MoaNaverReturnOverlay.dex
+      - name: Compile full WebView proof + AndroidX dependency runtime DEX
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p experiments/moa-r231/ci/android --no-daemon :app:assembleDebug
+          APK="experiments/moa-r231/ci/android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          python3 - "$APK" <<'PY'
+          import sys,zipfile,pathlib,hashlib,json
+          p=pathlib.Path(sys.argv[1]);o=pathlib.Path('build/moa-r233')
+          with zipfile.ZipFile(p) as z:
+           dex=sorted((n for n in z.namelist() if n.startswith('classes') and n.endswith('.dex')))
+           assert dex,'no runtime dex'
+           for i,n in enumerate(dex):
+            raw=z.read(n);assert raw.startswith(b'dex\n')
+            dest=o/('WebkitRuntimeDex'+str(i+1)+'.dex');dest.write_bytes(raw)
+           allraw=b''.join(z.read(n) for n in dex)
+           for token in (b'MoaNaverWebProbeController',b'MoaNaverWebProbeHost',b'WebViewCompat',b'WebViewFeature'):
+            assert token in allraw,token
+          (o/'runtime-manifest.json').write_text(json.dumps({'status':'JAVA_COMPILE_PASS_ONLY_DEVICE_PENDING','dex_count':len(dex),'dex_sha256':[hashlib.sha256((o/('WebkitRuntimeDex'+str(i+1)+'.dex')).read_bytes()).hexdigest() for i in range(len(dex))]},indent=2))
+          print('R233_RUNTIME_ANDROIDX_DEX=PASS')
+          PY
+      - name: Static JS and preservation checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r231/assets/web/moa-r233-settings.js
+          node --check experiments/moa-r231/assets/web/moa-r233-naver-frame-probe.js
+          python3 experiments/moa-r231/tests/test_contract.py
+          sha256sum build/moa-r233/*.dex > build/moa-r233/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R233-WEBVIEW-DESKTOP-RUNTIME-DEX-NO-PRIVATE-APK
+          path: build/moa-r233/
+          retention-days: 7
