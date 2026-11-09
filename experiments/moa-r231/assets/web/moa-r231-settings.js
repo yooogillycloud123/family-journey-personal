@@ -65,7 +65,17 @@
   const j=JSON.parse(b.naverWebProbeStatus()||'{}');
   const obj=j.counts||{};const names=['saveButton','saveDialogList','saveCommit','createList','listTitle','saveListConfirm'];
   const vals=names.filter(k=>typeof obj[k]==='number').map(k=>k+' '+obj[k]).join(' · ');
-  statusLabel.textContent='상태: '+String(j.state||'대기')+(j.hidden?' · 숨김 연결':'')+(vals?'\n'+vals:'');
+  const phrases={
+   NAVER_APP_OPEN_REQUEST_SUPPRESSED_WEB_ONLY:'네이버 앱으로 이동하라는 요청을 막고 웹 화면을 유지했어요. 이것은 계정 차단이 아닙니다.',
+   NAVER_APP_INSTALL_LANDING_DESKTOP_REQUEST_UNSUCCESSFUL:'네이버가 웹 지도 대신 앱 설치 화면을 보여줍니다. 현재 WebView에서는 지도 저장을 검증할 수 없어요.',
+   EXTERNAL_WEB_NAVIGATION_BLOCKED:'네이버 외부 사이트로 이동하려는 요청을 차단했어요.',
+   NON_HTTPS_NAVIGATION_BLOCKED:'웹 주소가 아닌 이동 요청을 차단했어요.',
+   VISIBLE_DESKTOP_PAGE_FINISHED_UNVERIFIED:'PC용 네이버 웹 페이지가 로드됐습니다. 실제 지도 화면인지 확인해 주세요.',
+   HIDDEN_DESKTOP_PAGE_FINISHED_UNVERIFIED:'숨김 상태의 웹 페이지 로드를 확인했습니다. 실제 지도·저장 기능은 검증 전입니다.',
+   HIDDEN_ATTACHED_UNVERIFIED:'MOA 화면으로 돌아왔습니다. 백그라운드 지도 조작은 아직 검증 전입니다.'
+  };
+  const code=String(j.state||'대기');
+  statusLabel.textContent='상태: '+(phrases[code]||code)+(j.hidden?' · 숨김 연결':'')+(vals?'\n'+vals:'');
  }catch(e){statusLabel.textContent='웹 진단 상태를 읽지 못했어요.'}}
  function mount(){if($(ID))return true;
   const list=document.querySelector('section.page[data-page="settings"] > ul.rows')||document.querySelector('#moa-r117-photo-settings .moa-r117-inner-rows');if(!list)return false;
@@ -91,9 +101,9 @@
    const b=h('button','',title);b.type='button';b.addEventListener('click',()=>save(p));buttons.append(b);}panel.append(buttons);
   panel.append(h('div','r231-heading','현재 설정 미리보기'));
   const pa=h('div','r231-preview-area');preview=h('div','r231-preview');pa.append(preview);panel.append(pa);
-  panel.append(h('div','r231-heading','네이버 웹 연결 실험 · 읽기 전용'));
-  panel.append(h('p','r231-help','처음에는 네이버 로그인 화면이 표시될 수 있습니다. 계정 로그인은 네이버 화면에서 직접 하며 MOA가 비밀번호나 쿠키를 읽지 않습니다. "모아로"를 누르면 화면을 가리고 지도 요소 숫자만 진단합니다. 실제 즐겨찾기 저장이나 새 리스트 생성은 이 실험에 포함되지 않습니다.'));
-  const wb=h('div','r231-probe-actions');for(const [name,code] of [['네이버 웹 연결','visible'],['숨김 진단','hidden'],['실험 종료','stop']]){
+  panel.append(h('div','r231-heading','네이버 PC 웹 연결 진단 · 읽기 전용'));
+  panel.append(h('p','r231-help','기존 네이버지도 앱 로그인은 MOA 웹뷰와 자동 공유되지 않습니다. 이번 실험은 네이버의 앱 설치 안내를 피하기 위해 PC 웹 화면을 요청합니다. 웹에서 로그인이 허용되면 한 번 로그인하고 유지될 수 있지만, 서비스가 웹 접근을 제한할 경우 로그인이나 저장을 강제로 처리하지 않습니다. MOA는 비밀번호나 쿠키를 읽지 않습니다. "모아로"를 누르면 화면을 가리고 지도 요소 숫자만 진단합니다. 실제 즐겨찾기 저장이나 새 리스트 생성은 이 실험에 포함되지 않습니다.'));
+  const wb=h('div','r231-probe-actions');for(const [name,code] of [['PC 웹 연결 진단','visible'],['숨김 진단','hidden'],['실험 종료','stop']]){
    const b=h('button','',name);b.type='button';b.addEventListener('click',()=>probe(code));wb.append(b);}
   panel.append(wb);statusLabel=h('div','r231-state','웹뷰 실험을 시작하지 않았습니다.');statusLabel.style.whiteSpace='pre-line';panel.append(statusLabel);
   li.append(heading,panel);
