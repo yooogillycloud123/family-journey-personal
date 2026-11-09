@@ -165,7 +165,7 @@ public final class MoaR215QuickOverlay {
   GradientDrawable makeBg(int color,int radius,int border){
    GradientDrawable g=new GradientDrawable();g.setColor(color);g.setCornerRadius(dp(radius));g.setStroke(Math.max(1,dp(.85f)),border);return g;
   }
-  int minWidth(){return dp(132);} // only the accessible X target & tiny record hit target, NOT old forced 178dp
+  int minWidth(){return dp(120);} // only the accessible X target & tiny record hit target, NOT old forced 178dp
   int minHeight(){return dp(44);}
   int maxWidth(){return Math.max(minWidth(),Math.min(dp(470),safeRight-safeLeft));}
   int maxHeight(){return Math.max(minHeight(),Math.min(dp(130),safeBottom-safeTop));}
@@ -214,7 +214,7 @@ public final class MoaR215QuickOverlay {
    int dividerW=dp(1),margin=dp(Math.max(2f,3f*scale));
    int rightHit=Math.max(dp(44),Math.min(dp(58),Math.round(width*.27f)));
    // Allocate ~75% of the usable hit surface to Record; the glyph itself stays small.
-   int primaryW=Math.max(dp(65),width-rightHit-pad*2-dividerW-margin*2);
+   int primaryW=Math.max(dp(54),width-rightHit-pad*2-dividerW-margin*2);
    row.setPadding(pad,0,pad,0);
    row.addView(record,new LinearLayout.LayoutParams(primaryW,Math.max(minHeight(),height-dp(4))));
    LinearLayout.LayoutParams sep=new LinearLayout.LayoutParams(dividerW,Math.max(dp(19),Math.round(height*.50f)));
