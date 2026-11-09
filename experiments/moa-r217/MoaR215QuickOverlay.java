@@ -351,7 +351,8 @@ public final class MoaR215QuickOverlay {
     if(primary){
      boolean label=p.getBoolean("text",false)||st.equals("B");
      if(getWidth()<dp(102))label=false; // Never force a huge panel just to fit text.
-     float dotRadius=clampf(base*.30f,dp(7.5f),dp(16));
+     float widthFactor=clampf(getWidth()/(float)dp(100),.74f,1.22f);
+     float dotRadius=clampf(base*.30f*widthFactor,dp(7.5f),dp(16));
      float iconCx=label?Math.max(dp(20),Math.min(dp(29),getWidth()*.26f)):cx;
      int shade=st.equals("F")?0xffff5069:0xffef3157;
      set(shade,Paint.Style.FILL,0);c.drawCircle(iconCx,cy,dotRadius,paint);
