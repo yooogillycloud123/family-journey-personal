@@ -5,6 +5,7 @@
 - **적용 저장소:** `yooogillycloud123/family-journey-personal`의 MOA 제품. 기존 `workexcel-devbridge`의 AA AirPods 오디오·Android Auto 골든에는 영향 없음.
 - **원본 롤백/보존 기준:** **MOA R227 사용자 지정 불변 골든** `com.juhyeon.familyjournea`, versionCode **227**, APK SHA-256 `53c4c04ce32ad13de3c0613f4e5ec7abbc75ccbdfe9db5da05d8fa9b806ec6cd`, 원본 signer cert SHA-256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`. Private Library `/모아_프로젝트_근거_20261103/GOLDEN_R227_20261109/`의 원본 APK/ZIP/130-member CRC·SHA 기록과 frozen source branch `golden/moa-r227-20261109-user-designated-preserve-device-qa-open`는 **절대 변경하지 않는다**.
 - **이전 보존본:** R219 사용자 수락 범위형 골든, R209, R203, R187 모두 별도 불변 보존. R225는 R227 이전 서명 기준본.
+- **필독 현재 구조 레지스트리:** `MOA_R227_CURRENT_MODULE_DEPENDENCY_IMPACT_REGISTER_20261109.md` — R227 APK 실제 130-member 점검, 기능별 소스·Native/Web/데이터 연결, 회귀 영향, 설정 키와 미확인 사항의 **초기 기준**. 향후 릴리스마다 반드시 갱신한다.
 - **독서 순서:** ① `workexcel-devbridge/main/AA_AirPods_FINAL_READ_FIRST_v1.0_20261005.md` 전체 → ② `family-journey-personal/main/MOA_READ_FIRST_NEW_CHAT_R227_20261109.md` → ③ `MOA_R227_MASTER_HANDOFF_FOR_NEW_CHAT_20261109.md` → ④ `MOA_R227_USER_DESIGNATED_GOLDEN_LOCK_20261109.md` + WIP/Release Ledger/R227 detailed handoff → **⑤ 이 문서 전체** → ⑥ 해당 기능의 변경 영향 지도/최신 검증 자료 및 개인 Library 파일. 이 문서는 과거 인수인계를 대체하거나 골든 바이너리 기준을 바꾸지 않고 추가한다.
 
 ---
