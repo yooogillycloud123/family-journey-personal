@@ -1,0 +1,9 @@
+plugins { id 'com.android.application' }
+android {
+  namespace 'com.juhyeon.familyjourney.r231probe'
+  compileSdk 35
+  defaultConfig { applicationId 'com.juhyeon.familyjourney.r231probe'; minSdk 29; targetSdk 35; versionCode 1; versionName 'test' }
+  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+  sourceSets { main.java.srcDirs = ['../../../../source'] }
+}
+dependencies { implementation 'androidx.webkit:webkit:1.12.1' }
