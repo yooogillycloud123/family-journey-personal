@@ -1,0 +1,79 @@
+name: MOA R229 NAVER Return Overlay + AndroidX WebView Read-only Compile
+on:
+  push:
+    branches: [feature/moa-r229-nav-return-qa-gated-20261109]
+    paths:
+      - 'experiments/moa-r229-native/**'
+      - '.github/workflows/moa-r229-nav-overlay-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source_compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install Android SDK API 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Preserve frozen R227 source and validate minimal changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 experiments/moa-r229-native/tests/test_integrity.py | tee r229-static.log
+      - name: Compile complete R229 Gallery + native return overlay with original host signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa229/src/com/juhyeon/familyjourney /tmp/moa229/classes /tmp/moa229/dex build/moa-r229
+          cp experiments/moa-r229-native/MoaNativeGallery.java /tmp/moa229/src/com/juhyeon/familyjourney/MoaNativeGallery.java
+          cp experiments/moa-r229-native/src/com/juhyeon/familyjourney/MoaNaverReturnOverlay.java /tmp/moa229/src/com/juhyeon/familyjourney/
+          cp experiments/moa-r175/MoaMomentAudioHostActivity_native_unified_gallery.java.txt /tmp/moa229/src/com/juhyeon/familyjourney/MoaMomentAudioHostActivity.java
+          cat > /tmp/moa229/src/com/juhyeon/familyjourney/MoaMomentVoiceHostActivity.java <<'JAVA'
+          package com.juhyeon.familyjourney;
+          class MoaMomentVoiceHostActivity extends android.app.Activity {}
+          JAVA
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa229/classes \
+            /tmp/moa229/src/com/juhyeon/familyjourney/*.java \
+            > build/moa-r229/compile-gallery-overlay.log 2>&1 || { tail -100 build/moa-r229/compile-gallery-overlay.log; exit 1; }
+          find /tmp/moa229/classes -type f -name '*.class' -print0 | xargs -0 \
+            "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 \
+            --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa229/dex \
+            >> build/moa-r229/compile-gallery-overlay.log 2>&1
+          python3 - <<'PY'
+          import pathlib,hashlib,json
+          d=pathlib.Path('/tmp/moa229/dex/classes.dex').read_bytes()
+          assert d.startswith(b'dex\n')
+          for x in [b'MoaNaverReturnOverlay',b'MoaNativeGallery',b'r227RetainForExternalMap',b'r227ResumeFromExternalMap']:
+            assert x in d,x
+          p=pathlib.Path('build/moa-r229')
+          (p/'native-overlay-dex-sha256.txt').write_text(hashlib.sha256(d).hexdigest()+'\n')
+          (p/'source-compile-gate.json').write_text(json.dumps({'gallery_java_compile':'PASS','isolated_overlay_compile':'PASS','dex_basic_validation':'PASS','actual_signed_Apk':'NOT_BUILT','naver_real_device_return':'NOT_TESTED','naver_real_account_favorite_write':'NOT_IMPLEMENTED'},indent=2))
+          PY
+      - name: Compile isolated AndroidX WebKit WebView frame probe (no navigation auto-write)
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p experiments/moa-r229-native/probe-android --no-daemon compileDebugJavaWithJavac \
+            > build/moa-r229/compile-webview-probe.log 2>&1 || { tail -120 build/moa-r229/compile-webview-probe.log; exit 1; }
+          test -n "$(find experiments/moa-r229-native/probe-android/build -name 'MoaNaverWebProbeHost.class' -print -quit)"
+          echo 'WEBVIEW_PROBE_JAVAC=PASS' >> build/moa-r229/compile-webview-probe.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R229-NAV-ISOLATED-SOURCE-COMPILE-RESULTS-NO-APK
+          path: |
+            r229-static.log
+            build/moa-r229/
