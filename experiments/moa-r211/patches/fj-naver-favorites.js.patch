@@ -1,0 +1,57 @@
+--- R209/fj-naver-favorites.js
++++ R211/fj-naver-favorites.js
+@@ -76,10 +76,36 @@
+    const id=++seq;pending.set(id,cb);root.NativeHost.post('reverseAddress',JSON.stringify({id,lat:p.lat,lon:p.lon}));
+    setTimeout(()=>{if(pending.has(id)){pending.delete(id);cb({error:'timeout'});}},18000);
+  }
++  // R211: all GPS/Naver place photos share the R209 Diary native gallery.
++  // The sheet is an explicit opt-in; no sheet is created when OFF or unset.
++  function r211PlaceSheetEnabled(){
++    try { return localStorage.getItem('moa.gallery.return.sheet.v1')==='on'; }
++    catch (_) { return false; }
++  }
++  function r211NativeId(raw){
++    const id=String(raw==null?'':raw);
++    if(/^[0-9]{1,18}\|v$/.test(id))return 'v'+id.slice(0,-2);
++    return /^v?[0-9]{1,18}$/.test(id)?id:'';
++  }
++  function r211OpenNative(ids,index){
++    const valid=(ids||[]).map((x,i)=>({id:r211NativeId(x),i})).filter(x=>!!x.id);
++    if(!valid.length||typeof root.MoaLocalAudio?.openNativeGallery!=='function')return false;
++    const at=Math.max(0,Math.min((ids||[]).length-1,Number(index)||0));
++    const selected=Math.max(0,valid.findIndex(x=>x.i>=at));
++    const start=Math.max(0,Math.min(selected-4500,Math.max(0,valid.length-10000)));
++    try{return !!root.MoaLocalAudio.openNativeGallery(JSON.stringify(valid.slice(start,start+10000).map(x=>x.id)),selected-start,'');}
++    catch(e){console.warn('R211 Naver native gallery unavailable',e);return false;}
++  }
+  // This gallery uses only Android MediaStore thumbnails, never remote image URLs.
+  function openInternalFullGallery(ids, initialIndex, place){
+-   ids=ids.filter(id=>/^\d{1,18}$/.test(id));
+-   if(!ids.length)return;
++    // Prefer the exact R209 native gallery, even when an explicitly ON place sheet is open.
++    if(r211OpenNative(ids,initialIndex)){
++      if(!r211PlaceSheetEnabled())document.querySelector('#fj-naver-photo-sheet')?.remove();
++      return true;
++    }
++    // No native MediaStore? Preserve prior full-screen viewer as explicit safe fallback.
++    ids=ids.map(id=>String(id)).filter(id=>/^\d{1,18}$/.test(id));
++    if(!ids.length)return false;
+    document.querySelector('#fj-naver-photo-full')?.remove();
+    const shell=document.createElement('div');shell.id='fj-naver-photo-full';
+    shell.setAttribute('role','dialog');shell.setAttribute('aria-modal','true');
+@@ -251,7 +277,14 @@
+  }
+  async function showPhotos(p){
+    let old=document.querySelector('#fj-naver-photo-sheet');if(old)old.remove();
+-   const ids=[...new Set((p.photoIds||[]).map(v=>String(v).replace(/\|v$/,'')))].slice(0,180);
++   const ids=[...new Set((p.photoIds||[]).map(v=>String(v)))].slice(0,180);
++    if(!r211PlaceSheetEnabled()){
++      document.querySelector('#fj-naver-photo-sheet')?.remove();
++      if(r211OpenNative(ids,0))return;
++      // Offline/cloud fallback may show FULL-SCREEN media, never an OFF bottom sheet.
++      openInternalFullGallery(ids,0,p.verifiedName||p.region||'방문 장소');
++      return;
++    }
+    const sheet=document.createElement('div');sheet.id='fj-naver-photo-sheet';
+    sheet.setAttribute('role','dialog');sheet.setAttribute('aria-modal','true');
+    sheet.style.cssText='position:fixed;inset:0;background:#0009;z-index:99998;display:flex;align-items:flex-end;justify-content:center';
