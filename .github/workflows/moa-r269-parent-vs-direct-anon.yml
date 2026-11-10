@@ -6,7 +6,7 @@ on:
       - experiments/moa-r269-android-webview-frame-test/ci_compare_parent_vs_direct.py
       - .github/workflows/moa-r269-parent-vs-direct-anon.yml
   workflow_dispatch:
-permissions: {contents: read}
+permissions: {contents: read, issues: write}
 jobs:
   compare_real_first_party_public_ui:
     runs-on: ubuntu-24.04
@@ -28,3 +28,24 @@ jobs:
           name: MOA-R269-REAL-PUBLIC-PARENT-VS-DIRECT-ANON-PROOF
           path: MOA_R269_PARENT_VS_DIRECT_ANON_BROWSER_PROOF.json
           if-no-files-found: warn
+      - name: Index anonymous pass or failure without private data
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo '### R269 real NAVER anonymous embedded-vs-standalone A/B' > /tmp/r269_ab_gate.md
+          echo "CI: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> /tmp/r269_ab_gate.md
+          if [ -f MOA_R269_PARENT_VS_DIRECT_ANON_BROWSER_PROOF.json ]; then
+            python - <<'PY' >> /tmp/r269_ab_gate.md
+          import json
+          j=json.load(open('MOA_R269_PARENT_VS_DIRECT_ANON_BROWSER_PROOF.json'))
+          for r in j['results']:
+              print(f"{r['case']}: place_dom={r.get('child_found')}; click={r.get('click_method','NONE')}; popup={r.get('popup_count','UNVERIFIED')}; login_text={r.get('after',{}).get('loginText','UNVERIFIED')}; gate={r.get('failure_gate')}")
+              print(f"trust_events={r.get('after',{}).get('events',[])}; parent_message_origins={r.get('parent_message_origins',[])}")
+          print("No NAVER account login, write, folder creation or readback was performed. NEVER label this as saved.")
+          PY
+          else
+            echo 'No artifact; browser test did not produce readable result.' >> /tmp/r269_ab_gate.md
+          fi
+          gh issue comment 9 --repo "$GITHUB_REPOSITORY" --body-file /tmp/r269_ab_gate.md
