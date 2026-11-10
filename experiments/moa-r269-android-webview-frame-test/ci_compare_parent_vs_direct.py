@@ -82,6 +82,23 @@ async def run_case(browser, key, url):
               window.__moaParentMessageOrigins.push(e.origin);
           },true);
         }""")
+        # Public-only parent navigation topology: no credentials or personal data.
+        if key=="parent":
+            result["nav_ui"]=await page.main_frame.evaluate("""() => {
+              const all=[...document.querySelectorAll('button,a,[role=button],[role=tab]')];
+              const text=e=>(e.textContent||'').trim().replace(/\\s+/g,'');
+              const inNav=e=>!!e.closest('nav,header,aside,[role=navigation]');
+              const save=all.filter(e=>text(e)==='저장');
+              const iframes=[...document.querySelectorAll('iframe')];
+              return {oldButtonNavbar:document.querySelectorAll('button.btn_navbar').length,
+                oldAnchorNavbar:document.querySelectorAll('a.btn_navbar').length,
+                exactSaveControls:save.length,
+                exactSaveInNav:save.filter(inNav).length,
+                exactSaveAnchors:save.filter(e=>e.tagName==='A').length,
+                namedLegacyListFrame:document.querySelectorAll('iframe[name="myPlaceBookmarkFolderListIframe"]').length,
+                pagesMapFrame:iframes.filter(x=>{try{return new URL(x.src).origin==='https://pages.map.naver.com'}catch(_){return false}}).length,
+                frameNames:iframes.map(x=>x.name||'').filter(x=>x.length>0).slice(0,14)};
+            }""")
         result["before"]=await frame_data(child)
         locator=child.locator(SAVE).first
         try:
