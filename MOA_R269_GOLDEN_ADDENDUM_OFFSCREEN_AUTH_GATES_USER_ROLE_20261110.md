@@ -129,3 +129,20 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - 네이버 공식 고객센터 [자동입력방지 안내](https://help.naver.com/service/5640/contents/1024?lang=ko&osType=COMMONOS)는 과거 아이디·비밀번호 오류 누적, 잘못된 자동완성 입력, 기기·네트워크 장애 등을 가능한 이유로 제시. **사용자 계정에 비밀번호 오류가 있었다고 단정 금지**. 기존 모바일 브라우저에서 정상이었다는 사용자 보고와 충돌하지 않도록 계정 단정 대신 임베디드 환경 비교 우선.
 - 다음 작업의 안전한 한 변수 비교: 네이버 로그인 시에만 별도 앱 소유 WebView를 **실제 기본 Android UA**로 새로 띄우는 인증 UI 연구를 하되, 웹사이트 자체 보안장치·확인문제를 우회/자동풀이하지 않고, 개인 식별정보·쿠키·토큰·보안답·요청본문을 수집/기록하지 않음. 브라우저 인증 UI 동작과 실제 계정 저장 성공은 독립 게이트. 필요 시 정상 시스템 브라우저 Custom Tab으로 수동 로그인하는 접근을 제공하되 **시스템 브라우저 쿠키는 MOA WebView로 자동 전송/공유되지 않음**, 무음·비점유 백그라운드 저장의 해답인 것처럼 소개 금지.
 - **현재 상태**: R279 실기기 추가 인증 진행 **FAIL/OPEN**, 네이버 로그인/장소·리스트·별명·메모 저장 및 독립 계정 조회 전부 미확인. R279/R281 기존 서명·설치 파일은 재발급 없이 그대로 보존, 사용자 R269 원본 Golden APK SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920` 불변. 로그인 실패 반복이나 사용자 보안설정 해제·강제 비밀번호 변경을 요청하지 않음.
+
+
+---
+
+## 11. R283 — 공식 로그인 Android 기본 UA 한정 전환, R285/R287 순방향 복구
+**작성일 2026-11-11 KST. R279 실기기 영수증 추가인증 실패를 해결하기 위한 설치형 후보. 실제 본인 인증 성공/서버 쓰기는 아직 NOT PASS.**
+
+1. **수정 원인 가설 (확정 아님):** R279 MOA-owned WebView는 Android 단말인데 `Windows NT 10.0; Chrome/131` 고정 UA로 네이버 PC 지도와 공식 `nid.naver.com` 로그인을 함께 열었다. NAVER 보안 챌린지 반응 실패 원인이 이 불일치인지 미검증. 기존 쿠키/JS/DOM/WebChromeClient 활성화 상태는 유지.
+2. **R283 엄격한 최소 수정:** 기존 사용자가 눌러 여는 공식 지도 `map.naver.com` 상위 문서는 PC UA를 유지하고, **오직 https://nid.naver.com 공식 HTTPS 호스트의 인증 메인 프레임** 탐지 시 `WebSettings.setUserAgentString(null)`을 사용해 기기 자체 Android WebView 기본 UA로 되돌린다. 인증 중인 로딩을 한번 중단한 뒤 *기존 받은 공식 URL 그대로 한 번* 재개한다. `shouldOverrideUrlLoading`에서 먼저 처리하고, redirect가 이를 건너뛰면 `onPageStarted`로 보완. WebViewClient 안의 `nativeAuthUaSelected` boolean으로 같은 세션 중 재실행 루프 방지. `NAVER_AUTH_NATIVE_ANDROID_UA_MANUAL_ONLY` 상태는 **정보표시만 하며 인증/저장 성공이 아님**.
+3. **보안/개인정보:** 로그인 폼/영수증 문제 내용/비밀번호/OTP/쿠키/개인 데이터 탐지·전송·로그 없음. `nid.naver.com` 페이지에는 기존 진단용 JS를 실행하지 않음. 공식 로그인, 사용자가 직접 인증. CAPTCHA 자동 해결, 쿠키 복사, 비공개 API, 보안 우회 없음. 정상 앱 데이터/IDB/사진/M4A 삭제 없음. 승인하지 않은 자동 저장 없음.
+4. **같은 서명 설치 가능 후보:** `MOA_R283_OFFICIAL_NAVER_ANDROID_UA_LOGIN_BETA.apk` 8,916,258 B, SHA256 `f6391c3d388f10438b0366c587f64e95a133d268920320bd5939b835eb76cff0`, package `com.juhyeon.familyjournea` versionCode283, 원본 인증서 SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`. R279 대비 바뀐 비서명 엔트리는 **AndroidManifest.xml / classes13.dex / assets/web/moa-r231-settings.js 세 개뿐**. R279의 기존 R269 복귀 DEX/classes2.dex/classes6.dex, 사진/음성/갤러리/일기 등 다른 앱 내용은 바이트 동일.
+5. **순방향 복구 (미검증):** `MOA_R285_RECOVER_TO_R279_FEATURES.apk` code285 SHA256 `08982e3d50ca3c875e2a2628f5ae4a82583444087b784999e9e3ffb540dd4d56`는 기존 R279 기능 재현 후보; `MOA_R287_EMERGENCY_R269_FEATURE_EQUIVALENT.apk` code287 SHA256 `2317ed5a97a548ac6c6b08ffad12186fdc76726a2f393be506ea7ec80b427a19`는 R269의 *보관된 복귀 패치*를 R265 원본에 적용한 기능 동등 후보. 둘 다 실제 사용자 지정 **정확한 R269 골든 바이너리**가 아니고 실기기 QA 전; 앱 삭제/데이터 초기화/서명 변경/버전 다운그레이드 금지.
+6. **현재 정적 검증:** apktool 2.12.1 재컴파일 PASS; 원본 v2 APK 인증서/ZIP 정렬·CRC/16 DEX SHA-1+Adler32/바이너리 패키지·버전/JS Node syntax PASS. R283 대비 R279 비서명 변경 엔트리 정확히 세 개; `nid.naver.com` host+HTTPS 정확 비교, 공식 인증 URL 1회 재개 설계 소스 확인 PASS. Android 공식 WebSettings 문서에 따르면 UA 교체 중 추가 페이지 로드가 일어날 수 있으므로 `stopLoading` 후 1회 명시적인 재개 및 보호 플래그로 대응.
+7. **절대 경계:** 위 정적 PASS는 NAVER 로그인/영수증 확인/인증 서빙/지도 서버 계정 저장/리스트 생성/별명·메모/readback/갤럭시 R283 구동 성공을 의미하지 않는다. 온라인 서비스 정책으로 비내장 브라우저 로그인이 거부될 수 있음. 안 되면 동일 보안문제 입력 반복 금지, 사용자 공식 네이버 앱/Chrome 로그인 확인 후 네이버 공식 지원 문의. 새로운 Android WebView 테스트는 실제 Galaxy에서 사용자 참여로 1회 시도 후 판정.
+8. **프로젝트 보호:** 사용자 지정 R269 Golden code269 SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920`, R227 Golden, AirPods/AndroidAuto 프로젝트 모두 불변. 본 기록은 **Golden 부록 문서에만 추가**. R283/R285/R287 서명키는 비공개 Library/로컬에서만 사용했고 공개 GitHub에 저장하지 않음.
+
+**다음 실제 기능 게이트:** (가) Galaxy R283 기존 기능 회귀 + 실제 로그인 화면 확인 → (나) Android UA 인증 정상 여부 → (다) 사용자 본인 공식 로그인 1회 → (라) 같은 MOA 앱으로 인증 쿠키 지속 → (마) 정확한 장소 SID/리스트/별명/메모 쓰기와 별도 재조회. 현재 (가)~(마) 미검증.
