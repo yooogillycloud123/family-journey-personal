@@ -45,3 +45,29 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - 최소: **실제 Android WebView 네이버 페이지 PASS → 본인 정식 인증 PASS → 폴더 만들기/정확한 장소·별명·메모 저장 PASS → 계정 readback PASS → 기존 MOA 회귀 PASS**.
 - 소스 컴파일/모의 CI PASS는 계정 저장 PASS를 대체할 수 없다.
 - 기존 점유형 저장이 되는 상태를 절대로 미검증 비점유 구현으로 바꾸지 않는다.
+
+---
+
+## 6. 2026-11-10 추가 실측 — R269 비점유 WebView Android35 네이티브 터치/신뢰된 클릭 (기존 골든 파일은 불변)
+
+> **기존 문서의 앞선 에뮬레이터 부팅 FAIL(42804245257) 서술은 과거 시점의 상태다.** 이후 CI에서 KVM 접근/쉘 스크립트 등을 수정해 에뮬레이터를 실제 기동했다. 아래 날짜·run별 새 실측을 최신 증거로 사용한다. 소스 빌드 PASS와 NAVER 실제 계정 저장 PASS는 엄격히 구별한다.
+
+### 실측 근거와 성공 범위
+
+- [42812425818](https://github.com/yooogillycloud123/family-journey-personal/actions/runs/42812425818) **SUCCESS**: Android 35 실제 에뮬레이터 WebView에서 네이버 Place 원본 상세 URL `https://pcmap.place.naver.com/place/1628573942/home` 로딩, 실제 장소별 저장 버튼 `a[data-nlog-area="map_btp.save"]` 탐지. WebView를 정상 크기에서 **2×2픽셀**로 줄여도 `saveCount=1`, 본문 DOM 유지. 해당 버튼의 익명 JS `.click()` 호출 실행은 확인했지만 이후 `dialogCount=0;loginTextVisible=false`. **인증·계정 저장 아님**.
+- [42822792604](https://github.com/yooogillycloud123/family-journey-personal/actions/runs/42822792604) **SUCCESS**: 직전 JS 실험 영향을 배제하기 위해 Place 문서 새로고침 후, 모아를 모사한 **완전 불투명하고 사용자 터치가 가능한 전경 커버** 뒤에서 동일 앱 소유 WebView에 Android `MotionEvent.ACTION_DOWN/ACTION_UP` 전달. `NATIVE_TOUCH_SENT`, `NATIVE_TOUCH_POST_UI`, `MOA_COVER_CLICK` 확인. 전달 후 `pressed=false;dialogs=0;loginTextVisible=false`. 모의 화면이 조작 가능한 것과 네이버가 장소를 저장하는 것은 서로 다른 검증 항목.
+- [42824267351](https://github.com/yooogillycloud123/family-journey-personal/actions/runs/42824267351) **SUCCESS**, 원시 Android Logcat 재확인: `NATIVE_TOUCH_OBSERVER_READY "installed"`; `downHandled=true;upHandled=true`; 정확한 **저장 링크**에서 `pointerdown:trusted=true,touchstart:trusted=true,click:trusted=true`; `navigator.userActivation.hasBeenActive=true`. 즉 **같은 앱 내부 WebView의 저장 링크에 실제 trusted 클릭 이벤트가 발생했고, 전경 모아 모의 커버도 터치 입력을 받았다**. 그러나 이후 `pressed=false;dialogs=0;loginTextVisible=false`이며 `AUTH_POPUP_REQUESTED` 없음. **저장 처리·공식 로그인·계정 쓰기/조회는 전혀 증명되지 않음**.
+- **메인 지도 호스트와 Place 상세 호스트를 구분**: `map.naver.com/p/entry/place/...`은 해당 Android 에뮬레이터에서 `MAIN_ERROR -2`(DNS/호스트 조회)였으나, `pcmap.place.naver.com/place/.../home`은 실제 DOM까지 로딩. 원인 불명의 메인 페이지 실패를 장소 상세 성공과 혼동하거나 R241 `ERR_TOO_MANY_REDIRECTS`가 모두 해결됐다고 말하지 않는다.
+- [42824149532](https://github.com/yooogillycloud123/family-journey-personal/actions/runs/42824149532)는 **중간 CI run 취소**(컴파일 단계에서 취소)되어 실기능 PASS/FAIL의 증거가 아니다. 정상 완료한 위 세 run만 성공 범위에 사용한다.
+
+### 로그인·실계정 사용자 협조 — 무엇을 했고, 무엇이 아직 필요한가
+
+- **지금까지 사용자의 네이버 아이디/비밀번호, 네이버 앱 세션, 로그인 쿠키, OTP, 개인 계정은 한 번도 사용하지 않았다.** 사용자 본인 계정에는 실제 장소/리스트/별명/메모를 써보지 않았다. 연구는 무로그인 익명 Android 에뮬레이터/공개 Place 페이지만 사용.
+- **지금 당장 사용자가 로그인하거나 보조 APK를 설치할 필요 없음.** 모아 내부에 정식 네이버 웹 로그인·저장 UI가 안전하게 동작하는 통합 후보가 확보되고, 본인 실계정 검증이 반드시 필요한 지점에 도달했을 때만 **본인 Galaxy의 공식 네이버 로그인 화면에서 직접 1회 로그인/추가 인증**. 채팅·GitHub·테스트 로그로 비밀번호/OTP/쿠키/인증 토큰을 전달하지 않는다.
+- 그 뒤 테스트용 장소 **정확한 SID+기존/신규 리스트+별명+메모** 1건을 사용자가 승인한 상태에서 저장하고, 별도 네이버 계정 목록 **독립 재조회 일치**까지 증명해야 `NAVER_READBACK_VERIFIED` 및 저장 완료 가능. 단순 클릭, native dispatch, trusted click, UI toast는 절대 대신하지 않는다.
+
+### 기존 보호선과 다음 검증 게이트
+
+- 연구 브랜치 `research/moa-r269-webview-kvm-frame-gate-20261110`의 Java/Android35 CI만 변경. [중단 작업 인수 문서](https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R269_RESUME_NATIVE_GESTURE_AB_GATE_20261110.md), [실험·진단 추적 이슈 #9](https://github.com/yooogillycloud123/family-journey-personal/issues/9).
+- 미해결: 네이버 서비스 측 저장 동작/공식 인증 화면/개인 장소 데이터 쓰기, 새로운 리스트 생성, 별명·메모, 독립 서버 readback, 원래 `com.juhyeon.familyjournea`에 통합한 원본 서명 APK, 실제 Galaxy 회귀 검증.
+- **골든은 계속 불변:** R269 user-designated code269 APK **8,932,642B SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920`**. R227 및 기존 일기/갤러리/바로기록/전경 네이버 저장/↶MOA 복귀 보호. 골든 APK·잠금 문서·원본 서명/사진·개인 데이터는 변경하지 않고 **이 부록 문서만 갱신**.
