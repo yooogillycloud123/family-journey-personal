@@ -40,3 +40,13 @@
 - Research original Android WebView source `experiments/moa-r269-android-webview-frame-test/`
 - CI `https://github.com/yooogillycloud123/family-journey-personal/actions/workflows/moa-r269-android-webview-frame-test.yml`
 - AndroidX WebKit docs `https://developer.android.com/reference/androidx/webkit/WebViewCompat`
+
+## 2026-11-10 추가 실측 — 실제 네이버 장소 저장 버튼 DOM 발견
+- Actions [#42811224085](https://github.com/yooogillycloud123/family-journey-personal/actions/runs/42811224085): Android35 emulator KVM boot, actual Android WebView, `WebViewCompat` per-origin frame messaging PASS.
+- PC parent `map.naver.com/p/entry/place/1628573942`: 실제 `FRAME_CHILD pcmap.place.naver.com saveCount=1;bodyLen=863;errorDocument=false`. 상위 내비게이션 '저장'이 아니라 정확히 자식 프레임의 `a[data-nlog-area="map_btp.save"]` 감지.
+- 같은 부모 WebView를 **2×2픽셀** 축소 후에도 `FRAME_CHILD pcmap.place.naver.com saveCount=1;bodyLen=863;ready=complete` 반복. 사용자 화면 점유 없이 JS/DOM 읽기 지속되는 실증 단서.
+- 직접 `https://pcmap.place.naver.com/place/1628573942/home` Android WebView: `FRAME_TOP ... saveCount=1;bodyLen=1089;ready=complete`; 2×2 축소 후에도 `FRAME_TOP ... saveCount=1;bodyLen=1087` 확인. **PC 부모 우회가 가능한 직접 장소 경로**를 실측 확보.
+- CI 최종 exit는 **false-negative FAIL**: 쉘 single-quoted 정규식에 과잉 백슬래시 `pcmap\\.place`가 사용돼 실제 `pcmap.place` 로그를 놓침. 계정 저장 오류/브라우저 UI 실패 아님. `pcmap[.]place[.]naver[.]com`으로 수정한 별도 커밋 `7a11418095928d8973e59f4e1474d19825be4524`.
+- `ping example.com`과 `ping map.naver.com`은 해당 CI에서 여전히 `unknown host`. 그러나 **실제 WebView는 Place 본문 DOM과 저장 버튼을 로딩**했으므로 ping 실패만으로 브라우저 네트워크 차단을 단정할 수 없다. 실기기 계정 인증/저장 여부는 별도 검증 필요.
+- 다음 익명/no-account 실험: 저장 버튼을 WebView 축소(2×2) 상태에서 **인증 전 단 한 번** 눌러 공식 로그인 진입/팝업 경로를 살핀다. CI 에뮬레이터는 NAVER 로그인 정보가 없고, 네이버 로그인/계정 저장/쿠키 추출은 하지 않는다.
+- **절대 아님:** 서버 저장, 리스트 생성, 별명/메모 저장, 독립 실계정 readback, MOA R269 통합 signed APK. 이것들이 모두 남아 있으며 최종 완료/골든 승격 금지.
