@@ -1,0 +1,54 @@
+name: MOA R243 Android-only GeckoView Naver PC map device evidence
+on:
+  push:
+    branches: [feature/moa-r243-gecko-device-probe-20261110]
+    paths: ['experiments/moa-gecko-device-probe/**','.github/workflows/moa-r243-gecko-device-probe.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  device_probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+      - name: Install SDK36
+        run: |
+          set -euxo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Build independent Android browser probe (NOT MOA production)
+        run: gradle -p experiments/moa-gecko-device-probe --no-daemon --stacktrace :app:assembleDebug
+      - name: Test public NAVER PC map on Android 35 emulator, never log in
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          script: |
+            set -euxo pipefail
+            APK=experiments/moa-gecko-device-probe/app/build/outputs/apk/debug/app-debug.apk
+            adb install "$APK"
+            adb shell am start -n com.juhyeon.moa.geckoprobe/.ProbeActivity
+            sleep 50
+            mkdir -p /tmp/moa-gecko-qa
+            adb logcat -d -v time -s MOA_GECKO_PROBE:I AndroidRuntime:E > /tmp/moa-gecko-qa/filtered-logcat.txt || true
+            adb exec-out screencap -p > /tmp/moa-gecko-qa/screen.png || true
+            cat /tmp/moa-gecko-qa/filtered-logcat.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: R243-gecko-public-navermap-device-proof-not-user-release
+          path: |
+            /tmp/moa-gecko-qa/*
+            experiments/moa-gecko-device-probe/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
