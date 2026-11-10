@@ -1,0 +1,30 @@
+name: MOA NAVER mobile page access matrix — NO LOGIN / NO USER DATA
+on:
+  push:
+    branches: [research/moa-native-automatic-naver-favorites-canonical-20261110]
+    paths:
+      - 'experiments/moa-naver-mobile-routes/ci_probe.py'
+      - '.github/workflows/moa-naver-mobile-routes.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public_mobile_routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Install Playwright Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install chromium --with-deps
+      - name: Compare Android-UA and desktop route behavior without NAVER login
+        run: python experiments/moa-naver-mobile-routes/ci_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-NAVER-mobile-public-route-evidence-NO-AUTH
+          path: MOA_NAVER_MOBILE_ROUTES_NO_LOGIN_20261110.json
+          if-no-files-found: warn
