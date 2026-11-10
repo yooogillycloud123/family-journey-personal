@@ -1,0 +1,19 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.juhyeon.moa.geckoprobe'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.juhyeon.moa.geckoprobe'
+        minSdk 29
+        targetSdk 35
+        versionCode 1
+        versionName 'proof-only'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+dependencies {
+    implementation 'org.mozilla.geckoview:geckoview-x86_64:159.0.20261022150525'
+}
