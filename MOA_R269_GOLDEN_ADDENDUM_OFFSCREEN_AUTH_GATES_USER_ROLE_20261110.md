@@ -71,3 +71,16 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - 연구 브랜치 `research/moa-r269-webview-kvm-frame-gate-20261110`의 Java/Android35 CI만 변경. [중단 작업 인수 문서](https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R269_RESUME_NATIVE_GESTURE_AB_GATE_20261110.md), [실험·진단 추적 이슈 #9](https://github.com/yooogillycloud123/family-journey-personal/issues/9).
 - 미해결: 네이버 서비스 측 저장 동작/공식 인증 화면/개인 장소 데이터 쓰기, 새로운 리스트 생성, 별명·메모, 독립 서버 readback, 원래 `com.juhyeon.familyjournea`에 통합한 원본 서명 APK, 실제 Galaxy 회귀 검증.
 - **골든은 계속 불변:** R269 user-designated code269 APK **8,932,642B SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920`**. R227 및 기존 일기/갤러리/바로기록/전경 네이버 저장/↶MOA 복귀 보호. 골든 APK·잠금 문서·원본 서명/사진·개인 데이터는 변경하지 않고 **이 부록 문서만 갱신**.
+
+
+---
+
+## 7. 2026-11-10 추가 검증 — 첫 공식 NAVER 로그인 UI 진입(무로그인, 개인계정 저장 미수행)
+
+- **정확한 검증 도구/실행:** 실 네이버 PC 공개 지도 Playwright Chromium headless, GitHub Actions [42829152141](https://github.com/yooogillycloud123/family-journey-personal/actions/runs/42829152141) `SUCCESS`; 무로그인 익명 공개 Place SID `1628573942` A/B 테스트. 원시 JSON Artifact SHA256 `ed67b7ff3f15f53024c4f5fed43fcfab7dff429f48d3c9af5d824c85d96136aa` (Workflow artifact ZIP, 비공개 사용자 데이터 없음).
+- **정상 부모/자식 구조 A (로그인 진입 PASS):** `https://map.naver.com/p/entry/place/1628573942` 의 `https://pcmap.place.naver.com/place/1628573942/home` iframe 내부, 실제 `a[data-nlog-area="map_btp.save"]` 버튼이 존재함을 확인. Playwright 신뢰된 브라우저 네이티브 클릭 후 기존 Place iframe 분리, **최상위 NAVER 지도 페이지가 정식 로그인 주소 `https://nid.naver.com/nidlogin.login`으로 이동** (`parent_after` 및 `frames_after` 값, `visible_login_ui_any_frame=true`). 계정 비밀번호 입력/로그인·저장 없음.
+- **독립 장소 페이지만 열었을 때 B (저장 동작 미진행):** `https://pcmap.place.naver.com/place/1628573942/home`만 최상위 로딩하면 `pointerdown/mousedown/click:trusted=true`였지만 `navigation_changed=false`, `visible_login_ui_any_frame=false`, `pressed=false`. 단독 페이지와 **공식 네이버지도 부모 iframe 통합 경로는 동등하지 않음**. 기존 모아 연구에서 단독 Place 저장 버튼만 반복 클릭하는 시도는 실계정 자동저장 구현으로 승격 금지.
+- **원인 해석:** 부모/자식 컨텍스트가 로그인/저장 진입에 실질적으로 관여한다는 강한 직접 증거. 다만 내부 JS 로직·인증 서버 정책·실제 개인 즐겨찾기 쓰기에는 아직 추가 검증 필요. `nid.naver.com` 진입은 **로그인 페이지 OPEN PASS**, **로그인 성공/폴더 생성/장소·별명·메모 저장/독립 readback PASS가 아님**.
+- **Android 기기 관문 별도:** Playwright 데스크톱 Chromium의 부모 iframe 공식 로그인 진입과 Galaxy Android WebView의 동등성은 아직 물리 검증되지 않았다. 과거 R241/R233 실기기 루프·Android 에뮬레이터 `map.naver.com` DNS -2를 해결했다고 단정 금지. 연구 브랜치 `research/moa-r269-webview-kvm-frame-gate-20261110`는 프레임 detach 후 로그인/재내비게이션을 안전한 불리언·호스트 값만 기록하도록 수정. 여기까지는 소스/CI 증거이며 사용자 설치용 동일서명 MOA APK 아님.
+- **사용자 참여:** 현재까지 본인 네이버 계정·쿠키·비밀번호·OTP **0건 사용**. 별도 로그인 앱 설치 및 다중 테스트 요구 없음. 실제 MOA 내부 공식 로그인 화면이 테스트 가능한 **같은 앱 설치용 후보**로 준비됐을 때 본인 Galaxy에서 사용자가 직접 로그인·동의하고 1건 readback 테스트가 필요하다. 인증정보를 채팅/로그/GitHub에 제출하지 않는다.
+- **Golden 보존:** R269 원본 `com.juhyeon.familyjournea` versionCode269 SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920`, 기존 잠금문서·R227 별도 Golden·전경 네이버 저장·사진/일기/바로기록·복귀/사용자 데이터 변경 없음. 이번 업데이트는 **Golden 부록 문서만** 증보, FINAL APK/백그라운드 저장 성공 선언 금지.
