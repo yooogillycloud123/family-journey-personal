@@ -24,9 +24,13 @@ jobs:
         run: node experiments/moa-naver-mobile-routes/test_autodraft.cjs
       - name: Compare Android-UA and desktop route behavior without NAVER login
         run: python experiments/moa-naver-mobile-routes/ci_probe.py
+      - name: Inspect unauthenticated Place Save modal without account action
+        run: python experiments/moa-naver-mobile-routes/ci_public_save_modal.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: MOA-NAVER-mobile-public-route-evidence-NO-AUTH
-          path: MOA_NAVER_MOBILE_ROUTES_NO_LOGIN_20261110.json
+          path: |
+            MOA_NAVER_MOBILE_ROUTES_NO_LOGIN_20261110.json
+            MOA_NAVER_PUBLIC_SAVE_MODAL_NO_AUTH.json
           if-no-files-found: warn
