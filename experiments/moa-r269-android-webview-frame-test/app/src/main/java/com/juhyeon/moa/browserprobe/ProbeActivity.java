@@ -127,6 +127,13 @@ public final class ProbeActivity extends Activity {
         "document.querySelectorAll('a[data-nlog-area]').length;})()";
       web.evaluateJavascript(js,result->report("ANON_POST_CLICK_UI",String.valueOf(result)));
     }},124000);
+    // A/B isolation: preceding JS.click() must NOT contaminate the subsequent native touch.
+    // Reload the direct Place document at full size with the same anonymous session.
+    web.postDelayed(()->{if(web!=null){
+      tiny.width=-1;tiny.height=-1;web.setLayoutParams(tiny);
+      report("NATIVE_TOUCH_FRESH_DOCUMENT","reload Place after anonymous JS click");
+      web.loadUrl("https://pcmap.place.naver.com/place/1628573942/home");
+    }},128000);
     // Simulate MOA on top of a FULL-SIZE in-app Naver WebView. Only the owner app
     // dispatches MotionEvent to its own child; never Accessibility/ADB/other apps.
     web.postDelayed(()->{if(web!=null){
@@ -138,8 +145,8 @@ public final class ProbeActivity extends Activity {
       root.addView(cover,new FrameLayout.LayoutParams(-1,-1));
       report("MOA_COVER_ON","full-size Naver behind opaque MOA-owned foreground");
       web.postDelayed(this::attemptNativeTouchOnSave,5500);
-    }},130000);
-    web.postDelayed(()->{if(web!=null)report("POST_NATIVE_TOUCH_HOST",String.valueOf(Uri.parse(web.getUrl()).getHost()));},153000);
+    }},153000);
+    web.postDelayed(()->{if(web!=null)report("POST_NATIVE_TOUCH_HOST",String.valueOf(Uri.parse(web.getUrl()).getHost()));},180000);
   }
   private void attemptNativeTouchOnSave() {
     if(web==null)return;
