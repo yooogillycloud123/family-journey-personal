@@ -50,6 +50,9 @@ jobs:
             adb shell ping -c 1 -W 2 map.naver.com || true
             adb install experiments/moa-r269-android-webview-frame-test/app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -n com.juhyeon.moa.browserprobe/.ProbeActivity
+            # Human-shaped input goes ONLY to the fully opaque MOA mock overlay at t=145s.
+            # This cannot log in or write any NAVER account state.
+            (sleep 145; adb shell input tap 200 200) &
             sleep 165
             adb logcat -d -v time -s MOA_WEBFRAME_PROBE:I AndroidRuntime:E > /tmp/moa-r269-webview-qa/filtered-logcat.txt || true
             adb exec-out screencap -p > /tmp/moa-r269-webview-qa/screen.png || true
@@ -59,6 +62,8 @@ jobs:
             grep -Eq 'FRAME_(TOP|CHILD) pcmap[.]place[.]naver[.]com saveCount=[1-9][0-9]*;bodyLen=[1-9]' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Real Place Save control was not detected; account writer gate remains OPEN'; exit 1; }
             grep -q 'ANON_SAVE_2X2' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Anonymous 2x2 Save-click probe was not executed'; exit 1; }
             grep -q 'NATIVE_TOUCH_SENT' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Own-WebView native touch could not be dispatched behind MOA cover'; exit 1; }
+            grep -q 'NATIVE_TOUCH_POST_UI' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Missing post-touch UI evidence; not a NAVER write PASS'; exit 1; }
+            grep -q 'MOA_COVER_CLICK' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Foreground MOA mock did not receive real Android input'; exit 1; }
             echo 'Android WebView actually started; examine public frame result. This is NOT an account save PASS.'
       - uses: actions/upload-artifact@v4
         if: always()
