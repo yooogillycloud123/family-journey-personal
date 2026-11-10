@@ -56,7 +56,7 @@ jobs:
             cat /tmp/moa-r269-webview-qa/filtered-logcat.txt
             grep -q 'DIRECT_PLACE_START' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Direct Place standalone stage never launched'; exit 1; }
             grep -Eq 'FRAME_CHILD|FRAME_TOP|MAIN_ERROR|WEBKIT_UNSUPPORTED|BLOCK_EXTERNAL' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::No useful WebView frame or network error trace; gate OPEN'; exit 1; }
-            grep -Eq 'FRAME_(TOP|CHILD) pcmap\\.place\\.naver\\.com saveCount=[1-9][0-9]*;bodyLen=[1-9]' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::No proof that the real Place Save control exists in an Android-rendered DOM; do not claim browser writer support'; exit 1; }
+            grep -Eq 'FRAME_(TOP|CHILD) pcmap[.]place[.]naver[.]com saveCount=[1-9][0-9]*;bodyLen=[1-9]' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Real Place Save control was not detected; account writer gate remains OPEN'; exit 1; }
             echo 'Android WebView actually started; examine public frame result. This is NOT an account save PASS.'
       - uses: actions/upload-artifact@v4
         if: always()
