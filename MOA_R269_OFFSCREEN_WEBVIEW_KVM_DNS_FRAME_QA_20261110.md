@@ -50,3 +50,10 @@
 - `ping example.com`과 `ping map.naver.com`은 해당 CI에서 여전히 `unknown host`. 그러나 **실제 WebView는 Place 본문 DOM과 저장 버튼을 로딩**했으므로 ping 실패만으로 브라우저 네트워크 차단을 단정할 수 없다. 실기기 계정 인증/저장 여부는 별도 검증 필요.
 - 다음 익명/no-account 실험: 저장 버튼을 WebView 축소(2×2) 상태에서 **인증 전 단 한 번** 눌러 공식 로그인 진입/팝업 경로를 살핀다. CI 에뮬레이터는 NAVER 로그인 정보가 없고, 네이버 로그인/계정 저장/쿠키 추출은 하지 않는다.
 - **절대 아님:** 서버 저장, 리스트 생성, 별명/메모 저장, 독립 실계정 readback, MOA R269 통합 signed APK. 이것들이 모두 남아 있으며 최종 완료/골든 승격 금지.
+
+## 2026-11-10 익명 2×2 JavaScript 클릭 실측
+- Actions [#42812425818](https://github.com/yooogillycloud123/family-journey-personal/actions/runs/42812425818) **SUCCESS** (컴파일+에뮬레이터+DOM 계측 도달), `FRAME_TOP pcmap.place.naver.com saveCount=1;bodyLen=1089`, 축소 후 `saveCount=1;bodyLen=1087` 재현.
+- 2×2 viewport에서 웹 페이지의 실제 `a[data-nlog-area="map_btp.save"]`에 대해 JS `.click()` 호출: `ANON_SAVE_2X2 "ANONYMOUS_CLICK_ATTEMPTED"` — 호출 자체는 수행됨.
+- 12초 뒤 `ANON_POST_CLICK_UI "dialogCount=0;loginTextVisible=false;saveControlCount=52"`, 로그인 진입 네비게이션/팝업 증거 없음. **JS 호출이 실제 사용자 제스처 또는 인증된 저장 행동으로 인정됐다고 주장 금지**.
+- 다음 연구 코드는 **안드로이드 소유 WebView**를 정상 크기로 유지하면서 그 위에 불투명 MOA 모의 화면을 겹친 뒤, 해당 WebView의 보이는 버튼 위치를 확인하고 `MotionEvent.ACTION_DOWN/ACTION_UP`을 자체 View에만 전달하는 비교 실험. 루트/접근성/타사 앱 조작/로그인 우회/비밀번호 접근 없음. `WebChromeClient.onCreateWindow`로 NAVER 공식 로그인 팝업의 userGesture 요청 여부만 기록하며 새 창을 의도적으로 열지 않음.
+- 실계정 저장·목록·별명·메모 읽기 확인까지는 절대 `NAVER_READBACK_VERIFIED`가 아니다. R269 원본/서명 완전 보존.
