@@ -202,3 +202,18 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - R293는 실계정 자동저장 FINAL이 아니라 실패 경로를 **실제 기기에서 더 정확하게 확인할 진단/보수 베타**. 사용자 본인 계정의 실제 즐겨찾기 리스트·주소/SID·별명·메모 저장 및 독립 서버 readback은 OPEN. 20209/20210만으로 서버 실패 이유까지 확정하지 말 것. 앱 삭제·데이터 초기화·다운그레이드·Golden 인플레이스 수정 금지.
 - 연구 문서: https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R293_VIDEO_CORRELATED_OFFSCREEN_ROUTE_GUARD_20261111.md
 - R269 사용자 지정 원본 Golden SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920, R227, AA AirPods audio 모두 불변.
+
+
+---
+
+## 14. 2026-11-11 R293 실기기 LIST 실패 확정·R297 전체 뷰포트 보수
+
+- 사용자의 실제 R293 비점유 테스트 20219.mp4/20222.mp4 및 20220.png: 네이버 로그인·기존 전경 저장 기능은 정상, 비점유 일기 카드의 결과는 **[비점유] 네이버 화면이 달라져 저장을 중단했습니다**. 설정 DOM read-only counters는 saveButton1, 저장목록/확인/생성 등 0. 이것은 실제 계정 저장 성공이 아니며 '16초간 무응답'이라고 단정해서도 안 됨.
+- 원인 중 확인된 두 가지 소스 설계 결함: (1) R293 첫 phase LIST에서 button.btn_navbar 첫 요소를 선택, 저장목록 iframe 'myPlaceBookmarkFolderListIframe' 고정 가정, 35×550ms 만료 시 NAVER_UI_CHANGED로 광범위하게 반환해 실패 지점을 숨겼음. (2) setHidden에서 네이버 WebView의 shell/holder를 실제 1dp×1dp로 축소해 iframe 전체 렌더링을 보장할 수 없는 구조. 이 두 결함이 각각 이번 실제 저장 실패를 얼마나 설명하는지는 아직 실기기 수정 전/후 비교 필요.
+- 별도 공개 공식 네이버지도 라이브 브라우저 CI 42890803638 SUCCESS: 샘플 Place 부모 PC지도에서 button.btn_navbar=7, 표시명이 정확한 '저장' 컨트롤=1, 구형 이름의 저장 목록 iframe=0. 따라서 구형 목록 메뉴 첫 요소/iframe 이름을 절대 진리로 취급 금지.
+- 로컬 비공개 original-signer **R297** MOA_R297_FULL_VIEWPORT_LIST_STAGE_REPAIR_BETA.apk, code297, 8,879,092 bytes, SHA256 47317bde99b00b6fc609a0c5ac44835753db2aa80b8c47a1521b7faf80bd9697. 기존 패키지 com.juhyeon.familyjournea/서명 cert 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15. R293 대비 변경은 정확히 AndroidManifest.xml, classes13.dex, classes14.dex, assets/web/moa-r231-naver-frame-probe.js, assets/web/fj-naver-favorites.js, assets/web/moa-r231-settings.js. **나머지 14 DEX 및 전원 바이트 동일**.
+- R297 변경: 숨긴 WebView는 전체 크기 유지, 같은 Activity 내 기존 모아 main content를 앞에 배치하고 hidden WebView는 포커스/클릭/접근성 제외. R237 root 저장 목록 NAV는 기존 button.btn_navbar 첫 요소 대신 공식 DOM에서 단일 '저장' 메뉴 정확 식별; 복수·미확인 컨트롤 클릭 금지; LIST_NAV_NOT_FOUND, LIST_UI_NOT_FOUND로 실제 단계 구분. 불필요하게 중복된 설정 체크박스 제거; 일기 GPS 사진 카드의 비점유 저장 실험/기존 네이버 저장 두 버튼으로 명시적 선택. '지도 웹창 뒤로 보내기'는 표시 기능이지 계정 저장 명령이 아님.
+- 정적 QA: Apktool2.12.1 classes13/14 컴파일 PASS, Node JS 3파일 구문 검사, 세 개 synthetic root Save 메뉴 mock (7개 메뉴 중 한 개 정확 '저장' 1탭, 중복/없을 때 0탭), APK v2/기존 서명/zipalign/CRC/16DEX checksum/manifest code297 PASS. **실기기에서 네이버 서버 저장, 리스트/장소/별명/메모 독립 재조회, WebView full viewport 효과 아직 미검증**. 보안 우회·CAPTCHA 자동 처리·쿠키/개인정보 채팅 전송 없음.
+- R299 순방향 복구 후보 MOA_R299_RESTORE_R293_EXISTING_FEATURES.apk code299 SHA256 539931f4418bcafdff69f0e11bf9a0a6f46652007161c4c7750d55d041c72851, R293의 manifest versionCode만 변경. R269 Golden 원본 바이트 동일본 아니고 실기기 복구 QA 없음. APK+동일 bytes 복구+QA ZIP MOA_R297_FULL_VIEWPORT_LIST_REPAIR_WITH_R299_RECOVERY_20261111.zip SHA256 9caa7a38f3f32d024adf3d09f7dcddc9c63bd92d45249df61e85a0ffc9956733.
+- 상세 인수 문서: https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R297_REAL_NAVER_LIST_SELECTOR_AND_FULL_VIEWPORT_HANDOFF_20261111.md. 서명키/사용자 사적 사진·동영상 및 인증정보는 공개 GitHub에 업로드하지 않음.
+- R269 사용자 지정 정확한 원본 Golden APK code269 SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920/기존 AA·AirPods Golden/사용자 일기 데이터 일체 불변. 앱 삭제·데이터 초기화 금지. 실제 NAVER 계정 저장 성공 전 FINAL 주장 금지.
