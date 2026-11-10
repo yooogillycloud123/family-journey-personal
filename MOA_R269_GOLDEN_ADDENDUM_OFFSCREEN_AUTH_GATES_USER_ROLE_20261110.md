@@ -22,7 +22,7 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - 상단 `저장` 내비게이션 메뉴는 **저장목록 화면 이동**이지 '장소 저장' 버튼이 아님.
 - 실제 장소 상세 페이지는 자식 iframe `https://pcmap.place.naver.com/place/{sid}/home`이고, 실제 저장 후보 컨트롤은 `[data-nlog-area="map_btp.save"]` 등 첫 번째 당사자 DOM 내부. 해당 DOM selector는 언제든 변경될 수 있으며 로그인 없는 테스트의 클릭은 서버 저장 성공 아님.
 - 표준 `WebView.evaluateJavascript()`는 최상위 문서에 작용하므로 cross-origin iframe의 저장 UI 제어 불가. 공식 AndroidX `WebViewCompat.addDocumentStartJavaScript` + `addWebMessageListener`를 허용된 네이버 출처별로 사용하는 구현 경로를 실험. 세션 인증/쓰기 가능 여부는 아직 **미검증**.
-- Android emulator WebView 실제 프레임 시험: `experiments/moa-r269-android-webview-frame-test/**`; 검증 워크플로 run `42804245257`는 이 기록 시점 **in_progress**. 최초 run 실패는 SDK manager PATH 오류였고 수정한 다음 재실행됨. 결론 확정 전 성공 처리 금지.
+- Android emulator WebView 실제 프레임 시험: `experiments/moa-r269-android-webview-frame-test/**`; 검증 워크플로 run `42804245257`는 **FAIL**로 종료. 별도 Android 시험용 APK **컴파일은 PASS**했지만, GitHub Actions의 Android 35 에뮬레이터가 `Timeout waiting for emulator to boot`로 기동 실패해 **WebView가 실제 네이버 페이지를 연 결과는 전혀 얻지 못함**. 이는 네이버 저장 기능의 실패 판정이 아니라 시험 인프라 실패다. 기존 R241 실기기 리다이렉트 문제 역시 해결됐다는 근거 없음.
 - 공개 페이지 무인증 실험 CI 성공은 **네이버 개인 계정 저장에 대한 PASS가 아님**.
 
 ## 3. 해결할 정확한 기술 관문
