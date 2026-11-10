@@ -99,3 +99,22 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - **정적 QA:** 두 APK 모두 APK Signature Scheme v2 + 원래 인증서, zipalign, ZIP CRC, 16 DEX SHA1/Adler32, 바이너리 AXML package/버전 확인 PASS. JS Node syntax/실험 버튼 Native `naverWebProbeControl(visible/stop)` 계약 정적 확인 PASS. R275/R277 안에 개인 서명키·암호 파일 없음. **이것은 기동 PASS·지도 로그인 PASS·네이버 계정 저장 PASS가 아님.**
 - **중요 안전 제한:** 원래 R269 설치본은 보존하되 기존 앱 제거/데이터 초기화 금지. 사용자는 실기기 미검증 후보를 강제로 설치할 필요 없음. 최신 빌드는 R269 실제 원본 APK를 바이트 복제한 것이 아니므로 R277을 원본 Golden으로 잘못 표기하지 말 것. Android 버전코드 내리기 강제/앱 삭제 금지.
 - **남은 필수 게이트:** Galaxy 본인 기기의 R275 기동·일기/사진/바로기록/↶MOA 회귀, Android WebView의 실제 부모/iframe 렌더와 공식 로그인, 정식 사용자 자체 로그인·동의, 정확 SID/리스트/별명/메모 쓰기 및 독립 계정 재조회. **실계정 비점유 자동저장 최종 APK는 아직 완료되지 않음.**
+
+
+---
+
+## 9. 2026-11-10 R275 Galaxy 정식 네이버 보안 재확인 화면·R279 수리 베타
+
+### 사용자 실제 Galaxy 증거 — 최우선 관측
+- 사용자 제공 **개인 영상 20170.mp4·20171.mp4 및 20172.png**에서 기존 설치 R275의 설정 내 '샘플 장소 웹 연결'을 통해 네이버지도 PC Place 화면 및 `nid.naver.com` 로그인 화면 진입을 실제 갤럭시에서 확인. 따라서 이전에 열린 “PC Chromium 로그인 진입”은 **이제 Android WebView의 실제 로그인 화면 렌더링에도 도달한 것**으로 증거가 확대됨. 다만 R275 전체 앱 회귀나 실계정 로그인 성공은 증명되지 않음.
+- 네이버 로그인 시 공식 서비스가 **자동입력방지/영수증 이미지 문제**를 요구했고, 사용자가 문제 입력 후 ‘확인’을 눌러도 정상 다음 단계로 넘어가지 않거나 인증이 재출현했다. 별도 정상 모바일 브라우저에서 사용자 계정의 보안설정/로그인 페이지 접근은 관찰됐으나 **MOA WebView와 외부 브라우저는 로그인 세션을 자동 공유하지 않음**.
+- 이는 **네이버 서비스 자체의 추가 보안 확인**이며, 답/비밀번호 오류, 웹뷰의 UI/JS 다이얼로그 처리 또는 보안 정책 중 무엇이 원인인지는 이 자료만으로 확정 불가. 로그인 실패를 정상으로 오분류하거나 CAPTCHA 자동 풀이/세션 추출/보안 우회 금지. 원본 영상에는 개인 아이디 등 정보가 포함될 수 있어 **공개 GitHub·CI·산출물 ZIP에 영상/보안답변 업로드 금지**.
+
+### 비공개 로컬 R279 보완 및 결과물
+- R279 동일 패키지·기존 원본 인증서 베타 APK: `MOA_R279_NAVER_AUTH_UI_SAFE_SAME_SIGNER_BETA.apk` code279, SHA256 `7e2e76fb7683fab02ce096e00028697996a071d39b52abf8ef64865028299373`, 원본 인증서 SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+- R275에 비해 **오직** `AndroidManifest.xml` (versionCode), `classes13.dex` (기존 MOA 소유 로그인 WebView), `assets/web/moa-r231-settings.js` (설정 안내/숨김 연구 버튼) 변경. 기존 일기/갤러리/바로기록/오디오/복귀 등의 다른 비서명 APK 엔트리는 바이트 동일.
+- WebView에는 기본 `WebChromeClient`를 설치해 **정상 사용자가 누른 JS 다이얼로그 처리 경로**를 제공하되 인증 우회/자동입력 방지 비활성화나 비밀번호·쿠키 수집을 하지 않음. `nid.naver.com` 인증 페이지에 대해 `onPageFinished` 내 기존 진단 JS 실행을 중단하고 주소 호스트에 대한 상태코드 `NAVER_AUTH_SCREEN_MANUAL_ONLY`만 표시. 이를 네이버 로그인 성공으로 보지 않음.
+- 기존 모아 설정의 '샘플 장소 웹 연결' 버튼은 유지. '모아 화면 유지(연구)' 버튼을 추가하여 **기존 WebView를 제거하지 않고 뒷면으로 배치**하는 UI 시험만 제공. 모아 화면 비점유의 일부 실험이며 자동 즐겨찾기 쓰기 기능이나 인증 화면의 비가시 입력으로 승격 불가. 진단 종료 버튼도 유지.
+- R281 데이터 삭제 없는 업데이트 방향 복구 **후보** `MOA_R281_RESTORE_R269_SOURCE_EQUIVALENT_BETA.apk` SHA256 `948f02746d68199c3ca2bf09ba1e6bf4d5633f73d501a1890196630a2d9064de`는 R279 인증 진단 변경을 제외하고 기존 R269 복귀 패치를 R265에 복원한 것. **원본 R269 Golden과 바이트 동일하지 않으며 기동 실기기 미검증**. 앱 삭제/데이터 초기화·강제 다운그레이드 금지.
+- 정적 검증: R279·R281 Android APK v2 서명/원본 인증서·zipalign/ZIP CRC·16개 DEX checksum·실제 APK versionCode 및 package·JS Node 문법 PASS. **네이버 CAPTCHA 확인 버튼 동작, 로그인/세션, 서버 즐겨찾기 저장 및 독립 readback, 숨김 상태 자동저장, 갤럭시 R279 실행 모두 PENDING**. 인증 실패가 계속되면 로그인 반복/보안 설정 해제 요구 금지; 실제 사용자 승인과 정상적인 네이버 공식 인증만 허용.
+- 원본 R269 사용자 지정 Golden APK SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920` 및 별도 R227 Golden **완전 불변**. 이번 커밋은 설명 문서의 신규 섹션만 추가.
