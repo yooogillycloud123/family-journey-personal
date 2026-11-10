@@ -16,18 +16,26 @@ async def main():
   try:
    resp=await page.goto(URL,wait_until="domcontentloaded",timeout=25000)
    out["http"]=resp.status if resp else None
-   await page.wait_for_timeout(2800)
+   await page.wait_for_timeout(5200)
    out["top_url"]=page.url.split("?")[0]
    out["frames_before"]=[f.url.split("?")[0][:180] for f in page.frames]
    out["candidate_frames"]=[]
+   out["candidate_elements"]=[]
    target=None
    for frame in page.frames:
     try:
      candidates=frame.locator('[data-nlog-area="map_btp.save"],[aria-label="저장"],button:has-text("저장"),a:has-text("저장")')
      count=await candidates.count()
      out["candidate_frames"].append({"url":frame.url.split("?")[0][:150],"count":count})
+     if count>0:
+      for j in range(min(6,count)):
+       el=candidates.nth(j)
+       try:
+        out["candidate_elements"].append({"frame":frame.url.split("?")[0][:140],
+          "html":(await el.evaluate("(e)=>(e.closest('a,button,[role=button]')||e).outerHTML"))[:800]})
+       except Exception as e:out["candidate_elements"].append({"error":str(e)[:80]})
      if count>0 and target is None:
-      target=candidates.first
+      target=frame.locator('[data-nlog-area="map_btp.save"]').first if await frame.locator('[data-nlog-area="map_btp.save"]').count() else None
     except Exception as e:out["candidate_frames"].append({"error":type(e).__name__})
    if target is not None:
     try:
@@ -46,6 +54,7 @@ async def main():
       except: pass
     except Exception as e:out["click_error"]=str(e)[:200]
    else:out["clicked"]=False
+   out["public_body_sample"]=(await page.locator("body").inner_text(timeout=8000))[:600]
   except Exception as e:out["error"]=type(e).__name__+" "+str(e)[:200]
   finally:await browser.close()
  open("MOA_NAVER_PARENT_FRAME_SAVE_ANON_PROOF.json","w",encoding="utf-8").write(json.dumps(out,ensure_ascii=False,indent=2))
