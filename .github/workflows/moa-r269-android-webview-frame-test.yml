@@ -7,7 +7,7 @@ on:
 concurrency:
   group: moa-r269-webview-research
   cancel-in-progress: true
-permissions: {contents: read}
+permissions: {contents: read, issues: write}
 jobs:
   android_webview:
     runs-on: ubuntu-24.04
@@ -73,3 +73,21 @@ jobs:
             /tmp/moa-r269-webview-qa/*
             experiments/moa-r269-android-webview-frame-test/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: warn
+
+      - name: Publish sanitized anonymous browser QA gates (never account-write PASS)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LOG=/tmp/moa-r269-webview-qa/filtered-logcat.txt
+          report=/tmp/moa-r269-sanitized-gates.md
+          printf '%s\n' '### Android 35 anonymous research CI' > "$report"
+          printf 'Run: https://github.com/%s/actions/runs/%s\n' "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$report"
+          printf '%s\n' 'Flags mean a tagged event appeared in the emulator log, NOT a verified NAVER account save.' >> "$report"
+          for tag in DIRECT_PLACE_START FRAME_TOP FRAME_CHILD ANON_SAVE_2X2 ANON_POST_CLICK_UI NATIVE_TOUCH_FRESH_DOCUMENT MOA_COVER_ON NATIVE_TOUCH_SENT NATIVE_TOUCH_SKIPPED NATIVE_TOUCH_POST_UI MOA_COVER_CLICK AUTH_POPUP_REQUESTED MAIN_ERROR; do
+            if [ -f "$LOG" ] && grep -q "$tag" "$LOG"; then result=OBSERVED; else result=NOT_OBSERVED; fi
+            printf '%s: %s\n' "$tag" "$result" >> "$report"
+          done
+          printf '%s\n' 'NAVER personal authentication, folder creation, saved-place write and independent readback: UNVERIFIED.' >> "$report"
+          gh issue comment 9 --repo "$GITHUB_REPOSITORY" --body-file "$report"
