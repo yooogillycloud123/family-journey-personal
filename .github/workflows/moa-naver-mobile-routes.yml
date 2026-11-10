@@ -3,7 +3,7 @@ on:
   push:
     branches: [research/moa-native-automatic-naver-favorites-canonical-20261110]
     paths:
-      - 'experiments/moa-naver-mobile-routes/ci_probe.py'
+      - 'experiments/moa-naver-mobile-routes/**'
       - '.github/workflows/moa-naver-mobile-routes.yml'
   workflow_dispatch:
 permissions:
@@ -20,6 +20,8 @@ jobs:
         run: |
           python -m pip install playwright
           python -m playwright install chromium --with-deps
+      - name: Assert photo GPS → job identity/readback with no manual input
+        run: node experiments/moa-naver-mobile-routes/test_autodraft.cjs
       - name: Compare Android-UA and desktop route behavior without NAVER login
         run: python experiments/moa-naver-mobile-routes/ci_probe.py
       - uses: actions/upload-artifact@v4
