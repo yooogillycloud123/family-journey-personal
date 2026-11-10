@@ -170,3 +170,19 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - 다음 필수 관문: (1) R283 갤럭시 Map 복귀 후 세션 유지 → (2) 정확한 SID/실제 장소 저장 버튼 유일성 확인 → (3) 사용자 승인 아래 네이버 1건 저장 → (4) 같은 앱에서 실제 리스트·별명·메모 설정 → (5) 서버 계정의 별도 재조회 → (6) 모아 전경을 유지한 채 동일 엔진 재시험 → (7) 기존 사진/일기/바로기록·오디오·복귀 회귀.
 - **지금 로그인 성공만으로 ‘비점유 자동저장 최종 완성’이라고 하면 안 된다.** 프레임 좌표/서버 저장 미확인, 실제 Galaxy에서 테스트해야 함.
 - 기존 원본 R269 code269 user-designated GOLDEN SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920` 및 R227 Golden, 기존 데이터·원래 서명은 완전 보존. 이번 Golden 변경은 이 연구 결과를 설명하는 **문서 추가만**.
+
+
+---
+
+## 12. 2026-11-11 R283 실제 로그인 유지와 R289 비점유 저장 실험 베타
+
+- **실기기 직접 증거:** 사용자 영상 20192.mp4/20193.mp4에서는 R283 계정 로그인 유지, 네이버 저장 리스트 열기, 주소별 별명·메모 편집, 저장 후 초록색 별표 표출 확인. 실제 계정의 독립 저장 데이터 재조회 여부는 별도 미검증. 영상/개인 주소·이메일·계정 화면은 GitHub에 게시하지 않음.
+- **R237 WebView 쓰기 엔진의 실제 결함 수정:** 기존 출처 정규식은 pcmap.place.naver.com/pages.map.naver.com의 2단계 서브도메인을 허용하지 않아 frame 명령이 막힐 수 있었다. HTTPS map.naver.com, pcmap.place.naver.com, pages.map.naver.com만 정확히 허용하며 네이버 외부 광고 iframe에 개인 alias/memo/address를 메시지로 보내지 않음.
+- **대상·입력 안전:** 새로운 실제 장소 Save 속성(data-nlog-area) 및 이전 셀렉터 동시 지원. 단일 정확 SID/unsaved 상태 아니면 클릭하지 않음. 주소와 상호를 구분하고 복수 검색결과·복수 Save 컨트롤에서는 중단. React 입력 setter 사용. 원래 R237 메모 제한 50자를 초과할 때 잘라 버리지 않고 요청 중단.
+- **옵트인:** 기존 MOA 설정에 '모아 화면 비점유 저장 실험 (직접 누를 때만)'을 추가하되 기본 OFF. OFF에서는 기존 R283/네이버 전경 저장 경로 보존. ON일 때 사용자가 기존 사진 GPS 저장을 눌러야만 같은 모아 앱의 숨김 WebView와 phone_submit 엔진에 전달. 숨김 브라우저 연결/정확한 대상 없으면 중단하고, readback 성공 전 상태를 PENDING으로 유지.
+- **R289 설치 후보:** MOA_R289_OFFSCREEN_TARGET_SAFE_TEST_BETA.apk, 8,907,764 bytes, SHA256 3217857e08c3e966e8f1772767098b3ba475848f652cd9f5fa5ef5a07a8cdcb7. 패키지 com.juhyeon.familyjournea versionCode 289, 기존 인증서 SHA256 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15, APK v2/zipalign/ZIP CRC/16 DEX checksum/JS 구문 PASS. R283 대비 정확히 4 non-signature ZIP payload 변경: AndroidManifest.xml, assets/web/fj-naver-favorites.js, assets/web/moa-r231-naver-frame-probe.js, assets/web/moa-r231-settings.js. 모든 16 DEX 및 다른 파일은 바이트 동일.
+- **순방향 복구 후보:** MOA_R291_RESTORE_R283_ORIGINAL_FEATURES.apk SHA256 cb284471d6cb8a8c233c64fce91ec8cbcc4b36ca434b32d8bb561372a0e0fe73, versionCode 291, R283 대비 manifest versionCode만 변경. 실제 R269 Golden 바이트 복제 아님. R291 실기기 복구 QA는 아직 미수행.
+- **동봉 ZIP:** MOA_R289_OFFSCREEN_SINGLE_APP_TEST_WITH_R291_RECOVERY_20261111.zip SHA256 4d3433b2ae89b494ba00a9e6b7d81aa15bdb1aa11dea002fac9227b7175c2119, 12,883,399 bytes, signed APK 둘·QA JSON·source diff·가이드·5개 합성 테스트 증거. 암호/키/계정/개인 영상 포함 없음.
+- **합성 테스트 PASS 5건:** 잘못된 SID 클릭 거부, 다중 저장버튼 클릭 거부, 단일 SID/버튼 UI 요청 후 UNVERIFIED 유지, 상태 메시지 송신 origin 엄격 확인, 동일 주소 결과 중복 시 임의 첫 행 클릭 거부.
+- **주의:** 사용자 실제 Galaxy R289 비점유 자동 쓰기 및 네이버 서버 리스트/장소/별명/메모의 독립 readback은 아직 미검증. R289를 FINAL/Golden으로 승격하지 말 것. 기존 R269 사용자 지정 Golden SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920, R227, AA/AirPods 코드·사용자 데이터·서명은 변경하지 않음. 앱 제거/데이터 초기화/강제 다운그레이드 금지.
+- **연구 인수:** https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R289_OFFSCREEN_TARGET_SAFE_HANDOFF_20261111.md
