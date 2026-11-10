@@ -1,0 +1,60 @@
+name: MOA R283 safe dynamic Place SID gate and anonymous search layout
+on:
+  push:
+    branches: [research/moa-r269-webview-kvm-frame-gate-20261110]
+    paths:
+      - 'experiments/moa-r269-android-webview-frame-test/moa_naver_dynamic_save_gate.js'
+      - 'experiments/moa-r269-android-webview-frame-test/test_dynamic_save_gate.cjs'
+      - 'experiments/moa-r269-android-webview-frame-test/ci_public_layout_variants.py'
+      - '.github/workflows/moa-r283-semantic-place-selector.yml'
+  workflow_dispatch:
+permissions: {contents: read, issues: write}
+jobs:
+  semantic_gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Verify no fixed pixel and exact SID safe-gate with multiple place results
+        run: |
+          node --check experiments/moa-r269-android-webview-frame-test/moa_naver_dynamic_save_gate.js
+          node experiments/moa-r269-android-webview-frame-test/test_dynamic_save_gate.cjs
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Install public anonymous browser
+        run: |
+          python -m pip install playwright
+          python -m playwright install chromium --with-deps
+      - name: Compare public NAVER search layouts without account credentials
+        run: python experiments/moa-r269-android-webview-frame-test/ci_public_layout_variants.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R283-PUBLIC-DYNAMIC-SID-SAVE-GATE-NO-AUTH
+          path: |
+            MOA_R283_PUBLIC_MULTI_RESULT_LAYOUT_PROOF.json
+            experiments/moa-r269-android-webview-frame-test/moa_naver_dynamic_save_gate.js
+            experiments/moa-r269-android-webview-frame-test/test_dynamic_save_gate.cjs
+          if-no-files-found: warn
+      - name: Index public-only gate result
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s\n' '### MOA R283 semantic multi-place SID selection research (NO login/write)' > /tmp/moa-r283-public-gate.md
+          echo "Run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> /tmp/moa-r283-public-gate.md
+          if [ -f MOA_R283_PUBLIC_MULTI_RESULT_LAYOUT_PROOF.json ]; then
+            python - <<'PY' >> /tmp/moa-r283-public-gate.md
+          import json
+          d=json.load(open('MOA_R283_PUBLIC_MULTI_RESULT_LAYOUT_PROOF.json'))
+          for s in d['results']:
+              print(f"anonymous_case={s['query_case']}, navermap_loaded={s.get('naver_parent_loaded',False)}, distinctSids={s.get('distinct_sids_total',0)}, result={s.get('result')}")
+          print("All actual NAVER account authentication, offscreen save and readback gates are STILL OPEN.")
+          PY
+          else
+            echo 'No browser artifact produced. CI is not a site PASS.' >> /tmp/moa-r283-public-gate.md
+          fi
+          gh issue comment 9 --repo "$GITHUB_REPOSITORY" --body-file /tmp/moa-r283-public-gate.md
