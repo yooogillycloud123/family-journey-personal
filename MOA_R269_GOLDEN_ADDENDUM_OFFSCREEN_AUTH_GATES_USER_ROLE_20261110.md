@@ -148,3 +148,25 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 **다음 실제 기능 게이트:** (가) Galaxy R283 기존 기능 회귀 + 실제 로그인 화면 확인 → (나) Android UA 인증 정상 여부 → (다) 사용자 본인 공식 로그인 1회 → (라) 같은 MOA 앱으로 인증 쿠키 지속 → (마) 정확한 장소 SID/리스트/별명/메모 쓰기와 별도 재조회. 현재 (가)~(마) 미검증.
 
 - **동일 APK 포함 ZIP 검증:** 현재 대화 산출물 `MOA_R283_NAVER_ANDROID_UA_BETA_AND_RECOVERY_20261111.zip` 19,353,452 B SHA256 `978a47a53b27c20b73099c4399f6ffd498dba9e6f1bb2b93881bc1e2640d4e5f`. 정확히 동일 바이트 R283/R285/R287 APK 3개와 정적 QA JSON, 한국어 설치·복구 안내, 공개 가능한 소스 패치 1개를 포함. ZIP CRC PASS, 각 내부 APK SHA-256이 단독 파일과 동일. 개인 서명키·비밀번호·네이버 개인정보는 ZIP에 없음. **사용자 실기기 로그인 성공은 여전히 미검증**.
+
+
+---
+
+## 12. 2026-11-11 Galaxy R283 실제 네이버 로그인 사용자 PASS + 다중 장소 동적 저장 버튼/비점유 검증
+
+### 새로운 최우선 실제 사용자 증거
+- 사용자 본인 Galaxy에서 기존 R283 `MOA_R283_OFFICIAL_NAVER_ANDROID_UA_LOGIN_BETA.apk`를 업데이트 설치하고 공식 네이버 추가 인증을 통과하여 **“드디어 로그인됨”**이라고 직접 보고. 비공개 사용자 첨부 `20190.png`, `20192.mp4`, `20193.mp4`가 함께 제공됨. 이 보고는 R275/R279 로그인 불가보다 우선하는 **R283 실기기 LOGIN USER PASS (보고 범위)**. 영상이나 실계정 개인 정보·인증정보는 GitHub에 게시하지 않음.
+- 공개된 `20190.png` 화면에는 MOA 로그인 진단 영역 `VISIBLE_DESKTOP_PAGE_FINISHED_UNVERIFIED` 아래 네이버 모바일 첫 화면이 표시됨. **로그인 후 네이버 홈 표출과 지도 탭에서 실제 로그인 쿠키 유지/즐겨찾기 서버 쓰기는 별도 검증**. 위 상태 문자열도 구형 진단 라벨이어서 로그인 성공/실패 판정으로 사용 금지.
+- 사용자 실기 추가 요구: 검색 결과가 여러 주소/장소를 표시하면 위치와 레이아웃에 따라 실제 **장소별 즐겨찾기 저장 버튼의 좌표가 달라짐**. 고정 화면 좌표/목록 첫 항목 강제 클릭은 위험. 장소 SID를 먼저 정확히 확인하고 해당 장소 상세 프레임의 실제 `a[data-nlog-area="map_btp.save"]`만 대상으로 제한. SID 불일치/다수 모호/DOM 미완성/좌표 화면 밖/저장 여부 미확정이면 **누르지 않고 정지**해야 함.
+
+### 2026-11-11 별도 연구 브랜치 실제 작업
+- `research/moa-r269-webview-kvm-frame-gate-20261110`에 `experiments/moa-r269-android-webview-frame-test/moa_naver_dynamic_save_gate.js` 및 `test_dynamic_save_gate.cjs`를 추가함. 안전한 exact SID 분류, 여러 검색결과, 잘못 열린 장소, 중복 버튼, 저장목록 이동 메뉴와 실제 장소 저장 버튼 구분, 숨김/비활성/이미 저장된 상태, 인증 미검증 등 거절 게이트를 각각 테스트.
+- 이어 `moa_naver_frame_geometry_gate.js`와 `test_frame_geometry_gate.cjs`를 추가함. **실제 장소 iframe 내부 버튼 중심좌표 → 지도 부모 iframe의 실측 위치·크기 → 해당 앱 WebView의 물리 픽셀**을 동적으로 계산하는 순수 함수. 모든 DOM 상태/화면 변환은 현재 프레임에서 재측정, 고정 좌표 없음, 각 단계 SID·first-party 출처·프레임 유일성·가시 영역·width/height 확인, 실패시 무조건 동작 중단. 이 파일들은 **사용자 앱에 아직 통합되지 않은 연구용 코드**.
+- `.github/workflows/moa-r283-semantic-place-selector.yml`로 위 테스트와 **무로그인 공개 네이버 검색** 두 레이아웃을 비교함. 첫 run [42876527239](https://github.com/yooogillycloud123/family-journey-personal/actions/runs/42876527239) CI SUCCESS: 1차 SID 안전 분류 Node 테스트 + 공개 지도 두 검색 화면 Chromium 로딩 확인. 단, 일반 검색 결과에서 **링크에 SID가 직접 노출되지 않아 `distinctSids=0`**으로 확인됨. 따라서 검색 결과 목록을 URL만으로 바로 식별·저장 가능하다고 주장 금지, 해당 장소 상세 프레임에서 정확한 SID 확인이 선행되어야 함.
+- 이어 위치 이동/확대축소/모호한 iframe/iframe이 화면 바깥인 경우의 계산 테스트를 워크플로에 추가. **해당 새 CI의 실제 통과 여부는 별도 결과 확인 전 PASS로 기재 금지.** 인증정보/쿠키·비밀번호/OTP·개인 자료를 공개 CI에 넣지 않음.
+
+### 기술적 비점유 목표와 현 상태 엄격 분리
+- 기존 무로그인 Android35 실험은 MOA 모의 전경을 터치 가능하게 둔 채 **자기 앱 내부 WebView에 native ACTION_DOWN/UP → 실제 first-party DOM `isTrusted=true`** 발생을 증명했음. 이는 비점유 방식의 기반을 보여 주지만 **Galaxy 개인 로그인 세션에서 같은 방식으로 네이버 서버 즐겨찾기를 쓰고 재조회한 PASS는 없음**.
+- 다음 필수 관문: (1) R283 갤럭시 Map 복귀 후 세션 유지 → (2) 정확한 SID/실제 장소 저장 버튼 유일성 확인 → (3) 사용자 승인 아래 네이버 1건 저장 → (4) 같은 앱에서 실제 리스트·별명·메모 설정 → (5) 서버 계정의 별도 재조회 → (6) 모아 전경을 유지한 채 동일 엔진 재시험 → (7) 기존 사진/일기/바로기록·오디오·복귀 회귀.
+- **지금 로그인 성공만으로 ‘비점유 자동저장 최종 완성’이라고 하면 안 된다.** 프레임 좌표/서버 저장 미확인, 실제 Galaxy에서 테스트해야 함.
+- 기존 원본 R269 code269 user-designated GOLDEN SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920` 및 R227 Golden, 기존 데이터·원래 서명은 완전 보존. 이번 Golden 변경은 이 연구 결과를 설명하는 **문서 추가만**.
