@@ -43,3 +43,16 @@ CI used actual Playwright Chromium (Android mobile UA) on `https://pcmap.place.n
 
 ## Current checkpoint
 `MoaNaverAutoDraft.js` is a source-only location/GPS/verified-POI/alias/memo/list job constructor. GitHub Actions run 42756111782 passed strict unit assertions, but **no Android APK** is produced by this research. No authenticated NAVER write or readback can be claimed. The user explicitly rejects more installable manual-entry test APKs and screen-cover alternatives. Preserve that requirement, do not relabel source/browser UI evidence as final.
+
+
+## Last inspection: actual public Place save control ancestry — GitHub run 42757710483 SUCCESS
+- Real Android-mobile Chromium UA page `pcmap.place.naver.com/place/1628573942/home` has exactly one public `저장` label inside `<span class="place_blind">` nested within a link with `role="button"`, `aria-pressed="false"`, `data-nlog-area="map_btp.save"` (CSS module class `lGLl4`).
+- An **unauthenticated** click of that real clickable parent **did not** navigate or open a login popup, change iframe count, or produce a verifiable save modal. The original old selector `a.D_Xqt[aria-pressed]` from an April 2026 OSS reference is already outdated; do not ship with hard-coded selector.
+- Evidence: run 42757710483 artifact `MOA-NAVER-Place-Save-DOM-public-no-account`; *no NAVER account data/login or actual saving*.
+- Important possibility (not proven): Place web view is built as an iframe child that expects a parent `map.naver.com` context and browser messages. Its standalone public Save label is NOT proof of a working standalone Save flow. NAVER's own DEVIEW presentation documents Place→Map `postMessage({action,data})` architecture. Therefore the mobile direct Place URL is a useful observation, **not a resolved authenticated writer**.
+
+## 2026-11-10 preliminary R245 product UI source-cleanup, NOT APK
+- Private Library: `/모아_프로젝트_근거_20261103/R247_EXISTING_PHOTO_GPS_SOURCE_ONLY_20261110/MOA_R247_EXISTING_GPS_SOURCE_ONLY_NOT_APK.zip`, zip sha256 `cbc125a2e0acf10ec1561e8e69e33ad240a107af031c0c19ec2abab24c8e8530`.
+- The research patch removes R245's *six-field manual Settings tester* and *duplicate prompt() venue/list questions*, preserves original popup settings and Photo Gallery, and reuses existing photo GPS/draft address/list/alias/memo.
+- Exactly 11 static/syntax/guard tests PASS, **but no authenticated NAVER bookmark write/readback exists**. Consequently the source patch is not converted to a user APK; its status fails closed `PENDING_AUTHENTICATED_BROWSER_WRITER`.
+- New user installation or further fake beta releases are forbidden until the actual writer and readback are proved; existing R227 GOLDEN and user-confirmed R229 NAVER return not changed.
