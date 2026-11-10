@@ -96,3 +96,44 @@ jobs:
           printf 'BROWSER_USER_ACTIVATION: %s\\n' "$active" >> "$report"
           printf '%s\n' 'NAVER personal authentication, folder creation, saved-place write and independent readback: UNVERIFIED.' >> "$report"
           gh issue comment 9 --repo "$GITHUB_REPOSITORY" --body-file "$report"
+
+  real_public_parent_direct:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Install headless public Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install chromium --with-deps
+      - name: Compare actual anonymous NAVER Save embedded parent vs standalone
+        run: python experiments/moa-r269-android-webview-frame-test/ci_compare_parent_vs_direct.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R269-NAVER-REAL-PUBLIC-PARENT-DIRECT-AB
+          path: MOA_R269_PARENT_VS_DIRECT_ANON_BROWSER_PROOF.json
+          if-no-files-found: warn
+      - name: Publish exact anonymous evidence to issue9
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo '### R269 real anonymous NAVER embedded vs standalone Save A/B' > /tmp/r269_ab_results.md
+          echo "Run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> /tmp/r269_ab_results.md
+          if [ -f MOA_R269_PARENT_VS_DIRECT_ANON_BROWSER_PROOF.json ]; then
+            python - <<'PY' >> /tmp/r269_ab_results.md
+          import json
+          x=json.load(open('MOA_R269_PARENT_VS_DIRECT_ANON_BROWSER_PROOF.json'))
+          for a in x["results"]:
+              print(f"{a['case']}: iframe_or_direct_place={a.get('child_found')}, trusted_native_click={a.get('click_method')}, login_visible={a.get('after',{}).get('loginText')}, popup_count={a.get('popup_count')}, gate={a.get('failure_gate')}")
+              print(f"event_flags={a.get('after',{}).get('events',[])}; parent_message_origins={a.get('parent_message_origins',[])}")
+          print("Authenticated write/readback=NOT_TESTED. No credentials or personal account used.")
+          PY
+          else
+            echo 'No comparison report produced; inspect failed compile/site gate.' >> /tmp/r269_ab_results.md
+          fi
+          gh issue comment 9 --repo "$GITHUB_REPOSITORY" --body-file /tmp/r269_ab_results.md
