@@ -5,6 +5,8 @@ on:
     paths:
       - 'experiments/moa-r269-android-webview-frame-test/moa_naver_dynamic_save_gate.js'
       - 'experiments/moa-r269-android-webview-frame-test/test_dynamic_save_gate.cjs'
+      - 'experiments/moa-r269-android-webview-frame-test/moa_naver_frame_geometry_gate.js'
+      - 'experiments/moa-r269-android-webview-frame-test/test_frame_geometry_gate.cjs'
       - 'experiments/moa-r269-android-webview-frame-test/ci_public_layout_variants.py'
       - '.github/workflows/moa-r283-semantic-place-selector.yml'
   workflow_dispatch:
@@ -21,6 +23,8 @@ jobs:
         run: |
           node --check experiments/moa-r269-android-webview-frame-test/moa_naver_dynamic_save_gate.js
           node experiments/moa-r269-android-webview-frame-test/test_dynamic_save_gate.cjs
+          node --check experiments/moa-r269-android-webview-frame-test/moa_naver_frame_geometry_gate.js
+          node experiments/moa-r269-android-webview-frame-test/test_frame_geometry_gate.cjs
       - uses: actions/setup-python@v5
         with: {python-version: '3.11'}
       - name: Install public anonymous browser
@@ -37,6 +41,8 @@ jobs:
             MOA_R283_PUBLIC_MULTI_RESULT_LAYOUT_PROOF.json
             experiments/moa-r269-android-webview-frame-test/moa_naver_dynamic_save_gate.js
             experiments/moa-r269-android-webview-frame-test/test_dynamic_save_gate.cjs
+            experiments/moa-r269-android-webview-frame-test/moa_naver_frame_geometry_gate.js
+            experiments/moa-r269-android-webview-frame-test/test_frame_geometry_gate.cjs
           if-no-files-found: warn
       - name: Index public-only gate result
         if: always()
