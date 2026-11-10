@@ -1,0 +1,23 @@
+name: MOA R269 protected offscreen NAVER transaction CONTRACT only
+on:
+  push:
+    branches: [research/moa-r269-navermap6721-offscreen-evidence-20261110]
+    paths:
+      - 'experiments/moa-navermap-6721-offscreen/**'
+      - '.github/workflows/moa-r269-offscreen-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  js_contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Node syntax and transaction idempotency/readback
+        run: |
+          node --check experiments/moa-navermap-6721-offscreen/MoaNaverBookmarkTransaction.js
+          node experiments/moa-navermap-6721-offscreen/test_transaction.cjs
+      - name: Assert no simulated success claimed as live NAVER result
+        run: |
+          if grep -r -n 'NAVER_ACCOUNT_REAL_PASS' experiments/moa-navermap-6721-offscreen; then exit 1; fi
+          echo "SOURCE CONTRACT ONLY; actual authenticated NAVER UI write/readback not implemented"
