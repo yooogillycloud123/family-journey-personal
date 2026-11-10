@@ -1,3 +1,5 @@
+
+> **2026-11-10 R257 CORRECTED POST-SIGN DEX REASSEMBLY:** The first local R257 packaging returned success despite a smali syntax error (`move-result/from16`) and carried a stale accessibility guard. The user was not asked to install it. We corrected the opcode, removed R249's actual `MoaNaverAccessibilityCover.begin()` from the live `handle('naverSave')` path (to prevent unstable MOA WebView reparent), recompiled APKtool with **zero error lines**, signed again, and independently **decompiled the exact signed APK** verifying the new `WAITING_NAVER_WINDOW` and `ALREADY_SAVED_NEEDS_REVIEW` guards actually exist in NaverSaveService DEX, the NaverSaveRouter invocation exists, and the live begin() call is absent. Final valid signed APK SHA256 is `ee78d7cd00c2cb27266204c18aadee0dd60253371e2cfd21c652091b8733ec2c`; old SHA in any previously generated local artifact must be considered superseded. Only Library `/모아_프로젝트_근거_20261103/R257_CORRECTED_POSTSIGN_DEX_VERIFY_20261110/` is authoritative for R257. No Galaxy test so actual saved-place functionality remains UNVERIFIED.
 # MOA R257 (2026-11-10) — R255 user-confirmed Galaxy launch + targeted Naver favorites route fix
 
 ## Highest-priority real-device evidence
@@ -14,13 +16,13 @@ These findings are confirmed **code facts**, but precise runtime stopping stage 
 ## Signed deliverable R257
 `MOA_R257_STABLE_BOOT_NAVER_FAVORITES_RECOVERY.apk`
 - versionCode 257 / original same package and certificate, 8,932,642B
-- SHA256 `32523226790291eb63d3501320b1ce557674a0b20ad16447b5eaec25b5ab231a`
+- SHA256 `ee78d7cd00c2cb27266204c18aadee0dd60253371e2cfd21c652091b8733ec2c`
 - APK signature v2, all 16 DEX SHA1/Adler32, ZIP CRC, resources STORED, zipalign, same original signer certificate PASS
 - Diff from exact R255: only `AndroidManifest.xml` versionCode, `classes2.dex`, `assets/web/fj-naver-favorites.js`, `assets/web/moa-r231-settings.js`; new `classes16.dex` contains isolated `MoaNaverSaveRouter`. **133 other shared non-signature payloads byte-for-byte unchanged**, including gallery/diary/QuickRecord/audio/voice.
 - Extra R251 crash guard: no `v8`-String referenced as `JSONObject`, old R251 code completely absent; the minor new `HostActivity` hook uses explicit String+JSONObject type-correct registers. Source standalone Java compiled with SDK35 and D8 API29; JS `node --check`, original-photo-GPS routing/status event Node tests, Java route fallback test and guard assertions PASS.
-- Updated ZIP `MOA_R257_APK_BACKUP_AND_INSTALL_GUIDE.zip` SHA256 `f22facbd8a27dcea891e9cc7b8b4c71fa58456bf7526b95231529ff8a4d2d457`, contains exact signed APK+Korean guide+QA+SHA256; CRC PASS.
-- Source-only SHA `65a5153e11d33e793a01c06d1693e78d13add99e6fd509507f40dd9cfad5e01c` from local patch ZIP (no private key).
-- All artifacts in private Library `/모아_프로젝트_근거_20261103/R257_R255_BOOTSAFE_NAVER_FAVORITES_REPAIR_20261110/`. Do not publish raw family photos, locations, or keystore.
+- Updated ZIP `MOA_R257_APK_BACKUP_AND_INSTALL_GUIDE.zip` SHA256 `483fa5c9a068b72338d7fa105024fa7150bdcb0a3a6d8ef332f03a4f775c7f14`, contains exact signed APK+Korean guide+QA+SHA256; CRC PASS.
+- Source-only SHA `40d8b24b551394df79fd5ba48c807ee418138244292c1ace8b63b1b9ef7dde65` from local patch ZIP (no private key).
+- All artifacts in private Library `/모아_프로젝트_근거_20261103/R257_CORRECTED_POSTSIGN_DEX_VERIFY_20261110/`. Do not publish raw family photos, locations, or keystore.
 
 ## Specific changes
 1. Remove only obsolete R249 `armed` launch guard, not the service's job state machine/permission checks.
