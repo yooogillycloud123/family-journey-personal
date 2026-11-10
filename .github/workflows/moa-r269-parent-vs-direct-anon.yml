@@ -1,7 +1,7 @@
 name: MOA R269 NAVER real anonymous embedded vs standalone Save topology
 on:
   push:
-    branches: [research/moa-r269-webview-kvm-frame-gate-20261110]
+    branches: [research/moa-r269-parent-auth-decider-20261110]
     paths:
       - experiments/moa-r269-android-webview-frame-test/ci_compare_parent_vs_direct.py
       - .github/workflows/moa-r269-parent-vs-direct-anon.yml
