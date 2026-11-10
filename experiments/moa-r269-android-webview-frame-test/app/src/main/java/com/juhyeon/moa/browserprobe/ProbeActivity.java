@@ -8,6 +8,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceError;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -54,8 +55,11 @@ public final class ProbeActivity extends Activity {
         report("FRAME_"+(isMain?"TOP":"CHILD"),source.getHost()+" "+msg.substring(0,Math.min(msg.length(),110)));
       });
     String script="(function(){function send(){"+
-      "try{MoaProbe.postMessage(JSON.stringify({origin:location.origin,path:location.pathname,"+
-      "ready:document.readyState,placeSaveCount:Array.prototype.filter.call(document.querySelectorAll('a[data-nlog-area]'),function(a){return a.getAttribute('data-nlog-area')==='map_btp.save';}).length,viewport:innerWidth}));}catch(e){}}"+
+      "try{var n=Array.prototype.filter.call(document.querySelectorAll('a[data-nlog-area]'),function(a){return a.getAttribute('data-nlog-area')==='map_btp.save';}).length;"+
+      "var body=document.body?document.body.innerText:'';"+
+      "var isError=/ERR_NAME_NOT_RESOLVED|ERR_CONNECTION|This site can't be reached|웹페이지를 사용할 수 없습니다|사이트에 연결할 수 없음/.test(body.slice(0,500));"+
+      "MoaProbe.postMessage('saveCount='+n+';bodyLen='+body.length+';errorDocument='+isError+';ready='+document.readyState+';viewport='+innerWidth+';host='+location.hostname);}"+
+      "catch(e){MoaProbe.postMessage('probeException='+e.name);}}"+
       "document.addEventListener('DOMContentLoaded',function(){setTimeout(send,2400)},{once:true});"+
       "[6000,12000,24000,42000,54000].forEach(function(t){setTimeout(send,t)});})();";
     WebViewCompat.addDocumentStartJavaScript(web,script,origins);
@@ -73,6 +77,9 @@ public final class ProbeActivity extends Activity {
        }
        @Override public void onReceivedError(WebView view,WebResourceRequest req,WebResourceError error){
           if(req.isForMainFrame())report("MAIN_ERROR",String.valueOf(error.getErrorCode()));
+       }
+       @Override public void onReceivedHttpError(WebView view,WebResourceRequest req,WebResourceResponse response){
+          if(req.isForMainFrame())report("MAIN_HTTP_STATUS",String.valueOf(response.getStatusCode()));
        }
     });
     report("START","PC map root entry via Android WebView, no login, no saving");
