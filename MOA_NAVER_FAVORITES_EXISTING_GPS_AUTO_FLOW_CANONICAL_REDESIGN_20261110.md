@@ -47,6 +47,7 @@
 ### 자료 근거에 기반한 API 구분
 - 네이버 공식 지역 검색 API는 **업체명/도로명주소/지번주소/좌표**를 제공하여 'GPS→실제 POI 후보 특정' 단계를 보완할 수 있음. 공식 문서: https://developers.naver.com/docs/serviceapi/search/local/local.md . 단, 호출에는 발급된 Client ID/Secret 필요; 민감한 자격증명 APK 소스 공개/무단 하드코딩 금지, 제공 좌표계와 실제 GPS 비교 검증 필수.
 - 네이버 공식 Maps/Android SDK 및 reverse geocoding은 **지도/주소** 기능을 제공하며, 사용자의 개인 즐겨찾기 목록 생성·장소·별명·메모 **쓰기 API는 공개 문서에서 확인되지 않음**. 곧바로 가능하다고 주장하지 않음. 공식: https://www.ncloud.com/api-cms/service-product/static/maps / https://guide.ncloud-docs.com/docs/maps-reversegeocoding-api .
+- 네이버지도 공식 외부 호출 URL Scheme `nmap://place`는 **지도에 마커 표시**이며 내 계정 즐겨찾기 등록이 아니다. 공식 액션은 지도·검색·장소 표시·길찾기·내비게이션이며 즐겨찾기 저장 액션은 열거되지 않았다: https://guide-gov.ncloud-docs.com/docs/ko/naveropenapiv3-maps-url-scheme-url-scheme . 기존 R227 딥링크/사진 복귀는 보존하되 이를 네이버 서버 저장 성공과 혼동하지 않는다.
 - Android 접근성 `TYPE_ACCESSIBILITY_OVERLAY`는 아래 창 인식은 허용하지만 사용자 화면을 **점유**함. https://developer.android.com/reference/android/view/accessibility/AccessibilityWindowInfo
 - 삼성 인터넷 Custom Tabs는 브라우저 웹페이지를 MOA에 표시할 수 있으나 MOA가 마음대로 웹 DOM/쿠키를 읽고 버튼을 누르는 API가 아님. 확장은 별도 승인·패키지 필요. https://developer.samsung.com/browser/android/overview.html / https://developer.samsung.com/browser/android/extensions-dev-overview.html
 - 자체 내장 GeckoView는 가능한 후보이지만 NAVER 지도와의 호환성, 첫 로그인, 비가시 상태 JavaScript 작동, 네이버 계정 실제 저장 **모두 검증 전**. GeckoView의 비가시 상태는 JS freeze될 수 있으므로 `GeckoSession.setActive` 설계를 포함해 Android 실기기 검증 필요: https://firefox-source-docs.mozilla.org/mobile/android/geckoview/contributor/geckoview-architecture.html
