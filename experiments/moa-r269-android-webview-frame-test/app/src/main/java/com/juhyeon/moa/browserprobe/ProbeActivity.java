@@ -134,6 +134,7 @@ public final class ProbeActivity extends Activity {
       TextView cover=new TextView(this);cover.setBackgroundColor(Color.WHITE);
       cover.setTextColor(Color.BLACK);
       cover.setText("MOA foreground mock is interactive; NAVER runs behind it");
+      cover.setOnClickListener(v->report("MOA_COVER_CLICK","foreground mock received actual Android input"));
       root.addView(cover,new FrameLayout.LayoutParams(-1,-1));
       report("MOA_COVER_ON","full-size Naver behind opaque MOA-owned foreground");
       web.postDelayed(this::attemptNativeTouchOnSave,5500);
@@ -172,6 +173,17 @@ public final class ProbeActivity extends Activity {
         web.dispatchTouchEvent(release);
         press.recycle();release.recycle();
         report("NATIVE_TOUCH_SENT","own WebView;cover remains on top; no account sign-in");
+        // Observe ONLY anonymous UI flags after a view-level touch. Never claim account write.
+        web.postDelayed(()->{
+          if(web==null)return;
+          String followJs="(function(){var all=document.querySelectorAll('a[data-nlog-area]');var a=null;"+
+            "for(var i=0;i<all.length;i++){if(all[i].getAttribute('data-nlog-area')==='map_btp.save'){a=all[i];break;}}"+
+            "var t=document.body?document.body.innerText:'';return 'host='+location.hostname"+
+            "+';dialogs='+document.querySelectorAll('[role=dialog],dialog').length"+
+            "+';loginTextVisible='+(/로그인/.test(t))"+
+            "+';pressed='+(a?a.getAttribute('aria-pressed'):'missing');})()";
+          web.evaluateJavascript(followJs,result->report("NATIVE_TOUCH_POST_UI",String.valueOf(result)));
+        },7000);
       }catch(Exception e){report("NATIVE_TOUCH_ERROR",e.getClass().getSimpleName());}
     });
   }
