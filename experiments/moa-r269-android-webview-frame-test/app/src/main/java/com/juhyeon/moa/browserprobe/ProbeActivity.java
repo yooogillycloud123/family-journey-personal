@@ -150,6 +150,16 @@ public final class ProbeActivity extends Activity {
   }
   private void attemptNativeTouchOnSave() {
     if(web==null)return;
+    // Observe event delivery, never read credentials or NAVER account content.
+    // A native dispatch call is NOT proof that the target DOM received a trusted click.
+    String observer="(function(){window.__moaInput={events:[]};"+
+      "['pointerdown','touchstart','click'].forEach(function(kind){"+
+      "document.addEventListener(kind,function(ev){var e=ev.target;"+
+      "var a=e&&e.closest?e.closest('a[data-nlog-area]'):null;"+
+      "if(a&&a.getAttribute('data-nlog-area')==='map_btp.save')"+
+      "window.__moaInput.events.push(kind+':trusted='+ev.isTrusted);},true);});"+
+      "return 'installed';})()";
+    web.evaluateJavascript(observer, r->report("NATIVE_TOUCH_OBSERVER_READY",String.valueOf(r)));
     // No site data or login fields are read; only Save control bounds and press flag.
     String js="(function(){var all=document.querySelectorAll('a[data-nlog-area]');var a=null;"+
       "for(var i=0;i<all.length;i++){if(all[i].getAttribute('data-nlog-area')==='map_btp.save'){a=all[i];break;}}"+
@@ -176,10 +186,10 @@ public final class ProbeActivity extends Activity {
         long down=android.os.SystemClock.uptimeMillis();
         MotionEvent press=MotionEvent.obtain(down,down,MotionEvent.ACTION_DOWN,x,y,0);
         MotionEvent release=MotionEvent.obtain(down,down+90,MotionEvent.ACTION_UP,x,y,0);
-        web.dispatchTouchEvent(press);
-        web.dispatchTouchEvent(release);
+        boolean downHandled=web.dispatchTouchEvent(press);
+        boolean upHandled=web.dispatchTouchEvent(release);
         press.recycle();release.recycle();
-        report("NATIVE_TOUCH_SENT","own WebView;cover remains on top; no account sign-in");
+        report("NATIVE_TOUCH_SENT","own WebView;downHandled="+downHandled+";upHandled="+upHandled+";cover retained;no login");
         // Observe ONLY anonymous UI flags after a view-level touch. Never claim account write.
         web.postDelayed(()->{
           if(web==null)return;
@@ -188,7 +198,9 @@ public final class ProbeActivity extends Activity {
             "var t=document.body?document.body.innerText:'';return 'host='+location.hostname"+
             "+';dialogs='+document.querySelectorAll('[role=dialog],dialog').length"+
             "+';loginTextVisible='+(/로그인/.test(t))"+
-            "+';pressed='+(a?a.getAttribute('aria-pressed'):'missing');})()";
+            "+';pressed='+(a?a.getAttribute('aria-pressed'):'missing')"+
+            "+';events='+(window.__moaInput?window.__moaInput.events.join(','):'OBSERVER_MISSING')"+
+            "+';userActivated='+(navigator.userActivation?navigator.userActivation.hasBeenActive:'unsupported');})()";
           web.evaluateJavascript(followJs,result->report("NATIVE_TOUCH_POST_UI",String.valueOf(result)));
         },7000);
       }catch(Exception e){report("NATIVE_TOUCH_ERROR",e.getClass().getSimpleName());}
