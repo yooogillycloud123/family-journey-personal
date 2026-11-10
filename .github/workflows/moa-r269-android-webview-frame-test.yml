@@ -17,7 +17,8 @@ jobs:
         with: {gradle-version: '8.14.3'}
       - name: Install Android SDK36
         run: |
-          sdkmanager "platforms;android-36" "build-tools;35.0.0"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
       - name: Compile first-party WebView frame proof (NOT MOA RELEASE)
         run: gradle -p experiments/moa-r269-android-webview-frame-test --no-daemon :app:assembleDebug
       - name: Run real Android 35 emulator WebView with no account login
