@@ -1,13 +1,13 @@
 name: MOA R269 Android WebView Cross-Frame Actual Emulator
 on:
   push:
-    branches: [research/moa-r269-navermap6721-offscreen-evidence-20261110]
+    branches: [research/moa-r269-webview-kvm-frame-gate-20261110]
     paths: ['experiments/moa-r269-android-webview-frame-test/**','.github/workflows/moa-r269-android-webview-frame-test.yml']
   workflow_dispatch:
 permissions: {contents: read}
 jobs:
   android_webview:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -19,12 +19,20 @@ jobs:
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Grant KVM access to the Android emulator (fix verified prior boot failure)
+        run: |
+          set -euxo pipefail
+          test -c /dev/kvm || { echo '::error::This runner has no /dev/kvm. No Android browser result can be inferred.'; exit 1; }
+          sudo chmod a+rw /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          ls -l /dev/kvm
       - name: Compile first-party WebView frame proof (NOT MOA RELEASE)
         run: gradle -p experiments/moa-r269-android-webview-frame-test --no-daemon :app:assembleDebug
       - name: Run real Android 35 emulator WebView with no account login
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
+          emulator-boot-timeout: 900
           target: google_apis
           arch: x86_64
           profile: pixel_6
@@ -36,10 +44,15 @@ jobs:
             adb logcat -c || true
             adb install experiments/moa-r269-android-webview-frame-test/app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -n com.juhyeon.moa.browserprobe/.ProbeActivity
-            sleep 40
+            sleep 60
             adb logcat -d -v time -s MOA_WEBFRAME_PROBE:I AndroidRuntime:E > /tmp/moa-r269-webview-qa/filtered-logcat.txt || true
             adb exec-out screencap -p > /tmp/moa-r269-webview-qa/screen.png || true
             cat /tmp/moa-r269-webview-qa/filtered-logcat.txt
+            if ! grep -Eq 'FRAME_CHILD|FRAME_TOP|MAIN_ERROR|WEBKIT_UNSUPPORTED|BLOCK_EXTERNAL' /tmp/moa-r269-webview-qa/filtered-logcat.txt; then
+              echo '::error::No useful WebView cross-frame result observed. Keep Android authenticated save gate OPEN.'
+              exit 1
+            fi
+            echo 'Android WebView actually started; examine public frame result. This is NOT an account save PASS.'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
