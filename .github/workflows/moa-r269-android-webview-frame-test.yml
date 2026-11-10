@@ -4,6 +4,9 @@ on:
     branches: [research/moa-r269-webview-kvm-frame-gate-20261110]
     paths: ['experiments/moa-r269-android-webview-frame-test/**','.github/workflows/moa-r269-android-webview-frame-test.yml']
   workflow_dispatch:
+concurrency:
+  group: moa-r269-webview-research
+  cancel-in-progress: true
 permissions: {contents: read}
 jobs:
   android_webview:
@@ -44,10 +47,11 @@ jobs:
             adb logcat -c || true
             adb install experiments/moa-r269-android-webview-frame-test/app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -n com.juhyeon.moa.browserprobe/.ProbeActivity
-            sleep 60
+            sleep 130
             adb logcat -d -v time -s MOA_WEBFRAME_PROBE:I AndroidRuntime:E > /tmp/moa-r269-webview-qa/filtered-logcat.txt || true
             adb exec-out screencap -p > /tmp/moa-r269-webview-qa/screen.png || true
             cat /tmp/moa-r269-webview-qa/filtered-logcat.txt
+            grep -q 'DIRECT_PLACE_START' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Direct Place standalone stage never launched'; exit 1; }
             if ! grep -Eq 'FRAME_CHILD|FRAME_TOP|MAIN_ERROR|WEBKIT_UNSUPPORTED|BLOCK_EXTERNAL' /tmp/moa-r269-webview-qa/filtered-logcat.txt; then
               echo '::error::No useful WebView cross-frame result observed. Keep Android authenticated save gate OPEN.'
               exit 1
