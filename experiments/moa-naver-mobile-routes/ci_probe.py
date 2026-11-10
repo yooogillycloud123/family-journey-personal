@@ -4,6 +4,9 @@ from playwright.async_api import async_playwright
 
 ROUTES=[
  "https://map.naver.com/p/",
+ "https://m.place.naver.com/place/1628573942/home",
+ "https://pcmap.place.naver.com/place/1628573942/home",
+ "https://m.search.naver.com/search.naver?query=%EB%B0%B1%EC%84%9D%EB%A1%9C%20145",
  "https://pages.map.naver.com/save-pages/",
  "https://pages.map.naver.com/save-widget/",
  "https://pages.map.naver.com/save-pages/api/maps-bookmark/v3/folders?start=0&limit=20&sort=lastUseTime&folderType=all",
@@ -32,7 +35,9 @@ async def run():
       result={"mode":label,"requested":url.split('?')[0],"http":resp.status if resp else None,
         "final_url":(page.url.split('?')[0])[:160],"title":(await page.title())[:120],
         "frame_count":len(page.frames),"frames":frames,
-        "body_text_len":len((await page.locator("body").inner_text(timeout=3500))[:20000])}
+        "body_text_len":len((await page.locator("body").inner_text(timeout=3500))[:20000]),
+        "sample_text":(await page.locator("body").inner_text(timeout=3500))[:200],
+        "save_controls":await page.locator('button:has-text("저장"),a:has-text("저장"),[aria-label*="저장"]').count()}
      except Exception as e:
       result={"mode":label,"requested":url.split('?')[0],"error":type(e).__name__+" "+str(e)[:130]}
      results.append(result)
