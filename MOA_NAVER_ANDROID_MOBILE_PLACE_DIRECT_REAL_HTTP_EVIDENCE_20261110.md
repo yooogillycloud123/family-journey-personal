@@ -32,3 +32,14 @@ No NAVER login or writes occurred. Source: `experiments/moa-naver-mobile-routes/
 5. Original-signer same-package version increment, no regressions, fully verified APK+matching ZIP+clear user guide. No root/data clear, never publish signer private material.
 
 Reference: AOSP secondary virtual display activity security blocks arbitrary cross-app invisible launches (https://source.android.com/docs/core/display/multi_display/activity-launch); Samsung Internet Custom Tabs do not grant MOA arbitrary DOM control (https://developer.samsung.com/browser/android/web-developer-guide.html). GeckoView is not officially supported on NAVER PC Maps (https://help.naver.com/service/5637/contents/20007?lang=ko&osType=PC).
+
+
+## 2026-11-10 additional unauthenticated Save click probe (run 42756466931 SUCCESS)
+CI used actual Playwright Chromium (Android mobile UA) on `https://pcmap.place.naver.com/place/1628573942/home`, observed HTTP200 and a visible text `저장`. Clicked this text once while **NOT logged in** and did not submit any account write. Observation:
+- `save_found=true`, but `post_click_url` remained the same Place detail URL and frames remained Place main + static analytics iframe.
+- `input` and `button` text lists returned empty; no NAVER save-list modal, account login or persisted bookmark was demonstrated.
+- **Do not infer this is a working click-to-save flow or capable of authenticated list creation.** It may require a different clickable ancestor/JS event, first-party authenticated session or DOM state. Additional inspection and user-consented login on a real Android engine remain mandatory.
+- Proof artifact: GitHub Actions run `42756466931`, `MOA_NAVER_PUBLIC_SAVE_MODAL_NO_AUTH.json` under `MOA-NAVER-mobile-public-route-evidence-NO-AUTH`.
+
+## Current checkpoint
+`MoaNaverAutoDraft.js` is a source-only location/GPS/verified-POI/alias/memo/list job constructor. GitHub Actions run 42756111782 passed strict unit assertions, but **no Android APK** is produced by this research. No authenticated NAVER write or readback can be claimed. The user explicitly rejects more installable manual-entry test APKs and screen-cover alternatives. Preserve that requirement, do not relabel source/browser UI evidence as final.
