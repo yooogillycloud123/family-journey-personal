@@ -1,7 +1,7 @@
 plugins { id 'com.android.application' }
 android {
     namespace 'com.juhyeon.moa.geckoprobe'
-    compileSdk 37
+    compileSdk 36
     defaultConfig {
         applicationId 'com.juhyeon.moa.geckoprobe'
         minSdk 29
