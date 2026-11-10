@@ -40,7 +40,8 @@ async def main():
    if target is not None:
     try:
      await target.click(timeout=5000)
-     out["clicked"]=True\n     out["clicked_kind"]="place_widget_favorite_NOT_navbar"
+     out["clicked"]=True
+     out["clicked_kind"]="place_widget_favorite_NOT_navbar"
      await page.wait_for_timeout(1800)
      out["frames_after"]=[f.url.split("?")[0][:180] for f in page.frames]
      out["popup_count"]=len(popups)
