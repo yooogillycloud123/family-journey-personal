@@ -22,6 +22,8 @@ public final class ProbeActivity extends Activity {
   private static final String TAG="MOA_WEBFRAME_PROBE";
   private WebView web;
   private TextView status;
+  private long navWindowStart;
+  private int navCount;
   private void report(String state,String detail){
      String s=state+" "+detail.replaceAll("[\\r\\n]"," ").substring(0,Math.min(180,detail.replaceAll("[\\r\\n]"," ").length()));
      Log.i(TAG,s);
@@ -70,7 +72,11 @@ public final class ProbeActivity extends Activity {
          report("BLOCK_EXTERNAL",String.valueOf(host));return true;
        }
        @Override public void onPageStarted(WebView view,String url,Bitmap icon){
-          report("NAVIGATE",url.split("[?]")[0]);
+          long now=android.os.SystemClock.elapsedRealtime();
+          if(now-navWindowStart>25000L){navWindowStart=now;navCount=0;}
+          navCount++;
+          report("NAVIGATE",String.valueOf(Uri.parse(url).getHost())+" count25s="+navCount);
+          if(navCount>10){view.stopLoading();report("REDIRECT_LOOP_ABORT","over 10 main-frame navigation events in 25s");}
        }
        @Override public void onPageFinished(WebView view,String url){
           report("MAIN_FINISHED_NOT_PASS",url.split("[?]")[0]);
@@ -90,6 +96,16 @@ public final class ProbeActivity extends Activity {
     // This avoids blindly reloading the R241 looping map root and may avoid needing its parent.
     web.postDelayed(()->{if(web!=null){tiny.width=-1;tiny.height=-1;web.setLayoutParams(tiny);report("DIRECT_PLACE_START","full viewport pcmap.place.naver.com (anonymous/no click)");web.loadUrl("https://pcmap.place.naver.com/place/1628573942/home");}},65000);
     web.postDelayed(()->{if(web!=null){tiny.width=2;tiny.height=2;web.setLayoutParams(tiny);report("DIRECT_PLACE_TINY","direct Place page shrunk to 2x2 after 35s");}},100000);
+    // ANONYMOUS, FRESH EMULATOR ONLY. Trigger one ordinary official Place Save control
+    // while the WebView remains 2x2 to investigate whether login UI can be reached.
+    // This cannot complete a real account write: the emulator has no NAVER login.
+    web.postDelayed(()->{if(web!=null){
+      String js="(function(){var a=document.querySelector('a[data-nlog-area=\\\"map_btp.save\\\"]');"+
+        "if(!a)return 'NO_PLACE_SAVE_CONTROL';"+
+        "if(a.getAttribute('aria-pressed')!=='false')return 'NOT_UNSAVED_SKIP';"+
+        "a.click();return 'ANONYMOUS_CLICK_ATTEMPTED';})()";
+      web.evaluateJavascript(js, result->report("ANON_SAVE_2X2",String.valueOf(result)));
+    }},112000);
   }
   @Override protected void onDestroy(){if(web!=null){web.destroy();web=null;}super.onDestroy();}
 }
