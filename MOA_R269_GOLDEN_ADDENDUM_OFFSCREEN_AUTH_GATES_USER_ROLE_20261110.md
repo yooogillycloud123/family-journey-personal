@@ -231,3 +231,21 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - **다음 관문:** 동명이 존재하는 기존 185개짜리 진짜 목록의 first-party folder/shareId를 사용자가 명시적으로 선택·고정하는 read-only 도구가 필요. 이름만으로 첫 번째 일치 클릭 금지, 새 목록은 명시적으로 새 리스트 만들기 요청과 idempotent 사전 조회에만 허용. 별명/메모/장소 정확 읽기 재확인 전 FINAL 주장 금지. 사용자의 수십 개 빈 폴더는 확인 전 자동 삭제 금지.
 - **상세 인수:** https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R301_DUPLICATE_MY_PLACE_LISTS_FORENSIC_AND_SAFETY_HANDOFF_20261111.md
 - R269 사용자 지정 Golden 원본 SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920, R227, AA AirPods/Android Auto audio source, 사용자 일기·사진·M4A 데이터 모두 불변. 앱 삭제·초기화·서명변경 금지.
+
+
+---
+
+## 16. 2026-11-11 R301 비점유 무반응 — native 허용 상태/부모 LIST 프레임 결함과 R305 실측 추적
+
+- 사용자 1794349682795.png: 로그인된 네이버지도 PC 저장목록이 화면에 존재하고 웹뷰 상태는 HIDDEN_FULL_SIZE_BEHIND_MOA_UNVERIFIED, 그러나 일기에서 비점유 저장을 눌러도 처리 결과 표시가 없는 현상. 이 상태표시는 웹뷰의 표시/배치 상태일 뿐 사용자 저장 완료 증거가 아님.
+- **원본 R301 dex smali 직접 확인한 결함 1:** classes14.dex MoaNaverPhoneWorker.ALLOWED 하드코딩 목록에 웹 스크립트가 새로 내보내는 LIST_DUPLICATE_NAME/LIST_NOT_FOUND_NO_CREATE 미포함. onMessage는 허용되지 않은 PHONE_STATUS를 조용히 무시해 웹에서 오류가 나도 네이티브/UI는 QUEUED처럼 남을 수 있음. 이건 가설이 아닌 직접 코드 결함.
+- **R301 실제 JS 결함 2:** top map.naver.com 부모에서 LIST 단계 명령을 자식 iframe에만 전달하고, 기존 목록 확인 list()는 pages.map.naver.com의 오래된 UI/iframe을 전제로 동작함. 사용자가 보내준 화면은 지도 부모 PC 저장목록이므로 화면을 보여주는 것과 iframe 작업 수신은 별개임. 다만 실제 클릭 순간의 페이지 DOM/프레임 원인은 로그 없이 확정할 수 없으므로 단계 trace를 추가.
+- **R305 실행형 안전 진단 APK:** MOA_R305_EVIDENCE_TRACE_SAME_SIGNER_SAFE_BETA.apk (package com.juhyeon.familyjournea code305, 8,911,860B, SHA256 95ef3b64e3c99940191d41c45a6b10cada2541427da541e073b576b1946dc6d2). 기존 인증서 SHA256 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15 v2 PASS. R301 대비 변경 페이로드 정확히 5개: AndroidManifest.xml, classes14.dex, assets/web/moa-r231-naver-frame-probe.js, assets/web/fj-naver-favorites.js, assets/r28-diary-location.js. 다른 15 DEX+원래 에셋/자료는 바이트 동일.
+- 네이티브 수신 허용코드 8개 추가, 민감 데이터 없이 상태 코드만 QUEUED > PARENT_TASK_RECEIVED > LIST_ROOT_VISIBLE_NO_FRAME / LIST_CHILD_RECEIVED / LIST_ID_REQUIRED 등 trace 남김. 일기의 두 저장 버튼 아래 상태 문자와 '실패 단계 복사' 추가. 16초 내 정상 프레임 ACK 부재는 로그로 구분. 부모 지도 저장목록을 DOM read-only로 인지했는데 기존 pages iframe이 없으면 LIST_ROOT_VISIBLE_NO_FRAME으로 중지. 신규 폴더 생성/삭제/구형 sessionStorage 자동 재실행 금지.
+- **R305는 안전한 비쓰기 단일 실행 진단**: 기존 '내 장소'가 동명 다수인 상태여서 정확한 첫 당사자 folder/shareId를 사용자 확인·고정하기 전엔 서버 쓰기로 진행하지 않도록 막아둠. 개인 주소·이메일·쿠키·비밀번호/OTP 로그 없음. 계정 즐겨찾기 저장 성공으로 주장 금지.
+- QA PASS: smali/Apktool2.12.1 재빌드, Node JS 3개 syntax, 4가지 네이버 DOM mock (parent 저장목록/iframe 누락, 저장메뉴 없음, 단일 이름/고유ID 미확정, 동명 다수), 기존 signer APKv2, zipalign, ZIPCRC, 16 DEX Adler+SHA1, binary manifest 305; **실기기 R305·실계정 저장·readback 미검증**.
+- **R307 복구용 순방향 APK:** MOA_R307_RESTORE_R301_NO_CREATE_SAME_SIGNER.apk code307 SHA256 7306765f6d780d48ea35eee1648ec817cffb4ff9ec7792e40bce6e6d687c844d, bytes 8,907,764, R301 대비 AndroidManifest.xml versionCode만 변경, 원본 cert/v2 PASS. 원래 R269 Golden 바이너리 아님, Galaxy 복구 실행 QA 전.
+- **동봉 ZIP:** MOA_R305_EXACT_EVENT_TRACE_WITH_R307_SAME_SIGNER_RECOVERY_20261111.zip 12,890,286B SHA256 0fe6c08620361e1671abb2087f3f158f62b76efcd0d99f3ef3e4bba01328908f. 서명 APK 2개, QA JSON, 한국어 설치 안내, 소스 diff, 노출 없는 네이버 DOM mock 4개만 포함. 비공개 keystore/암호/계정 정보·사용자 영상/위치 없음.
+- 차기 실제 기능 목표 불변: 네이버 웹 부모 저장목록의 공식 기존 리스트를 *고유 folder/shareId*로 한번 식별해 사용자가 선택, 동일 세션 내 정확 장소/메모/별명 쓰기 후 네이버 계정 독립 재조회. 이름·장소개수·DOM 좌표만으로 임의 선택하지 않음. 실제 계정 성공 전 FINAL 호칭 금지.
+- 연구 인수: https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R305_R301_NATIVE_STATUS_AND_PARENT_FRAME_TRACE_20261111.md
+- R269 사용자 지정 Golden 원본 SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920 및 R227/AirPods/AndroidAuto 모든 원본·사용자 데이터 절대 불변. 앱 삭제/데이터 초기화/다운그레이드 금지.
