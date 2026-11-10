@@ -106,6 +106,14 @@ public final class ProbeActivity extends Activity {
         "a.click();return 'ANONYMOUS_CLICK_ATTEMPTED';})()";
       web.evaluateJavascript(js, result->report("ANON_SAVE_2X2",String.valueOf(result)));
     }},112000);
+    web.postDelayed(()->{if(web!=null){
+      String js="(function(){if(location.hostname!=='pcmap.place.naver.com')return 'LEFT_PLACE_ORIGIN';"+
+        "var d=document.querySelectorAll('[role=dialog],dialog').length;"+
+        "var t=document.body?document.body.innerText:'';"+
+        "return 'dialogCount='+d+';loginTextVisible='+(/로그인/.test(t))+';saveControlCount='+"+
+        "document.querySelectorAll('a[data-nlog-area]').length;})()";
+      web.evaluateJavascript(js,result->report("ANON_POST_CLICK_UI",String.valueOf(result)));
+    }},124000);
   }
   @Override protected void onDestroy(){if(web!=null){web.destroy();web=null;}super.onDestroy();}
 }
