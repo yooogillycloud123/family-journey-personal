@@ -1,0 +1,24 @@
+name: MOA NAVER PC parent-frame anonymous Save UI proof
+on:
+  push:
+    branches: [research/moa-r269-navermap6721-offscreen-evidence-20261110]
+    paths: ['experiments/moa-navermap-6721-offscreen/ci_parent_frame_save.py','.github/workflows/moa-r269-naver-frame-ui.yml']
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  frame_save:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: |
+          python -m pip install playwright
+          python -m playwright install chromium --with-deps
+      - run: python experiments/moa-navermap-6721-offscreen/ci_parent_frame_save.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-naver-anon-PC-map-parent-child-save-frames
+          path: MOA_NAVER_PARENT_FRAME_SAVE_ANON_PROOF.json
