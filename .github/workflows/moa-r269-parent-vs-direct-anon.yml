@@ -1,0 +1,30 @@
+name: MOA R269 NAVER real anonymous embedded vs standalone Save topology
+on:
+  push:
+    branches: [research/moa-r269-webview-kvm-frame-gate-20261110]
+    paths:
+      - experiments/moa-r269-android-webview-frame-test/ci_compare_parent_vs_direct.py
+      - .github/workflows/moa-r269-parent-vs-direct-anon.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  compare_real_first_party_public_ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Install isolated public browser dependencies
+        run: |
+          python -m pip install playwright
+          python -m playwright install chromium --with-deps
+      - name: Compare real NAVER parent-child vs standalone Place anonymous trusted click
+        run: python experiments/moa-r269-android-webview-frame-test/ci_compare_parent_vs_direct.py
+      - name: Upload only public no-credentials proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R269-REAL-PUBLIC-PARENT-VS-DIRECT-ANON-PROOF
+          path: MOA_R269_PARENT_VS_DIRECT_ANON_BROWSER_PROOF.json
+          if-no-files-found: warn
