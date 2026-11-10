@@ -84,3 +84,18 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - **Android 기기 관문 별도:** Playwright 데스크톱 Chromium의 부모 iframe 공식 로그인 진입과 Galaxy Android WebView의 동등성은 아직 물리 검증되지 않았다. 과거 R241/R233 실기기 루프·Android 에뮬레이터 `map.naver.com` DNS -2를 해결했다고 단정 금지. 연구 브랜치 `research/moa-r269-webview-kvm-frame-gate-20261110`는 프레임 detach 후 로그인/재내비게이션을 안전한 불리언·호스트 값만 기록하도록 수정. 여기까지는 소스/CI 증거이며 사용자 설치용 동일서명 MOA APK 아님.
 - **사용자 참여:** 현재까지 본인 네이버 계정·쿠키·비밀번호·OTP **0건 사용**. 별도 로그인 앱 설치 및 다중 테스트 요구 없음. 실제 MOA 내부 공식 로그인 화면이 테스트 가능한 **같은 앱 설치용 후보**로 준비됐을 때 본인 Galaxy에서 사용자가 직접 로그인·동의하고 1건 readback 테스트가 필요하다. 인증정보를 채팅/로그/GitHub에 제출하지 않는다.
 - **Golden 보존:** R269 원본 `com.juhyeon.familyjournea` versionCode269 SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920`, 기존 잠금문서·R227 별도 Golden·전경 네이버 저장·사진/일기/바로기록·복귀/사용자 데이터 변경 없음. 이번 업데이트는 **Golden 부록 문서만** 증보, FINAL APK/백그라운드 저장 성공 선언 금지.
+
+
+---
+
+## 8. 2026-11-10 실제 동일서명 R275 로그인 연결 베타 빌드 — 설치 가능 형식, 실기기 미검증
+
+- **원본 R269 Golden은 건드리지 않음.** 사용자 지정 원본 code269 APK SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920` 및 R227 별도 Golden은 불변. 이 추가 내용은 Golden 부록 *문서*의 보존 기록.
+- **개인 Library에서 확인한 재빌드 기초:** 사용자가 보유한 실제 original-signer R265 APK SHA256 `5c1d43bb99fd25e82d0ae960fbdbb3609d7235e8ce17736dcb2d518526c3dae5`와 `MOA_R269_SOURCE_DIFF_NO_PRIVATE_SIGNER.zip`의 원래 R269 복귀 패치 소스를 로컬 복원. 기존 원본 인증서 SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`의 일치 여부를 개인 Library의 *비공개 서명 백업*과 실제 검증. 비밀번호/서명키/원본 개인 APK를 공개 GitHub·Actions에 업로드하지 않음.
+- GitHub Actions `42832323985`는 **공개 apktool/Android build-tools 바이너리만** 준비한 성공한 워크플로이고, 사용자 개인 바이너리·서명키는 CI에 전달하지 않음.
+- **R275 베타 산출물** `MOA_R275_NAVER_PARENT_LOGIN_ENTRY_SAME_SIGNER_BETA.apk`, code275, 8,916,258 bytes, SHA256 `9b5dc6ee1cedd2f4f3b74ee6bc8d2677070f2a89501d033c6c4d94489d52ed9e`. 원본과 같은 package `com.juhyeon.familyjournea`/인증서. R265 대비 변경된 비서명 엔트리는 **오직** `AndroidManifest.xml`, `classes2.dex`, `classes6.dex`, `classes13.dex`, `assets/web/moa-r231-settings.js`.
+- **R275 추가 실험:** 기존 MOA 설정의 '네이버지도 복귀 버튼' 내부에 명시적 1탭 '샘플 장소 웹 연결'/'진단 종료' UI를 복구하고, 기존 MOA-owned WebView의 시작 주소를 부모 PC 지도 `https://map.naver.com/p/entry/place/1628573942`로 좁혀 공식 `nid.naver.com/nidlogin.login` 시작 시 `NAVER_OFFICIAL_LOGIN_ENTRY_UNVERIFIED`로만 진단. 별도 APK·루트·Shizuku·ADB가 필요한 정상 사용 흐름을 만들지 않았음. **샘플 장소 정적 진단일 뿐 사용자의 사진 GPS나 즐겨찾기를 자동 저장하지 않음.**
+- **R277 복구 후보** `MOA_R277_RESTORE_R269_SOURCE_EQUIVALENT_BETA.apk`, code277, 8,916,258 bytes, SHA256 `82fbac6bfe4caaf8effe1be6c0b12e14bcb7984d3fb974c358cb5a8f213a12d3`. R265 원본에 보관된 R269 복귀 수정만 재적용한 기능적 복원 후보로, R275의 테스트 UI는 제외. 역시 실제 사용자 골든 APK와 바이트 동일하지 않고 실기기 미검증.
+- **정적 QA:** 두 APK 모두 APK Signature Scheme v2 + 원래 인증서, zipalign, ZIP CRC, 16 DEX SHA1/Adler32, 바이너리 AXML package/버전 확인 PASS. JS Node syntax/실험 버튼 Native `naverWebProbeControl(visible/stop)` 계약 정적 확인 PASS. R275/R277 안에 개인 서명키·암호 파일 없음. **이것은 기동 PASS·지도 로그인 PASS·네이버 계정 저장 PASS가 아님.**
+- **중요 안전 제한:** 원래 R269 설치본은 보존하되 기존 앱 제거/데이터 초기화 금지. 사용자는 실기기 미검증 후보를 강제로 설치할 필요 없음. 최신 빌드는 R269 실제 원본 APK를 바이트 복제한 것이 아니므로 R277을 원본 Golden으로 잘못 표기하지 말 것. Android 버전코드 내리기 강제/앱 삭제 금지.
+- **남은 필수 게이트:** Galaxy 본인 기기의 R275 기동·일기/사진/바로기록/↶MOA 회귀, Android WebView의 실제 부모/iframe 렌더와 공식 로그인, 정식 사용자 자체 로그인·동의, 정확 SID/리스트/별명/메모 쓰기 및 독립 계정 재조회. **실계정 비점유 자동저장 최종 APK는 아직 완료되지 않음.**
