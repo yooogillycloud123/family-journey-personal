@@ -26,6 +26,8 @@ jobs:
         run: python experiments/moa-naver-mobile-routes/ci_probe.py
       - name: Inspect unauthenticated Place Save modal without account action
         run: python experiments/moa-naver-mobile-routes/ci_public_save_modal.py
+      - name: Inspect public save element ancestry without login
+        run: python experiments/moa-naver-mobile-routes/ci_public_save_dom_audit.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -33,4 +35,5 @@ jobs:
           path: |
             MOA_NAVER_MOBILE_ROUTES_NO_LOGIN_20261110.json
             MOA_NAVER_PUBLIC_SAVE_MODAL_NO_AUTH.json
+            MOA_NAVER_PUBLIC_SAVE_DOM_AUDIT_NO_AUTH.json
           if-no-files-found: warn
