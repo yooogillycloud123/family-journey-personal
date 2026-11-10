@@ -40,11 +40,14 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 2048
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 2048 -dns-server 8.8.8.8,1.1.1.1
           script: |
             set -eu
             mkdir -p /tmp/moa-r269-webview-qa
             adb logcat -c || true
+            adb shell getprop net.dns1 || true
+            adb shell ping -c 1 -W 2 example.com || true
+            adb shell ping -c 1 -W 2 map.naver.com || true
             adb install experiments/moa-r269-android-webview-frame-test/app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -n com.juhyeon.moa.browserprobe/.ProbeActivity
             sleep 130
@@ -52,10 +55,7 @@ jobs:
             adb exec-out screencap -p > /tmp/moa-r269-webview-qa/screen.png || true
             cat /tmp/moa-r269-webview-qa/filtered-logcat.txt
             grep -q 'DIRECT_PLACE_START' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Direct Place standalone stage never launched'; exit 1; }
-            if ! grep -Eq 'FRAME_CHILD|FRAME_TOP|MAIN_ERROR|WEBKIT_UNSUPPORTED|BLOCK_EXTERNAL' /tmp/moa-r269-webview-qa/filtered-logcat.txt; then
-              echo '::error::No useful WebView cross-frame result observed. Keep Android authenticated save gate OPEN.'
-              exit 1
-            fi
+            grep -Eq 'FRAME_CHILD|FRAME_TOP|MAIN_ERROR|WEBKIT_UNSUPPORTED|BLOCK_EXTERNAL' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::No useful WebView frame or network error trace; gate OPEN'; exit 1; }
             echo 'Android WebView actually started; examine public frame result. This is NOT an account save PASS.'
       - uses: actions/upload-artifact@v4
         if: always()
