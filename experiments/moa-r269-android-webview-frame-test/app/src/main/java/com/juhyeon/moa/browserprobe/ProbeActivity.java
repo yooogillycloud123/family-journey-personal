@@ -2,6 +2,12 @@ package com.juhyeon.moa.browserprobe;
 import android.app.Activity;
 import android.net.Uri;
 import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.os.Message;
+import android.view.MotionEvent;
+import android.webkit.WebChromeClient;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import android.os.Bundle;
 import android.util.Log;
 import android.webkit.WebView;
@@ -44,6 +50,7 @@ public final class ProbeActivity extends Activity {
     settings.setDomStorageEnabled(true);
     settings.setUseWideViewPort(true);
     settings.setOffscreenPreRaster(true);
+    settings.setSupportMultipleWindows(true);
     settings.setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
     Set<String> origins=new HashSet<>(Arrays.asList("https://map.naver.com","https://pcmap.place.naver.com","https://pages.map.naver.com"));
     if(!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) ||
@@ -65,6 +72,12 @@ public final class ProbeActivity extends Activity {
       "document.addEventListener('DOMContentLoaded',function(){setTimeout(send,2400)},{once:true});"+
       "[6000,12000,24000,42000,54000].forEach(function(t){setTimeout(send,t)});})();";
     WebViewCompat.addDocumentStartJavaScript(web,script,origins);
+    web.setWebChromeClient(new WebChromeClient(){
+      @Override public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg) {
+        report("AUTH_POPUP_REQUESTED","userGesture="+isUserGesture+";blocking anonymous popup for safety");
+        return false;
+      }
+    });
     web.setWebViewClient(new WebViewClient(){
        @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest req){
          Uri u=req.getUrl();String host=u.getHost();
@@ -114,6 +127,53 @@ public final class ProbeActivity extends Activity {
         "document.querySelectorAll('a[data-nlog-area]').length;})()";
       web.evaluateJavascript(js,result->report("ANON_POST_CLICK_UI",String.valueOf(result)));
     }},124000);
+    // Simulate MOA on top of a FULL-SIZE in-app Naver WebView. Only the owner app
+    // dispatches MotionEvent to its own child; never Accessibility/ADB/other apps.
+    web.postDelayed(()->{if(web!=null){
+      tiny.width=-1;tiny.height=-1;web.setLayoutParams(tiny);
+      TextView cover=new TextView(this);cover.setBackgroundColor(Color.WHITE);
+      cover.setTextColor(Color.BLACK);
+      cover.setText("MOA foreground mock is interactive; NAVER runs behind it");
+      root.addView(cover,new FrameLayout.LayoutParams(-1,-1));
+      report("MOA_COVER_ON","full-size Naver behind opaque MOA-owned foreground");
+      web.postDelayed(this::attemptNativeTouchOnSave,5500);
+    }},130000);
+    web.postDelayed(()->{if(web!=null)report("POST_NATIVE_TOUCH_HOST",String.valueOf(Uri.parse(web.getUrl()).getHost()));},153000);
+  }
+  private void attemptNativeTouchOnSave() {
+    if(web==null)return;
+    // No site data or login fields are read; only Save control bounds and press flag.
+    String js="(function(){var all=document.querySelectorAll('a[data-nlog-area]');var a=null;"+
+      "for(var i=0;i<all.length;i++){if(all[i].getAttribute('data-nlog-area')==='map_btp.save'){a=all[i];break;}}"+
+      "if(!a)return JSON.stringify({error:'NO_CONTROL'});var r=a.getBoundingClientRect();"+
+      "var x=r.left+r.width/2,y=r.top+r.height/2;var el=document.elementFromPoint(x,y);"+
+      "return JSON.stringify({x:x,y:y,w:r.width,h:r.height,vpW:innerWidth,vpH:innerHeight,"+
+      "hit:!!el&&(el===a||a.contains(el)),pressed:a.getAttribute('aria-pressed')});})()";
+    web.evaluateJavascript(js, raw->{
+      try {
+        String decoded=new JSONArray("["+raw+"]").getString(0);
+        JSONObject o=new JSONObject(decoded);
+        if(o.has("error")){report("NATIVE_TOUCH_SKIPPED",o.getString("error"));return;}
+        if(!o.optBoolean("hit",false)||!"false".equals(o.optString("pressed"))||
+           o.optDouble("w",0)<3||o.optDouble("h",0)<3){
+          report("NATIVE_TOUCH_SKIPPED","Save control not hittable or already saved");return;
+        }
+        double vpW=o.optDouble("vpW",0),vpH=o.optDouble("vpH",0);
+        if(vpW<10||vpH<10||web==null)return;
+        float x=(float)(o.getDouble("x")*web.getWidth()/vpW);
+        float y=(float)(o.getDouble("y")*web.getHeight()/vpH);
+        if(x<0||y<0||x>web.getWidth()||y>web.getHeight()){
+          report("NATIVE_TOUCH_SKIPPED","Outside WebView layout");return;
+        }
+        long down=android.os.SystemClock.uptimeMillis();
+        MotionEvent press=MotionEvent.obtain(down,down,MotionEvent.ACTION_DOWN,x,y,0);
+        MotionEvent release=MotionEvent.obtain(down,down+90,MotionEvent.ACTION_UP,x,y,0);
+        web.dispatchTouchEvent(press);
+        web.dispatchTouchEvent(release);
+        press.recycle();release.recycle();
+        report("NATIVE_TOUCH_SENT","own WebView;cover remains on top; no account sign-in");
+      }catch(Exception e){report("NATIVE_TOUCH_ERROR",e.getClass().getSimpleName());}
+    });
   }
   @Override protected void onDestroy(){if(web!=null){web.destroy();web=null;}super.onDestroy();}
 }
