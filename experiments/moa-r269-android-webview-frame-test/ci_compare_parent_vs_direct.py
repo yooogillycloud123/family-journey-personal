@@ -40,7 +40,10 @@ async def run_case(browser, key, url):
     result={"case":key,"target":loc(url),"login":False,"personal_write":False,
             "readback":False,"save_success":False,"events":[]}
     popups=[]
+    observed_frames=[]
     page.on("popup",lambda popup: popups.append(popup))
+    page.on("framenavigated",lambda frame: observed_frames.append("NAV:"+loc(frame.url)) if len(observed_frames)<35 else None)
+    page.on("framedetached",lambda frame: observed_frames.append("DETACHED:"+loc(frame.url)) if len(observed_frames)<35 else None)
     try:
         resp=await page.goto(url,wait_until="domcontentloaded",timeout=45000)
         result["http"]=resp.status if resp else None
@@ -89,14 +92,48 @@ async def run_case(browser, key, url):
             result["failure_gate"]="NATIVE_BROWSER_TARGET_NOT_CLICKABLE"
             return result
         await page.wait_for_timeout(7000)
-        result["after"]=await frame_data(child)
+        # Parent iframe can detach when the real NAVER UI handles Save.
+        # This is a first-class observable event, NOT a browser-execution failure
+        # and absolutely NOT proof of account write or login.
+        try:
+            result["after"]=await frame_data(child)
+            result["old_frame_still_attached"]=True
+        except Exception as exc:
+            result["after"]=None
+            result["old_frame_still_attached"]=False
+            result["after_error_type"]=type(exc).__name__
+        result["frame_events"]=observed_frames[:35]
+        result["frames_after"]=[loc(f.url) for f in page.frames]
         result["popup_count"]=len(popups)
         result["popup_hosts"]=[urlsplit(p.url).netloc for p in popups][:5]
         result["parent_after"]=loc(page.url)
-        result["parent_message_origins"]=(await page.main_frame.evaluate(
-            "() => window.__moaParentMessageOrigins??[]"))[:30]
+        try:
+            result["parent_message_origins"]=(await page.main_frame.evaluate(
+                "() => window.__moaParentMessageOrigins??[]"))[:30]
+        except Exception:
+            result["parent_message_origins"]=[]
         result["navigation_changed"]=loc(page.url)!=loc(url)
-        result["failure_gate"]="ANONYMOUS_CLICK_ONLY_ACCOUNT_WRITE_NOT_TESTED"
+        # Inspect only non-sensitive boolean UI markers on NAVER's own frames.
+        # Never read/store page text, credentials, cookies, or request bodies.
+        result["visible_login_ui_any_frame"]=False
+        result["login_ui_hosts"]=[]
+        for frame in page.frames:
+            host=urlsplit(frame.url).netloc.lower()
+            if not (host=="naver.com" or host.endswith(".naver.com")):
+                continue
+            try:
+                visible=await frame.evaluate("""() => {
+                  let t=document.body?.innerText||'';
+                  return /로그인|NAVER ID|네이버 아이디/.test(t.slice(0,1800));
+                }""")
+                if visible:
+                    result["visible_login_ui_any_frame"]=True
+                    result["login_ui_hosts"].append(host)
+            except Exception:
+                pass
+        result["failure_gate"]=("PLACE_FRAME_DETACHED_AFTER_TRUSTED_CLICK_NEEDS_NAVIGATION_ANALYSIS"
+                                if not result["old_frame_still_attached"]
+                                else "ANONYMOUS_CLICK_ONLY_ACCOUNT_WRITE_NOT_TESTED")
     except Exception as exc:
         result["failure_gate"]="BROWSER_OR_SITE_ERROR"
         result["error"]=type(exc).__name__+":"+str(exc).split("\n")[0][:180]
