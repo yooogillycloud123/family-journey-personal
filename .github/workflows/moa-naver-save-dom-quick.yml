@@ -1,0 +1,24 @@
+name: MOA NAVER Save DOM quick audit – public no-auth
+on:
+  push:
+    branches: [research/moa-native-automatic-naver-favorites-canonical-20261110]
+    paths: ['.github/workflows/moa-naver-save-dom-quick.yml']
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  public_save_control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: |
+          python -m pip install playwright
+          python -m playwright install chromium --with-deps
+      - run: python experiments/moa-naver-mobile-routes/ci_public_save_dom_audit.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-NAVER-Place-Save-DOM-public-no-account
+          path: MOA_NAVER_PUBLIC_SAVE_DOM_AUDIT_NO_AUTH.json
