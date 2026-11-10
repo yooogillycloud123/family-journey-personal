@@ -24,7 +24,7 @@ jobs:
           set -euxo pipefail
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           yes | "$SDKMANAGER" --licenses > /dev/null || true
-          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
       - name: Build independent Android browser probe (NOT MOA production)
         run: gradle -p experiments/moa-gecko-device-probe --no-daemon --stacktrace :app:assembleDebug
       - name: Test public NAVER PC map on Android 35 emulator, never log in
