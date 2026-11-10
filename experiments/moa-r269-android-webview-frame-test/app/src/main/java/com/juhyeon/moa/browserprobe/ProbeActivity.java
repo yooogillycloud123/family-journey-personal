@@ -79,6 +79,10 @@ public final class ProbeActivity extends Activity {
     web.loadUrl("https://map.naver.com/p/entry/place/1628573942");
     // Check whether JS survives a non-interactive 2x2 in-app browser stage.
     web.postDelayed(()->{if(web!=null){tiny.width=2;tiny.height=2;web.setLayoutParams(tiny);report("SWITCH_TINY","2x2 after 35s full viewport, no user-screen takeover");}},35000);
+    // Independent, evidence-based alternate: the real Place iframe as a top-level document.
+    // This avoids blindly reloading the R241 looping map root and may avoid needing its parent.
+    web.postDelayed(()->{if(web!=null){tiny.width=-1;tiny.height=-1;web.setLayoutParams(tiny);report("DIRECT_PLACE_START","full viewport pcmap.place.naver.com (anonymous/no click)");web.loadUrl("https://pcmap.place.naver.com/place/1628573942/home");}},65000);
+    web.postDelayed(()->{if(web!=null){tiny.width=2;tiny.height=2;web.setLayoutParams(tiny);report("DIRECT_PLACE_TINY","direct Place page shrunk to 2x2 after 35s");}},100000);
   }
   @Override protected void onDestroy(){if(web!=null){web.destroy();web=null;}super.onDestroy();}
 }
