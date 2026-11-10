@@ -63,6 +63,7 @@ jobs:
             grep -q 'ANON_SAVE_2X2' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Anonymous 2x2 Save-click probe was not executed'; exit 1; }
             grep -q 'NATIVE_TOUCH_SENT' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Own-WebView native touch could not be dispatched behind MOA cover'; exit 1; }
             grep -q 'NATIVE_TOUCH_POST_UI' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Missing post-touch UI evidence; not a NAVER write PASS'; exit 1; }
+            grep -q 'NATIVE_TOUCH_OBSERVER_READY' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Missing DOM touch observer evidence'; exit 1; }
             grep -q 'MOA_COVER_CLICK' /tmp/moa-r269-webview-qa/filtered-logcat.txt || { echo '::error::Foreground MOA mock did not receive real Android input'; exit 1; }
             echo 'Android WebView actually started; examine public frame result. This is NOT an account save PASS.'
       - uses: actions/upload-artifact@v4
@@ -85,9 +86,13 @@ jobs:
           printf '%s\n' '### Android 35 anonymous research CI' > "$report"
           printf 'Run: https://github.com/%s/actions/runs/%s\n' "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$report"
           printf '%s\n' 'Flags mean a tagged event appeared in the emulator log, NOT a verified NAVER account save.' >> "$report"
-          for tag in DIRECT_PLACE_START FRAME_TOP FRAME_CHILD ANON_SAVE_2X2 ANON_POST_CLICK_UI NATIVE_TOUCH_FRESH_DOCUMENT MOA_COVER_ON NATIVE_TOUCH_SENT NATIVE_TOUCH_SKIPPED NATIVE_TOUCH_POST_UI MOA_COVER_CLICK AUTH_POPUP_REQUESTED MAIN_ERROR; do
+          for tag in DIRECT_PLACE_START FRAME_TOP FRAME_CHILD ANON_SAVE_2X2 ANON_POST_CLICK_UI NATIVE_TOUCH_FRESH_DOCUMENT MOA_COVER_ON NATIVE_TOUCH_OBSERVER_READY NATIVE_TOUCH_SENT NATIVE_TOUCH_SKIPPED NATIVE_TOUCH_POST_UI MOA_COVER_CLICK AUTH_POPUP_REQUESTED MAIN_ERROR; do
             if [ -f "$LOG" ] && grep -q "$tag" "$LOG"; then result=OBSERVED; else result=NOT_OBSERVED; fi
             printf '%s: %s\n' "$tag" "$result" >> "$report"
           done
+          if [ -f "$LOG" ] && grep -Eq 'events=[^;]*click:trusted=true' "$LOG"; then trusted=OBSERVED; else trusted=NOT_OBSERVED; fi
+          if [ -f "$LOG" ] && grep -Eq 'userActivated=true' "$LOG"; then active=OBSERVED; else active=NOT_OBSERVED; fi
+          printf 'REAL_DOM_TRUSTED_CLICK: %s\\n' "$trusted" >> "$report"
+          printf 'BROWSER_USER_ACTIVATION: %s\\n' "$active" >> "$report"
           printf '%s\n' 'NAVER personal authentication, folder creation, saved-place write and independent readback: UNVERIFIED.' >> "$report"
           gh issue comment 9 --repo "$GITHUB_REPOSITORY" --body-file "$report"
