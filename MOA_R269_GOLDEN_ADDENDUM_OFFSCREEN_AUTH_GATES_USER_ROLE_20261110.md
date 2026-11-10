@@ -118,3 +118,14 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - R281 데이터 삭제 없는 업데이트 방향 복구 **후보** `MOA_R281_RESTORE_R269_SOURCE_EQUIVALENT_BETA.apk` SHA256 `948f02746d68199c3ca2bf09ba1e6bf4d5633f73d501a1890196630a2d9064de`는 R279 인증 진단 변경을 제외하고 기존 R269 복귀 패치를 R265에 복원한 것. **원본 R269 Golden과 바이트 동일하지 않으며 기동 실기기 미검증**. 앱 삭제/데이터 초기화·강제 다운그레이드 금지.
 - 정적 검증: R279·R281 Android APK v2 서명/원본 인증서·zipalign/ZIP CRC·16개 DEX checksum·실제 APK versionCode 및 package·JS Node 문법 PASS. **네이버 CAPTCHA 확인 버튼 동작, 로그인/세션, 서버 즐겨찾기 저장 및 독립 readback, 숨김 상태 자동저장, 갤럭시 R279 실행 모두 PENDING**. 인증 실패가 계속되면 로그인 반복/보안 설정 해제 요구 금지; 실제 사용자 승인과 정상적인 네이버 공식 인증만 허용.
 - 원본 R269 사용자 지정 Golden APK SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920` 및 별도 R227 Golden **완전 불변**. 이번 커밋은 설명 문서의 신규 섹션만 추가.
+
+
+---
+
+## 10. 2026-11-10 R279 실기기 추가인증 반복 — 영상 20180 및 원본 smali 확인
+- 사용자 갤럭시 실제 R279 영상 `20180.mp4`: 네이버 공식 `nid.naver.com` 영수증형 자동입력방지 문제에서 사용자가 정답을 수동 입력하고 초록색 '확인'을 여러 차례 누름. **버튼 터치 시각 효과는 관찰**되지만 페이지 진행, 로그인 성공, 오류 메시지 등 최종 인증 결과는 기록되지 않음. 문제 정답·비밀번호·회원 아이디는 공개 저장/전달하지 않음.
+- **R279 실제 smali 재점검** `MoaNaverWebProbeHost.smali`: WebView `setJavaScriptEnabled(true)`, `setDomStorageEnabled(true)`, `CookieManager.setAcceptCookie(true)`, `setAcceptThirdPartyCookies(web,true)`, 기본 `WebChromeClient`가 이미 존재함. 따라서 'WebChromeClient 없음', '쿠키를 꺼둠', 'JS 비활성'을 원인으로 **재차 주장 금지**. 재빌드하면서 동일 설정만 추가하는 무의미한 재시도 금지.
+- 문제를 좁히는 **유력 미검증 가설**: 공개 네이버 PC지도를 여는 이유로 WebView `setUserAgentString`을 `Mozilla/5.0 (Windows NT 10.0; Win64; x64)... Chrome/131.0.0.0`으로 강제함. 실제 Android WebView 및 다른 클라이언트 힌트, 독립 쿠키 저장소의 차이가 공식 네이버 로그인 리스크 탐지/인증에 영향을 줄 수 있음. 로그인 요청·CAPTCHA 제출 서버 응답이나 JS 오류를 수집한 증거는 없으므로 원인 확정 불가.
+- 네이버 공식 고객센터 [자동입력방지 안내](https://help.naver.com/service/5640/contents/1024?lang=ko&osType=COMMONOS)는 과거 아이디·비밀번호 오류 누적, 잘못된 자동완성 입력, 기기·네트워크 장애 등을 가능한 이유로 제시. **사용자 계정에 비밀번호 오류가 있었다고 단정 금지**. 기존 모바일 브라우저에서 정상이었다는 사용자 보고와 충돌하지 않도록 계정 단정 대신 임베디드 환경 비교 우선.
+- 다음 작업의 안전한 한 변수 비교: 네이버 로그인 시에만 별도 앱 소유 WebView를 **실제 기본 Android UA**로 새로 띄우는 인증 UI 연구를 하되, 웹사이트 자체 보안장치·확인문제를 우회/자동풀이하지 않고, 개인 식별정보·쿠키·토큰·보안답·요청본문을 수집/기록하지 않음. 브라우저 인증 UI 동작과 실제 계정 저장 성공은 독립 게이트. 필요 시 정상 시스템 브라우저 Custom Tab으로 수동 로그인하는 접근을 제공하되 **시스템 브라우저 쿠키는 MOA WebView로 자동 전송/공유되지 않음**, 무음·비점유 백그라운드 저장의 해답인 것처럼 소개 금지.
+- **현재 상태**: R279 실기기 추가 인증 진행 **FAIL/OPEN**, 네이버 로그인/장소·리스트·별명·메모 저장 및 독립 계정 조회 전부 미확인. R279/R281 기존 서명·설치 파일은 재발급 없이 그대로 보존, 사용자 R269 원본 Golden APK SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920` 불변. 로그인 실패 반복이나 사용자 보안설정 해제·강제 비밀번호 변경을 요청하지 않음.
