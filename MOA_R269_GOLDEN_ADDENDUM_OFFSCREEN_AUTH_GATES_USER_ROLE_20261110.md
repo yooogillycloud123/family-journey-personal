@@ -146,3 +146,5 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 8. **프로젝트 보호:** 사용자 지정 R269 Golden code269 SHA256 `c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920`, R227 Golden, AirPods/AndroidAuto 프로젝트 모두 불변. 본 기록은 **Golden 부록 문서에만 추가**. R283/R285/R287 서명키는 비공개 Library/로컬에서만 사용했고 공개 GitHub에 저장하지 않음.
 
 **다음 실제 기능 게이트:** (가) Galaxy R283 기존 기능 회귀 + 실제 로그인 화면 확인 → (나) Android UA 인증 정상 여부 → (다) 사용자 본인 공식 로그인 1회 → (라) 같은 MOA 앱으로 인증 쿠키 지속 → (마) 정확한 장소 SID/리스트/별명/메모 쓰기와 별도 재조회. 현재 (가)~(마) 미검증.
+
+- **동일 APK 포함 ZIP 검증:** 현재 대화 산출물 `MOA_R283_NAVER_ANDROID_UA_BETA_AND_RECOVERY_20261111.zip` 19,353,452 B SHA256 `978a47a53b27c20b73099c4399f6ffd498dba9e6f1bb2b93881bc1e2640d4e5f`. 정확히 동일 바이트 R283/R285/R287 APK 3개와 정적 QA JSON, 한국어 설치·복구 안내, 공개 가능한 소스 패치 1개를 포함. ZIP CRC PASS, 각 내부 APK SHA-256이 단독 파일과 동일. 개인 서명키·비밀번호·네이버 개인정보는 ZIP에 없음. **사용자 실기기 로그인 성공은 여전히 미검증**.
