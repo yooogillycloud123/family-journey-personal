@@ -186,3 +186,19 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - **합성 테스트 PASS 5건:** 잘못된 SID 클릭 거부, 다중 저장버튼 클릭 거부, 단일 SID/버튼 UI 요청 후 UNVERIFIED 유지, 상태 메시지 송신 origin 엄격 확인, 동일 주소 결과 중복 시 임의 첫 행 클릭 거부.
 - **주의:** 사용자 실제 Galaxy R289 비점유 자동 쓰기 및 네이버 서버 리스트/장소/별명/메모의 독립 readback은 아직 미검증. R289를 FINAL/Golden으로 승격하지 말 것. 기존 R269 사용자 지정 Golden SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920, R227, AA/AirPods 코드·사용자 데이터·서명은 변경하지 않음. 앱 제거/데이터 초기화/강제 다운그레이드 금지.
 - **연구 인수:** https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R289_OFFSCREEN_TARGET_SAFE_HANDOFF_20261111.md
+
+
+---
+
+## 13. 2026-11-11 R289 실제 비점유 요청 대기·R293 네이티브 웹 경로 진단 수리
+
+- 사용자 실기기 동영상 20209.mp4/20210.mp4 재검토: 20210에서 설정 토글은 일기 이동 전 ON이었고, 20209 일기 저장 상태 '요청 대기(QUEUED)'는 비점유 phone_submit 작업 접수의 직접 화면 증거. 먼저 축소된 접촉표를 보고 스위치가 OFF라 판단한 것은 오류로 정정. 사용자가 제공한 영상을 GitHub에 게시하지 않음.
+- 20210의 '3분 안에 저장을 확인하지 못했습니다' 메시지는 기존 접근성 네이버 전경 워커 TIMEOUT에 해당. 이전 요청에서 늦게 온 알림일 수 있어 이번 비점유 작업과 동일 job이라고 단정 금지.
+- R289 원본 smali MoaNaverPhoneWorker.submit은 존재하는 WebView 객체만 확인하고 QUEUED_IN_MOA_PHONE 반환. UI thread lambda$deliver$0은 현재 페이지가 top map.naver.com인지 확인 없이 private task를 window.postMessage()로 보냈음. 허용 지도 document-start listener가 없을 수 있는 로그인/네이버 홈 화면에서는 실제 전달 없이 QUEUED만 남을 수 있다는 **소스로 확정된 설계 결함**. 사용자가 실제 어떤 페이지에 있었는지는 영상에서 증명 불가.
+- **R293 수리 베타:** MOA_R293_OFFSCREEN_ROUTE_GUARD_DIAG_BETA.apk SHA256 da2ce84c0bbc882b6ebeb0a401bdac1ee2eb9c65830b3a2999b16efedd2b3fd3, package com.juhyeon.familyjournea code293, original cert 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15, 8,907,764 B. 네이티브 UI thread에서 WebView.getUrl 확인 후 HTTPS map.naver.com/ 페이지가 아니면 NAVER_PAGE_NOT_READY로 즉시 차단. 일기 GPS 카드에 비점유 저장 실험 / 기존 네이버 저장 별도 버튼을 만들고 각각 별도 명시적 route 전달해 설정 localStorage 불일치·늦은 네이티브 알림 혼동을 줄임. 지도 프레임 ACK 없이 QUEUED 16초 경과 시 WEB_NO_FRAME_ACK로 중지. 계정/쿠키/메모/로그인 비밀정보 출력·수집 없음.
+- 정확한 변경 멤버 R289 대비 4개: AndroidManifest.xml, classes14.dex, assets/web/fj-naver-favorites.js, assets/r28-diary-location.js. 나머지 15 DEX와 모든 다른 기존 앱 파일 동일. APKv2 기존인증서/zipalign/ZIPCRC/DEX SHA1+Adler32/JS Node 구문, 기존 5건 mock UI 안전 시나리오와 신규 명시적 web/native 라우트+스레드 map root 검사 PASS. 아직 갤럭시 R293 실기기 네이버 저장 및 서버 readback은 미검증.
+- **R295 복구 후보:** MOA_R295_RESTORE_R289_FEATURES.apk SHA256 ef950657b016d6fa998cffe9d8b6ba1882ee1611edb4a40081fcc3d51462d6d3, code295. R289과 비서명 페이로드 차이는 Manifest versionCode 한 개뿐; 동일 인증서/정적 검증 PASS. 사용자 R269 Golden의 바이트 동일 복사본이 아니고 실기기 복구 테스트 미수행.
+- 짝 ZIP: MOA_R293_EXACT_ROUTE_DIAGNOSTIC_WITH_R295_RECOVERY_20261111.zip 12,882,508 B SHA256 cf798031a932deb5a1f55c889390065e2306954835b9010255b0fe2958e59ab3. 동일 바이트 APK 2개+QA JSON+문제 범위/테스트 한국어 안내+공개 가능한 소스 diff, 비공개 서명키·사용자 영상 없음.
+- R293는 실계정 자동저장 FINAL이 아니라 실패 경로를 **실제 기기에서 더 정확하게 확인할 진단/보수 베타**. 사용자 본인 계정의 실제 즐겨찾기 리스트·주소/SID·별명·메모 저장 및 독립 서버 readback은 OPEN. 20209/20210만으로 서버 실패 이유까지 확정하지 말 것. 앱 삭제·데이터 초기화·다운그레이드·Golden 인플레이스 수정 금지.
+- 연구 문서: https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R293_VIDEO_CORRELATED_OFFSCREEN_ROUTE_GUARD_20261111.md
+- R269 사용자 지정 원본 Golden SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920, R227, AA AirPods audio 모두 불변.
