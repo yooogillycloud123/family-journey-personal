@@ -55,7 +55,7 @@ public final class ProbeActivity extends Activity {
       });
     String script="(function(){function send(){"+
       "try{MoaProbe.postMessage(JSON.stringify({origin:location.origin,path:location.pathname,"+
-      "ready:document.readyState,saveLabels:document.body?document.body.innerText.indexOf('저장')>=0:false}));}catch(e){}}"+
+      "ready:document.readyState,placeSaveCount:document.querySelectorAll('a[data-nlog-area=map_btp.save]').length,viewport:innerWidth}));}catch(e){}}"+
       "document.addEventListener('DOMContentLoaded',function(){setTimeout(send,2400)},{once:true});"+
       "[6000,12000,24000,42000,54000].forEach(function(t){setTimeout(send,t)});})();";
     WebViewCompat.addDocumentStartJavaScript(web,script,origins);
