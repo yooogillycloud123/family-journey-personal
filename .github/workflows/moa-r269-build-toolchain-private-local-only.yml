@@ -4,7 +4,7 @@ on:
     branches: [research/moa-r269-webview-kvm-frame-gate-20261110]
     paths: ['.github/workflows/moa-r269-build-toolchain-private-local-only.yml']
   workflow_dispatch:
-permissions: { contents: read }
+permissions: { contents: read, issues: write }
 jobs:
   prepare_public_tools:
     runs-on: ubuntu-24.04
@@ -37,3 +37,12 @@ jobs:
           path: /tmp/moa-public-tools/
           if-no-files-found: error
           retention-days: 5
+
+      - name: Publish public-toolchain build result (no credentials)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh issue comment 9 --repo "$GITHUB_REPOSITORY" --body "MOA private-local APK reconstruction toolchain run https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID ; public Apktool+Android SDK binaries only; no signing key / user APK in CI. Inspect Actions job status and artifact before local-only signing."
