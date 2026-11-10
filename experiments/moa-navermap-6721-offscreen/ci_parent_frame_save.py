@@ -35,12 +35,12 @@ async def main():
           "html":(await el.evaluate("(e)=>(e.closest('a,button,[role=button]')||e).outerHTML"))[:800]})
        except Exception as e:out["candidate_elements"].append({"error":str(e)[:80]})
      if count>0 and target is None:
-      target=frame.locator('[data-nlog-area="map_btp.save"]').first if await frame.locator('[data-nlog-area="map_btp.save"]').count() else None
+      target=frame.locator('button.widget_favorite[aria-pressed="false"]').first if await frame.locator('button.widget_favorite[aria-pressed="false"]').count() else None
     except Exception as e:out["candidate_frames"].append({"error":type(e).__name__})
    if target is not None:
     try:
      await target.click(timeout=5000)
-     out["clicked"]=True
+     out["clicked"]=True\n     out["clicked_kind"]="place_widget_favorite_NOT_navbar"
      await page.wait_for_timeout(1800)
      out["frames_after"]=[f.url.split("?")[0][:180] for f in page.frames]
      out["popup_count"]=len(popups)
