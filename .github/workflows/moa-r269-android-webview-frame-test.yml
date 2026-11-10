@@ -50,10 +50,10 @@ jobs:
             adb shell ping -c 1 -W 2 map.naver.com || true
             adb install experiments/moa-r269-android-webview-frame-test/app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -n com.juhyeon.moa.browserprobe/.ProbeActivity
-            # Human-shaped input goes ONLY to the fully opaque MOA mock overlay at t=145s.
+            # Human-shaped input goes ONLY to the fully opaque MOA mock overlay at t=174s.
             # This cannot log in or write any NAVER account state.
-            (sleep 145; adb shell input tap 200 200) &
-            sleep 165
+            (sleep 174; adb shell input tap 200 200) &
+            sleep 190
             adb logcat -d -v time -s MOA_WEBFRAME_PROBE:I AndroidRuntime:E > /tmp/moa-r269-webview-qa/filtered-logcat.txt || true
             adb exec-out screencap -p > /tmp/moa-r269-webview-qa/screen.png || true
             cat /tmp/moa-r269-webview-qa/filtered-logcat.txt
