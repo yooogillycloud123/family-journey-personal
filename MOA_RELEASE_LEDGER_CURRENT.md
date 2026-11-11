@@ -1,3 +1,11 @@
+## 2026-11-11 — R345 user-device NAVER saved-list GOLDEN (scoped)
+
+- **Immutable original APK:** com.juhyeon.familyjournea code345 SHA256 `fe2aaaac15d39a610268ee3d10361652a95537e0ce8ec9cde86e98edf3f8ceb1` (8,880,150B); original certificate SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+- **Physical evidence:** User reports visible wait and offscreen while other MOA activity both apparently succeeded. First-party Naver logged-in saved list `내 장소` now **187** vs **185** previously, two user-targeted places visibly present in screenshot/video. **Account list visually positive**, strict independent API/alias/memo/new-list/replay still open. Not full FINAL.
+- **Byte archive:** original R345 ZIP (inner exact APK SHA verified) SHA256 `cd63e8367c825be8fecd6738d0cb3cd1938f7d1025b9a450f4679fde07cda6ef` preserved PRIVATE `/모아_프로젝트_근거_20261103/R345_20261111/`. Additional private `GOLDEN_R345_20261111/` screenshots, exact source, 138-member manifest. Duplicate archive upload limited by Library quota; existing original was already stored.
+- **Git source freeze:** `golden/moa-r345-20261111-user-naver-list-visible` exact APK-extracted 3 JS files, git blobs byte-equal. [Golden handoff](MOA_R345_USER_DEVICE_NAVER_LIST_GOLDEN_LOCK_20261111.md).
+- **Warning:** R347 fallback carries R341 functions, NOT Golden. Never routine-install R347 after R345 success. Future candidate use code >=349. R269 and previous Goldens and AA audio untouched.
+
 ## 2026-11-11 R333 — actual user working PC Python source reconstructed, ported same-signer beta
 
 | Item | Code | Exact size | SHA256 | Evidence |
