@@ -4,7 +4,7 @@ on:
     branches:
       - feature/moa-r361-native-gps-memo-hidden-20261112
     paths:
-      - 'experiments/moa-r357/src/MoaR361CaptureHookProvider.java'
+      - 'experiments/moa-r357/src/MoaR357CaptureHookProvider.java'
       - '.github/workflows/moa-r361-provider-only-dex.yml'
   workflow_dispatch:
 permissions:
@@ -31,18 +31,18 @@ jobs:
           javac -encoding UTF-8 -source 17 -target 17 \
             -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
             -d /tmp/r357/classes \
-            experiments/moa-r357/src/MoaR361CaptureHookProvider.java
-          find /tmp/r357/classes -name 'MoaR361CaptureHookProvider*.class' -print0 | \
+            experiments/moa-r357/src/MoaR357CaptureHookProvider.java
+          find /tmp/r357/classes -name 'MoaR357CaptureHookProvider*.class' -print0 | \
             xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" \
             --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r357/dex
           python3 - <<'PY'
           import pathlib,hashlib,base64,zlib,json
           b=pathlib.Path('/tmp/r357/dex/classes.dex').read_bytes()
-          assert b[:4]==b'dex\n' and b'MoaR361CaptureHookProvider' in b
-          assert b'MoaMomentMemoRecorderActivity;' not in b or b'MoaR361CaptureHookProvider' in b
+          assert b[:4]==b'dex\n' and b'MoaR357CaptureHookProvider' in b
+          assert b'MoaMomentMemoRecorderActivity;' not in b or b'MoaR357CaptureHookProvider' in b
           o=pathlib.Path('build/moa-r361-provider')
           (o/'provider.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
-          (o/'qa.json').write_text(json.dumps({'dex_sha256':hashlib.sha256(b).hexdigest(),'size':len(b),'source_sha256':hashlib.sha256(pathlib.Path('experiments/moa-r357/src/MoaR361CaptureHookProvider.java').read_bytes()).hexdigest()},indent=2)+'\n')
+          (o/'qa.json').write_text(json.dumps({'dex_sha256':hashlib.sha256(b).hexdigest(),'size':len(b),'source_sha256':hashlib.sha256(pathlib.Path('experiments/moa-r357/src/MoaR357CaptureHookProvider.java').read_bytes()).hexdigest()},indent=2)+'\n')
           print('R361_PROVIDER_COMPILE_PASS',len(b))
           PY
       - uses: actions/upload-artifact@v4
