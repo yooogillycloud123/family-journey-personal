@@ -10,6 +10,17 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.content.ContentUris;
+import android.provider.MediaStore;
+import android.media.ExifInterface;
+import android.media.MediaMetadataRetriever;
+import java.io.InputStream;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import java.util.HashMap;
+import java.util.Map;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
@@ -31,10 +42,28 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
   private static final String TARGET="com.juhyeon.familyjourney.MoaMomentMemoRecorderActivity";
   private final WeakHashMap<Activity,Boolean> attached=new WeakHashMap<>();
   private Application application;
+  private final Handler main=new Handler(Looper.getMainLooper());
+  private final Map<String,Choice> pending=new HashMap<>();
+  private SharedPreferences watched;
+  private SharedPreferences.OnSharedPreferenceChangeListener listener;
+  private static final class Choice{
+    final String id,list;final boolean checked;final long at;
+    volatile boolean locationResolved;
+    volatile double lat=Double.NaN,lon=Double.NaN;
+    Choice(String id,boolean checked,String list){this.id=id;this.checked=checked;this.list=list;this.at=System.currentTimeMillis();}
+  }
   @Override public boolean onCreate(){
     Context ctx=getContext();if(ctx==null)return false;
     application=(Application)ctx.getApplicationContext();
     application.registerActivityLifecycleCallbacks(this);
+    watched=prefs(ctx);
+    listener=(sp,k)->{
+      if(k==null||!k.startsWith("m:"))return;
+      String mediaId=k.substring(2);
+      if(!pending.containsKey(mediaId))return;
+      main.post(()->applyAfterOriginalSave(mediaId));
+    };
+    watched.registerOnSharedPreferenceChangeListener(listener);
     return true;
   }
   @Override public void onActivityResumed(Activity activity){
@@ -93,19 +122,80 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
   private SharedPreferences prefs(Context c){return c.getSharedPreferences(CAPTURE_PREF,Context.MODE_PRIVATE);}
   private JSONObject draft(Context c,String id){try{return new JSONObject(prefs(c).getString("m:"+id,"{}"));}catch(Exception e){return new JSONObject();}}
   private void mark(Context c,String status){prefs(c).edit().putString("r357hookStatus",status).apply();}
-  private void commitChoice(Activity activity,String id,boolean checked,String list){
+  private static boolean precise(double lat,double lon){
+    return Double.isFinite(lat)&&Double.isFinite(lon)&&lat>=33&&lat<=39&&lon>=124&&lon<=132;
+  }
+  private static double[] readNativeGps(Context ctx,String mediaId){
+    boolean video=mediaId!=null&&mediaId.startsWith("v");
+    if(mediaId==null||!mediaId.matches("v?[0-9]{1,19}"))return null;
+    long id;try{id=Long.parseLong(video?mediaId.substring(1):mediaId);}catch(Exception e){return null;}
+    Uri uri=ContentUris.withAppendedId(video?MediaStore.Video.Media.EXTERNAL_CONTENT_URI:
+      MediaStore.Images.Media.EXTERNAL_CONTENT_URI,id);
     try{
-      SharedPreferences sp=prefs(activity);
-      String original=sp.getString("m:"+id,null);
-      if(original==null||original.isEmpty()){mark(activity,"CAPTURE_NOT_FOUND");return;}
-      JSONObject obj=new JSONObject(original);
-      String safe=String.valueOf(list).trim();if(safe.length()>70)safe=safe.substring(0,70);
-      obj.put("naverQuickFavorite",checked);
-      obj.put("naverQuickList",checked?safe:"");
-      obj.put("naverQuickRequestedAt",System.currentTimeMillis());
-      if(!sp.edit().putString("m:"+id,obj.toString()).commit())throw new Exception("PREFS_COMMIT_FAILED");
-      mark(activity,checked?"SAVED_WITH_NAVER_INTENT":"SAVED_NO_NAVER_INTENT");
-    }catch(Exception e){mark(activity,"DRAFT_UPDATE_FAILED");}
+      if(video){
+        MediaMetadataRetriever r=new MediaMetadataRetriever();
+        try{
+          r.setDataSource(ctx,uri);
+          String v=r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_LOCATION);
+          if(v==null)return null;
+          Matcher m=Pattern.compile("^([+-][0-9]{1,2}(?:\\.[0-9]+)?)([+-][0-9]{1,3}(?:\\.[0-9]+)?).*$").matcher(v);
+          if(!m.matches())return null;
+          double lat=Double.parseDouble(m.group(1)),lon=Double.parseDouble(m.group(2));
+          return precise(lat,lon)?new double[]{lat,lon}:null;
+        }finally{r.release();}
+      }
+      try(InputStream input=ctx.getContentResolver().openInputStream(uri)){
+        if(input==null)return null;
+        float[] xy=new float[2];
+        if(!new ExifInterface(input).getLatLong(xy))return null;
+        double lat=xy[0],lon=xy[1];
+        return precise(lat,lon)?new double[]{lat,lon}:null;
+      }
+    }catch(Throwable deniedOrAbsent){return null;}
+  }
+  private void applyAfterOriginalSave(String id){
+    Choice choice=pending.get(id);
+    if(choice==null)return;
+    if(!choice.locationResolved&&System.currentTimeMillis()-choice.at<2100)return;
+    SharedPreferences sp=watched;if(sp==null)return;
+    String raw=sp.getString("m:"+id,null);
+    if(raw==null||raw.isEmpty())return;
+    try{
+      JSONObject d=new JSONObject(raw);
+      if(!d.optBoolean("memoSaved",false))return;
+      String dest=choice.checked?choice.list:"";
+      if(d.optBoolean("naverQuickFavorite",false)==choice.checked&&
+        dest.equals(d.optString("naverQuickList",""))&&
+        d.optLong("naverQuickRequestedAt",0)==choice.at){
+          pending.remove(id);return;
+      }
+      d.put("naverQuickFavorite",choice.checked);
+      d.put("naverQuickList",dest);
+      d.put("naverQuickRequestedAt",choice.at);
+      if(precise(choice.lat,choice.lon)){
+        d.put("naverQuickGpsLat",choice.lat);
+        d.put("naverQuickGpsLon",choice.lon);
+      }
+      if(!sp.edit().putString("m:"+id,d.toString()).commit())throw new Exception("COMMIT_FAILED");
+      pending.remove(id);
+      mark(application,choice.checked?"R361_NATIVE_OPT_IN_AFTER_SAVE":"R361_NATIVE_NO_NAVER_AFTER_SAVE");
+    }catch(Exception e){mark(application,"R361_NATIVE_CHOICE_COMMIT_FAILED");}
+  }
+  private void afterSaveTouch(Activity a,String id,boolean checked,String rawList){
+    String list=String.valueOf(rawList).trim();if(list.length()>70)list=list.substring(0,70);
+    Choice choice=new Choice(id,checked,list);
+    pending.put(id,choice);
+    mark(a,"R361_NATIVE_INTENT_WAITING_FOR_ORIGINAL_SAVE");
+    if(checked)new Thread(()->{
+      double[] pair=readNativeGps(a.getApplicationContext(),id);
+      main.post(()->{
+        if(pending.get(id)!=choice)return;
+        if(pair!=null){choice.lat=pair[0];choice.lon=pair[1];}
+        choice.locationResolved=true;applyAfterOriginalSave(id);
+      });
+    },"moa-r361-exif").start();
+    else choice.locationResolved=true;
+    for(int delay:new int[]{100,300,700,1400,2600,4600})main.postDelayed(()->applyAfterOriginalSave(id),delay);
   }
   private void install(Activity activity){
     if(activity.isFinishing()||activity.isDestroyed()||attached.containsKey(activity))return;
@@ -156,7 +246,7 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
     // return false so the original recorder/diary save remains untouched.
     save.setOnTouchListener((v,event)->{
       if(event.getActionMasked()==MotionEvent.ACTION_DOWN){
-        commitChoice(activity,id,checkbox.isChecked(),folder.getText().toString());
+        afterSaveTouch(activity,id,checkbox.isChecked(),folder.getText().toString());
         // Original Save listener may persist its note after DOWN. Re-apply only
         // these optional fields after the original listener without replacing it.
         save.postDelayed(()->commitChoice(activity,id,checkbox.isChecked(),folder.getText().toString()),120);
