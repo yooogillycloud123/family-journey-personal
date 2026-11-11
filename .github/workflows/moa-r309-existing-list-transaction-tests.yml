@@ -1,0 +1,24 @@
+name: MOA R309 Existing-List Transaction Source Safety
+on:
+  push:
+    branches:
+      - feature/moa-r309-existing-list-transaction-safety-20261111
+    paths:
+      - experiments/moa-r309-existing-list-transaction/**
+      - .github/workflows/moa-r309-existing-list-transaction-tests.yml
+  workflow_dispatch:
+jobs:
+  verify-source-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax-check source
+        run: node --check experiments/moa-r309-existing-list-transaction/moa-naver-existing-list-transaction.js
+      - name: Sixteen deterministic transaction tests
+        run: node --test experiments/moa-r309-existing-list-transaction/tests/transaction.test.cjs
+      - name: Source-only gate label
+        run: |
+          echo 'NO SIGNED APK GENERATED; NO NAVER ACCOUNT WRITE OR READBACK TESTED'
