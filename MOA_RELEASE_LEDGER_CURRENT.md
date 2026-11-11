@@ -1,3 +1,13 @@
+## 2026-11-11 R333 — actual user working PC Python source reconstructed, ported same-signer beta
+
+| Item | Code | Exact size | SHA256 | Evidence |
+| --- | ---: | ---: | --- | --- |
+| `MOA_R333_PC_PROVEN_SELECTORS_GPS_DIARY_LISTCREATE_BETA.apk` | 333 | 8,906,135 B | `4b1fc71172ee79788a59bb2a126bbd8b215107aa4a45f861ad83efc554f2deaa` | original signer v2 full signature, exact R329 diff 4 entries/16 DEX identical, PC Python 26 unit + MOA Node 32 mock PASS; Galaxy/NAVER real account NOT TESTED |
+| `MOA_R335_RESTORE_R329_FUNCTIONS_SAME_SIGNER.apk` | 335 | 8,906,799 B | `7aa163b5714328cc88b514769a2dd30fd594ec9f9d729e98c343e839593effb9` | R329 original payload except Manifest code, original cert, v2 PASS; physical recovery NOT TESTED |
+| `MOA_R333_PC_PROVEN_SOURCE_PORT_R335_RECOVERY_QA_20261111.zip` | — | 12,978,647 B | `dbf3526b340b2d83453f1a0823638a090d2b253b1f1b25e12782dd769f6bc74a` | two signed APKs + 26 file QA/source/forensic bundle, no secret/EXE/family media; current chat runtime |
+
+Original user PC ZIP `네이버지도_자동등록_20261025_수정판.zip` SHA256 `7b82a5494dbba6249dbb34edb9ebb9dcdb0922dd38459c8faa7e3392a244fdd4`, 1218 files CRC PASS; `naver_browser.py` exact real selectors for *clicking an address search result first*, address detail title, favorite, swt-save modal, alias/memo/list/commit, full-list UI then absent-name private list creation. The earlier R325 physical run remains FAIL (address query succeeds; no ☆ click). R333 fixes against actual PC code, user-dictated order alias→memo→list-last; diary exact-photo note from curated entries and favorite per-photo list input, default '내 장소', no unrelated full-day data guesses. PC Playwright trusted UI events and Android WebView `.click()` differ, so real Samsung/NAVER server write/readback and offscreen interaction all remain PENDING and cannot be claimed FINAL. Original cert `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`; R269 user Golden unchanged. Private Library `/모아_프로젝트_근거_20261103/R333_20261111/` has small JS/QA/read-first source safely uploaded; large APK/ZIP only current chat download until Library quota available. Full [R333 handoff](MOA_R333_REAL_PC_PLAYWRIGHT_SOURCE_PORT_READ_FIRST_20261111.md). **Do not install by uninstalling or wiping user data**.
+
 ## 2026-11-11 R325 signed address star-first candidate / R327 same-signer functional recovery
 
 | Signed artifact | Code | Size | SHA256 | Verified scope |
