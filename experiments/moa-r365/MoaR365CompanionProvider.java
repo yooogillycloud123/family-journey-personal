@@ -32,6 +32,7 @@ public final class MoaR365CompanionProvider extends ContentProvider
     if(!id.matches("v?[0-9]{1,19}"))return;
     // The restored native recorder writes first, then R361 attaches optional
     // fields. Read AFTER both callbacks instead of racing Save.ACTION_DOWN.
+    snapshot(id); // synchronous observation BEFORE Golden inbox ACK deletion
     MAIN.postDelayed(()->snapshot(id),80);
     MAIN.postDelayed(()->snapshot(id),350);
   };
