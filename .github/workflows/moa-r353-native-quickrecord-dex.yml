@@ -48,35 +48,23 @@ jobs:
             static boolean hasPermission(Context c){return true;}
             void start(){}void stop(){}
           }
-          class MoaR165AudioExport {
-            static class ExportResult{String message;}
-            static class Summary{String describe(){return "";}}
-            interface Listener{
-              void update(int done,int total,int copied,int existing,int failed,long bytes,String message);
-              void complete(Summary summary);
-            }
-            static boolean auto(Context c){return false;}
-            static void setAuto(Context c,boolean on){}
-            static boolean supported(){return true;}
-            static ExportResult copy(Context c,File original,String day){return new ExportResult();}
-            static Summary exportAll(Context c,Listener listener){return new Summary();}
-          }
           JAVA
           javac -encoding UTF-8 -source 17 -target 17 \
             -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
             -sourcepath /tmp/moa-r353-stubs \
             -d /tmp/moa-r353-classes \
             experiments/moa-r353-native/MoaMomentMemoRecorderActivity.java \
+            experiments/moa-r353-native/MoaR165AudioExport.java \
             /tmp/moa-r353-stubs/com/juhyeon/familyjourney/CompileStubs.java \
             > build/moa-r353-native/compile.log 2>&1 || { tail -100 build/moa-r353-native/compile.log; exit 1; }
-          find /tmp/moa-r353-classes -type f -name 'MoaMomentMemoRecorderActivity*.class' -print0 | \
+          find /tmp/moa-r353-classes -type f \( -name 'MoaMomentMemoRecorderActivity*.class' -o -name 'MoaR165AudioExport*.class' \) -print0 | \
             xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa-r353-dex \
             >> build/moa-r353-native/compile.log 2>&1 || { tail -100 build/moa-r353-native/compile.log; exit 1; }
           python3 - <<'PY'
           import pathlib,base64,zlib,json,hashlib
           d=pathlib.Path('/tmp/moa-r353-dex/classes.dex').read_bytes()
           print('R353 DEX',len(d),repr(d[:8]),'activity name',b'MoaMomentMemoRecorderActivity' in d)
-          assert d[:4]==b'dex\n' and b'MoaMomentMemoRecorderActivity' in d
+          assert d[:4]==b'dex\n' and b'MoaMomentMemoRecorderActivity' in d and b'MoaR165AudioExport' in d
           p=pathlib.Path('build/moa-r353-native')
           (p/'classes.dex.z.b64').write_text(base64.b64encode(zlib.compress(d,9)).decode()+'\n')
           (p/'qa.json').write_text(json.dumps({'sha256':hashlib.sha256(d).hexdigest(),'size':len(d),'source_sha256':hashlib.sha256(pathlib.Path('experiments/moa-r353-native/MoaMomentMemoRecorderActivity.java').read_bytes()).hexdigest()},indent=2))
