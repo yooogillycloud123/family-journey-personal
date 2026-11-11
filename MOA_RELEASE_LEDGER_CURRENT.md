@@ -1,3 +1,7 @@
+## 2026-11-11 — R345 user ACCEPTED full Golden: NEW LIST CREATE + SAVED PLACE
+
+User confirms actual Galaxy success of existing-list and newly created private NAVER list placement, both visible-wait and offscreen/uninterrupted-mode. Prior NAVER account first-party list showed 185→187 saved items. Supplementary private video `20438.mp4` (~58.1s) shows MOA place card and Naver UI; exact underlying new-list network transaction is user-report-supported, not independently server audited. Immutable original R345 APK code345 SHA256 `fe2aaaac15d39a610268ee3d10361652a95537e0ce8ec9cde86e98edf3f8ceb1`, original cert unchanged, private release ZIP already stored in `/모아_프로젝트_근거_20261103/R345_20261111/`. Frozen original source branch and previous R269/R227 Goldens unchanged. New development planning ONLY: [Quick Record favorites + clean Settings design](MOA_R345_FULL_GOLDEN_QUICKRECORD_FAVORITES_SETTINGS_INTEGRATION_PLAN_20261111.md), future feature branch versionCode >=349, no new APK built or user-device QA claimed. R347 returns R341, not GOLDEN. Long-run/strict independent readback/alias-memo correctness remains separate.
+
 ## 2026-11-11 — R345 user-device NAVER saved-list GOLDEN (scoped)
 
 - **Immutable original APK:** com.juhyeon.familyjournea code345 SHA256 `fe2aaaac15d39a610268ee3d10361652a95537e0ce8ec9cde86e98edf3f8ceb1` (8,880,150B); original certificate SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
