@@ -33,6 +33,9 @@ public final class MoaR365CompanionProvider extends ContentProvider
   private static final String HOST="com.juhyeon.familyjourney.HostActivity";
   private static final Handler MAIN=new Handler(Looper.getMainLooper());
   private SharedPreferences prefs;
+  private Activity foregroundHost;
+  private int monitorEpoch=0;
+  private String lastStatus="R369_IDLE";
   private final SharedPreferences.OnSharedPreferenceChangeListener observer=(sp,key)->{
     if(key==null||!key.startsWith("m:"))return;
     final String id=key.substring(2);
@@ -135,8 +138,18 @@ public final class MoaR365CompanionProvider extends ContentProvider
       (HOST.equals(a.getClass().getName())||
        a.getClass().getName().endsWith("MoaMomentHostActivity"));
   }
+  private static boolean isTrustedAppUrl(String raw){
+    return raw!=null && (raw.startsWith("https://familyjourney.local/")||
+      raw.startsWith("https://appassets.androidplatform.net/")||
+      raw.startsWith("file:///android_asset/"));
+  }
+  // R365 selected the FIRST WebView, which can be the NAVER session itself.
+  // Select only the owned local APP WebView; never evaluate its JS in NAVER.
   private WebView findWeb(View v){
-    if(v instanceof WebView)return (WebView)v;
+    if(v instanceof WebView){
+      WebView w=(WebView)v;
+      return isTrustedAppUrl(w.getUrl())?w:null;
+    }
     if(v instanceof ViewGroup){ViewGroup p=(ViewGroup)v;
       for(int i=0;i<p.getChildCount();i++){
         WebView w=findWeb(p.getChildAt(i));if(w!=null)return w;
@@ -169,9 +182,7 @@ public final class MoaR365CompanionProvider extends ContentProvider
       if(!isHost(a))return;
       WebView w=findWeb(a.getWindow().getDecorView());
       String url=w==null?"":String.valueOf(w.getUrl());
-      if(w==null||!(url.startsWith("https://familyjourney.local/")||
-        url.startsWith("https://appassets.androidplatform.net/")||
-        url.startsWith("file:///android_asset/"))){
+      if(w==null||!isTrustedAppUrl(url)){
         deliver(a,attempts+1);return;
       }
       String pref="(function(){try{return localStorage.getItem('moa.naver.offscreen.try.v1')!=='off'}catch(e){return true}})()";
@@ -194,12 +205,37 @@ public final class MoaR365CompanionProvider extends ContentProvider
       });}catch(Throwable ignored){deliver(a,attempts+1);}
     },attempts==0?420L:700L);
   }
+  private void startMonitor(Activity a){
+    foregroundHost=a;final int epoch=++monitorEpoch;
+    final Runnable[] monitor={null};
+    monitor[0]=()->{
+      if(epoch!=monitorEpoch||foregroundHost!=a||!isHost(a))return;
+      try{
+        WebView app=findWeb(a.getWindow().getDecorView());
+        if(app!=null){
+          final String pref="(function(){try{return localStorage.getItem('moa.naver.offscreen.try.v1')!=='off'}catch(e){return false}})()";
+          app.evaluateJavascript(pref,value->{
+            if(epoch==monitorEpoch && foregroundHost==a && "true".equals(value))
+              hiddenStart(a);
+          });
+          // A one-shot onResume call can occur before the JS/IDB app
+          // hydrates. Revisit the native outbox while the host is active.
+          deliver(a,0);
+          lastStatus="R369_HOST_MONITOR_ACTIVE";
+        }else{lastStatus="R369_APP_WEBVIEW_NOT_READY";}
+      }catch(Throwable ignored){lastStatus="R369_MONITOR_EXCEPTION";}
+      if(epoch==monitorEpoch && foregroundHost==a)MAIN.postDelayed(monitor[0],3000L);
+    };
+    MAIN.postDelayed(monitor[0],500L);
+  }
   @Override public void onActivityResumed(Activity a){
-    if(isHost(a))deliver(a,0);
+    if(isHost(a))startMonitor(a);
   }
   @Override public void onActivityCreated(Activity a,Bundle b){}
   @Override public void onActivityStarted(Activity a){}
-  @Override public void onActivityPaused(Activity a){}
+  @Override public void onActivityPaused(Activity a){
+    if(foregroundHost==a){foregroundHost=null;monitorEpoch++;}
+  }
   @Override public void onActivityStopped(Activity a){}
   @Override public void onActivitySaveInstanceState(Activity a,Bundle b){}
   @Override public void onActivityDestroyed(Activity a){}
