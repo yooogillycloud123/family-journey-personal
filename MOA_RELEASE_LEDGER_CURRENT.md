@@ -1,3 +1,13 @@
+## 2026-11-11 R309 / R311 — verified-original-signer address-first PC WebView beta
+
+| File | Code | Size | SHA256 | Actual evidence |
+|---|---:|---:|---|---|
+| MOA_R309_ADDRESS_FIRST_SINGLE_APP_VERIFICATION_BETA.apk | 309 | 8,924,347 | 33660fc08ab25ced4053faf571f18c53880f421c59ea58967e8b8456c4b785e4 | v2 original cert, ZIP CRC, zipalign, 16/16 DEX byte-identical to R305, 10 fake-browser tests PASS, actual Galaxy & NAVER write/readback NOT TESTED |
+| MOA_R311_RESTORE_R283_VISIBLE_SAVE_SAME_SIGNER.apk | 311 | 8,916,155 | 172d4aab07eb847ad0375070df3217e44d0f8cb1fc9882455c8e270552f424b3 | same v2 original cert; R303 vs R311 only Manifest code changed, R283 features restoration candidate, physical device recovery NOT TESTED |
+| MOA_R309_ADDRESS_FIRST_WITH_R311_RECOVERY_QA_20261111.zip | — | 12,923,306 | bcb9466cdaf1f720f89e745c1e9f3f9834cefffdaacd480a8b15bebe21baae76 | exact R309/R311 signed bytes, source diff, 10 mock checks, QA JSON, guide, no private signer/credentials |
+
+**Signer:** package com.juhyeon.familyjournea cert SHA256 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15. R305→R309 non-signature payload diff exactly Manifest + web frame-probe JS + favorites JS; all DEX and other assets unchanged. The account is known to have multiple duplicate-title lists, so background attempts must not create/delete any folder or auto-select by title/count. The new user-selected folder/shareId flow relies on an undocumented first-party read-only folder listing endpoint; live account API/UI and Android WebView trusted-click behavior remain UNVERIFIED. **Not final.** Original user-designated R269 Golden SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920 untouched. Full research note on research/moa-r269-webview-kvm-frame-gate-20261110 branch. Source and APK remain only in this conversation's download attachments because an attempted Library ZIP upload hit library_storage_limit_exceeded. Do not silently assume Library upload succeeded.
+
 ## 2026-11-11 R305/R307 — real R301 no-response causal trace and same-signer safe recovery
 
 | Artifact | Version | Package / original cert | Size | SHA256 | Validation |
