@@ -2,7 +2,7 @@ name: MOA R357 standalone Android ContentProvider no-Golden-DEX recompilation
 on:
   push:
     branches:
-      - feature/moa-r357-restored-safe-injection-20261111
+      - feature/moa-r361-quickrecord-session-memo-20261112
     paths:
       - 'experiments/moa-r357/src/MoaR357CaptureHookProvider.java'
       - '.github/workflows/moa-r357-provider-only-dex.yml'
