@@ -1,0 +1,11 @@
+--- R349/assets/web/family-diary.js
++++ R353/assets/web/family-diary.js
+@@ -2304,7 +2304,7 @@
+         report('COMMITTED',acknowledged.size+' records in diary');
+         // R349 additive on-commit event: no change to native ack / original Diary writer.
+         // Emit only the actually ACKed capture drafts after the authoritative IDB transaction.
+-        try {window.dispatchEvent(new CustomEvent('moa:r349-native-committed', {detail:{drafts:ready.filter(x=>acknowledged.has(String(x.id))).map(x=>({id:String(x.id),note:String(x.note||''),at:Number(x.at)||0}))}}));}catch(_){/* diary commit is independent of favorites */}
++        try {window.dispatchEvent(new CustomEvent('moa:r349-native-committed', {detail:{drafts:ready.filter(x=>acknowledged.has(String(x.id))).map(x=>({id:String(x.id),note:String(x.note||''),voiceAutoTranscript:String(x.voiceAutoTranscript||''),at:Number(x.at)||0,naverQuickFavorite:x.naverQuickFavorite===true,naverQuickList:String(x.naverQuickList||''),naverQuickRequestedAt:Number(x.naverQuickRequestedAt)||0}))}}));}catch(_){/* diary commit is independent of favorites */}
+         // A successful write is a real IndexedDB commit. Native capture alerts
+         // are NOT cancelled here: existing R49 DEX owns their notifications.
+       }else{
