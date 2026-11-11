@@ -1,3 +1,13 @@
+## 2026-11-11 R325 signed address star-first candidate / R327 same-signer functional recovery
+
+| Signed artifact | Code | Size | SHA256 | Verified scope |
+|---|---:|---:|---|---|
+| `MOA_R325_ADDRESS_STAR_FIRST_EXISTING_LIST_BETA.apk` | 325 | 8,906,741B | `06c3d646e61f11f87e6042585380906b2c41d0de6843748cfd204afd8cfe8d97` | Original signer v2, R321 16 DEX all equal, exactly Manifest+JS changed, ZIP CRC/alignment, Node 14 and Chromium synthetic 3 PASS; actual NAVER account/star physical NOT TESTED |
+| `MOA_R327_RECOVER_R321_ORIGINAL_FUNCTIONS.apk` | 327 | 8,906,599B | `d79d6598a84e70d41ef5216dc741bee7d258fd82a799a76836fd50c7d7fd0d97` | Only Manifest code differs from R321, original certificate and v2 PASS; physical recovery untested |
+| `MOA_R325_ADDRESS_STAR_FIRST_R327_RECOVERY_QA_20261111.zip` | — | 12,916,381B | `ab6bb33a310824f747a44c2908d3411c39cf8a9cd71c7ad963d5985c7c53dcba` | ZIP 13 members exact APKs+source+14 Node tests+3 synthetic Chromium cases+QA; current conversation artifact, large Library upload quota failure |
+
+R321 code had `SEARCH→FOLDER→SAVE` and `saveExactAddress` demanded pre-pinned folderId before any ☆ click. **R325 moves the exact-address ☆ first** using historical PC `button.btn.btn_favorite` scoped by matching address result header and visible position; only after actual NAVER save popup does it check explicit existing folder ID, alias/memo and account readback. No new list creation or global Save misclick. App package `com.juhyeon.familyjournea`, original cert SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`, immutable R269 protected. Source+tests+QA privately archived in Library `/모아_프로젝트_근거_20261103/R325_20261111/`, APK ZIP available as this conversation attachment only. Detailed `MOA_R325_STAR_FIRST_ADDRESS_CARD_WITH_R327_RECOVERY_HANDOFF_20261111.md`. **User real NAVER account write/readback NEVER asserted PASS**; future work should start at ☆/popup boundary, not redo already verified search. No uninstall/wipe.
+
 ## 2026-11-11 R313 / R315 — original-signer signed address-first existing-list *BETA* (real account save OPEN)
 
 | Artifact | Code | Size | SHA256 | Verified / not verified |
