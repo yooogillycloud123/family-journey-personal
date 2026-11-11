@@ -1,0 +1,99 @@
+name: MOA R353 Native QuickRecord single-class DEX (NO signer)
+on:
+  push:
+    branches:
+      - feature/moa-r353-native-quickrecord-folder-20261111
+    paths:
+      - 'experiments/moa-r353-native/MoaMomentMemoRecorderActivity.java'
+      - '.github/workflows/moa-r353-native-quickrecord-dex.yml'
+permissions:
+  contents: write
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Setup Android SDK platform and d8
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile isolated EXACT original Activity with API-only compile stubs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa-r353-stubs/com/juhyeon/familyjourney /tmp/moa-r353-classes /tmp/moa-r353-dex build/moa-r353-native
+          cat > /tmp/moa-r353-stubs/com/juhyeon/familyjourney/CompileStubs.java <<'JAVA'
+          package com.juhyeon.familyjourney;
+          import android.app.Activity;
+          import android.content.Context;
+          import android.content.SharedPreferences;
+          import java.io.File;
+          class MoaMomentCaptureService {
+            static SharedPreferences prefs(Context c){throw new UnsupportedOperationException();}
+          }
+          class MoaMomentDirectDiaryStore {
+            static void requestSync(Context c){throw new UnsupportedOperationException();}
+          }
+          class MoaMomentVoice {
+            interface Listener{
+              void onListening(); void onText(String text);void onFailure(String error);void onFinished();
+            }
+            MoaMomentVoice(Activity a,Listener listener){}
+            static boolean hasPermission(Context c){return true;}
+            void start(){}void stop(){}
+          }
+          class MoaR165AudioExport {
+            static class ExportResult{String message;}
+            static class Summary{String describe(){return "";}}
+            interface Listener{
+              void update(int done,int total,int copied,int existing,int failed,long bytes,String message);
+              void complete(Summary summary);
+            }
+            static boolean auto(Context c){return false;}
+            static void setAuto(Context c,boolean on){}
+            static boolean supported(){return true;}
+            static ExportResult copy(Context c,File original,String day){return new ExportResult();}
+            static Summary exportAll(Context c,Listener listener){return new Summary();}
+          }
+          JAVA
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -sourcepath /tmp/moa-r353-stubs \
+            -d /tmp/moa-r353-classes \
+            experiments/moa-r353-native/MoaMomentMemoRecorderActivity.java \
+            /tmp/moa-r353-stubs/com/juhyeon/familyjourney/CompileStubs.java \
+            > build/moa-r353-native/compile.log 2>&1 || { tail -100 build/moa-r353-native/compile.log; exit 1; }
+          find /tmp/moa-r353-classes -maxdepth 3 -type f -name 'MoaMomentMemoRecorderActivity*.class' -print0 | \
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa-r353-dex \
+            >> build/moa-r353-native/compile.log 2>&1 || { tail -100 build/moa-r353-native/compile.log; exit 1; }
+          python3 - <<'PY'
+          import pathlib,base64,zlib,json,hashlib
+          d=pathlib.Path('/tmp/moa-r353-dex/classes.dex').read_bytes()
+          assert d[:4]==b'dex\n' and b'MoaMomentMemoRecorderActivity' in d
+          assert b'MoaMomentCaptureService;' not in d and b'MoaR165AudioExport;' not in d
+          p=pathlib.Path('build/moa-r353-native')
+          (p/'classes.dex.z.b64').write_text(base64.b64encode(zlib.compress(d,9)).decode()+'\n')
+          (p/'qa.json').write_text(json.dumps({'sha256':hashlib.sha256(d).hexdigest(),'size':len(d),'source_sha256':hashlib.sha256(pathlib.Path('experiments/moa-r353-native/MoaMomentMemoRecorderActivity.java').read_bytes()).hexdigest()},indent=2))
+          print('DEX_BUILD_OK',len(d))
+          PY
+      - name: Commit compiled DEX text on isolated branch only
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f build/moa-r353-native/classes.dex.z.b64 build/moa-r353-native/qa.json build/moa-r353-native/compile.log
+          if ! git diff --cached --quiet; then
+            git commit -m 'build(moa): native quick favorite exact activity isolated DEX'
+            git pull --rebase origin feature/moa-r353-native-quickrecord-folder-20261111
+            git push origin HEAD:feature/moa-r353-native-quickrecord-folder-20261111
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R353-NATIVE-QUICKRECORD-DEX-NO-SIGNER
+          path: build/moa-r353-native/
