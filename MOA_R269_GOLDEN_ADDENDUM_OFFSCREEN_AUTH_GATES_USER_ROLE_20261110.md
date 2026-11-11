@@ -249,3 +249,16 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - 차기 실제 기능 목표 불변: 네이버 웹 부모 저장목록의 공식 기존 리스트를 *고유 folder/shareId*로 한번 식별해 사용자가 선택, 동일 세션 내 정확 장소/메모/별명 쓰기 후 네이버 계정 독립 재조회. 이름·장소개수·DOM 좌표만으로 임의 선택하지 않음. 실제 계정 성공 전 FINAL 호칭 금지.
 - 연구 인수: https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R305_R301_NATIVE_STATUS_AND_PARENT_FRAME_TRACE_20261111.md
 - R269 사용자 지정 Golden 원본 SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920 및 R227/AirPods/AndroidAuto 모든 원본·사용자 데이터 절대 불변. 앱 삭제/데이터 초기화/다운그레이드 금지.
+
+
+---
+
+## 17. 2026-11-11 R305 영상 실증 — 웹 연결 실패로 오인한 정확한 '숨김 우선' 반환 코드
+- user-private 20261.mp4 34.9초: 설정 상태 NOT_STARTED에서 화면 가운데 '지도 웹창 뒤로 보내기' 버튼을 먼저 누른 후 VISIBLE_LOGIN_REQUIRED_FIRST 표시, 지도 WebView 없음. 영상을 공개 GitHub로 복사하지 않음.
+- 실제 R305 원본 APK classes13.dex -> MoaNaverWebProbeController smali 직접 검증: visible + probe null -> start(activity). hidden + probe null -> state='VISIBLE_LOGIN_REQUIRED_FIRST'만 세팅 후 return, WebView 시작 없음. 따라서 이번 영상은 사용자 네이버 로그인 실패/웹뷰 크래시가 아니라 정확히 '미시작 웹뷰를 숨기려는 요청'을 보여줌. 이전 'R305 웹 연결 자체 고장'이라는 진단은 영상만으로 미확정이므로 취소. 왼쪽 빨간 '샘플 장소 웹 연결'을 누른 뒤의 실패 여부는 이 영상에 촬영되지 않음.
+- 별개로 R305 fj-naver-favorites.js tryR289Offscreen: probe.running == false면 WEB_SESSION_NOT_READY 메시지를 표시하며 저장 요청 미전송. R305 자체는 비쓰기 진단본이라 비점유 실계정 저장을 의도적으로 차단. 기존 계정 원본/동명이름 리스트 삭제/신설 절대 금지.
+- 동작 즉시 안내: 설정 왼쪽 빨간 '샘플 장소 웹 연결' → 지도/로그인 표시 확인 → 가운데 '지도 웹창 뒤로 보내기'. Android System WebView 업데이트 삭제 여부는 영상 시작창만으로 확정 불가. 임의 WebView 업데이트 삭제 금지.
+- 재발방지 코드 개선(소스 전용): probe('hidden') 전 running을 확인해 false면 자동으로 visible WebView를 먼저 시작하되 인증/계정 쓰기는 하지 않는 Settings JS 패치, Node syntax 및 mock 4/4 PASS. 결과 source ZIP SHA256 f06511cb7a6a9ec8cff94d38565864f5c496af5c9ac616ad4f925ac346d4d1f8. **실제 동일서명 APK 빌드/실기기 PASS 미진행이므로 설치형 새 수정 APK라고 주장 금지.**
+- R305→R307 상위코드 같은 인증서 복원본: MOA_R307_RESTORE_R301_NO_CREATE_SAME_SIGNER.apk SHA256 7306765f6d780d48ea35eee1648ec817cffb4ff9ec7792e40bce6e6d687c844d, version307, 기존 cert SHA256 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15; v2/zipalign/ZIPCRC 확인. R307은 이전 R301 기능의 순방향 복구 후보이지 100% R269 Golden 바이너리 아님. 일반 업데이트에 code303/code301 다운그레이드 시도나 uninstall/data clear 금지.
+- 상세 증거 기록: https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R305_HIDDEN_BEFORE_VISIBLE_EXACT_VIDEO_CAUSE_AND_RECOVERY_20261111.md ; 실계정 folderId/list/place/alias/memo 저장·readback은 여전히 미검증.
+- R269 사용자 지정 Original Golden SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920 원본과 R227/AirPods Goldens 및 사용자 데이터 불변.
