@@ -1,3 +1,10 @@
+## 2026-11-12 — R365 original-signer installed-package BETA / R367 exact R355 functional forward recovery
+
+- Trigger: user R361 real device showed stopped hidden session startup for older GPS photos, and native 순간기록 checked target folder '새로운' did not auto-save until manual Diary favorite button. Do not treat source-only/static pass as account write success.
+- **Signed R365 APK** code365 SHA256 f9c65e8555d44409a9b0409b53ec12f7b9bed2ded9c135064a0fc55a251f562b, 8,946,098B. **R367 backup** code367 SHA256 f961fef2ea98944664973cddc1bd6301b890287fb08867b8800ee30ecb23f030, 8,907,248B, R355 exact functionality except Manifest. ZIP SHA256 d3cced430d8c0727a1bb2b4286b9cae73b8aa41b4c0b3c68acf038b5b597b4af (12,931,020B). Current chat verifies outputs; private Library large-file quota exceeded, original R345 Golden still archived.
+- Byte scope R361→R365 original 17 DEX+Diary+Naver writer/frame untouched; only Manifest and quick bridge JS updated, add independent classes18.dex companion. New native persistent q:id task survives original m:id ACK deletion, original media EXIF GPS / exact photo ID, original account writer once after true Diary IDB ACK. Existing exact WebView controller start()→setHidden() same Android UI-thread invocation, **physical no-flash NOT VERIFIED**.
+- APKv2 signature/full digest, ZIP CRC, DEX SHA1/Adler, binary AXML with both non-exported providers and Node mock PASS; Android CI 43057299312 SUCCESS. Galaxy install and real NAVER list readback OPEN. Preserve immutable R345/R355; no uninstall/data clear. Only R367 on regression, future versionCode >367. [Detailed handoff](MOA_R365_R361_QUICKRECORD_DURABLE_OUTBOX_HIDDEN_PREWARM_SIGNED_BETA_HANDOFF_20261112.md).
+
 ## 2026-11-11 — R357 signed R355-Golden additive BETA (original user-device R355 restoration remains the stable baseline)
 
 - **R357 APK** code357 SHA256 `6576d325f1bd65b727e0869bf47882fa2ef7ca0a877c145b64ad58eec0bcdb59`; same package `com.juhyeon.familyjournea`, original certificate. User-installed/current **R355** code355 verified restored by user, original R345 Golden functional archive. **Do not designate R357 Golden until Samsung physical gate.**
