@@ -36,8 +36,12 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
     return true;
   }
   @Override public void onActivityResumed(Activity activity){
-    if(activity==null||!TARGET.equals(activity.getClass().getName()))return;
-    activity.getWindow().getDecorView().postDelayed(()->install(activity),110);
+    try{
+      if(activity==null||!TARGET.equals(activity.getClass().getName()))return;
+      activity.getWindow().getDecorView().postDelayed(()->{
+        try{install(activity);}catch(Throwable failure){mark(activity,"UI_HOOK_ERROR_ORIGINAL_PRESERVED");}
+      },110);
+    }catch(Throwable ignored){/* Never crash the original Golden Activity. */}
   }
   private int dp(Context c,int v){return (int)(v*c.getResources().getDisplayMetrics().density+0.5f);}
   private static TextView findTitle(View v){
@@ -89,20 +93,33 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
     LinearLayout header=new LinearLayout(activity);header.setOrientation(LinearLayout.HORIZONTAL);
     header.setGravity(Gravity.CENTER_VERTICAL);
     ViewGroup.LayoutParams oldParams=title.getLayoutParams();
-    parent.removeView(title);
-    LinearLayout.LayoutParams headingP=new LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f);
-    header.addView(title,headingP);
     CheckBox checkbox=new CheckBox(activity);checkbox.setText("장소 저장");
     checkbox.setTextSize(13f);checkbox.setButtonTintList(android.content.res.ColorStateList.valueOf(0xffb52b69));
     checkbox.setChecked(old.optBoolean("naverQuickFavorite",prefs(activity).getBoolean("r357.quick.default.checked",false)));
-    header.addView(checkbox,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,dp(activity,48)));
-    parent.addView(header,originalIndex,oldParams);
     EditText folder=new EditText(activity);folder.setSingleLine(true);folder.setTextSize(14f);
     folder.setHint("저장 리스트 이름");folder.setMaxLines(1);folder.setMaxEms(24);
     folder.setText(old.optString("naverQuickList",""));
     LinearLayout.LayoutParams inputP=new LinearLayout.LayoutParams(dp(activity,174),dp(activity,45));
     inputP.gravity=Gravity.END;inputP.bottomMargin=dp(activity,2);
-    parent.addView(folder,originalIndex+1,inputP);
+    // Prepare UI fully before moving the existing title. Roll back on any
+    // unexpected Android/OneUI layout exception; never leave a broken editor.
+    try{
+      parent.removeView(title);
+      LinearLayout.LayoutParams headingP=new LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f);
+      header.addView(title,headingP);
+      header.addView(checkbox,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,dp(activity,48)));
+      parent.addView(header,originalIndex,oldParams);
+      parent.addView(folder,originalIndex+1,inputP);
+    }catch(Throwable uiError){
+      try{
+        if(folder.getParent()==parent)parent.removeView(folder);
+        if(header.getParent()==parent)parent.removeView(header);
+        if(title.getParent() instanceof ViewGroup)((ViewGroup)title.getParent()).removeView(title);
+        if(title.getParent()==null)parent.addView(title,Math.min(originalIndex,parent.getChildCount()),oldParams);
+      }catch(Throwable ignored){}
+      mark(activity,"COMPACT_UI_ABORT_ORIGINAL_RESTORED");
+      return;
+    }
     folder.setVisibility(checkbox.isChecked()?View.VISIBLE:View.GONE);
     checkbox.setOnCheckedChangeListener((b,yes)->folder.setVisibility(yes?View.VISIBLE:View.GONE));
     // Observe original Save touch BEFORE original View.OnClickListener runs;
