@@ -1,0 +1,51 @@
+name: MOA R361 standalone Android ContentProvider no-Golden-DEX recompilation
+on:
+  push:
+    branches:
+      - feature/moa-r361-native-gps-memo-hidden-20261112
+    paths:
+      - 'experiments/moa-r357/src/MoaR361CaptureHookProvider.java'
+      - '.github/workflows/moa-r361-provider-only-dex.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        run: |
+          set -euo pipefail
+          SM="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SM" --licenses >/dev/null || true
+          "$SM" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile only independent new provider, no existing native classes
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/r357/classes /tmp/r357/dex build/moa-r361-provider
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d /tmp/r357/classes \
+            experiments/moa-r357/src/MoaR361CaptureHookProvider.java
+          find /tmp/r357/classes -name 'MoaR361CaptureHookProvider*.class' -print0 | \
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" \
+            --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r357/dex
+          python3 - <<'PY'
+          import pathlib,hashlib,base64,zlib,json
+          b=pathlib.Path('/tmp/r357/dex/classes.dex').read_bytes()
+          assert b[:4]==b'dex\n' and b'MoaR361CaptureHookProvider' in b
+          assert b'MoaMomentMemoRecorderActivity;' not in b or b'MoaR361CaptureHookProvider' in b
+          o=pathlib.Path('build/moa-r361-provider')
+          (o/'provider.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+          (o/'qa.json').write_text(json.dumps({'dex_sha256':hashlib.sha256(b).hexdigest(),'size':len(b),'source_sha256':hashlib.sha256(pathlib.Path('experiments/moa-r357/src/MoaR361CaptureHookProvider.java').read_bytes()).hexdigest()},indent=2)+'\n')
+          print('R361_PROVIDER_COMPILE_PASS',len(b))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R361-PROVIDER-ONLY-DEX-NO-SIGNING
+          path: build/moa-r361-provider/
