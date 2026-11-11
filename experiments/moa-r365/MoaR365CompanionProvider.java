@@ -8,6 +8,13 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
+import android.content.ContentUris;
+import android.provider.MediaStore;
+import android.media.ExifInterface;
+import android.media.MediaMetadataRetriever;
+import java.io.InputStream;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -82,6 +89,40 @@ public final class MoaR365CompanionProvider extends ContentProvider
       if(prefs.edit().putString("r365task:"+id,q.toString()).commit())
         mark("R365_NATIVE_TASK_DURABLE");
     }catch(Throwable ignored){mark("R365_NATIVE_TASK_SNAPSHOT_ERROR");}
+  }
+  private double[] exactMediaGps(String id){
+    try{
+      boolean video=id.startsWith("v");
+      String number=video?id.substring(1):id;
+      if(!number.matches("[0-9]{1,19}"))return null;
+      Uri uri=ContentUris.withAppendedId(video?
+        MediaStore.Video.Media.EXTERNAL_CONTENT_URI:MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+        Long.parseLong(number));
+      double lat=Double.NaN,lon=Double.NaN;
+      Context ctx=getContext();if(ctx==null)return null;
+      if(video){
+        MediaMetadataRetriever mmr=new MediaMetadataRetriever();
+        try{
+          mmr.setDataSource(ctx,uri);
+          String location=mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_LOCATION);
+          if(location!=null){
+            Matcher match=Pattern.compile("([+-][0-9]+(?:\\.[0-9]+)?)([+-][0-9]+(?:\\.[0-9]+)?)").matcher(location);
+            if(match.find()){lat=Double.parseDouble(match.group(1));lon=Double.parseDouble(match.group(2));}
+          }
+        }finally{mmr.release();}
+      }else{
+        try(InputStream in=ctx.getContentResolver().openInputStream(uri)){
+          if(in!=null){
+            float[] coordinates=new float[2];
+            if(new ExifInterface(in).getLatLong(coordinates)){
+              lat=coordinates[0];lon=coordinates[1];
+            }
+          }
+        }
+      }
+      if(lat>=33&&lat<=39&&lon>=124&&lon<=132)return new double[]{lat,lon};
+    }catch(Throwable ignored){/* Scoped media access can redact GPS; JS uses native photo index. */}
+    return null;
   }
   private boolean isHost(Activity a){
     return a!=null&&!a.isFinishing()&&!a.isDestroyed()&&
