@@ -1,0 +1,22 @@
+--- R349/assets/web/moa-r349-home-favorites.js
++++ R353/assets/web/moa-r349-home-favorites.js
+@@ -19,8 +19,8 @@
+ function apply(){if(!floating)return;floating.hidden=!pref.homeEnabled;if(floating.hidden)return;
+  const size=tiny&&!editing?pref.homeTiny:pref.homeSize;const p=coords();floating.style.width=size+'px';floating.style.height=size+'px';floating.style.left=p.x+'px';floating.style.top=p.y+'px';floating.style.opacity=String(tiny&&!editing?Math.min(.7,pref.homeOpacity):pref.homeOpacity);
+  floating.classList.toggle('moa-r349-tiny',tiny&&!editing);floating.classList.toggle('moa-r349-editing',editing);
+- floating.setAttribute('aria-label',tiny?'홈 바로가기 펼치기':editing?'홈 버튼 이동·크기 편집 중':'일기 달력 홈으로 바로 이동');
+- const title=$('.moa-r349-status',floating);if(title)title.textContent=editing?'이동·크기 조절':(tiny?'':'일기 달력 홈');}
++ floating.setAttribute('aria-label',tiny?'홈 바로가기 펼치기':editing?'홈 버튼 이동·크기 편집 중':'달력으로 접기으로 바로 이동');
++ const title=$('.moa-r349-status',floating);if(title)title.textContent=editing?'이동·크기 조절':(tiny?'':'달력으로 접기');}
+ function touch(){clearTimeout(idleTimer);if(!editing&&pref.homeIdle&&pref.homeEnabled)idleTimer=setTimeout(()=>{tiny=true;apply()},clamp(Number(pref.homeIdleSec)||6,1,180)*1000);}
+ function awake(){tiny=false;apply();touch();}
+ function moveTo(x,y){const size=pref.homeSize;const px=clamp(x,0,Math.max(0,innerWidth-size)),py=clamp(y,6,Math.max(6,innerHeight-size-70));pos[orient()]={x:px,y:py/innerHeight};apply();}
+@@ -38,7 +38,7 @@
+  const btn=$('#tabbar [data-tab="diary"]');if(btn){btn.click();return true}return false;
+ }
+ function createFloat(){if(floating||!document.body)return;const n=document.createElement('div');n.id='moa-r349-home-float';n.setAttribute('role','button');n.tabIndex=0;
+- n.innerHTML='<svg class="moa-r349-home-icon" viewBox="0 0 24 24" width="25" height="25" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7v8a1.5 1.5 0 0 1-1.5 1.5h-5v-6h-4v6H5A1.5 1.5 0 0 1 3.5 19z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="moa-r349-status"></span><span class="moa-r349-edit-close" title="위치 고정" aria-hidden="true">✓</span>';
++ n.innerHTML='<svg class="moa-r349-home-icon" viewBox="0 0 24 24" width="25" height="25" aria-hidden="true"><path d="M4 4l6.5 6.5M6.5 10.5h4v-4M20 20l-6.5-6.5M17.5 13.5h-4v4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="moa-r349-status"></span><span class="moa-r349-edit-close" title="위치 고정" aria-hidden="true">✓</span>';
+  n.addEventListener('contextmenu',e=>e.preventDefault());n.addEventListener('pointerdown',onDown);n.addEventListener('pointermove',onMove);n.addEventListener('pointerup',onUp);n.addEventListener('pointercancel',onCancel);
+  n.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onTap();}});
+  document.body.append(n);floating=n;apply();touch();
