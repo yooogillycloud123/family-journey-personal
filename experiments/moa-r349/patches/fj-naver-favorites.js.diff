@@ -1,0 +1,55 @@
+--- R345/assets/web/fj-naver-favorites.js
++++ R349/assets/web/fj-naver-favorites.js
+@@ -438,17 +438,23 @@
+  /* R289 opt-in, one-app, no-overlay web save research. Existing foreground
+   * NAVER app path remains byte-for-byte reachable when switch is off.
+   */
+- function tryR289Offscreen(p,displayName,fields,addr,callback){
++ function tryR289Offscreen(p,displayName,fields,addr,callback,displayMode){
+    const b=root.MoaMomentNative;
+    if(!b||typeof b.naverWebProbeControl!=='function'||typeof b.naverWebProbeStatus!=='function'){
+      callback?.({state:'WEB_WRITER_UNAVAILABLE',message:'모아 내부 웹 저장 엔진이 없습니다. 실험을 끄면 기존 저장을 이용할 수 있어요.'});return false;
+    }
+    let probe;try{probe=JSON.parse(b.naverWebProbeStatus()||'{}');}catch(_){probe=null;}
+    if(!probe?.running){
+-     let opened='';try{opened=String(b.naverWebProbeControl('visible')||'');}catch(_){}
+-     callback?.({state:'WEB_LOGIN_REQUIRED',message:'네이버 PC 지도 연결을 요청했습니다('+opened.slice(0,48)+'). 최초 1회 네이버 웹 계정 로그인 확인 후 지도 웹창 뒤로 보내기를 눌러 저장을 다시 시도하세요. 아직 장소 저장은 실행하지 않았습니다.'});return false;
+-   }
+-   if(!probe.hidden){
++     // R349: never flash a visible browser during a user-requested OFFSCREEN save.
++     // Native R345 cannot safely start a fresh *hidden* probe when no WebView exists.
++     // Request manual login/session repair instead of stealing the MOA foreground.
++     if(displayMode==='visible'){
++       let opened='';try{opened=String(b.naverWebProbeControl('visible')||'');}catch(_){}
++       callback?.({state:'WEB_LOGIN_REQUIRED',message:'네이버 PC 지도 화면을 직접 열었습니다('+opened.slice(0,48)+'). 로그인/화면 확인 후 다시 저장을 눌러주세요.'});return false;
++     }
++     callback?.({state:'WEB_SESSION_NOT_READY',message:'비점유 웹 세션이 종료됐습니다. 화면을 자동으로 열지 않았어요. 설정 > 네이버 즐겨찾기 > 웹 화면 직접 열기에서 다시 로그인한 후 비점유로 전환해 주세요. 일기 기록은 유지됩니다.'});return false;
++   }
++   if(!probe.hidden&&displayMode!=='visible'){
+      // One explicit photo-save tap may hide the existing app-owned NAVER WebView;
+      // this does not grant permission to save any unrelated place.
+      try{b.naverWebProbeControl('hidden');}catch(_){ }
+@@ -517,7 +523,8 @@
+    let r289OptIn=true;try{r289OptIn=localStorage.getItem('moa.naver.offscreen.try.v1')!=='off';}catch(_){ }
+    let webReady=false;
+    if(route!=='native')try{let st=JSON.parse(root.MoaMomentNative?.naverWebProbeStatus?.()||'{}');webReady=!!st.running;}catch(_){}
+-   if(route==='web'||(route!=='native'&&(r289OptIn||webReady)))return tryR289Offscreen(p,displayName,fields,addr,callback);
++   if(route==='web_visible')return tryR289Offscreen(p,displayName,fields,addr,callback,'visible');
++   if(route==='web'||(route!=='native'&&(r289OptIn||webReady)))return tryR289Offscreen(p,displayName,fields,addr,callback,'offscreen');
+    if(!root.NativeHost?.post){callback?.({state:'NATIVE_UNAVAILABLE',message:'네이버 저장 서비스를 실행할 수 없습니다.'});return false;}
+    const native={key:displayName.slice(0,90),address:addr.slice(0,180),lat:Number(p.lat),lon:Number(p.lon),
+      list:String(fields.list||'내 장소').slice(0,70),
+@@ -551,9 +558,12 @@
+      const addr=String(address||'').trim();
+      if(addr.length<8){if(notice)notice.textContent='사진의 정확한 주소를 찾지 못해 요청을 보류했습니다.';return;}
+      state[p.key]={...old,name:alias,memo,list,address:addr,status:'PENDING'};save();
++     // Respect the user-pinned global mode for the ordinary photo-card web button;
++     // an explicit native-button request always stays native.
++     const actualRoute=route==='web'&&window.MoaR349Prefs?.naverMode==='visible'?'web_visible':route;
+      sendPreparedLocation(p,{alias,memo,list,address:addr},r=>{
+        if(notice)notice.textContent=r.message||r.state;
+-     },route);
++     },actualRoute);
+    };
+    if(p.address||old.address)done(p.address||old.address);
+    else reverse(p,v=>done(v.address));
