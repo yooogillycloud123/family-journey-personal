@@ -157,6 +157,10 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
     save.setOnTouchListener((v,event)->{
       if(event.getActionMasked()==MotionEvent.ACTION_DOWN){
         commitChoice(activity,id,checkbox.isChecked(),folder.getText().toString());
+        // Original Save listener may persist its note after DOWN. Re-apply only
+        // these optional fields after the original listener without replacing it.
+        save.postDelayed(()->commitChoice(activity,id,checkbox.isChecked(),folder.getText().toString()),120);
+        save.postDelayed(()->commitChoice(activity,id,checkbox.isChecked(),folder.getText().toString()),350);
       }
       return false;
     });
