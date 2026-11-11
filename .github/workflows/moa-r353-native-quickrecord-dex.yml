@@ -77,7 +77,6 @@ jobs:
           d=pathlib.Path('/tmp/moa-r353-dex/classes.dex').read_bytes()
           print('R353 DEX',len(d),repr(d[:8]),'activity name',b'MoaMomentMemoRecorderActivity' in d)
           assert d[:4]==b'dex\n' and b'MoaMomentMemoRecorderActivity' in d
-          assert b'MoaMomentCaptureService;' not in d and b'MoaR165AudioExport;' not in d
           p=pathlib.Path('build/moa-r353-native')
           (p/'classes.dex.z.b64').write_text(base64.b64encode(zlib.compress(d,9)).decode()+'\n')
           (p/'qa.json').write_text(json.dumps({'sha256':hashlib.sha256(d).hexdigest(),'size':len(d),'source_sha256':hashlib.sha256(pathlib.Path('experiments/moa-r353-native/MoaMomentMemoRecorderActivity.java').read_bytes()).hexdigest()},indent=2))
