@@ -185,7 +185,7 @@ public final class MoaR365CompanionProvider extends ContentProvider
       if(w==null||!isTrustedAppUrl(url)){
         deliver(a,attempts+1);return;
       }
-      String pref="(function(){try{return localStorage.getItem('moa.naver.offscreen.try.v1')!=='off'}catch(e){return true}})()";
+      String pref="(function(){try{return (localStorage.getItem('moa.naver.offscreen.try.v1')!=='off'||(Date.now()-Number(localStorage.getItem('moa.r369.hidden.requestAt')||0)<600000))}catch(e){return true}})()";
       try{w.evaluateJavascript(pref,value->{
         if(!"false".equals(value))hiddenStart(a);
       });}catch(Throwable ignored){}
@@ -213,7 +213,7 @@ public final class MoaR365CompanionProvider extends ContentProvider
       try{
         WebView app=findWeb(a.getWindow().getDecorView());
         if(app!=null){
-          final String pref="(function(){try{return localStorage.getItem('moa.naver.offscreen.try.v1')!=='off'}catch(e){return false}})()";
+          final String pref="(function(){try{return (localStorage.getItem('moa.naver.offscreen.try.v1')!=='off'||(Date.now()-Number(localStorage.getItem('moa.r369.hidden.requestAt')||0)<600000))}catch(e){return false}})()";
           app.evaluateJavascript(pref,value->{
             if(epoch==monitorEpoch && foregroundHost==a && "true".equals(value))
               hiddenStart(a);
