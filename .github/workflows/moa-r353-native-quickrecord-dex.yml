@@ -69,7 +69,7 @@ jobs:
             experiments/moa-r353-native/MoaMomentMemoRecorderActivity.java \
             /tmp/moa-r353-stubs/com/juhyeon/familyjourney/CompileStubs.java \
             > build/moa-r353-native/compile.log 2>&1 || { tail -100 build/moa-r353-native/compile.log; exit 1; }
-          find /tmp/moa-r353-classes -maxdepth 3 -type f -name 'MoaMomentMemoRecorderActivity*.class' -print0 | \
+          find /tmp/moa-r353-classes -type f -name 'MoaMomentMemoRecorderActivity*.class' -print0 | \
             xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa-r353-dex \
             >> build/moa-r353-native/compile.log 2>&1 || { tail -100 build/moa-r353-native/compile.log; exit 1; }
           python3 - <<'PY'
