@@ -71,10 +71,16 @@ public final class MoaR365CompanionProvider extends ContentProvider
         prefs.edit().remove("r365choice:"+id).remove("r365task:"+id).apply();
       }return;}
       // Preserve the explicit target even when the Golden Save rewrites m:id.
-      JSONObject choice=new JSONObject().put("checked",true).put("list",list);
+      long baseline=prior.has("baseUpdatedAt")?
+        prior.optLong("baseUpdatedAt",0):m.optLong("updatedAt",0);
+      JSONObject choice=new JSONObject().put("checked",true).put("list",list)
+        .put("baseUpdatedAt",baseline);
       prefs.edit().putString("r365choice:"+id,choice.toString()).apply();
       if(!m.optBoolean("memoSaved",false))return;
       long updated=m.optLong("updatedAt",0);
+      // Checking a previously saved record must NOT queue an account write
+      // until the user explicitly presses its ORIGINAL Save button again.
+      if(updated<=baseline)return;
       long age=System.currentTimeMillis()-updated;
       if(updated<=0||age<0||age>600000L)return;
       JSONObject q=new JSONObject()
