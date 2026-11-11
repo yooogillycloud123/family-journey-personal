@@ -1,0 +1,11 @@
+--- R345/assets/web/index.html
++++ R349/assets/web/index.html
+@@ -580,5 +580,7 @@
+ <script src="moa-r137-calendar-parity.js"></script>
+ <script src="moa-r139-calendar-unify.js"></script>
+ <script src="moa-r141-monthly-report.js"></script>
+-<script src="moa-r149-voice.js"></script></body>
++<script src="moa-r149-voice.js"></script>
++<script src="moa-r349-home-favorites.js"></script>
++<script src="moa-r349-quick-favorites.js"></script></body>
+ </html>
