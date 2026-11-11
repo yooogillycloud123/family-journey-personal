@@ -20,6 +20,8 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.webkit.WebView;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.WeakHashMap;
 
@@ -37,11 +39,39 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
   }
   @Override public void onActivityResumed(Activity activity){
     try{
-      if(activity==null||!TARGET.equals(activity.getClass().getName()))return;
-      activity.getWindow().getDecorView().postDelayed(()->{
+      if(activity==null)return;
+      if(TARGET.equals(activity.getClass().getName()))activity.getWindow().getDecorView().postDelayed(()->{
         try{install(activity);}catch(Throwable failure){mark(activity,"UI_HOOK_ERROR_ORIGINAL_PRESERVED");}
       },110);
-    }catch(Throwable ignored){/* Never crash the original Golden Activity. */}
+      else syncWebPrefs(activity);
+    }catch(Throwable ignored){/* The Golden activity must never crash from this observer. */}
+  }
+  private void syncWebPrefs(Activity activity){
+    if(activity==null||activity.isFinishing()||activity.isDestroyed())return;
+    collectWebPrefs(activity,activity.getWindow().getDecorView());
+  }
+  private void collectWebPrefs(Activity activity,View view){
+    if(view instanceof WebView){
+      WebView web=(WebView)view;
+      String url=String.valueOf(web.getUrl());
+      if(url.startsWith("file:///android_asset/")||url.startsWith("https://appassets.androidplatform.net/assets/")){
+        String script="(function(){try{return JSON.stringify({checked:localStorage.getItem('moa.r357.quick.default.checked')==='on',list:localStorage.getItem('fj.naver.targetlist')||''});}catch(e){return '{}';}})()";
+        try{web.evaluateJavascript(script,value->{
+          try{
+            if(value==null||value.equals("null"))return;
+            String json=new JSONArray("["+value+"]").getString(0);
+            JSONObject o=new JSONObject(json);
+            String list=o.optString("list","").trim();if(list.length()>70)list=list.substring(0,70);
+            prefs(activity).edit().putBoolean("r357.quick.default.checked",o.optBoolean("checked",false))
+              .putString("r357.quick.default.list",list).apply();
+          }catch(Exception ignored){}
+        });}catch(Exception ignored){}
+      }
+    }
+    if(view instanceof ViewGroup){
+      ViewGroup p=(ViewGroup)view;
+      for(int i=0;i<p.getChildCount();i++)collectWebPrefs(activity,p.getChildAt(i));
+    }
   }
   private int dp(Context c,int v){return (int)(v*c.getResources().getDisplayMetrics().density+0.5f);}
   private static TextView findTitle(View v){
@@ -98,7 +128,7 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
     checkbox.setChecked(old.optBoolean("naverQuickFavorite",prefs(activity).getBoolean("r357.quick.default.checked",false)));
     EditText folder=new EditText(activity);folder.setSingleLine(true);folder.setTextSize(14f);
     folder.setHint("저장 리스트 이름");folder.setMaxLines(1);folder.setMaxEms(24);
-    folder.setText(old.optString("naverQuickList",""));
+    folder.setText(old.optString("naverQuickList",prefs(activity).getString("r357.quick.default.list","")));
     LinearLayout.LayoutParams inputP=new LinearLayout.LayoutParams(dp(activity,174),dp(activity,45));
     inputP.gravity=Gravity.END;inputP.bottomMargin=dp(activity,2);
     // Prepare UI fully before moving the existing title. Roll back on any
@@ -135,7 +165,7 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
   @Override public void onActivityDestroyed(Activity activity){attached.remove(activity);}
   @Override public void onActivityCreated(Activity a,Bundle b){}
   @Override public void onActivityStarted(Activity a){}
-  @Override public void onActivityPaused(Activity a){}
+  @Override public void onActivityPaused(Activity a){if(a!=null && !TARGET.equals(a.getClass().getName()))syncWebPrefs(a);}
   @Override public void onActivityStopped(Activity a){}
   @Override public void onActivitySaveInstanceState(Activity a,Bundle b){}
   @Override public Cursor query(Uri uri,String[] projection,String selection,String[] args,String sort){return null;}
