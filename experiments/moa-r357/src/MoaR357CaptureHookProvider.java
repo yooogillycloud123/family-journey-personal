@@ -30,6 +30,8 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
   private static final String CAPTURE_PREF="moa_camera_native_v1";
   private static final String TARGET="com.juhyeon.familyjourney.MoaMomentMemoRecorderActivity";
   private final WeakHashMap<Activity,Boolean> attached=new WeakHashMap<>();
+  private final WeakHashMap<Activity,SharedPreferences.OnSharedPreferenceChangeListener> listeners=new WeakHashMap<>();
+  private final WeakHashMap<Activity,Boolean> writing=new WeakHashMap<>();
   private Application application;
   @Override public boolean onCreate(){
     Context ctx=getContext();if(ctx==null)return false;
@@ -100,10 +102,16 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
       if(original==null||original.isEmpty()){mark(activity,"CAPTURE_NOT_FOUND");return;}
       JSONObject obj=new JSONObject(original);
       String safe=String.valueOf(list).trim();if(safe.length()>70)safe=safe.substring(0,70);
+      final String chosen=checked?safe:"";
+      if(obj.optBoolean("naverQuickFavorite",false)==checked &&
+        chosen.equals(obj.optString("naverQuickList","")) && obj.optLong("naverQuickRequestedAt",0)>0)return;
       obj.put("naverQuickFavorite",checked);
-      obj.put("naverQuickList",checked?safe:"");
+      obj.put("naverQuickList",chosen);
       obj.put("naverQuickRequestedAt",System.currentTimeMillis());
-      if(!sp.edit().putString("m:"+id,obj.toString()).commit())throw new Exception("PREFS_COMMIT_FAILED");
+      writing.put(activity,Boolean.TRUE);
+      try{
+        if(!sp.edit().putString("m:"+id,obj.toString()).commit())throw new Exception("PREFS_COMMIT_FAILED");
+      }finally{writing.remove(activity);}
       mark(activity,checked?"SAVED_WITH_NAVER_INTENT":"SAVED_NO_NAVER_INTENT");
     }catch(Exception e){mark(activity,"DRAFT_UPDATE_FAILED");}
   }
@@ -151,22 +159,40 @@ public final class MoaR357CaptureHookProvider extends ContentProvider implements
       return;
     }
     folder.setVisibility(checkbox.isChecked()?View.VISIBLE:View.GONE);
-    checkbox.setOnCheckedChangeListener((b,yes)->folder.setVisibility(yes?View.VISIBLE:View.GONE));
-    // Observe original Save touch BEFORE original View.OnClickListener runs;
-    // return false so the original recorder/diary save remains untouched.
-    save.setOnTouchListener((v,event)->{
-      if(event.getActionMasked()==MotionEvent.ACTION_DOWN){
-        commitChoice(activity,id,checkbox.isChecked(),folder.getText().toString());
-        // Original Save listener may persist its note after DOWN. Re-apply only
-        // these optional fields after the original listener without replacing it.
-        save.postDelayed(()->commitChoice(activity,id,checkbox.isChecked(),folder.getText().toString()),120);
-        save.postDelayed(()->commitChoice(activity,id,checkbox.isChecked(),folder.getText().toString()),350);
-      }
-      return false;
+    // Optional intent gets persisted BEFORE original Save; never hijack its
+    // touch/click listener or race it with delayed writes after activity exit.
+    checkbox.setOnCheckedChangeListener((b,yes)->{
+      folder.setVisibility(yes?View.VISIBLE:View.GONE);
+      commitChoice(activity,id,yes,folder.getText().toString());
     });
+    folder.addTextChangedListener(new TextWatcher(){
+      @Override public void beforeTextChanged(CharSequence value,int start,int count,int after){}
+      @Override public void onTextChanged(CharSequence value,int start,int before,int count){
+        if(checkbox.isChecked())commitChoice(activity,id,true,value.toString());
+      }
+      @Override public void afterTextChanged(Editable value){}
+    });
+    // Golden recorder can rewrite the native draft on Save. Only attach these
+    // optional keys to the completed draft, keeping its original note/voice.
+    SharedPreferences originalPrefs=prefs(activity);
+    SharedPreferences.OnSharedPreferenceChangeListener watcher=(sp,key)->{
+      if(!("m:"+id).equals(key)||Boolean.TRUE.equals(writing.get(activity)))return;
+      try{
+        JSONObject updated=draft(activity,id);
+        if(updated.optBoolean("memoSaved",false))
+          commitChoice(activity,id,checkbox.isChecked(),folder.getText().toString());
+      }catch(Throwable ignored){}
+    };
+    originalPrefs.registerOnSharedPreferenceChangeListener(watcher);
+    listeners.put(activity,watcher);
+    if(checkbox.isChecked())commitChoice(activity,id,true,folder.getText().toString());
     attached.put(activity,Boolean.TRUE);mark(activity,"NATIVE_COMPACT_UI_INSTALLED");
   }
-  @Override public void onActivityDestroyed(Activity activity){attached.remove(activity);}
+  @Override public void onActivityDestroyed(Activity activity){
+    SharedPreferences.OnSharedPreferenceChangeListener watcher=listeners.remove(activity);
+    if(watcher!=null)try{prefs(activity).unregisterOnSharedPreferenceChangeListener(watcher);}catch(Throwable ignored){}
+    writing.remove(activity);attached.remove(activity);
+  }
   @Override public void onActivityCreated(Activity a,Bundle b){}
   @Override public void onActivityStarted(Activity a){}
   @Override public void onActivityPaused(Activity a){if(a!=null && !TARGET.equals(a.getClass().getName()))syncWebPrefs(a);}
