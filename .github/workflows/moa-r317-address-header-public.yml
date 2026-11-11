@@ -1,0 +1,28 @@
+name: MOA R317 anonymous NAVER address-heading star DOM proof
+on:
+  push:
+    branches: [feature/moa-r317-address-result-star-20261111]
+    paths:
+      - experiments/moa-r317-address-header/**
+      - .github/workflows/moa-r317-address-header-public.yml
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  anonymous-address:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          python -m pip install playwright
+          python -m playwright install chromium --with-deps
+      - name: Read-only public city-hall search structure
+        run: python experiments/moa-r317-address-header/ci_anonymous_address_header.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-r317-anonymous-address-dom
+          path: MOA_R317_ANONYMOUS_ADDRESS_DOM.json
