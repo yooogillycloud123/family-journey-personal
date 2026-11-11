@@ -13,9 +13,9 @@
 - R365 네이버 작성 엔진의 기존 `tryR289Offscreen()`이 native `naverWebProbeControl('hidden')`만으로 stopped session을 시작하지 못하는 경우 90회 확인 후 `WEB_HIDDEN_START_UNAVAILABLE`로 종료. 이 오류에서 외부 계정 저장은 시작하지 않았으나 R365 JS `active` latch 때문에 같은 작업의 안전 재시도가 막히는 문제도 있음.
 
 ## 서명 완료 산출물 — STATIC/CONTRACT PASS, DEVICE NOT TESTED
-- **R369**: `MOA_R369_CAPTURE_LIST_HIDDEN_RETRY_BETA.apk`, versionCode369, 8,948,725 bytes, SHA256 **531c475f97198553555b765d60a089b7d17abade4310c656759058ac04f2f826**.
+- **R369**: `MOA_R369_CAPTURE_LIST_HIDDEN_RETRY_BETA.apk`, versionCode369, 8,949,141 bytes, SHA256 **243bc7c2e6de1c87ceb4a22050589b13f414b8085174c244e1e4c1396be5eb14**.
 - **R371**: `MOA_R371_FORWARD_RESTORE_EXACT_R355_GOLDEN.apk`, versionCode371, 8,907,248 bytes, SHA256 **5ed6a361ca9903c1ab9c01c924c36e582416f7cdec0e92ac650f8f03c6f51641**, only Manifest version differs from user-accepted R355 functional Golden. Emergency only.
-- Paired release ZIP `MOA_R369_APK_R371_GOLDEN_RECOVERY_SOURCE_QA_20261112.zip`, SHA256 **8a12f74ce484b5800d93246e094fd9a5349435c9bed5392298278a7af92bdfa0**, includes two signed APKs, JS source, Node test, isolated native DEX compiler artifact, QA, Korean instructions, SHA manifest. Available in this turn's verified container.
+- Paired release ZIP `MOA_R369_APK_R371_GOLDEN_RECOVERY_SOURCE_QA_20261112.zip`, SHA256 **71d336a4286daee6a007f2687e02cbf8b1f8fcd184cb7b924015ad767ed3830c**, includes two signed APKs, JS source, Node test, isolated native DEX compiler artifact, QA, Korean instructions, SHA manifest. Available in this turn's verified container.
 - **Byte scope R365→R369:** only `AndroidManifest.xml` versionCode, `classes18.dex` (the standalone R365 companion provider only), and `assets/web/moa-r357-quick-bridge.js` changed. Original 17 DEX, entire latest native recorder + Gallery + Voice + original R345 NAVER save writer/frame + family-diary.js + settings remain **byte-identical**.
 - Same original certificate SHA256 **5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15**. APK v2 RSA signature + complete signed content SHA256 digest, ZIP CRC/alignment, all 18 DEX integrity PASS.
 - GitHub Actions isolated Java/D8 compile run **43062296131 SUCCESS**. JS Node test `R369_CONTRACT_PASS` verified per-photo list prefill and durable record selection even for same GPS, IDB commit before ONE existing NAVER save API call, no repeated write, old media state independence.
@@ -35,3 +35,8 @@
 - Native source/CI: feature branch `feature/moa-r369-repeat-hidden-list-ack-20261112`, `experiments/moa-r365/MoaR365CompanionProvider.java`, `.github/workflows/moa-r369-native-retry.yml`.
 - JS exact bytes + tests: included inside verified release ZIP; private Library small upload blocked by storage quota, **do not claim an upload succeeded**.
 - User-verified immutable R345 and R355 remain separate and protected. AA AirPods daemon/audio files untouched.
+
+## Final R369 rebuild supersedes first static candidate
+- Final signed R369 **SHA256 243bc7c2e6de1c87ceb4a22050589b13f414b8085174c244e1e4c1396be5eb14** (8,949,141 bytes) and ZIP **SHA256 71d336a4286daee6a007f2687e02cbf8b1f8fcd184cb7b924015ad767ed3830c** supersede the first draft hash; do not mix identical versionCode369 files.
+- Further fix: both explicit Diary PC-Web favorite click and QuickRecord automatic call now record a **10-minute requested-hidden-session signal** in the app WebView. Native own-origin monitor checks this signal **even if the old PC-web priority toggle was OFF**, and reuses the same controller. Before this, an explicit screen-nonoccupying save could remain blocked by a legacy setting. The account writer is still unchanged.
+- Recompiled native source in CI **43063755847 SUCCESS** and actual `classes18.dex` matches that artifact; strict full APKv2 signature/digest, original cert, ZIP CRC and JS IDB/list/mock assertions PASS. Actual Samsung cold-start/first-party save remains OPEN.
