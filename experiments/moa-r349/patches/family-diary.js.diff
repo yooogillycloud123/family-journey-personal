@@ -1,0 +1,12 @@
+--- R345/assets/web/family-diary.js
++++ R349/assets/web/family-diary.js
+@@ -2302,6 +2302,9 @@
+         }
+         lastCommittedPayload=key; // ONLY after IndexedDB transaction completes.
+         report('COMMITTED',acknowledged.size+' records in diary');
++        // R349 additive on-commit event: no change to native ack / original Diary writer.
++        // Emit only the actually ACKed capture drafts after the authoritative IDB transaction.
++        try {window.dispatchEvent(new CustomEvent('moa:r349-native-committed', {detail:{drafts:ready.filter(x=>acknowledged.has(String(x.id))).map(x=>({id:String(x.id),note:String(x.note||''),at:Number(x.at)||0}))}}));}catch(_){/* diary commit is independent of favorites */}
+         // A successful write is a real IndexedDB commit. Native capture alerts
+         // are NOT cancelled here: existing R49 DEX owns their notifications.
+       }else{
