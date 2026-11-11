@@ -75,6 +75,7 @@ jobs:
           python3 - <<'PY'
           import pathlib,base64,zlib,json,hashlib
           d=pathlib.Path('/tmp/moa-r353-dex/classes.dex').read_bytes()
+          print('R353 DEX',len(d),repr(d[:8]),'activity name',b'MoaMomentMemoRecorderActivity' in d)
           assert d[:4]==b'dex\n' and b'MoaMomentMemoRecorderActivity' in d
           assert b'MoaMomentCaptureService;' not in d and b'MoaR165AudioExport;' not in d
           p=pathlib.Path('build/moa-r353-native')
