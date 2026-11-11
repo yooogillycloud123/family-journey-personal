@@ -1,3 +1,16 @@
+## 2026-11-11 R313 / R315 — original-signer signed address-first existing-list *BETA* (real account save OPEN)
+
+| Artifact | Code | Size | SHA256 | Verified / not verified |
+|---|---:|---:|---|---|
+| MOA_R313_ADDRESS_FIRST_EXISTING_LIST_OFFSCREEN_VERIFY_BETA.apk | 313 | 8,906,089 B | eb0768cdb2c8f22ae315081710a83ce53996b002b9a2d214cfe3946d76e033e1 | same original certificate, APKv2 RSA signature + full digest, 16 DEX byte-equal, ZIP CRC/4-align; 18 Node mock checks PASS; physical NAVER account save and readback **NOT TESTED** |
+| MOA_R315_R307_FEATURES_FORWARD_RECOVERY_SAME_SIGNER.apk | 315 | 8,904,511 B | 65a265d3f05b705a9a8232f447f083401fa29c3091a922b38141c8f4e7c532b9 | R307 code resources byte-identical except Manifest version, same original cert/v2; **device rollback NOT TESTED** |
+| MOA_R313_SIGNED_APK_AND_R315_RECOVERY_QA_20261111.zip | — | 12,918,874 B | 0bc8a8a42054a1a3bbde4557d5e303c6263f10db9396e0bc22f7d287463b5910 | exact two signed APKs + JS sources/tests/QA/README; CRC/member hashes PASS; private signer excluded |
+
+- Actual baseline is user-uploaded R307 SHA 7306765f6d780d48ea35eee1648ec817cffb4ff9ec7792e40bce6e6d687c844d, **not** missing R309. Matching private original R39 signer recovered without user re-upload. R307→R313 changed exact 3 members: AndroidManifest.xml + 2 NAVER JS; all 16 DEX and other source data untouched. Original R269 SHA c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920 protected.
+- **Source-only previous** GitHub branch `feature/moa-r309-existing-list-transaction-safety-20261111` is not the same JS as R313 embedded APK. Full R313 sources in its paired ZIP; detailed [R313 handoff](MOA_R313_SIGNED_ADDRESS_FIRST_EXISTING_LIST_BETA_HANDOFF_20261111.md). No new helper app.
+- Real account folder GET, WebView background JS, exact NAVER modal Save controls, first-party commit/user gesture and server readback remain OPEN. **Do not represent the signed beta as a complete offscreen saver.**
+- The personal Library R309_20261111 upload failed storage quota again, and no persistent Library R313/315 binary copy exists as of this note; downloadable artifacts only in current conversation. Do not delete user backups.
+
 ## 2026-11-11 R309 / R311 — verified-original-signer address-first PC WebView beta
 
 | File | Code | Size | SHA256 | Actual evidence |
