@@ -262,3 +262,17 @@ NAVER 지도 앱 base APK `com.nhn.android.nmap`, 42 DEX; `BookmarkRepositoryImp
 - R305→R307 상위코드 같은 인증서 복원본: MOA_R307_RESTORE_R301_NO_CREATE_SAME_SIGNER.apk SHA256 7306765f6d780d48ea35eee1648ec817cffb4ff9ec7792e40bce6e6d687c844d, version307, 기존 cert SHA256 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15; v2/zipalign/ZIPCRC 확인. R307은 이전 R301 기능의 순방향 복구 후보이지 100% R269 Golden 바이너리 아님. 일반 업데이트에 code303/code301 다운그레이드 시도나 uninstall/data clear 금지.
 - 상세 증거 기록: https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R305_HIDDEN_BEFORE_VISIBLE_EXACT_VIDEO_CAUSE_AND_RECOVERY_20261111.md ; 실계정 folderId/list/place/alias/memo 저장·readback은 여전히 미검증.
 - R269 사용자 지정 Original Golden SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920 원본과 R227/AirPods Goldens 및 사용자 데이터 불변.
+
+
+---
+
+## 18. 2026-11-11 R305 실제 APK 경로 검증 — 주소 검색 상태 도달 불가능
+- 사용자 실제 휴대폰: 로그인된 네이버 PC지도 WebView 표시·뒤로 보내기 동작하지만, 비점유 저장 시 약 16초 후 '지도 프레임 응답 없음'. 이후 지도 내 별표 선택 상태만으로 본인 사진 GPS 장소가 저장됐다는 증거는 없음.
+- **R305 서명 APK 직접 분석 결과** `assets/web/fj-naver-favorites.js`: 사진 GPS→주소 역지오코딩/캐시→요청 구조 `{placeName,listName,address,alias,memo,placeId}`는 있음. 그러나 folderId/shareId는 포함되지 않음.
+- **실제 source graph 결정적 모순:** R305 `moa-r231-naver-frame-probe.js`에서 요청을 수신한 부모는 무조건 setPhase('LIST')로 시작, 자식 LIST_READY 이벤트가 있을 때만 검색(SEARCH)으로 넘어감. 그런데 실제 자식 list()는 LIST_READY를 출력하는 경로가 전혀 없고 LIST_ID_REQUIRED/LIST_DUPLICATE_NAME/LIST_NOT_FOUND_NO_CREATE로 종료하거나 구형 iframe 비일치시 무응답. 따라서 앱에서 사진 주소 검색·장소 선택·별표/별명·메모·완료를 순차 수행하는 것은 **현재 R305 코드 경로로 불가능**.
+- **추가 확정 결함:** 이후 phase SEARCH가 열려도 `location.replace`로 top map.naver.com/p/search 페이지 이동하면 새 top document에서는 `sessionStorage.removeItem('moa.r237.pending')` 수행 후 기존 작업을 복원하지 않음. Navigation 후 task=NULL이 되어 작업 끊김. 바이트 단위 실제 APK 소스로 확인.
+- **실행 상태 정확히 분리:** 사용자가 본 16초 실패 = phone_status QUEUED 유지에 대한 WEB_NO_FRAME_ACK 클라이언트 타임아웃. 이는 top 지도 부모가 실제 요청을 받았다고 확인되지 않았다는 뜻. 별도로 source상 LIST→SEARCH 미도달은 수신에 성공해도 발생하는 두 번째 독립적인 결함. 서로 혼동해서 한 개만 고치면 안 됨.
+- 잘못된 '내 장소' 중복 폴더를 추가 생성하지 않는 R301+ 안전차단은 유지. 기존 동명 리스트는 이름/장소개수만으로 선택 금지, 실제 네이버 first-party folder/shareId를 사용자가 한 번 선택한 뒤 정확 ID로 고정.
+- **향후 수정 구현 조건:** uuid/jobId 유지 + 프레임 ACK, 사진의 정확 주소 검색을 먼저 실행, 다중 검색결과는 명시적 선택/보류, 전체 부모 페이지 이동에도 task를 네이티브에서 한 번만 복구, 공식 first-party folderId 확정 후 장소별 별표/리스트/별명/메모 입력, 마지막 계정 readback. 단계별 확인코드로 실패 지점 고정. 임의 저장/생성/복구 무한 반복 금지.
+- 이번 턴에서는 분석/문서 증거만 기록했고, 실계정 완성 APK를 만들거나 실제 Galaxy 저장 성공을 확인하지 않았음. 원본 R269 Golden code269 SHA256 c0663e65aac2b72feb86cb0f1ba5eac448b6599c3850858de4d942f2aa446920 및 기존 인증서·사용자 사진/일기/원본 동영상은 불변.
+- 소스 검증 문서: https://github.com/yooogillycloud123/family-journey-personal/blob/research/moa-r269-webview-kvm-frame-gate-20261110/MOA_R305_REAL_CODE_FLOW_FORENSIC_SEARCH_NEVER_REACHED_20261111.md
