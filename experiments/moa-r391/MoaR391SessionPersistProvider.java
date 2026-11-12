@@ -138,8 +138,8 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       chevron.setClickable(true);
       chevron.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
       chevron.setContentDescription("네이버 웹창 메뉴 펼치기");
-      FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(a,48f),dp(a,54f),Gravity.CENTER_VERTICAL|Gravity.END);
-      lp.rightMargin=dp(a,2f);
+      FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(Math.round(dp(a,48f)),Math.round(dp(a,54f)),Gravity.CENTER_VERTICAL|Gravity.END);
+      lp.rightMargin=Math.round(dp(a,2f));
       shell.addView(chevron,lp);
       chevron.setElevation(dp(a,16f));
 
@@ -155,16 +155,16 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       GradientDrawable pink=new GradientDrawable();
       pink.setShape(GradientDrawable.OVAL);
       pink.setColor(0xffcf739f);
-      pink.setStroke(dp(a,1f),0xffe8b3ca);
+      pink.setStroke(Math.round(dp(a,1f)),0xffe8b3ca);
       home.setBackground(pink);
       home.setAlpha(0.80f);
       home.setElevation(dp(a,16f));
       home.setClickable(true);
       home.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
       home.setContentDescription("모아로 돌아가기");
-      FrameLayout.LayoutParams hp=new FrameLayout.LayoutParams(dp(a,44f),dp(a,44f),Gravity.END|Gravity.BOTTOM);
-      hp.rightMargin=dp(a,12f);
-      hp.bottomMargin=dp(a,92f);
+      FrameLayout.LayoutParams hp=new FrameLayout.LayoutParams(Math.round(dp(a,44f)),Math.round(dp(a,44f)),Gravity.END|Gravity.BOTTOM);
+      hp.rightMargin=Math.round(dp(a,12f));
+      hp.bottomMargin=Math.round(dp(a,92f));
       shell.addView(home,hp);
       home.setOnClickListener(v->{
         try{
