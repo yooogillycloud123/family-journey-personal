@@ -145,6 +145,12 @@ public final class MoaR365CompanionProvider extends ContentProvider
   }
   private void hiddenStart(Activity a){
     if(!isHost(a))return;
+    // Protect an in-progress official NAVER authentication from a new
+    // hidden bootstrap. Never interfere with the R283 login UA switch.
+    if(MoaR381AuthTrace.authBusy()){
+      mark("R381_AUTH_GUARD_SKIP_HIDDEN_START");
+      return;
+    }
     try{
       // Only reflect within this application's OWN existing controller.
       // start() then setHidden() execute on the SAME UI thread before redraw.
@@ -195,14 +201,21 @@ public final class MoaR365CompanionProvider extends ContentProvider
     },attempts==0?420L:700L);
   }
   @Override public void onActivityResumed(Activity a){
-    if(isHost(a))deliver(a,0);
+    if(isHost(a)){
+      MoaR381AuthTrace.start(a);
+      deliver(a,0);
+    }
   }
   @Override public void onActivityCreated(Activity a,Bundle b){}
   @Override public void onActivityStarted(Activity a){}
-  @Override public void onActivityPaused(Activity a){}
+  @Override public void onActivityPaused(Activity a){
+    if(isHost(a))MoaR381AuthTrace.stop(a);
+  }
   @Override public void onActivityStopped(Activity a){}
   @Override public void onActivitySaveInstanceState(Activity a,Bundle b){}
-  @Override public void onActivityDestroyed(Activity a){}
+  @Override public void onActivityDestroyed(Activity a){
+    MoaR381AuthTrace.stop(a);
+  }
   @Override public Cursor query(Uri uri,String[] projection,String selection,String[] args,String sort){return null;}
   @Override public String getType(Uri uri){return null;}
   @Override public Uri insert(Uri uri,ContentValues values){return null;}
