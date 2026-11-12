@@ -14,6 +14,10 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.graphics.PixelFormat;
+import android.webkit.WebView;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.webkit.CookieManager;
 import android.graphics.Bitmap;
@@ -33,7 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
 /**
- * R407, fixes the actual launcher class mismatch and reproduces the proven user sequence:
+ * R407, fixes R403 REAL launcher class mismatch while reproducing the proven user sequence:
  * 1. STOP existing NAVER PC web controller (as the original Web window close button).
  * 2. START the exact original full-sized, visible PC map controller.
  * 3. Allow at least two real Android draw frames and ~0.46s visible-layout time.
@@ -43,20 +47,26 @@ import java.util.concurrent.ThreadFactory;
  */
 public final class MoaR391SessionPersistProvider extends ContentProvider {
   private static final String HOST="com.juhyeon.familyjourney.HostActivity";
-  // Actual launcher alias points to MoaIconHost, a subclass of HostActivity.
+  // Actual launcher alias targets MoaIconHost (DEX: subclasses AudioHost -> VoiceHost -> HostActivity).
   private static final String LAUNCHER_HOST="com.juhyeon.familyjourney.MoaIconHost";
   private static final String CTRL="com.juhyeon.familyjourney.MoaNaverWebProbeController";
-  private static final String TAG="MOA_R407_BOOT";
+  private static final String TAG="MOA_R411_BOOT";
   private static final Handler UI=new Handler(Looper.getMainLooper());
   private static final long VISIBLE_LAYOUT_MS=460L;
+  private static final long REARM_COOLDOWN_MS=18000L;
+  private static long lastExpiryRefreshMs=0L;
+  private static final WeakHashMap<Activity, Long> REARM_AT=new WeakHashMap<>();
+  private static final WeakHashMap<Activity, Integer> MONITORS=new WeakHashMap<>();
   private static final WeakHashMap<Activity, Run> RUNS=new WeakHashMap<>();
   private static final ExecutorService FLUSH=Executors.newSingleThreadExecutor(new ThreadFactory(){
-    @Override public Thread newThread(Runnable r){Thread t=new Thread(r,"moa-r407-cookie-flush");t.setDaemon(true);return t;}
+    @Override public Thread newThread(Runnable r){Thread t=new Thread(r,"moa-r411-cookie-flush");t.setDaemon(true);return t;}
   });
   private static long lastFlush=-10000L;
   private static final class Run {
     final Activity activity;
-    View cover;
+    View cover, windowCover;
+    WindowManager windowManager;
+    boolean maskDrawn=false, openStarted=false;
     boolean attempted=false, finished=false, ownedBrowser=false;
     long startedAt;
     int observedFrames;
@@ -116,6 +126,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       FrameLayout root=(FrameLayout)content;
       View cover=newCover(r.activity);
       cover.setClickable(true);cover.setFocusable(false);
+      cover.setElevation(dp(r.activity,1000));
       cover.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
       root.addView(cover,new FrameLayout.LayoutParams(-1,-1,Gravity.FILL));
       cover.bringToFront();
@@ -129,9 +140,105 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     try{if(cover.getParent() instanceof ViewGroup)((ViewGroup)cover.getParent()).removeView(cover);}
     catch(Throwable t){stage(r,"COVER_REMOVE_FAILED");}
   }
+  // A separate same-application PANEL window is above the WebView's content tree.
+  // Do not start a foreground-sized NAVER renderer until this mask has been drawn.
+  private static boolean attachWindowMask(Run r){
+    try{
+      Activity a=r.activity;
+      View decor=a.getWindow().getDecorView();
+      if(decor.getWindowToken()==null){stage(r,"MASK_WINDOW_NO_TOKEN");return false;}
+      WindowManager wm=(WindowManager)a.getSystemService(Activity.WINDOW_SERVICE);
+      View windowMask=newCover(a);windowMask.setClickable(false);
+      WindowManager.LayoutParams p=new WindowManager.LayoutParams(
+        -1,-1,WindowManager.LayoutParams.TYPE_APPLICATION_PANEL,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|
+        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|
+        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        PixelFormat.OPAQUE);
+      p.token=decor.getWindowToken();p.gravity=Gravity.TOP|Gravity.START;
+      p.windowAnimations=0;p.setTitle("MOA R411 startup mask");
+      wm.addView(windowMask,p);
+      r.windowCover=windowMask;r.windowManager=wm;
+      stage(r,"MASK_PANEL_ADDED");
+      final ViewTreeObserver.OnPreDrawListener[] holder=new ViewTreeObserver.OnPreDrawListener[1];
+      holder[0]=()->{
+        try{if(windowMask.getViewTreeObserver().isAlive())windowMask.getViewTreeObserver().removeOnPreDrawListener(holder[0]);}
+        catch(Throwable ignored){}
+        if(!r.finished&&!r.openStarted){
+          r.maskDrawn=true;
+          stage(r,"MASK_DRAWN");
+          UI.postDelayed(()->openOriginalBehindMask(r),40L);
+        }
+        return true;
+      };
+      windowMask.getViewTreeObserver().addOnPreDrawListener(holder[0]);
+      // Fail closed rather than risking a bare NAVER window while launcher animates.
+      UI.postDelayed(()->{
+        if(!r.finished&&!r.maskDrawn){stage(r,"MASK_DRAW_TIMEOUT");finish(r,false);}
+      },850L);
+      return true;
+    }catch(Throwable t){stage(r,"MASK_WINDOW_ERROR_"+t.getClass().getSimpleName());return false;}
+  }
+  private static void removeWindowMask(Run r){
+    View mask=r.windowCover;WindowManager wm=r.windowManager;
+    r.windowCover=null;r.windowManager=null;
+    if(mask!=null&&wm!=null){
+      try{wm.removeViewImmediate(mask);}catch(Throwable t){Log.w(TAG,"MASK_REMOVE_FAILED");}
+    }
+  }
+  private static boolean ownAppWeb(WebView w){
+    if(w==null)return false;
+    String u=w.getUrl();if(u==null)return false;
+    return u.startsWith("https://familyjourney.local/")||
+      u.startsWith("https://appassets.androidplatform.net/")||
+      u.startsWith("file:///android_asset/");
+  }
+  private static WebView findOwnWeb(View v){
+    if(v instanceof WebView)return ownAppWeb((WebView)v)?(WebView)v:null;
+    if(v instanceof ViewGroup){ViewGroup parent=(ViewGroup)v;
+      for(int i=0;i<parent.getChildCount();i++){
+        WebView w=findOwnWeb(parent.getChildAt(i));if(w!=null)return w;
+      }
+    }return null;
+  }
+  private static void monitor(Activity a,int id){
+    if(!valid(a) || MONITORS.get(a)==null || MONITORS.get(a)!=id)return;
+    Run r=RUNS.get(a);
+    try{
+      Class<?> c=Class.forName(CTRL);
+      JSONObject s=status(c);
+      long now=SystemClock.elapsedRealtime();
+      // Refresh the ORIGINAL four-minute controller expiry, without touching cookies.
+      // Manual stop is respected: a stopped controller is never renewed by this path.
+      if(s.optBoolean("running",false)&&s.optBoolean("hidden",false)
+          && now-lastExpiryRefreshMs>=60000L){
+        Method extend=c.getDeclaredMethod("scheduleExpiry");extend.setAccessible(true);
+        extend.invoke(null);lastExpiryRefreshMs=now;
+        Log.i(TAG,"SESSION_LIVE_RENEWED");
+      }
+      if(r==null || r.finished){
+        WebView own=findOwnWeb(a.getWindow().getDecorView());
+        if(own!=null){
+          own.evaluateJavascript("(function(){try{return window.__moaR411Rearm&&window.__moaR411Rearm.pending===true?'YES':'NO'}catch(e){return 'NO'}})()",value->{
+            if(!valid(a)||!String.valueOf(value).contains("YES"))return;
+            Run old=RUNS.get(a);
+            if(old!=null&&!old.finished)return;
+            long at=REARM_AT.containsKey(a)?REARM_AT.get(a):0L;
+            long tick=SystemClock.elapsedRealtime();
+            if(tick-at<REARM_COOLDOWN_MS)return;
+            REARM_AT.put(a,tick);
+            Run nr=new Run(a);RUNS.put(a,nr);
+            attach(nr);
+            UI.postDelayed(()->begin(nr),20L);
+          });
+        }
+      }
+    }catch(Throwable t){Log.w(TAG,"MONITOR_NO_STATE_"+t.getClass().getSimpleName());}
+    UI.postDelayed(()->monitor(a,id),400L);
+  }
   private static void stage(Run r,String value){
     Log.i(TAG,value);
-    try{r.activity.getSharedPreferences("moa_r407_bootstrap_stage",0).edit()
+    try{r.activity.getSharedPreferences("moa_r411_bootstrap_stage",0).edit()
       .putString("last",value).putLong("at_elapsed_ms",SystemClock.elapsedRealtime()).apply();}
     catch(Throwable ignored){}
   }
@@ -156,6 +263,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     if(r.finished)return;
     r.finished=true;++r.epoch;
     if(!good)closeOnlyOurBrowser(r); // no stray unmasked WebView
+    removeWindowMask(r);
     removeCover(r);
     stage(r,good?"STOP_VISIBLE_HIDE_COMPLETE":"STOP_VISIBLE_HIDE_FAILED");
   }
@@ -185,7 +293,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     r.attempted=true;
     try{
       // onActivityCreated can run during super.onCreate, before HostActivity.setContentView().
-      // Reattach after Activity's actual content appears; setContentView can remove the early cover.
+      // Reattach after Activity's real content has been laid out; setContentView may remove the early cover.
       View currentContent=r.activity.findViewById(android.R.id.content);
       if(r.cover==null || r.cover.getParent()!=currentContent){
         removeCover(r);
@@ -195,6 +303,16 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       if(r.cover==null || r.cover.getParent()!=currentContent){
         stage(r,"NO_ATTACHED_COVER_ABORT");finish(r,false);return;
       }
+      // Panel must render BEFORE original controller adds its full-screen WebView.
+      if(!attachWindowMask(r)){
+        stage(r,"MASK_UNAVAILABLE_ABORT");finish(r,false);return;
+      }
+    }catch(Throwable t){stage(r,"BEGIN_EXCEPTION_"+t.getClass().getSimpleName());finish(r,false);}
+  }
+  private static void openOriginalBehindMask(Run r){
+    if(r.finished||r.openStarted||!r.maskDrawn||!valid(r.activity))return;
+    r.openStarted=true;
+    try{
       Class<?> c=Class.forName(CTRL);
       stage(r,"CLOSE_REQUESTED");
       // Same implementation as pressing '웹창 종료' (control('stop') calls dispose()).
@@ -228,8 +346,13 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         @Override public void onActivityResumed(Activity a){
           Run r=RUNS.get(a);
           if(r!=null&&!r.attempted&&!r.finished)UI.postDelayed(()->begin(r),55L);
+          if(valid(a)){
+            int next=MONITORS.containsKey(a)?MONITORS.get(a)+1:1;
+            MONITORS.put(a,next);UI.postDelayed(()->monitor(a,next),650L);
+          }
         }
         @Override public void onActivityPaused(Activity a){
+          MONITORS.remove(a);
           Run r=RUNS.get(a);
           if(r!=null&&!r.finished)finish(r,false);
           persist();
@@ -237,8 +360,11 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         @Override public void onActivityStopped(Activity a){persist();}
         @Override public void onActivitySaveInstanceState(Activity a,Bundle b){}
         @Override public void onActivityDestroyed(Activity a){
+          MONITORS.remove(a);REARM_AT.remove(a);
           Run r=RUNS.remove(a);
           if(r!=null&&!r.finished)finish(r,false);
+          // Never leave a WebView tied to a destroyed Activity; keep cookies only.
+          try{Class.forName(CTRL).getMethod("dispose").invoke(null);}catch(Throwable ignored){}
         }
       });
     }catch(Throwable t){Log.e(TAG,"CALLBACK_REGISTER_FAILED");}
