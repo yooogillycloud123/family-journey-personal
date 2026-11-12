@@ -2,6 +2,8 @@ package com.juhyeon.familyjourney;
 
 import android.app.Activity;
 import android.app.Application;
+import android.content.ComponentName;
+import android.content.pm.PackageManager;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.database.Cursor;
@@ -53,7 +55,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // Actual launcher alias targets MoaIconHost (DEX: subclasses AudioHost -> VoiceHost -> HostActivity).
   private static final String LAUNCHER_HOST="com.juhyeon.familyjourney.MoaIconHost";
   private static final String CTRL="com.juhyeon.familyjourney.MoaNaverWebProbeController";
-  private static final String TAG="MOA_R419_VISUAL";
+  private static final String TAG="MOA_R423_THEME";
   private static final Handler UI=new Handler(Looper.getMainLooper());
   private static final long VISIBLE_LAYOUT_MS=460L;
   private static final long REARM_COOLDOWN_MS=18000L;
@@ -93,12 +95,34 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     FLUSH.execute(()->{try{CookieManager.getInstance().flush();}catch(Throwable t){Log.w(TAG,"COOKIE_FLUSH_FAILED");}});
   }
   private static float dp(Activity a,float value){return a.getResources().getDisplayMetrics().density*value;}
+  // The existing icon settings bridge changes these real launcher aliases via
+  // PackageManager; read that applied OS state instead of guessing from a
+  // hardcoded pink PNG or reading private WebView cookies/localStorage.
+  private static final String[] ICON_THEME_IDS={
+    "A_modern_bold_pink","A_modern_bold_black","A_modern_bold_white",
+    "B_slim_premium_pink","B_slim_premium_black","B_slim_premium_white",
+    "Slim_minimal_glass_pink","Slim_minimal_glass_black","Slim_minimal_glass_white"
+  };
+  private static String appliedIconTheme(Activity a){
+    try{
+      PackageManager pm=a.getPackageManager();
+      for(String id:ICON_THEME_IDS){
+        ComponentName alias=new ComponentName(a.getPackageName(),
+          "com.juhyeon.familyjourney.MoaIcon_"+id);
+        if(pm.getComponentEnabledSetting(alias)==PackageManager.COMPONENT_ENABLED_STATE_ENABLED)
+          return id;
+      }
+    }catch(Throwable t){Log.w(TAG,"THEME_ALIAS_READ_FAILED");}
+    // Manifest's initially enabled launcher icon when no override was applied.
+    return "A_modern_bold_pink";
+  }
   private static View newCover(Activity a,Bitmap frozen){
     return new View(a){
       private final Paint p=new Paint(3);
+      private final String themeId=appliedIconTheme(a);
       private final Bitmap logo=load();
       private Bitmap load(){
-        try(java.io.InputStream in=a.getAssets().open("web/moa-icon-themes/A_modern_bold_pink.png")){
+        try(java.io.InputStream in=a.getAssets().open("web/moa-icon-themes/"+themeId+".png")){
           return BitmapFactory.decodeStream(in);
         }catch(Throwable t){return null;}
       }
@@ -132,13 +156,18 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         float top=(float)ownXY[1]-maskXY[1];
         float vw=Math.max(1f,decor.getWidth());
         float vh=Math.max(1f,decor.getHeight());
-        // Exact background color stops from moa-r32-brand.css.
-        p.setShader(new LinearGradient(0,top,0,top+vh,
-          new int[]{0xfffff9f5,0xfffff1eb,0xfffbd8d0},
-          new float[]{0f,.58f,1f},Shader.TileMode.CLAMP));
+        // Match the selected first-party icon color theme, including the
+        // splash background/title tones declared in moa-icon-theme-settings.css.
+        boolean dark=themeId.endsWith("_black");
+        boolean white=themeId.endsWith("_white");
+        int[] bg=dark ? new int[]{0xff191820,0xff25212c,0xff352431} :
+          white ? new int[]{0xffffffff,0xfff8f7f8,0xffefedf1} :
+          new int[]{0xfffff9f5,0xfffff1eb,0xfffbd8d0};
+        p.setShader(new LinearGradient(0,top,0,top+vh,bg,
+          new float[]{0f,.60f,1f},Shader.TileMode.CLAMP));
         canvas.drawRect(0,0,w,h,p);p.setShader(null);
-        // Preserve the original HTML bottom wave without moving the viewport.
-        p.setColor(0x19f2b0a3);
+        // Preserve the native decorative wave at precisely the same position.
+        p.setColor(dark?0x13ff8abc:(white?0x22dad6e3:0x19f2b0a3));
         RectF wave=new RectF(left-vw*.28f,top+vh*.81f,
                              left+vw*1.13f,top+vh*1.30f);
         canvas.drawOval(wave,p);
@@ -148,20 +177,24 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         float startY=top+(vh-total)*.5f;
         float cx=left+vw*.5f;
         if(logo!=null){
+          // IMPORTANT: preceding wave used alpha=0x19 (~10%).  Android Paint
+          // retains its color/alpha for drawBitmap! R419 unintentionally made
+          // the existing icon ~90% transparent. Reset to fully opaque white.
+          p.setShader(null);p.setColor(0xffffffff);p.setAlpha(255);
           p.setFilterBitmap(true);
           canvas.drawBitmap(logo,new Rect(0,0,logo.getWidth(),logo.getHeight()),
              new RectF(cx-side*.5f,startY,cx+side*.5f,startY+side),p);
         }else{
-          p.setColor(0xfff40068);
+          p.setColor(dark?0xff15131e:(white?0xfff2f2f2:0xfff40068));
           canvas.drawRoundRect(new RectF(cx-side*.5f,startY,cx+side*.5f,startY+side),dp(a,32),dp(a,32),p);
-          p.setColor(-1);p.setTextSize(dp(a,46));p.setTypeface(Typeface.DEFAULT_BOLD);
+          p.setColor(white?0xff191820:0xffffffff);p.setTextSize(dp(a,46));p.setTypeface(Typeface.DEFAULT_BOLD);
           p.setTextAlign(Paint.Align.CENTER);canvas.drawText("MOA",cx,startY+side*.61f,p);
         }
-        p.setShader(null);p.setColor(0xff122938);
+        p.setShader(null);p.setColor(dark?0xfff8f7f8:(white?0xff181923:0xff122938));
         p.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));
         p.setTextAlign(Paint.Align.CENTER);p.setTextSize(dp(a,38));
         canvas.drawText("모아",cx,startY+side+dp(a,12)+dp(a,8)+dp(a,39),p);
-        p.setTypeface(Typeface.DEFAULT);p.setTextSize(dp(a,14));p.setColor(0xff495968);
+        p.setTypeface(Typeface.DEFAULT);p.setTextSize(dp(a,14));p.setColor(dark?0xffdbcbdb:(white?0xff575563:0xff495968));
         canvas.drawText("우리 가족의 모든 기억, 모아",cx,top+vh*.89f,p);
       }
     };
