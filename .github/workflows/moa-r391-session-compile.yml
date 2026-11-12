@@ -1,7 +1,7 @@
-name: MOA R391 Session Persistence Native DEX
+name: MOA R399 Masked Visible Bootstrap Native DEX
 on:
   push:
-    branches: [feature/moa-r391-session-persist-20261112]
+    branches: [feature/moa-r391-session-persist-20261112, feature/moa-r399-masked-visible-bootstrap-20261112]
     paths:
       - 'experiments/moa-r391/**'
       - '.github/workflows/moa-r391-session-compile.yml'
