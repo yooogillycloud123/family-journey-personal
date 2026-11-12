@@ -2,9 +2,11 @@ name: MOA R369 standalone native durable QuickRecord DEX
 on:
   push:
     branches:
-      - feature/moa-r369-repeat-hidden-list-ack-20261112
+      - feature/moa-r373-naver-auth-preservation-20261112
     paths:
       - experiments/moa-r365/MoaR365CompanionProvider.java
+      - experiments/moa-r365/MoaNaverAuthUrl.java
+      - experiments/moa-r365/MoaNaverAuthUrlTest.java
       - .github/workflows/moa-r369-native-retry.yml
   workflow_dispatch:
 permissions:
@@ -24,11 +26,16 @@ jobs:
           SM="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)"
           yes | "$SM" --licenses >/dev/null || true
           "$SM" "platforms;android-35" "build-tools;35.0.0"
-          mkdir -p /tmp/r365/classes /tmp/r365/dex build/moa-r369
+          mkdir -p /tmp/r365/classes /tmp/r365/dex /tmp/r365/auth-test build/moa-r373
+          javac -encoding UTF-8 -d /tmp/r365/auth-test \
+            experiments/moa-r365/MoaNaverAuthUrl.java \
+            experiments/moa-r365/MoaNaverAuthUrlTest.java
+          java -cp /tmp/r365/auth-test com.juhyeon.familyjourney.MoaNaverAuthUrlTest
           javac -encoding UTF-8 -source 17 -target 17 \
             -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
             -d /tmp/r365/classes \
-            experiments/moa-r365/MoaR365CompanionProvider.java
+            experiments/moa-r365/MoaR365CompanionProvider.java \
+            experiments/moa-r365/MoaNaverAuthUrl.java
           find /tmp/r365/classes -type f -name 'MoaR365CompanionProvider*.class' -print0 | \
             xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" \
             --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
@@ -38,16 +45,16 @@ jobs:
           import hashlib,zlib,base64,json
           data=Path("/tmp/r365/dex/classes.dex").read_bytes()
           assert data[:4]==b'dex\n' and b'MoaR365CompanionProvider' in data
-          out=Path("build/moa-r369")
+          out=Path("build/moa-r373")
           (out/"provider.dex.z.b64").write_text(base64.b64encode(zlib.compress(data,9)).decode()+"\n")
           (out/"QA.json").write_text(json.dumps({
             "dex_sha256":hashlib.sha256(data).hexdigest(),
             "dex_bytes":len(data),
             "source_sha256":hashlib.sha256(Path("experiments/moa-r365/MoaR365CompanionProvider.java").read_bytes()).hexdigest(),
             "exact_original_activity_compiled":False},indent=2))
-          print("R365_PROVIDER_COMPILE_PASS",len(data))
+          print("R373_AUTH_GUARD_PROVIDER_COMPILE_PASS",len(data))
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: MOA-R369-EXTRA-DEX-NO-SIGNING-KEYS
-          path: build/moa-r369/
+          name: MOA-R373-AUTH-GUARD-EXTRA-DEX-NO-SIGNING-KEYS
+          path: build/moa-r373/
