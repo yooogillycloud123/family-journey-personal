@@ -1,8 +1,8 @@
-name: MOA R381 protected NAVER WebView tracing DEX (NO signer)
+name: MOA R383 native auth trace with in-app redacted export (NO signer)
 on:
   push:
     branches:
-      - feature/moa-r381-native-auth-trace-safe-20261112
+      - feature/moa-r383-auth-trace-export-20261112
     paths:
       - 'experiments/moa-r365/MoaR365CompanionProvider.java'
       - 'experiments/moa-r365/MoaR381AuthTrace.java'
