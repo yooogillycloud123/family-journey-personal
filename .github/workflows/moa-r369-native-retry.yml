@@ -1,4 +1,4 @@
-name: MOA R369 standalone native durable QuickRecord DEX
+name: MOA R373 NAVER login preservation native provider DEX
 on:
   push:
     branches:
@@ -36,7 +36,7 @@ jobs:
             -d /tmp/r365/classes \
             experiments/moa-r365/MoaR365CompanionProvider.java \
             experiments/moa-r365/MoaNaverAuthUrl.java
-          find /tmp/r365/classes -type f -name 'MoaR365CompanionProvider*.class' -print0 | \
+          find /tmp/r365/classes -type f -name '*.class' -print0 | \
             xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" \
             --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
             --output /tmp/r365/dex
