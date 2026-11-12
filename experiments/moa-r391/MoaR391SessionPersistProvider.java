@@ -28,6 +28,9 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Shader;
+import android.os.Build;
+import android.view.PixelCopy;
+import java.lang.reflect.Field;
 import android.graphics.Typeface;
 import org.json.JSONObject;
 import java.lang.reflect.Method;
@@ -50,7 +53,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // Actual launcher alias targets MoaIconHost (DEX: subclasses AudioHost -> VoiceHost -> HostActivity).
   private static final String LAUNCHER_HOST="com.juhyeon.familyjourney.MoaIconHost";
   private static final String CTRL="com.juhyeon.familyjourney.MoaNaverWebProbeController";
-  private static final String TAG="MOA_R411_BOOT";
+  private static final String TAG="MOA_R415_BOOT";
   private static final Handler UI=new Handler(Looper.getMainLooper());
   private static final long VISIBLE_LAYOUT_MS=460L;
   private static final long REARM_COOLDOWN_MS=18000L;
@@ -60,14 +63,17 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   private static final WeakHashMap<Activity, Boolean> LIVE_HOSTS=new WeakHashMap<>();
   private static int nextMonitorId=0;
   private static boolean keepaliveScheduled=false;
+  private static final WeakHashMap<Activity, Long> GALLERY_REPAIR_AT=new WeakHashMap<>();
   private static final WeakHashMap<Activity, Run> RUNS=new WeakHashMap<>();
   private static final ExecutorService FLUSH=Executors.newSingleThreadExecutor(new ThreadFactory(){
-    @Override public Thread newThread(Runnable r){Thread t=new Thread(r,"moa-r411-cookie-flush");t.setDaemon(true);return t;}
+    @Override public Thread newThread(Runnable r){Thread t=new Thread(r,"moa-r415-cookie-flush");t.setDaemon(true);return t;}
   });
   private static long lastFlush=-10000L;
   private static final class Run {
     final Activity activity;
     View cover, windowCover;
+    boolean fromRearm=false;
+    Bitmap frozenUi=null;
     WindowManager windowManager;
     boolean maskDrawn=false, openStarted=false;
     boolean attempted=false, finished=false, ownedBrowser=false;
@@ -87,7 +93,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     FLUSH.execute(()->{try{CookieManager.getInstance().flush();}catch(Throwable t){Log.w(TAG,"COOKIE_FLUSH_FAILED");}});
   }
   private static float dp(Activity a,float value){return a.getResources().getDisplayMetrics().density*value;}
-  private static View newCover(Activity a){
+  private static View newCover(Activity a,Bitmap frozen){
     return new View(a){
       private final Paint p=new Paint(3);
       private final Bitmap logo=load();
@@ -100,6 +106,11 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         super.onDraw(canvas);
         float w=getWidth(),h=getHeight();if(w<=0||h<=0)return;
         p.reset();p.setAntiAlias(true);
+        if(frozen!=null&&!frozen.isRecycled()){
+          p.setFilterBitmap(true);
+          canvas.drawBitmap(frozen,null,new Rect(0,0,(int)w,(int)h),p);
+          return;
+        }
         p.setShader(new LinearGradient(0,0,0,h,new int[]{0xfffffaf6,0xfffff5ef,0xfffbdcd7},null,Shader.TileMode.CLAMP));
         canvas.drawRect(0,0,w,h,p);p.setShader(null);
         float side=Math.min(dp(a,180),w*0.51f),cy=h*0.36f;
@@ -127,7 +138,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       View content=r.activity.findViewById(android.R.id.content);
       if(!(content instanceof FrameLayout)){stage(r,"NO_FRAME_CONTENT");return;}
       FrameLayout root=(FrameLayout)content;
-      View cover=newCover(r.activity);
+      View cover=newCover(r.activity,r.frozenUi);
       cover.setClickable(true);cover.setFocusable(false);
       cover.setElevation(dp(r.activity,1000));
       cover.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
@@ -151,15 +162,14 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       View decor=a.getWindow().getDecorView();
       if(decor.getWindowToken()==null){stage(r,"MASK_WINDOW_NO_TOKEN");return false;}
       WindowManager wm=(WindowManager)a.getSystemService(Activity.WINDOW_SERVICE);
-      View windowMask=newCover(a);windowMask.setClickable(false);
+      View windowMask=newCover(a,r.frozenUi);windowMask.setClickable(false);
       WindowManager.LayoutParams p=new WindowManager.LayoutParams(
         -1,-1,WindowManager.LayoutParams.TYPE_APPLICATION_PANEL,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|
-        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|
-        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
         PixelFormat.OPAQUE);
       p.token=decor.getWindowToken();p.gravity=Gravity.TOP|Gravity.START;
-      p.windowAnimations=0;p.setTitle("MOA R411 startup mask");
+      p.windowAnimations=0;p.setTitle(r.fromRearm?"MOA R415 frozen save view":"MOA R415 startup mask");
       wm.addView(windowMask,p);
       r.windowCover=windowMask;r.windowManager=wm;
       stage(r,"MASK_PANEL_ADDED");
@@ -221,9 +231,60 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     refreshExpiryIfLive();
     UI.postDelayed(()->keepalive(),65000L);
   }
+  private static void startRearmWithFrozenScreen(Activity a,Run r){
+    r.fromRearm=true;
+    try{
+      View decor=a.getWindow().getDecorView();
+      final int width=decor.getWidth(),height=decor.getHeight();
+      if(width<30||height<30){stage(r,"FREEZE_BAD_VIEWPORT");finish(r,false);return;}
+      Bitmap snap=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);
+      if(Build.VERSION.SDK_INT>=26){
+        PixelCopy.request(a.getWindow(),snap,result->{
+          if(r.finished){snap.recycle();return;}
+          if(result==PixelCopy.SUCCESS){
+            r.frozenUi=snap;stage(r,"FROZEN_CURRENT_WINDOW");begin(r);
+          }else{
+            try{Canvas c=new Canvas(snap);decor.draw(c);r.frozenUi=snap;
+              stage(r,"FROZEN_VIEW_FALLBACK");begin(r);}
+            catch(Throwable t){snap.recycle();stage(r,"FREEZE_FAILED");finish(r,false);}
+          }
+        },UI);
+        UI.postDelayed(()->{if(!r.finished&&!r.attempted&&r.frozenUi==null){
+          stage(r,"FREEZE_TIMEOUT");finish(r,false);
+        }},700L);
+      }else{
+        Canvas c=new Canvas(snap);decor.draw(c);r.frozenUi=snap;
+        stage(r,"FROZEN_LEGACY_VIEW");begin(r);
+      }
+    }catch(Throwable t){stage(r,"FREEZE_EXCEPTION_"+t.getClass().getSimpleName());finish(r,false);}
+  }
+  // Preserve the advanced R227 native gallery DEX. NAVER's sibling WebView must
+  // never become the MOA LocalAudio host or demote its origin trust bit.
+  private static void repairGalleryOwner(Activity a){
+    if(!valid(a))return;
+    long now=SystemClock.elapsedRealtime();
+    Long oldAt=GALLERY_REPAIR_AT.get(a);
+    if(oldAt!=null&&now-oldAt<900L)return;
+    GALLERY_REPAIR_AT.put(a,now);
+    try{
+      WebView own=findOwnWeb(a.getWindow().getDecorView());
+      if(own==null||own.getUrl()==null||!own.getUrl().startsWith("https://familyjourney.local/"))return;
+      Class<?> c=Class.forName("com.juhyeon.familyjourney.MoaMomentAudioHostActivity");
+      if(!c.isInstance(a))return;
+      Field host=c.getDeclaredField("web");host.setAccessible(true);
+      Field trusted=c.getDeclaredField("trustedPage");trusted.setAccessible(true);
+      Object previous=host.get(a);
+      boolean wasTrusted=trusted.getBoolean(a);
+      if(previous!=own||!wasTrusted){
+        host.set(a,own);trusted.setBoolean(a,true);
+        Log.i(TAG,previous!=own?"GALLERY_WEBVIEW_OWNER_REPAIRED":"GALLERY_OWN_ORIGIN_TRUST_REFRESHED");
+      }
+    }catch(Throwable t){Log.w(TAG,"GALLERY_OWNER_REPAIR_CHECK_"+t.getClass().getSimpleName());}
+  }
   private static void monitor(Activity a,int id){
     if(!valid(a) || MONITORS.get(a)==null || MONITORS.get(a)!=id)return;
     Run r=RUNS.get(a);
+    repairGalleryOwner(a);
     try{
       // A living foreground/background HostActivity shares one no-network
       // heartbeat that only refreshes the existing controller expiry.
@@ -239,8 +300,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
             if(tick-at<REARM_COOLDOWN_MS)return;
             REARM_AT.put(a,tick);
             Run nr=new Run(a);RUNS.put(a,nr);
-            attach(nr);
-            UI.postDelayed(()->begin(nr),20L);
+            UI.post(()->startRearmWithFrozenScreen(a,nr));
           });
         }
       }
@@ -249,7 +309,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   }
   private static void stage(Run r,String value){
     Log.i(TAG,value);
-    try{r.activity.getSharedPreferences("moa_r411_bootstrap_stage",0).edit()
+    try{r.activity.getSharedPreferences("moa_r415_bootstrap_stage",0).edit()
       .putString("last",value).putLong("at_elapsed_ms",SystemClock.elapsedRealtime()).apply();}
     catch(Throwable ignored){}
   }
@@ -276,6 +336,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     if(!good)closeOnlyOurBrowser(r); // no stray unmasked WebView
     removeWindowMask(r);
     removeCover(r);
+    if(r.frozenUi!=null){try{r.frozenUi.recycle();}catch(Throwable ignored){}r.frozenUi=null;}
     stage(r,good?"STOP_VISIBLE_HIDE_COMPLETE":"STOP_VISIBLE_HIDE_FAILED");
   }
   private static void stepHide(Run r,int epoch){
@@ -302,23 +363,11 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   private static void begin(Run r){
     if(r.attempted||r.finished||!valid(r.activity))return;
     r.attempted=true;
-    try{
-      // onActivityCreated can run during super.onCreate, before HostActivity.setContentView().
-      // Reattach after Activity's real content has been laid out; setContentView may remove the early cover.
-      View currentContent=r.activity.findViewById(android.R.id.content);
-      if(r.cover==null || r.cover.getParent()!=currentContent){
-        removeCover(r);
-        attach(r);
-        stage(r,"COVER_CHECKED_AFTER_HOST_CONTENT");
-      }
-      if(r.cover==null || r.cover.getParent()!=currentContent){
-        stage(r,"NO_ATTACHED_COVER_ABORT");finish(r,false);return;
-      }
-      // Panel must render BEFORE original controller adds its full-screen WebView.
-      if(!attachWindowMask(r)){
-        stage(r,"MASK_UNAVAILABLE_ABORT");finish(r,false);return;
-      }
-    }catch(Throwable t){stage(r,"BEGIN_EXCEPTION_"+t.getClass().getSimpleName());finish(r,false);}
+    // A single top application-panel mask: no second in-content root overlay to
+    // produce vertical jumping during the splash-to-app content layout.
+    if(!attachWindowMask(r)){
+      stage(r,"MASK_UNAVAILABLE_ABORT");finish(r,false);
+    }
   }
   private static void openOriginalBehindMask(Run r){
     if(r.finished||r.openStarted||!r.maskDrawn||!valid(r.activity))return;
@@ -354,7 +403,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
           if(valid(a)){
             LIVE_HOSTS.put(a,Boolean.TRUE);
             if(!keepaliveScheduled){keepaliveScheduled=true;UI.postDelayed(()->keepalive(),1200L);}
-            Run r=new Run(a);RUNS.put(a,r);attach(r);
+            Run r=new Run(a);RUNS.put(a,r);
           }
         }
         @Override public void onActivityStarted(Activity a){}
@@ -362,6 +411,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
           Run r=RUNS.get(a);
           if(r!=null&&!r.attempted&&!r.finished)UI.postDelayed(()->begin(r),55L);
           if(valid(a)){
+            UI.postDelayed(()->repairGalleryOwner(a),1200L);
             int next=++nextMonitorId;
             MONITORS.put(a,next);UI.postDelayed(()->monitor(a,next),650L);
           }
@@ -375,7 +425,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         @Override public void onActivityStopped(Activity a){persist();}
         @Override public void onActivitySaveInstanceState(Activity a,Bundle b){}
         @Override public void onActivityDestroyed(Activity a){
-          MONITORS.remove(a);REARM_AT.remove(a);LIVE_HOSTS.remove(a);
+          MONITORS.remove(a);REARM_AT.remove(a);GALLERY_REPAIR_AT.remove(a);LIVE_HOSTS.remove(a);
           Run r=RUNS.remove(a);
           if(r!=null&&!r.finished)finish(r,false);
           // Never leave a WebView tied to a destroyed Activity; keep cookies only.
