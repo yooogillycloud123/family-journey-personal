@@ -188,16 +188,25 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     if(elapsed>=MAX_MASK_MS){finish(r,false);return;}
     UI.postDelayed(()->poll(r,generation),130);
   }
+  private static boolean sameLiveHost(Class<?> c,Activity a){
+    try{
+      java.lang.reflect.Field f=c.getDeclaredField("shell");f.setAccessible(true);
+      View v=(View)f.get(null);
+      return v!=null&&v.getParent()!=null&&v.getContext()==a;
+    }catch(Throwable ignored){return false;}
+  }
   private static void begin(Run r){
     if(r.attempted||r.finished||!host(r.host))return;
     r.attempted=true;
     try{
       Class<?> c=Class.forName(CTRL);
       JSONObject prior=status(c);
-      // When another user/controller session is already active, never disrupt it.
+      // Keep a live session attached to this host. An orphaned probe from an
+      // earlier destroyed Activity is the one safe case for STOP > START.
+      // Never blindly reset a still-attached manual authentication session.
       if(prior.optBoolean("running",false)){
-        // Only hide an existing probe if already attached to this host; do not close it.
-        finish(r,false);return;
+        if(sameLiveHost(c,r.host)){finish(r,false);return;}
+        c.getMethod("dispose").invoke(null);
       }
       c.getMethod("onHostResumed",Activity.class).invoke(null,r.host);
       invoke(c,"start",r.host); // Full-size visible WebView, masked by our higher native layer.
