@@ -1,3 +1,11 @@
+## 2026-11-12 — USER SELECTED R355 GOLDEN → R387 original-signer higher-code forward restore (STATIC PASS)
+
+- User elected to return from broken R383 NAVER login diagnostics to R355 GOLDEN features. Direct original-signer APK `MOA_R387_FORWARD_RESTORE_R355_GOLDEN_SIGNED.apk` code387 (higher than installed R383 and R385 emergency), SHA256 **96bd015ff404ecd923cbc710e4f4bbb583b8d4b6b187890160bbd15bdd96ffca**, size **8,907,064B**, same package `com.juhyeon.familyjournea`, signer cert SHA `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+- Based on user-device Golden original R345 signed APK SHA `fe2aaaac15d39a610268ee3d10361652a95537e0ce8ec9cde86e98edf3f8ceb1`. **Direct byte comparison with BOTH R345 and actual signed R371** (R355 Golden forward restore SHA `5ed6a361ca9903c1ab9c01c924c36e582416f7cdec0e92ac650f8f03c6f51641`): 137/138 identical APK member bytes, **only AndroidManifest.xml versionCode 345/371→387 changed**. All 16 original DEX, photo/video/voice/diary and R345 first-party NAVER writer/frame original exact data preserved.
+- Android binary Manifest package and code387 decoded; independent original v2 RSA signature + complete APK digest, CRC, stored alignment, 16/16 DEX SHA1/Adler PASS. Backed-up APK+QA ZIP SHA `d3b8830e244badd277aa1e4296f0efe9f959700d85120175cc744ca9f1624c0f` verified. APK, ZIP, QA all successfully archived PRIVATE Library `/모아_프로젝트_근거_20261103/R387_R355_RESTORE_20261112/`. No private keys/passwords in deliverables/public repo.
+- **Android update install and login/device NAVER account writes NOT tested**: only static candidate, not newly confirmed user Golden. User must update on top of existing app, NO uninstall/data clearing, no credential/cookie deletion. This explicitly removes R357-R383 extensions to restore R355 features; cannot assert fresh receipt challenge reauthentication solved.
+- [R387 full handoff](MOA_R387_R355_GOLDEN_FORWARD_RESTORE_ORIGINAL_SIGNER_20261112.md). Next code >387, AirPods unrelated.
+
 ## 2026-11-12 — R365 original-signer installed-package BETA / R367 exact R355 functional forward recovery
 
 - Trigger: user R361 real device showed stopped hidden session startup for older GPS photos, and native 순간기록 checked target folder '새로운' did not auto-save until manual Diary favorite button. Do not treat source-only/static pass as account write success.
