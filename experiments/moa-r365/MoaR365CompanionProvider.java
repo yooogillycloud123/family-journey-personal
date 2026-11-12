@@ -143,6 +143,27 @@ public final class MoaR365CompanionProvider extends ContentProvider
       raw.startsWith("https://appassets.androidplatform.net/")||
       raw.startsWith("file:///android_asset/"));
   }
+  // Guard the official first-party login UI against background prewarm.
+  // This does not inspect credentials, solve challenges, touch cookies or
+  // alter the original R283 Android user-agent login code in classes13.dex.
+  private boolean authViewPresent(View v){
+    if(v instanceof WebView){
+      try{
+        if(MoaNaverAuthUrl.isOfficialLogin(((WebView)v).getUrl()))return true;
+      }catch(Throwable ignored){}
+    }
+    if(v instanceof ViewGroup){
+      ViewGroup p=(ViewGroup)v;
+      for(int i=0;i<p.getChildCount();i++)
+        if(authViewPresent(p.getChildAt(i)))return true;
+    }
+    return false;
+  }
+  private boolean authUiOpen(Activity a){
+    if(a==null)return false;
+    try{return authViewPresent(a.getWindow().getDecorView());}
+    catch(Throwable ignored){return false;}
+  }
   // R365 selected the FIRST WebView, which can be the NAVER session itself.
   // Select only the owned local APP WebView; never evaluate its JS in NAVER.
   private WebView findWeb(View v){
@@ -158,6 +179,9 @@ public final class MoaR365CompanionProvider extends ContentProvider
   }
   private void hiddenStart(Activity a){
     if(!isHost(a))return;
+    // A human must finish NAVER's own authentication without an automatic
+    // parallel WebView start; retry when the auth view has actually closed.
+    if(authUiOpen(a)){mark("R373_AUTH_UI_PREWARM_PAUSED");return;}
     try{
       // Only reflect within this application's OWN existing controller.
       // start() then setHidden() execute on the SAME UI thread before redraw.
@@ -180,6 +204,7 @@ public final class MoaR365CompanionProvider extends ContentProvider
     if(!isHost(a)||attempts>16)return;
     MAIN.postDelayed(()->{
       if(!isHost(a))return;
+      if(authUiOpen(a)){mark("R373_AUTH_UI_TASK_DELIVERY_PAUSED");return;}
       WebView w=findWeb(a.getWindow().getDecorView());
       String url=w==null?"":String.valueOf(w.getUrl());
       if(w==null||!isTrustedAppUrl(url)){
@@ -212,7 +237,11 @@ public final class MoaR365CompanionProvider extends ContentProvider
       if(epoch!=monitorEpoch||foregroundHost!=a||!isHost(a))return;
       try{
         WebView app=findWeb(a.getWindow().getDecorView());
-        if(app!=null){
+        if(authUiOpen(a)){
+          // Do not run offscreen session setup or account-save delivery
+          // while official NAVER login / challenge is visible.
+          lastStatus="R373_AUTH_UI_USER_CONTROL";
+        }else if(app!=null){
           final String pref="(function(){try{return (localStorage.getItem('moa.naver.offscreen.try.v1')!=='off'||(Date.now()-Number(localStorage.getItem('moa.r369.hidden.requestAt')||0)<600000))}catch(e){return false}})()";
           app.evaluateJavascript(pref,value->{
             if(epoch==monitorEpoch && foregroundHost==a && "true".equals(value))
