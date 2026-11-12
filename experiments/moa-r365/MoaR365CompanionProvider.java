@@ -173,6 +173,12 @@ public final class MoaR365CompanionProvider extends ContentProvider
     if(!isHost(a)||attempts>16)return;
     MAIN.postDelayed(()->{
       if(!isHost(a))return;
+      // Do not send previously queued NAVER favorite tasks while the user
+      // is in an official login/receipt challenge. User authentication wins.
+      if(MoaR381AuthTrace.authBusy()){
+        mark("R383_AUTH_GUARD_SKIP_TASK_DELIVERY");
+        return;
+      }
       WebView w=findWeb(a.getWindow().getDecorView());
       String url=w==null?"":String.valueOf(w.getUrl());
       if(w==null||!(url.startsWith("https://familyjourney.local/")||
