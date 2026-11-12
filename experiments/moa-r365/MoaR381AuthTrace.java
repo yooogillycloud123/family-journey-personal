@@ -126,7 +126,23 @@ public final class MoaR381AuthTrace {
    */
   static boolean authBusy(){
     if(Looper.myLooper()!=Looper.getMainLooper())return false;
+    // Unlike the old 120-second-only timer, a currently attached official
+    // NAVER login remains protected for as long as the user needs to finish
+    // its genuine second factor / visual challenge.
+    WebView live=browser;
+    if(live!=null){
+      try{
+        String current=page(live.getUrl());
+        if("NAVER_AUTH".equals(current))return true;
+        if("NAVER_MAP".equals(current)){
+          challengeOpen=false;
+          return false;
+        }
+      }catch(Throwable ignored){}
+    }
     if(!challengeOpen)return false;
+    // When there is no attached browser, allow bounded handoff protection,
+    // not an indefinite stale login latch after the page was destroyed.
     long dt=SystemClock.elapsedRealtime()-lastChallengeElapsed;
     return dt>=0 && dt<120000L;
   }
