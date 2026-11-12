@@ -141,9 +141,14 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       if(r.ownedProbe){
         Class<?> c=Class.forName(CTRL);
         if(keep){
-          invokeHide(c,r.host);
-          JSONObject after=status(c);
-          if(!after.optBoolean("running",false)||!after.optBoolean("hidden",false))c.getMethod("dispose").invoke(null);
+          boolean wasHidden=false;
+          try{
+            invokeHide(c,r.host);
+            JSONObject after=status(c);
+            wasHidden=after.optBoolean("running",false)&&after.optBoolean("hidden",false);
+          }catch(Throwable ignored){}
+          // If hiding failed, remove this startup's browser before unmasking.
+          if(!wasHidden)c.getMethod("dispose").invoke(null);
         }else c.getMethod("dispose").invoke(null);
       }
     }catch(Throwable ignored){}
@@ -152,13 +157,30 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   private static void invokeHide(Class<?> c,Activity a)throws Exception{
     Method m=c.getDeclaredMethod("setHidden",Activity.class,boolean.class);m.setAccessible(true);m.invoke(null,a,Boolean.TRUE);
   }
+  private static boolean mapDocument(Class<?> c){
+    try{
+      java.lang.reflect.Field field=c.getDeclaredField("probe");field.setAccessible(true);
+      Object probe=field.get(null);if(probe==null)return false;
+      java.lang.reflect.Field inner=probe.getClass().getDeclaredField("web");inner.setAccessible(true);
+      WebView w=(WebView)inner.get(probe);if(w==null)return false;
+      String raw=w.getUrl();if(raw==null)return false;
+      Uri u=Uri.parse(raw);
+      String h=u.getHost();
+      return "https".equalsIgnoreCase(u.getScheme())&&h!=null&&
+        ("map.naver.com".equalsIgnoreCase(h)||"pcmap.place.naver.com".equalsIgnoreCase(h)||
+         "pages.map.naver.com".equalsIgnoreCase(h));
+    }catch(Throwable ignored){return false;}
+  }
   private static void poll(Run r,int generation){
     if(r.finished||r.epoch!=generation||!host(r.host))return;
     long elapsed=SystemClock.elapsedRealtime()-r.start;
     try{
-      JSONObject s=status(Class.forName(CTRL));
+      Class<?> c=Class.forName(CTRL);
+      JSONObject s=status(c);
       String state=s.optString("state","");
-      boolean ready=state.contains("FRAME_ELEMENTS_OBSERVED")||state.contains("DESKTOP_PAGE_FINISHED");
+      // Do not treat NAVER's login page or mobile app landing as ready map.
+      boolean ready=(state.contains("FRAME_ELEMENTS_OBSERVED_READ_ONLY")||
+        state.contains("VISIBLE_DESKTOP_PAGE_FINISHED_UNVERIFIED"))&&mapDocument(c);
       if(ready&&elapsed>=MIN_DRAW_MS&&s.optBoolean("running",false)){
         finish(r,true);return;
       }
