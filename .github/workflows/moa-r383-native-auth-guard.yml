@@ -1,0 +1,69 @@
+name: MOA R383 R381-safe NAVER authentication transaction guard DEX
+on:
+  push:
+    branches:
+      - feature/moa-r383-r381-auth-transaction-freeze-20261112
+    paths:
+      - 'experiments/moa-r365/MoaR365CompanionProvider.java'
+      - 'experiments/moa-r365/MoaR381AuthTrace.java'
+      - '.github/workflows/moa-r383-native-auth-guard.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile EXACT R365 companion plus R381 WebView direct observer
+        shell: bash
+        run: |
+          set -euo pipefail
+          SM="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)"
+          yes | "$SM" --licenses >/dev/null || true
+          "$SM" "platforms;android-35" "build-tools;35.0.0"
+          mkdir -p /tmp/r383/classes /tmp/r383/dex build/moa-r383
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d /tmp/r383/classes \
+            experiments/moa-r365/MoaR365CompanionProvider.java \
+            experiments/moa-r365/MoaR381AuthTrace.java
+          find /tmp/r383/classes -type f \( -name 'MoaR365CompanionProvider*.class' -o -name 'MoaR381AuthTrace*.class' \) -print0 | \
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" \
+            --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
+            --output /tmp/r383/dex
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,zlib,base64,json,struct
+          d=Path('/tmp/r383/dex/classes.dex').read_bytes()
+          assert d.startswith(b'dex\n') and b'MoaR365CompanionProvider' in d and b'MoaR381AuthTrace' in d
+          assert hashlib.sha1(d[32:]).digest()==d[12:32]
+          assert zlib.adler32(d[12:])&0xffffffff==struct.unpack_from('<I',d,8)[0]
+          src=Path('experiments/moa-r365/MoaR365CompanionProvider.java').read_bytes()
+          trace=Path('experiments/moa-r365/MoaR381AuthTrace.java').read_bytes()
+          assert b'R381_AUTH_GUARD_SKIP_HIDDEN_START' in src
+          assert b'R383_AUTH_GUARD_SKIP_TASK_DELIVERY' in src
+          assert b'"NAVER_AUTH".equals(current)' in trace
+          assert b'"NAVER_MAP".equals(current)' in trace
+          assert b'SHOULD_OVERRIDE_ENTER' in trace and b'ON_PAGE_FINISHED' in trace
+          assert b'getWebViewClient' in trace and b'original.onPageStarted' in trace
+          forbidden=(b'getCookie(',b'getPassword(',b'getText()',b'getQuery(',b'getFragment(',b'getHeaders(')
+          for s in forbidden:assert s not in trace,s
+          out=Path('build/moa-r383')
+          (out/'provider.dex.z.b64').write_text(base64.b64encode(zlib.compress(d,9)).decode()+'\n')
+          (out/'QA.json').write_text(json.dumps({'status':'STATIC_COMPILE_PASS_DEVICE_UNVERIFIED',
+            'dex_sha256':hashlib.sha256(d).hexdigest(),'dex_bytes':len(d),
+            'provider_source_sha256':hashlib.sha256(src).hexdigest(),
+            'observer_source_sha256':hashlib.sha256(trace).hexdigest(),
+            'protected_native_17_dex_rebuilt':False},indent=2))
+          print('R383_NATIVE_DEX_COMPILE_PASS',len(d))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R383-AUTH-TRANSACTION-GUARD-DEX-NO-KEYS
+          path: build/moa-r383/
+          if-no-files-found: error
