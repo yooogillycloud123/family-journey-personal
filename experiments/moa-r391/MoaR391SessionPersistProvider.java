@@ -33,7 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
 /**
- * R403, deliberately reproducing the proven user sequence:
+ * R407, fixes the actual launcher class mismatch and reproduces the proven user sequence:
  * 1. STOP existing NAVER PC web controller (as the original Web window close button).
  * 2. START the exact original full-sized, visible PC map controller.
  * 3. Allow at least two real Android draw frames and ~0.46s visible-layout time.
@@ -43,13 +43,15 @@ import java.util.concurrent.ThreadFactory;
  */
 public final class MoaR391SessionPersistProvider extends ContentProvider {
   private static final String HOST="com.juhyeon.familyjourney.HostActivity";
+  // Actual launcher alias points to MoaIconHost, a subclass of HostActivity.
+  private static final String LAUNCHER_HOST="com.juhyeon.familyjourney.MoaIconHost";
   private static final String CTRL="com.juhyeon.familyjourney.MoaNaverWebProbeController";
-  private static final String TAG="MOA_R403_BOOT";
+  private static final String TAG="MOA_R407_BOOT";
   private static final Handler UI=new Handler(Looper.getMainLooper());
   private static final long VISIBLE_LAYOUT_MS=460L;
   private static final WeakHashMap<Activity, Run> RUNS=new WeakHashMap<>();
   private static final ExecutorService FLUSH=Executors.newSingleThreadExecutor(new ThreadFactory(){
-    @Override public Thread newThread(Runnable r){Thread t=new Thread(r,"moa-r403-cookie-flush");t.setDaemon(true);return t;}
+    @Override public Thread newThread(Runnable r){Thread t=new Thread(r,"moa-r407-cookie-flush");t.setDaemon(true);return t;}
   });
   private static long lastFlush=-10000L;
   private static final class Run {
@@ -62,7 +64,8 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     Run(Activity activity){this.activity=activity;}
   }
   private static boolean valid(Activity a){
-    return a!=null && HOST.equals(a.getClass().getName()) && !a.isFinishing() && !a.isDestroyed();
+    return a!=null && (HOST.equals(a.getClass().getName()) || LAUNCHER_HOST.equals(a.getClass().getName()))
+      && !a.isFinishing() && !a.isDestroyed();
   }
   private static synchronized void persist(){
     long now=SystemClock.elapsedRealtime();
@@ -128,7 +131,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   }
   private static void stage(Run r,String value){
     Log.i(TAG,value);
-    try{r.activity.getSharedPreferences("moa_r403_bootstrap_stage",0).edit()
+    try{r.activity.getSharedPreferences("moa_r407_bootstrap_stage",0).edit()
       .putString("last",value).putLong("at_elapsed_ms",SystemClock.elapsedRealtime()).apply();}
     catch(Throwable ignored){}
   }
