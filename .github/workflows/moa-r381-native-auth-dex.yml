@@ -9,7 +9,7 @@ on:
       - '.github/workflows/moa-r381-native-auth-dex.yml'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   compile:
     runs-on: ubuntu-latest
@@ -64,3 +64,15 @@ jobs:
           name: MOA-R381-AUTH-TRACE-NATIVE-DEX-NO-KEYS
           path: build/moa-r381/
           if-no-files-found: error
+
+      - name: Archive R383 compiled diagnostic DEX on isolated branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions
+          git config user.email actions@users.noreply.github.com
+          git add -f build/moa-r381/provider.dex.z.b64 build/moa-r381/QA.json
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: archive R383 native diagnostic DEX only"
+            git push origin HEAD:feature/moa-r383-auth-trace-export-20261112
+          fi
