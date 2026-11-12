@@ -1,0 +1,31 @@
+# MOA R415 — USER CONFIRMED SCOPED GOLDEN (2026-11-13 KST)
+
+## User device proof / priority order
+On Galaxy S26 Ultra, user installed R415 and expressly reported:
+
+1. **Advanced native Gallery RESTORED — USER PASS**. Previous R411 had fallen back to the old R133 `← 목록 / 공유·카톡 등 / 갤러리에서 열기` viewer. With R415, the previous native gallery is back. **ABSOLUTELY NEVER regress** the rich gallery navigation, bottom horizontally scrolling photo/video thumbnails, native video playback, mute, frame capture, swipe-controlled volume, gestures, seek, gallery-to-NAVER-and-return behavior, and all other accumulated features. User reports normal return; do not inflate this to every codec/control separately instrumented.
+2. **Cold-start visual stability FAIL / OPEN**. User still observes pronounced up/down wobble and top-edge window/title bar appearing at initial MOA launch. Source media `20822.mp4` (~6.75 s, SHA-256 `160bed424698984ebd3e487065ba7db4785224d372e95b65cbad7188c92c208e`) privately uploaded; reviewed frames show transient top header ahead of MOA cover/splash and subsequent splash→Diary geometry change. This is not visual-zero-flash PASS.
+3. **Explicit web close → offscreen favorite → auto rearm/save WORKS — USER PASS**, with slight up/down shaking / visual movement. Private `20823.mp4` (~12.42 s, SHA-256 `868b251c6dc01fb5f577538ac4f67f399ee88e59f65f3b6f03ea58d9211ff9e3`). User reports task works; visual still not pixel-stable.
+4. R411 user-proven NAVER functions (initial masked session/offscreen first save and explicit-close auto rearm) must be preserved. **>4-minute idle keepalive on device remains unverified**; do not mark PASS.
+
+## Exact frozen APK and signer
+- **Release:** `MOA_R415_R411_GALLERY_BRIDGE_FREEZE_REARM_BETA.apk`, versionCode **415**, package `com.juhyeon.familyjournea`.
+- SHA256 **`448d6f98548023f7d7a82ae1bcb0124d456873c739f72795f245579b805cb487`**; exactly 8,940,179 bytes; same original developer cert SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+- Full archive `MOA_R415_GALLERY_REPAIR_R417_R411_RECOVERY_QA.zip` SHA256 **`50bf2868f021bfb9049c3e38c949ef998b012dc8fbf719ca3187eff6bd4a2c7f`**; internal APK SHA independently re-read and verified in current environment.
+- **Private Library golden location**: `/모아_프로젝트_근거_20261103/GOLDEN_R415_USER_CONFIRMED_20261113/` (original APK, manifest/record, optional original full QA ZIP). Historical release backup also in `/모아_프로젝트_근거_20261103/R415_GALLERY_START_FREEZE_20261112/`.
+- R415 was built from R411 (SHA256 `ec2c0fb88b4fc795b59156acdd59b88c4702bc4135634b6096be7efcf8d76377`), changing only Manifest + auxiliary `classes17.dex`; **all 16 original DEX and all JS/web assets remain identical**. In particular `classes6.dex` full native Gallery and `fj-naver-favorites.js` first-party writer preserved.
+- R417 (`a9e66e1beb109d4868574f501b93b6635cd053b83f26e765d3aaccb304173b4e`) restores R411, **NOT R415's now user-verified gallery owner repair**. **Never suggest R417 routinely** for minor shake; it would lose the user's current gallery PASS. A future rescue must be versionCode > all installed versions and forward-restore exact R415 functional payload (manifest version only).
+
+## Engineering diagnosis: wobble remains, probable causes — not yet definitive
+Read R415 exact `experiments/moa-r391/MoaR391SessionPersistProvider.java` at branch `feature/moa-r415-gallery-owner-freeze-view-20261112`. The native add-on creates a top `WindowManager.TYPE_APPLICATION_PANEL` with `MATCH_PARENT`, `FLAG_NOT_FOCUSABLE|FLAG_NOT_TOUCHABLE`, `PixelFormat.OPAQUE`, `Gravity.TOP|START`, no explicit content-safe inset mapping. Cold start creates it separately from app's real Activity window; original NAVER controller `MoaNaverWebProbeController.start()` creates full-sized sibling shell; `setHidden(true)` resizes that shell from MATCH_PARENT to 1x1 `LayoutParams`. After hide R415 removes the panel immediately via `removeViewImmediate()`. An abrupt window-compositor swap plus differing top system/window inset geometry is a strong plausible explanation for short vertical motion/top-edge flash. It is not yet established whether first-screen startup uses its own splash/window animations or whether WebView requestLayout is the dominant cause.
+For explicit rearm, R415 tries `PixelCopy.request(activity.getWindow(), bitmap)` or `decor.draw(Canvas)` and then stretches the captured bitmap to panel width/height without measured inset/crop alignment. If image and panel have different content bounds, frozen screenshot and live diary will shift when swapped, explaining minor motion. Correlate actual bounds/insets/IME/window frame and view Y before making a new release.
+
+## Safe next implementation work
+- **DO NOT downgrade or rebuild classes6.dex**. Preserve exact R415 original native gallery plus first-party NAVER JS; ideally change only add-on `classes17.dex` and manifest.
+- Fix true exact coordinate geometry: capture original Activity content rectangle and panel screen location, map screenshot 1:1 pixels (no blind full-frame stretch); keep status/navigation bar, edge-to-edge and IME insets consistent; synchronize overlay removal to one frame after actual hidden confirmation and underlying original content is stable. Avoid multiple independent splash/logo masks and avoid web root layout resize flicker. Instrument Y and height of `decor`, `android.R.id.content`, panel and MOA WebView and insets, plus timestamp of WebView `setHidden`, mask attach/remove; no private user content recorded.
+- Do not add artificial fixed delays as an unproven cure. Do not make another release until alignment test and Golden binary diff are done.
+- Acceptance gates: R415 gallery restore with native video rail, mute, capture, volume swipes, photo/filmstrip, gallery-NAVER return; R411 confirmed NAVER 1/2/4; no cold-start upper bar leak; no vertical jump on close/rearm; no false success/duplicates; existing diary/voice/moment recorder and login persist.
+- No uninstall, cache/data/cookie wipe, changed signer, separate helper APK, or AA AirPods runtime edits.
+
+## Truthful status
+**R415 is a user-confirmed scoped GOLDEN for gallery revival + original functioning NAVER close/rearm/save. Startup and rearm visual jitter remain OPEN. No new visual-fix APK or device PASS claimed here.**
