@@ -184,8 +184,17 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     if(r.attempted||r.finished||!valid(r.activity))return;
     r.attempted=true;
     try{
-      if(r.cover==null)attach(r);
-      if(r.cover==null){stage(r,"NO_COVER_ABORT");finish(r,false);return;}
+      // onActivityCreated can run during super.onCreate, before HostActivity.setContentView().
+      // Reattach after Activity's actual content appears; setContentView can remove the early cover.
+      View currentContent=r.activity.findViewById(android.R.id.content);
+      if(r.cover==null || r.cover.getParent()!=currentContent){
+        removeCover(r);
+        attach(r);
+        stage(r,"COVER_CHECKED_AFTER_HOST_CONTENT");
+      }
+      if(r.cover==null || r.cover.getParent()!=currentContent){
+        stage(r,"NO_ATTACHED_COVER_ABORT");finish(r,false);return;
+      }
       Class<?> c=Class.forName(CTRL);
       stage(r,"CLOSE_REQUESTED");
       // Same implementation as pressing '웹창 종료' (control('stop') calls dispose()).
