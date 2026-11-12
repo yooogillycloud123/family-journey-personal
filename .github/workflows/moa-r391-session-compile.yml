@@ -1,7 +1,7 @@
-name: MOA R407 Correct Launcher Lifecycle DEX
+name: MOA R411 Window Mask, Keepalive and Offscreen Rearm DEX
 on:
   push:
-    branches: [feature/moa-r391-session-persist-20261112, feature/moa-r407-real-launcher-class-fix-20261112]
+    branches: [feature/moa-r391-session-persist-20261112, feature/moa-r407-real-launcher-class-fix-20261112, feature/moa-r411-window-masked-rearm-keepalive-20261112]
     paths:
       - 'experiments/moa-r391/**'
       - '.github/workflows/moa-r391-session-compile.yml'
