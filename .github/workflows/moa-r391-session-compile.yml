@@ -1,7 +1,7 @@
-name: MOA R403 Exact Stop Visible Hide DEX
+name: MOA R407 Actual Launcher Host Fix DEX
 on:
   push:
-    branches: [feature/moa-r391-session-persist-20261112, feature/moa-r403-exact-stop-visible-hide-20261112]
+    branches: [feature/moa-r391-session-persist-20261112, feature/moa-r407-launcher-host-actual-fix-20261112]
     paths:
       - 'experiments/moa-r391/**'
       - '.github/workflows/moa-r391-session-compile.yml'
