@@ -59,7 +59,8 @@ jobs:
             'protected_native_17_dex_rebuilt':False},indent=2))
           print('R381_NATIVE_DEX_COMPILE_PASS',len(d))
           PY
-      - uses: actions/upload-artifact@v4
+      - id: artifact
+        uses: actions/upload-artifact@v4
         with:
           name: MOA-R381-AUTH-TRACE-NATIVE-DEX-NO-KEYS
           path: build/moa-r381/
@@ -71,7 +72,8 @@ jobs:
           set -euo pipefail
           git config user.name github-actions
           git config user.email actions@users.noreply.github.com
-          git add -f build/moa-r381/provider.dex.z.b64 build/moa-r381/QA.json
+          printf '%s\n' '${{ steps.artifact.outputs.artifact-id }}' > build/moa-r381/artifact-id.txt
+          git add -f build/moa-r381/provider.dex.z.b64 build/moa-r381/QA.json build/moa-r381/artifact-id.txt
           if ! git diff --cached --quiet; then
             git commit -m "ci: archive R383 native diagnostic DEX only"
             git push origin HEAD:feature/moa-r383-auth-trace-export-20261112
