@@ -1,5 +1,8 @@
 # MOA R415 — USER CONFIRMED SCOPED GOLDEN (2026-11-13 KST)
 
+## Immutable private evidence archival
+Both ORIGINAL user-uploaded videos are now stored **PRIVATE ONLY** alongside the exact verified R415 signed APK in Library `/모아_프로젝트_근거_20261103/GOLDEN_R415_USER_CONFIRMED_20261113/` as `20822_PRIVATE_COLD_START_VISUAL_WOBBLE.mp4` and `20823_PRIVATE_REARM_VISUAL_WOBBLE.mp4`. Their SHA-256 checksums are recorded below. No videos or personal screenshots uploaded to GitHub.
+
 ## User device proof / priority order
 On Galaxy S26 Ultra, user installed R415 and expressly reported:
 
