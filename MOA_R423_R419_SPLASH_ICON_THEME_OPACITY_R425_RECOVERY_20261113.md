@@ -1,0 +1,25 @@
+# MOA R423 — Dynamic icon-theme splash fix / exact R419 recovery R425 (2026-11-13)
+
+## Latest user observation and mandatory Golden
+- User reported R419 **approximately 99% success**, especially startup/rearm visual stability and screen-in-place offscreen NAVER saves. New privately uploaded physical Galaxy videos `20833.mp4` (4.32s) and `20834.mp4` (13.62s) show pale pink MOA launch icon; user specifically requests the **applied selected launcher theme** to control the native prewarm splash icon.
+- Frozen trusted R419 exact original-signer APK SHA-256 `c1527c5bf466fef6435cf32ebf5c87ff2963be00d196cafa2c5c392829bdc2f8`, versionCode419, package `com.juhyeon.familyjournea`, same original certificate `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+- Earlier R415 separate user Gallery Golden and R411 scoped NAVER functionality remain frozen. Do not regress native Gallery, media rail, mute, video capture, sound controls, NAVER first-party saved-list write, native WebView startup/rearm, cookie persistence, or visual freeze. This is ONLY a splash logo visual change.
+
+## Exact source root-cause (binary + source)
+- In R419 `MoaR391SessionPersistProvider.newCover().onDraw`, decorative bottom wave uses `p.setColor(0x19f2b0a3)` (~10% alpha) followed by `canvas.drawBitmap(logo,...,p)` without resetting paint color/alpha. Android Canvas uses Paint alpha in image compositing, **fading the PNG icon to about 10% opacity**.
+- R419 native Java additionally hardcoded `web/moa-icon-themes/A_modern_bold_pink.png` even though existing first-party `moa-icon-theme-settings.js` supports **9 style+color IDs** and stores `moa.icon.theme.applied`, with same IDs represented by launcher activity aliases `com.juhyeon.familyjourney.MoaIcon_<ID>` in actual binary Manifest.
+- R423 resets `p.setColor(0xffffffff);p.setAlpha(255)` before drawing the PNG, loads the matching **existing asset** from the explicitly enabled launcher alias using Android `PackageManager.getComponentEnabledSetting` (default A_modern_bold_pink if no explicit override), and aligns native background and text colors with existing first-party black/white/pink splash CSS. No cookies, credential read, localStorage extraction or new images.
+- Java change is in the preexisting supplemental `classes17.dex` ONLY. Native stop→visible start→460ms hide, 4-min keepalive, camera/video native Gallery owner bridge, PixelCopy exact-position frozen View, readiness gate, all original JS and 16 original DEX unchanged.
+
+## Exact release and cryptographic verification
+- Source branch: `feature/moa-r423-splash-theme-opaque-20261113`, code `experiments/moa-r391/MoaR391SessionPersistProvider.java`. CI Android35 javac+D8 [43258384116](https://github.com/yooogillycloud123/family-journey-personal/actions/runs/43258384116) **SUCCESS**, classes17.dex SHA-256 `5e9c8b17eddc8d2d8fb4286685f0eec91222010e7e51ed1e4a2b891352f41082`.
+- **R423** `MOA_R423_R419_THEME_ICON_SPLASH_SIGNED_BETA.apk` versionCode423, 8,944,887 bytes, SHA-256 **`aa2a4f8d1f42103a766587aded968cbbf77aa2c65f43320be4a65b77d309ce6a`**. Exactly **138 of 140** R419 archive member payloads unchanged: only Manifest versionCode and classes17.dex. Original `classes6.dex` native Gallery, `assets/web/fj-naver-favorites.js`, `assets/web/index.html`, all nine original PNG assets unchanged.
+- **R425 exact R419 functional forward recovery** `MOA_R425_EXACT_R419_VISUAL_GOLDEN_RECOVERY.apk` versionCode425, 8,943,535 bytes, SHA-256 **`e51b5f0b21e54bfb5377cd4fc5e9c1ac71a54e9b9e7be28213e356cad86581ab`**. 139/140 original R419 entry payloads unchanged; only Manifest versionCode changes. Emergency ONLY for serious R423 regression, not default install; if used, next build code >425.
+- Both APKs independent APK Signature Scheme v2 RSA signature + full SHA-256 signed-content digest **PASS**, original cert fingerprint matched, ZIP CRC/alignment **PASS**, all 17 DEX SHA-1 and Adler32 **PASS**. No key/keystore/password packaged or uploaded to GitHub.
+- Bundle `MOA_R423_THEME_COLOR_R425_EXACT_R419_RECOVERY_QA.zip`, size 12,943,427B, SHA256 **`d7efcad779c0154ec3fc7371d7a09beac9231235655a39d5a38a002969c4098b`** includes both APKs, Java source, diff, QA, README, SHA256SUMS, no user media/secrets. Saved in PRIVATE Library `/모아_프로젝트_근거_20261103/R423_THEME_SPLASH_20261113/`; preserve previous R415 and R419 Golden artifacts unchanged.
+
+## Truth & next test
+- Android compiler, archive identity, RSA signature and content digest, DEX integrity: PASS.
+- R423 applied dynamic theme **physical Galaxy PASS not yet verified**. Test current icon color/style at cold launch; if desired change icon in MOA Settings then cold launch again and compare both home icon and MOA splash. Light/black theme backgrounds also change with selected color.
+- Confirm previously successful NAVER save, explicit close→offscreen rearm, and native Gallery one time only; do not wipe app data/cookies or uninstall. All correct source/static features not a substitute for physical use.
+- AA AirPods/Android Auto code/runtimes untouched.
