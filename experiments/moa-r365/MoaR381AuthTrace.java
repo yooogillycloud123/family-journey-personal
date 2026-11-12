@@ -10,6 +10,8 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.ClientCertRequest;
 import android.webkit.HttpAuthHandler;
 import android.webkit.RenderProcessGoneDetail;
@@ -83,6 +85,44 @@ public final class MoaR381AuthTrace {
       return "OTHER";
     }catch(Throwable ignored){return "UNKNOWN";}
   }
+
+  /** Export only the already redacted native events to the original app-origin WebView. */
+  private static WebView findAppOriginWebView(View root){
+    if(root instanceof WebView){
+      WebView w=(WebView)root;
+      String current=w.getUrl();
+      if(current!=null&&(current.startsWith("https://familyjourney.local/")||
+          current.startsWith("https://appassets.androidplatform.net/")||
+          current.startsWith("file:///android_asset/")))return w;
+    }
+    if(root instanceof ViewGroup){
+      ViewGroup parent=(ViewGroup)root;
+      for(int i=0;i<parent.getChildCount();i++){
+        WebView found=findAppOriginWebView(parent.getChildAt(i));
+        if(found!=null)return found;
+      }
+    }
+    return null;
+  }
+  private static void publishToApp(String callback,String redactedJson){
+    try{
+      Activity a=host;
+      if(a==null||a.isFinishing()||a.isDestroyed())return;
+      WebView app=findAppOriginWebView(a.getWindow().getDecorView());
+      if(app==null)return;
+      String js="window."+callback+"&&window."+callback+"("+JSONObject.quote(redactedJson)+")";
+      app.evaluateJavascript(js,null);
+    }catch(Throwable ignored){}
+  }
+  private static void replayPrivateEvents(){
+    try{
+      Activity a=host;
+      if(a==null)return;
+      String payload=a.getSharedPreferences(STORE,Context.MODE_PRIVATE).getString("events","[]");
+      publishToApp("__MOA_R383_NATIVE_EVENTS__",payload);
+    }catch(Throwable ignored){}
+  }
+
   private static void event(String kind, String url, String extra, WebView w){
     try {
       String cleanDomain=domain(url);
@@ -106,6 +146,7 @@ public final class MoaR381AuthTrace {
         for(int i=Math.max(0,old.length()-179);i<old.length();i++)bounded.put(old.opt(i));
         bounded.put(o);
         p.edit().putString("events",bounded.toString()).putString("lastEvent",raw).apply();
+        publishToApp("__MOA_R383_NATIVE_EVENT__",raw);
       }
     }catch(Throwable ignored){}
   }
@@ -134,12 +175,14 @@ public final class MoaR381AuthTrace {
     if(Looper.myLooper()!=Looper.getMainLooper()){MAIN.post(()->start(activity));return;}
     if(activity==null||activity.isFinishing()||activity.isDestroyed())return;
     host=activity;
+    replayPrivateEvents();
     int token=++epoch;
     consecutivePolls=0;
     MAIN.post(new Runnable(){
       @Override public void run(){
         if(token!=epoch || host!=activity || activity.isFinishing() || activity.isDestroyed())return;
         sample();
+        if(consecutivePolls%10==0)replayPrivateEvents();
         if(token==epoch && host==activity){
           consecutivePolls++;
           MAIN.postDelayed(this,consecutivePolls<30?350L:1200L);
