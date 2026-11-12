@@ -75,6 +75,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // Retain the controller's original MOA/Stop button instances and click listeners.
   private static final WeakHashMap<Activity, Chrome> CHROME=new WeakHashMap<>();
   private static final WeakHashMap<Activity, ViewTreeObserver.OnGlobalLayoutListener> CHROME_OBSERVERS=new WeakHashMap<>();
+  private static int dpx(Activity a,float units){return Math.round(dp(a,units));}
   private static final class Chrome {
     final Activity activity;
     final FrameLayout shell;
@@ -99,16 +100,16 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     }catch(Throwable ignored){}
     // R427 placed the clickable chevron in the Android top-gesture area.
     // A transparent 48dp HIT BOX is now entirely below the status bar and search strip.
-    return Math.max(dp(c.activity,70f),inset+dp(c.activity,32f));
+    return Math.max(dpx(c.activity,70f),inset+dpx(c.activity,32f));
   }
   private static void positionChromeControls(Chrome c){
-    if(c==null||c.shell.getHeight()<dp(c.activity,150f))return;
+    if(c==null||c.shell.getHeight()<dpx(c.activity,150f))return;
     FrameLayout.LayoutParams arrow=(FrameLayout.LayoutParams)c.chevron.getLayoutParams();
     int top=safeMenuTop(c);
     if(arrow.topMargin!=top){arrow.topMargin=top;c.chevron.setLayoutParams(arrow);}
     if(c.homeDot==null)return;
     FrameLayout.LayoutParams dot=(FrameLayout.LayoutParams)c.homeDot.getLayoutParams();
-    int y=Math.max(dp(c.activity,130f),Math.min((int)(c.shell.getHeight()*0.71f),c.shell.getHeight()-dp(c.activity,68f)));
+    int y=Math.max(dpx(c.activity,130f),Math.min((int)(c.shell.getHeight()*0.71f),c.shell.getHeight()-dpx(c.activity,68f)));
     if(dot.topMargin!=y){dot.topMargin=y;c.homeDot.setLayoutParams(dot);}
   }
   private static void showChrome(Chrome c,boolean expanded){
@@ -121,9 +122,9 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       // Extend the original header *below* the OS system gesture/notification region.
       // Original button instances and their click listeners remain unchanged.
       LinearLayout.LayoutParams hp=(LinearLayout.LayoutParams)c.header.getLayoutParams();
-      hp.height=dp(c.activity,122f);
+      hp.height=dpx(c.activity,122f);
       c.header.setLayoutParams(hp);
-      c.header.setPadding(dp(c.activity,12f),dp(c.activity,64f),dp(c.activity,10f),dp(c.activity,8f));
+      c.header.setPadding(dpx(c.activity,12f),dpx(c.activity,64f),dpx(c.activity,10f),dpx(c.activity,8f));
     }
     c.chevron.setText(expanded?"‹":"›");
     c.chevron.setTextColor(expanded?0xffc94c86:0xaa81717f);
@@ -134,7 +135,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   }
   private static GradientDrawable pinkCircle(Activity a){
     GradientDrawable d=new GradientDrawable();d.setShape(GradientDrawable.OVAL);
-    d.setColor(0xffcf739f);d.setStroke(Math.max(1,dp(a,1.5f)),0xffe8b3ca);
+    d.setColor(0xffcf739f);d.setStroke(Math.max(1,dpx(a,1.5f)),0xffe8b3ca);
     return d;
   }
   private static void compactNaverChrome(Activity a){
@@ -170,10 +171,10 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       chevron.setClickable(true);chevron.setFocusable(true);
       chevron.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
       chevron.setContentDescription("네이버 웹창 메뉴 펼치기");
-      FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(a,48f),dp(a,48f),Gravity.TOP|Gravity.END);
-      lp.rightMargin=dp(a,5f);lp.topMargin=dp(a,70f);
+      FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dpx(a,48f),dpx(a,48f),Gravity.TOP|Gravity.END);
+      lp.rightMargin=dpx(a,5f);lp.topMargin=dpx(a,70f);
       shell.addView(chevron,lp);
-      chevron.setElevation(dp(a,12f));
+      chevron.setElevation(dpx(a,12f));
       // Same subdued pink home-dot visual as the first-party MOA Diary home button.
       // This lives in the app's native shell, never in NAVER page JavaScript.
       TextView home=new TextView(a);
@@ -181,9 +182,9 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       home.setBackground(pinkCircle(a));home.setAlpha(0.90f);
       home.setClickable(true);home.setFocusable(true);
       home.setContentDescription("모아로 돌아가기. 네이버 지도 로그인과 세션 유지");
-      FrameLayout.LayoutParams homeLp=new FrameLayout.LayoutParams(dp(a,54f),dp(a,54f),Gravity.TOP|Gravity.START);
-      homeLp.leftMargin=dp(a,12f);homeLp.topMargin=(int)(a.getResources().getDisplayMetrics().heightPixels*0.71f);
-      shell.addView(home,homeLp);home.setElevation(dp(a,11f));
+      FrameLayout.LayoutParams homeLp=new FrameLayout.LayoutParams(dpx(a,54f),dpx(a,54f),Gravity.TOP|Gravity.START);
+      homeLp.leftMargin=dpx(a,12f);homeLp.topMargin=(int)(a.getResources().getDisplayMetrics().heightPixels*0.71f);
+      shell.addView(home,homeLp);home.setElevation(dpx(a,11f));
       home.setOnClickListener(v->{
         try{hide(controller,a);Log.i(TAG,"NAVER_PINK_HOME_HIDDEN_RETURN");}
         catch(Throwable t){Log.w(TAG,"NAVER_PINK_HOME_FAILED_"+t.getClass().getSimpleName());}
