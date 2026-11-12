@@ -101,7 +101,10 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   private static void compactNaverChrome(Activity a){
     if(!valid(a))return;
     Run ongoing=RUNS.get(a);
-    if(ongoing!=null&&!ongoing.finished)return; // preserve user-proven visible warmup
+    // Once the opaque app mask has drawn, conceal only the controller chrome
+    // even during the 460ms visible NAVER WebView warmup. The WebView itself
+    // remains full-size and the user-proven start/hide sequence is untouched.
+    if(ongoing!=null&&!ongoing.finished&&!ongoing.maskDrawn)return;
     try{
       Class<?> controller=Class.forName(CTRL);
       Field f=controller.getDeclaredField("shell");f.setAccessible(true);
@@ -567,6 +570,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         finish(r,false);return;
       }
       r.ownedBrowser=true;
+      compactNaverChrome(r.activity); // fold dark header before the first visible browser frame
       r.startedAt=SystemClock.elapsedRealtime();
       if(r.cover!=null){r.cover.bringToFront();r.cover.invalidate();}
       stage(r,"VISIBLE_STARTED_MASKED");
