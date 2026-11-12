@@ -53,7 +53,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // Actual launcher alias targets MoaIconHost (DEX: subclasses AudioHost -> VoiceHost -> HostActivity).
   private static final String LAUNCHER_HOST="com.juhyeon.familyjourney.MoaIconHost";
   private static final String CTRL="com.juhyeon.familyjourney.MoaNaverWebProbeController";
-  private static final String TAG="MOA_R415_BOOT";
+  private static final String TAG="MOA_R419_VISUAL";
   private static final Handler UI=new Handler(Looper.getMainLooper());
   private static final long VISIBLE_LAYOUT_MS=460L;
   private static final long REARM_COOLDOWN_MS=18000L;
@@ -66,7 +66,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   private static final WeakHashMap<Activity, Long> GALLERY_REPAIR_AT=new WeakHashMap<>();
   private static final WeakHashMap<Activity, Run> RUNS=new WeakHashMap<>();
   private static final ExecutorService FLUSH=Executors.newSingleThreadExecutor(new ThreadFactory(){
-    @Override public Thread newThread(Runnable r){Thread t=new Thread(r,"moa-r415-cookie-flush");t.setDaemon(true);return t;}
+    @Override public Thread newThread(Runnable r){Thread t=new Thread(r,"moa-r419-cookie-flush");t.setDaemon(true);return t;}
   });
   private static long lastFlush=-10000L;
   private static final class Run {
@@ -107,29 +107,62 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         float w=getWidth(),h=getHeight();if(w<=0||h<=0)return;
         p.reset();p.setAntiAlias(true);
         if(frozen!=null&&!frozen.isRecycled()){
-          p.setFilterBitmap(true);
-          canvas.drawBitmap(frozen,null,new Rect(0,0,(int)w,(int)h),p);
+          // PixelCopy's bitmap is in Activity-window pixel coordinates. Never scale it
+          // to a separate application-panel window that may include extra system insets.
+          // Draw it at the precise on-screen coordinate of the real Activity decor.
+          int[] ownXY=new int[2],maskXY=new int[2];
+          try{
+            a.getWindow().getDecorView().getLocationOnScreen(ownXY);
+            getLocationOnScreen(maskXY);
+          }catch(Throwable ignored){}
+          canvas.drawColor(frozen.getPixel(0,Math.min(2,frozen.getHeight()-1)));
+          p.setFilterBitmap(false);
+          canvas.drawBitmap(frozen,(float)(ownXY[0]-maskXY[0]),
+            (float)(ownXY[1]-maskXY[1]),p);
           return;
         }
-        p.setShader(new LinearGradient(0,0,0,h,new int[]{0xfffffaf6,0xfffff5ef,0xfffbdcd7},null,Shader.TileMode.CLAMP));
+        // Match the EXISTING first-party HTML #moa-launch flex-center layout.
+        // R415 used cy=0.36*h and a 180dp icon, while HTML centers the
+        // 180px icon + title block at viewport center: that visibly jumped.
+        int[] ownXY=new int[2],maskXY=new int[2];
+        View decor=a.getWindow().getDecorView();
+        try{decor.getLocationOnScreen(ownXY);getLocationOnScreen(maskXY);}
+        catch(Throwable ignored){}
+        float left=(float)ownXY[0]-maskXY[0];
+        float top=(float)ownXY[1]-maskXY[1];
+        float vw=Math.max(1f,decor.getWidth());
+        float vh=Math.max(1f,decor.getHeight());
+        // Exact background color stops from moa-r32-brand.css.
+        p.setShader(new LinearGradient(0,top,0,top+vh,
+          new int[]{0xfffff9f5,0xfffff1eb,0xfffbd8d0},
+          new float[]{0f,.58f,1f},Shader.TileMode.CLAMP));
         canvas.drawRect(0,0,w,h,p);p.setShader(null);
-        float side=Math.min(dp(a,180),w*0.51f),cy=h*0.36f;
+        // Preserve the original HTML bottom wave without moving the viewport.
+        p.setColor(0x19f2b0a3);
+        RectF wave=new RectF(left-vw*.28f,top+vh*.81f,
+                             left+vw*1.13f,top+vh*1.30f);
+        canvas.drawOval(wave,p);
+        float side=dp(a,180);
+        float titleLine=dp(a,48);
+        float total=side+dp(a,12)+dp(a,8)+titleLine;
+        float startY=top+(vh-total)*.5f;
+        float cx=left+vw*.5f;
         if(logo!=null){
           p.setFilterBitmap(true);
           canvas.drawBitmap(logo,new Rect(0,0,logo.getWidth(),logo.getHeight()),
-            new RectF((w-side)/2,cy-side/2,(w+side)/2,cy+side/2),p);
+             new RectF(cx-side*.5f,startY,cx+side*.5f,startY+side),p);
         }else{
           p.setColor(0xfff40068);
-          canvas.drawRoundRect(new RectF((w-side)/2,cy-side/2,(w+side)/2,cy+side/2),dp(a,32),dp(a,32),p);
+          canvas.drawRoundRect(new RectF(cx-side*.5f,startY,cx+side*.5f,startY+side),dp(a,32),dp(a,32),p);
           p.setColor(-1);p.setTextSize(dp(a,46));p.setTypeface(Typeface.DEFAULT_BOLD);
-          p.setTextAlign(Paint.Align.CENTER);canvas.drawText("MOA",w/2,cy+dp(a,15),p);
+          p.setTextAlign(Paint.Align.CENTER);canvas.drawText("MOA",cx,startY+side*.61f,p);
         }
         p.setShader(null);p.setColor(0xff122938);
         p.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));
-        p.setTextAlign(Paint.Align.CENTER);p.setTextSize(dp(a,34));
-        canvas.drawText("모아",w/2,cy+side/2+dp(a,65),p);
-        p.setTypeface(Typeface.DEFAULT);p.setTextSize(dp(a,15));p.setColor(0xff5b5b66);
-        canvas.drawText("우리 가족의 모든 기억, 모아",w/2,h*0.86f,p);
+        p.setTextAlign(Paint.Align.CENTER);p.setTextSize(dp(a,38));
+        canvas.drawText("모아",cx,startY+side+dp(a,12)+dp(a,8)+dp(a,39),p);
+        p.setTypeface(Typeface.DEFAULT);p.setTextSize(dp(a,14));p.setColor(0xff495968);
+        canvas.drawText("우리 가족의 모든 기억, 모아",cx,top+vh*.89f,p);
       }
     };
   }
@@ -166,10 +199,12 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       WindowManager.LayoutParams p=new WindowManager.LayoutParams(
         -1,-1,WindowManager.LayoutParams.TYPE_APPLICATION_PANEL,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|
-        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|
+        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN|
+        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
         PixelFormat.OPAQUE);
       p.token=decor.getWindowToken();p.gravity=Gravity.TOP|Gravity.START;
-      p.windowAnimations=0;p.setTitle(r.fromRearm?"MOA R415 frozen save view":"MOA R415 startup mask");
+      p.windowAnimations=0;p.setTitle(r.fromRearm?"MOA R419 exact screen freeze":"MOA R419 splash-aligned mask");
       wm.addView(windowMask,p);
       r.windowCover=windowMask;r.windowManager=wm;
       stage(r,"MASK_PANEL_ADDED");
@@ -309,7 +344,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   }
   private static void stage(Run r,String value){
     Log.i(TAG,value);
-    try{r.activity.getSharedPreferences("moa_r415_bootstrap_stage",0).edit()
+    try{r.activity.getSharedPreferences("moa_r419_visual_stage",0).edit()
       .putString("last",value).putLong("at_elapsed_ms",SystemClock.elapsedRealtime()).apply();}
     catch(Throwable ignored){}
   }
@@ -339,6 +374,22 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     if(r.frozenUi!=null){try{r.frozenUi.recycle();}catch(Throwable ignored){}r.frozenUi=null;}
     stage(r,good?"STOP_VISIBLE_HIDE_COMPLETE":"STOP_VISIBLE_HIDE_FAILED");
   }
+  private static void releaseWhenAppReady(Run r,int epoch,int attempt){
+    if(r.finished||r.epoch!=epoch)return;
+    if(!valid(r.activity)){finish(r,false);return;}
+    if(attempt>=30){stage(r,"SPLASH_WAIT_TIMEOUT");finish(r,true);return;}
+    WebView w=findOwnWeb(r.activity.getWindow().getDecorView());
+    if(w==null){UI.postDelayed(()->releaseWhenAppReady(r,epoch,attempt+1),140L);return;}
+    try{
+      w.evaluateJavascript("(function(){try{return document.readyState==='complete'&&document.getElementById('app')&&!document.getElementById('moa-launch')?'READY':'WAIT'}catch(e){return 'WAIT'}})()",value->{
+        if(r.finished||r.epoch!=epoch)return;
+        if(value!=null&&value.contains("READY")){
+          stage(r,"FIRST_PARTY_SPLASH_FINISHED");
+          UI.postDelayed(()->finish(r,true),60L);
+        }else UI.postDelayed(()->releaseWhenAppReady(r,epoch,attempt+1),140L);
+      });
+    }catch(Throwable t){UI.postDelayed(()->releaseWhenAppReady(r,epoch,attempt+1),140L);}
+  }
   private static void stepHide(Run r,int epoch){
     if(r.finished||r.epoch!=epoch)return;
     if(!valid(r.activity)){finish(r,false);return;}
@@ -353,8 +404,11 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       JSONObject after=status(c);
       if(after.optBoolean("running",false)&&after.optBoolean("hidden",false)){
         stage(r,"HIDE_CONFIRMED");
-        // Keep cover during one more layout opportunity, then restore MOA UI.
-        UI.postDelayed(()->finish(r,true),60L);
+        // For cold launch wait until the *actual* HTML splash (#moa-launch)
+        // is gone. Otherwise R415 flips between two differently aligned logos.
+        // For explicit rearm, the frozen exact pixels must be released promptly.
+        if(r.fromRearm)UI.postDelayed(()->finish(r,true),60L);
+        else UI.postDelayed(()->releaseWhenAppReady(r,epoch,0),90L);
       }else{
         stage(r,"HIDE_NOT_CONFIRMED");finish(r,false);
       }
