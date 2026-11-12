@@ -1,8 +1,8 @@
 {
   "status": "STATIC_COMPILE_PASS_DEVICE_UNVERIFIED",
-  "dex_sha256": "87faca9dec2e0592efe5177ed375d147019c1ab6fe1f2385b4780beda9a8d024",
-  "dex_bytes": 25680,
+  "dex_sha256": "5d24a217477210ec3c78b048a57f04eaa9903b0ad010a780786071a97f320184",
+  "dex_bytes": 25796,
   "provider_source_sha256": "e67b7f3f9d765f5fd1ef339e89c59d3611d70785fb07a2a31c41b7153b6b31de",
-  "observer_source_sha256": "34ff7db0a988adb350822343fbf295ea2fa053b1f4b093c7d17f6c0e4de1419b",
+  "observer_source_sha256": "6ff1ffaa3977fd670aec3ffbace4b28198def171586681084feec3da1d0b36c9",
   "protected_native_17_dex_rebuilt": false
 }
