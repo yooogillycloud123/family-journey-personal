@@ -214,6 +214,13 @@ public final class MoaR381AuthTrace {
       return;
     }
     if(found==browser){
+      try{
+        WebViewClient current=found.getWebViewClient();
+        if(current!=null && !(current instanceof TraceClient)){
+          found.setWebViewClient(new TraceClient(current));
+          event("NATIVE_WEBVIEW_CLIENT_REWRAPPED",found.getUrl(),"original_callbacks_preserved",found);
+        }
+      }catch(Throwable ignored){}
       stage(found,found.getUrl());
       return;
     }
