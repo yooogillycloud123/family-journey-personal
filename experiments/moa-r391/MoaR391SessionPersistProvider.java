@@ -36,6 +36,7 @@ import android.os.Build;
 import android.view.PixelCopy;
 import java.lang.reflect.Field;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import org.json.JSONObject;
 import java.lang.reflect.Method;
 import java.util.WeakHashMap;
@@ -57,7 +58,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // Actual launcher alias targets MoaIconHost (DEX: subclasses AudioHost -> VoiceHost -> HostActivity).
   private static final String LAUNCHER_HOST="com.juhyeon.familyjourney.MoaIconHost";
   private static final String CTRL="com.juhyeon.familyjourney.MoaNaverWebProbeController";
-  private static final String TAG="MOA_R427_CHROME";
+  private static final String TAG="MOA_R431_NAV_CONTROLS";
   private static final Handler UI=new Handler(Looper.getMainLooper());
   private static final long VISIBLE_LAYOUT_MS=460L;
   private static final long REARM_COOLDOWN_MS=18000L;
@@ -69,7 +70,6 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   private static boolean keepaliveScheduled=false;
   private static final WeakHashMap<Activity, Long> GALLERY_REPAIR_AT=new WeakHashMap<>();
   private static final WeakHashMap<Activity, Run> RUNS=new WeakHashMap<>();
-
   // R427: only native MOA controller chrome, never the remote NAVER WebView DOM.
   // Retain the controller's original MOA/Stop button instances and click listeners.
   private static final WeakHashMap<Activity, Chrome> CHROME=new WeakHashMap<>();
@@ -80,9 +80,10 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     final View state;
     final View title;
     final TextView chevron;
+    final TextView home;
     boolean expanded=false;
-    Chrome(FrameLayout sh,LinearLayout h,View st,View ti,TextView cv){
-      shell=sh;header=h;state=st;title=ti;chevron=cv;
+    Chrome(FrameLayout sh,LinearLayout h,View st,View ti,TextView cv,TextView hv){
+      shell=sh;header=h;state=st;title=ti;chevron=cv;home=hv;
     }
   }
   private static void showChrome(Chrome c,boolean expanded){
@@ -94,8 +95,10 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     c.state.setVisibility(View.GONE);
     c.title.setVisibility(View.GONE); // user never needs the experiment title
     c.chevron.setText(expanded?"‹":"›");
-    c.chevron.setTextColor(expanded?0xfff8f6fa:0x886b6873);
-    c.chevron.setAlpha(expanded?0.95f:0.48f);
+    // The hit rectangle is larger than the visible tiny chevron.
+    c.chevron.setTextColor(expanded?0xffa4326a:0xff9c6b82);
+    c.chevron.setAlpha(expanded?0.95f:0.64f);
+    c.home.bringToFront();
     c.chevron.bringToFront();
   }
   private static void compactNaverChrome(Activity a){
@@ -123,26 +126,66 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       String titleText=String.valueOf(title.getText());
       if(!titleText.contains("네이버 웹 연결 실험"))return;
       View state=column.getChildAt(1);
+      // R431: the old top-right 28x30dp tap target overlapped NAVER's search
+      // box/voice control, and also overlapped the original Stop button when
+      // expanded. Move it to the right *middle* with a full 48x54dp hit area.
+      // No remote NAVER DOM or original controller native button is modified.
       TextView chevron=new TextView(a);
-      chevron.setTextSize(12f);
+      chevron.setTextSize(15f); // glyph only; invisible hit area is 48x54dp
       chevron.setGravity(Gravity.CENTER);
       chevron.setBackgroundColor(0x00000000);
       chevron.setPadding(0,0,0,0);
+      chevron.setClickable(true);
       chevron.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
       chevron.setContentDescription("네이버 웹창 메뉴 펼치기");
-      int densityWidth=Math.round(dp(a,28f));
-      int densityHeight=Math.round(dp(a,30f));
-      FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(densityWidth,densityHeight,Gravity.TOP|Gravity.END);
+      FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(a,48f),dp(a,54f),Gravity.CENTER_VERTICAL|Gravity.END);
+      lp.rightMargin=dp(a,2f);
       shell.addView(chevron,lp);
-      chevron.setElevation(dp(a,5f));
-      Chrome chrome=new Chrome(shell,header,state,title,chevron);
+      chevron.setElevation(dp(a,16f));
+
+      // An independent one-tap MOA return button, styled like the already
+      // proven pink floating diary Home dot. It calls the ORIGINAL native
+      // setHidden(Activity,true), preserving the logged-in WebView and all
+      // subsequent offscreen NAVER account-saving behavior.
+      TextView home=new TextView(a);
+      home.setText("⌂");
+      home.setTextSize(22f);
+      home.setGravity(Gravity.CENTER);
+      home.setTextColor(0xffffffff);
+      GradientDrawable pink=new GradientDrawable();
+      pink.setShape(GradientDrawable.OVAL);
+      pink.setColor(0xffcf739f);
+      pink.setStroke(dp(a,1f),0xffe8b3ca);
+      home.setBackground(pink);
+      home.setAlpha(0.80f);
+      home.setElevation(dp(a,16f));
+      home.setClickable(true);
+      home.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+      home.setContentDescription("모아로 돌아가기");
+      FrameLayout.LayoutParams hp=new FrameLayout.LayoutParams(dp(a,44f),dp(a,44f),Gravity.END|Gravity.BOTTOM);
+      hp.rightMargin=dp(a,12f);
+      hp.bottomMargin=dp(a,92f);
+      shell.addView(home,hp);
+      home.setOnClickListener(v->{
+        try{
+          Class<?> nativeController=Class.forName(CTRL);
+          JSONObject st=status(nativeController);
+          if(st.optBoolean("running",false)&&!st.optBoolean("hidden",false)){
+            hide(nativeController,a); // exactly original "모아로" action; never dispose()
+            Log.i(TAG,"PINK_HOME_NATIVE_HIDE");
+          }
+        }catch(Throwable t){Log.w(TAG,"PINK_HOME_HIDE_FAILED_"+t.getClass().getSimpleName());}
+      });
+
+      Chrome chrome=new Chrome(shell,header,state,title,chevron,home);
       chevron.setOnClickListener(v->{
         showChrome(chrome,!chrome.expanded);
         chevron.setContentDescription(chrome.expanded?"네이버 웹창 메뉴 접기":"네이버 웹창 메뉴 펼치기");
+        Log.i(TAG,chrome.expanded?"NAVER_MENU_EXPANDED":"NAVER_MENU_COLLAPSED");
       });
       CHROME.put(a,chrome);
-      showChrome(chrome,false); // DEFAULT: only faint › arrow, transparent background
-      Log.i(TAG,"NAVER_CHROME_COLLAPSED_DEFAULT");
+      showChrome(chrome,false);
+      Log.i(TAG,"NAVER_CHROME_SIDE_CONTROLS_READY");
     }catch(Throwable t){Log.w(TAG,"NAVER_CHROME_CHECK_"+t.getClass().getSimpleName());}
   }
   private static void attachChromeObserver(Activity a){
