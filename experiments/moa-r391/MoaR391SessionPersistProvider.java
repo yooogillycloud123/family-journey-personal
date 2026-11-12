@@ -57,6 +57,9 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   private static long lastExpiryRefreshMs=0L;
   private static final WeakHashMap<Activity, Long> REARM_AT=new WeakHashMap<>();
   private static final WeakHashMap<Activity, Integer> MONITORS=new WeakHashMap<>();
+  private static final WeakHashMap<Activity, Boolean> LIVE_HOSTS=new WeakHashMap<>();
+  private static int nextMonitorId=0;
+  private static boolean keepaliveScheduled=false;
   private static final WeakHashMap<Activity, Run> RUNS=new WeakHashMap<>();
   private static final ExecutorService FLUSH=Executors.newSingleThreadExecutor(new ThreadFactory(){
     @Override public Thread newThread(Runnable r){Thread t=new Thread(r,"moa-r411-cookie-flush");t.setDaemon(true);return t;}
@@ -201,21 +204,29 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       }
     }return null;
   }
+  private static void refreshExpiryIfLive(){
+    try{
+      if(LIVE_HOSTS.isEmpty())return;
+      Class<?> c=Class.forName(CTRL);
+      JSONObject st=status(c);
+      long now=SystemClock.elapsedRealtime();
+      if(st.optBoolean("running",false)&&st.optBoolean("hidden",false)&&now-lastExpiryRefreshMs>60000L){
+        Method m=c.getDeclaredMethod("scheduleExpiry");m.setAccessible(true);m.invoke(null);
+        lastExpiryRefreshMs=now;Log.i(TAG,"SESSION_LIVE_RENEWED");
+      }
+    }catch(Throwable ignored){Log.w(TAG,"RENEWAL_FAILED");}
+  }
+  private static void keepalive(){
+    if(LIVE_HOSTS.isEmpty()){keepaliveScheduled=false;return;}
+    refreshExpiryIfLive();
+    UI.postDelayed(()->keepalive(),65000L);
+  }
   private static void monitor(Activity a,int id){
     if(!valid(a) || MONITORS.get(a)==null || MONITORS.get(a)!=id)return;
     Run r=RUNS.get(a);
     try{
-      Class<?> c=Class.forName(CTRL);
-      JSONObject s=status(c);
-      long now=SystemClock.elapsedRealtime();
-      // Refresh the ORIGINAL four-minute controller expiry, without touching cookies.
-      // Manual stop is respected: a stopped controller is never renewed by this path.
-      if(s.optBoolean("running",false)&&s.optBoolean("hidden",false)
-          && now-lastExpiryRefreshMs>=60000L){
-        Method extend=c.getDeclaredMethod("scheduleExpiry");extend.setAccessible(true);
-        extend.invoke(null);lastExpiryRefreshMs=now;
-        Log.i(TAG,"SESSION_LIVE_RENEWED");
-      }
+      // A living foreground/background HostActivity shares one no-network
+      // heartbeat that only refreshes the existing controller expiry.
       if(r==null || r.finished){
         WebView own=findOwnWeb(a.getWindow().getDecorView());
         if(own!=null){
@@ -340,14 +351,18 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       Application app=(Application)getContext().getApplicationContext();
       app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks(){
         @Override public void onActivityCreated(Activity a,Bundle b){
-          if(valid(a)){Run r=new Run(a);RUNS.put(a,r);attach(r);}
+          if(valid(a)){
+            LIVE_HOSTS.put(a,Boolean.TRUE);
+            if(!keepaliveScheduled){keepaliveScheduled=true;UI.postDelayed(()->keepalive(),1200L);}
+            Run r=new Run(a);RUNS.put(a,r);attach(r);
+          }
         }
         @Override public void onActivityStarted(Activity a){}
         @Override public void onActivityResumed(Activity a){
           Run r=RUNS.get(a);
           if(r!=null&&!r.attempted&&!r.finished)UI.postDelayed(()->begin(r),55L);
           if(valid(a)){
-            int next=MONITORS.containsKey(a)?MONITORS.get(a)+1:1;
+            int next=++nextMonitorId;
             MONITORS.put(a,next);UI.postDelayed(()->monitor(a,next),650L);
           }
         }
@@ -360,7 +375,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         @Override public void onActivityStopped(Activity a){persist();}
         @Override public void onActivitySaveInstanceState(Activity a,Bundle b){}
         @Override public void onActivityDestroyed(Activity a){
-          MONITORS.remove(a);REARM_AT.remove(a);
+          MONITORS.remove(a);REARM_AT.remove(a);LIVE_HOSTS.remove(a);
           Run r=RUNS.remove(a);
           if(r!=null&&!r.finished)finish(r,false);
           // Never leave a WebView tied to a destroyed Activity; keep cookies only.
