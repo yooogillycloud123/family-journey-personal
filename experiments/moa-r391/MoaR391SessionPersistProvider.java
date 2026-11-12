@@ -5,6 +5,7 @@ import android.app.Application;
 import android.content.ComponentName;
 import android.content.pm.PackageManager;
 import android.content.ContentProvider;
+import android.content.SharedPreferences;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.net.Uri;
@@ -16,6 +17,8 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.MotionEvent;
+import android.view.ViewConfiguration;
 import android.view.WindowManager;
 import android.graphics.PixelFormat;
 import android.webkit.WebView;
@@ -85,6 +88,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     final TextView chevron;
     final TextView homeDot;
     boolean expanded=false;
+    int homeX=Integer.MIN_VALUE, homeY=Integer.MIN_VALUE;
     Chrome(Activity a,FrameLayout sh,LinearLayout h,View st,View ti,TextView cv,TextView home){
       activity=a;shell=sh;header=h;state=st;title=ti;chevron=cv;homeDot=home;
     }
@@ -107,10 +111,89 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     FrameLayout.LayoutParams arrow=(FrameLayout.LayoutParams)c.chevron.getLayoutParams();
     int top=safeMenuTop(c);
     if(arrow.topMargin!=top){arrow.topMargin=top;c.chevron.setLayoutParams(arrow);}
+    // R435: never reset a manually dragged/persisted native MOA Home position
+    // from the global-layout observer, which fires after almost every drag.
+    positionHomeDot(c);
+  }
+  private static final String NAVER_HOME_PREFS="moa_r435_naver_home_position_v1";
+  private static int clampInt(int value,int lo,int hi){return Math.max(lo,Math.min(hi,value));}
+  private static int homeMinX(Chrome c){return dpx(c.activity,6f);}
+  private static int homeMaxX(Chrome c){return Math.max(homeMinX(c),c.shell.getWidth()-dpx(c.activity,60f));}
+  private static int homeMinY(Chrome c){return safeMenuTop(c)+dpx(c.activity,10f);}
+  private static int homeMaxY(Chrome c){return Math.max(homeMinY(c),c.shell.getHeight()-dpx(c.activity,72f));}
+  private static void positionHomeDot(Chrome c){
+    if(c.homeDot==null||c.shell.getWidth()<dpx(c.activity,90f)||c.shell.getHeight()<dpx(c.activity,150f))return;
+    int minX=homeMinX(c),maxX=homeMaxX(c),minY=homeMinY(c),maxY=homeMaxY(c);
+    if(c.homeX==Integer.MIN_VALUE||c.homeY==Integer.MIN_VALUE){
+      SharedPreferences prefs=c.activity.getSharedPreferences(NAVER_HOME_PREFS,0);
+      float x=prefs.getFloat("x_ratio",-1f), y=prefs.getFloat("y_ratio",-1f);
+      if(Float.isFinite(x)&&x>=0f&&x<=1f&&Float.isFinite(y)&&y>=0f&&y<=1f){
+        c.homeX=minX+Math.round(x*(maxX-minX));
+        c.homeY=minY+Math.round(y*(maxY-minY));
+      }else{
+        // Preserve original R431 home position for first-time users.
+        c.homeX=dpx(c.activity,12f);
+        c.homeY=Math.round(c.shell.getHeight()*0.71f);
+      }
+    }
+    c.homeX=clampInt(c.homeX,minX,maxX);
+    c.homeY=clampInt(c.homeY,minY,maxY);
+    FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)c.homeDot.getLayoutParams();
+    if(lp.leftMargin!=c.homeX||lp.topMargin!=c.homeY){
+      lp.leftMargin=c.homeX;lp.topMargin=c.homeY;
+      c.homeDot.setLayoutParams(lp);
+    }
+  }
+  private static void rememberHomeDot(Chrome c){
+    if(c.homeX==Integer.MIN_VALUE||c.shell.getWidth()<dpx(c.activity,90f))return;
+    int xSpan=Math.max(1,homeMaxX(c)-homeMinX(c));
+    int ySpan=Math.max(1,homeMaxY(c)-homeMinY(c));
+    float x=(float)(c.homeX-homeMinX(c))/xSpan;
+    float y=(float)(c.homeY-homeMinY(c))/ySpan;
+    c.activity.getSharedPreferences(NAVER_HOME_PREFS,0).edit()
+      .putFloat("x_ratio",Math.max(0f,Math.min(1f,x)))
+      .putFloat("y_ratio",Math.max(0f,Math.min(1f,y)))
+      .apply();
+    Log.i(TAG,"NAVER_PINK_HOME_DRAG_SAVED");
+  }
+  private static void enableHomeDrag(Chrome c){
     if(c.homeDot==null)return;
-    FrameLayout.LayoutParams dot=(FrameLayout.LayoutParams)c.homeDot.getLayoutParams();
-    int y=Math.max(dpx(c.activity,130f),Math.min((int)(c.shell.getHeight()*0.71f),c.shell.getHeight()-dpx(c.activity,68f)));
-    if(dot.topMargin!=y){dot.topMargin=y;c.homeDot.setLayoutParams(dot);}
+    final View dot=c.homeDot;
+    final float[] start={0f,0f};
+    final int[] original={0,0};
+    final boolean[] dragging={false};
+    final int slop=ViewConfiguration.get(c.activity).getScaledTouchSlop();
+    dot.setOnTouchListener((v,event)->{
+      switch(event.getActionMasked()){
+        case MotionEvent.ACTION_DOWN:
+          positionHomeDot(c);
+          if(c.homeX==Integer.MIN_VALUE)return false;
+          start[0]=event.getRawX();start[1]=event.getRawY();
+          original[0]=c.homeX;original[1]=c.homeY;
+          dragging[0]=false;
+          if(v.getParent()!=null)v.getParent().requestDisallowInterceptTouchEvent(true);
+          return true;
+        case MotionEvent.ACTION_MOVE:
+          float dx=event.getRawX()-start[0],dy=event.getRawY()-start[1];
+          if(!dragging[0]&&Math.hypot(dx,dy)>slop)dragging[0]=true;
+          if(dragging[0]){
+            c.homeX=clampInt(original[0]+Math.round(dx),homeMinX(c),homeMaxX(c));
+            c.homeY=clampInt(original[1]+Math.round(dy),homeMinY(c),homeMaxY(c));
+            positionHomeDot(c);
+          }
+          return true;
+        case MotionEvent.ACTION_UP:
+          if(dragging[0])rememberHomeDot(c);
+          else v.performClick(); // short tap still hides NAVER and returns to MOA
+          if(v.getParent()!=null)v.getParent().requestDisallowInterceptTouchEvent(false);
+          return true;
+        case MotionEvent.ACTION_CANCEL:
+          if(dragging[0])rememberHomeDot(c);
+          if(v.getParent()!=null)v.getParent().requestDisallowInterceptTouchEvent(false);
+          return true;
+        default:return true;
+      }
+    });
   }
   private static void showChrome(Chrome c,boolean expanded){
     if(c==null)return;
@@ -190,6 +273,8 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         catch(Throwable t){Log.w(TAG,"NAVER_PINK_HOME_FAILED_"+t.getClass().getSimpleName());}
       });
       Chrome chrome=new Chrome(a,shell,header,state,title,chevron,home);
+      enableHomeDrag(chrome);
+      home.setContentDescription("모아로 돌아가기. 드래그하여 위치 이동 가능. 탭하면 네이버 지도 숨김");
       chevron.setOnClickListener(v->{
         showChrome(chrome,!chrome.expanded);
         chevron.setContentDescription(chrome.expanded?"네이버 웹창 메뉴 접기":"네이버 웹창 메뉴 펼치기");
