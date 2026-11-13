@@ -172,3 +172,23 @@ The user has clarified the earlier proposed `tap hero photo -> separate native G
 - No Quick Record destination chooser, no duplicate diary writes, no change to original detailed diary or selected/automatic photo calendars. No mandatory black gallery on ordinary photo swipes.
 
 **This document is a design + separately interactive UI preview. R463 remains the user's immutable Golden; no new APK has been built or installed.**
+
+
+---
+
+
+## 2026-11-13 LATEST VISUAL RESET: photo-first, no always-open legacy Gallery controls
+
+User re-supplied DayPic inspiration screenshots and explicitly rejected the previous card-plus-thumbnail-plus-five-always-visible-controls mock as outdated and visually cluttered. **This visual correction supersedes the old default toolbar/rail layout** throughout this design plan.
+
+- Default screen must be **almost entirely a tall, near-full-width PHOTO**, preceded by a very small date header. Keep minimal rounding, no prominent card frame, overlays or debug text. A small discreet ··· control is enough. **Only small pagination dots immediately under photo**; original full thumbnail filmstrip is HIDDEN by default.
+- Hero itself instantly swipes photo/video horizontally, in place, both previous and next from user-selected day representative. Preserve original R463 mode when OFF; optional fast motion ON. No forced black fullscreen app. Opening tools is never a prerequisite for ordinary photo swipe.
+- **Tap the photograph or ··· to show** one compact icon-only contextual toolbar (set representative star, share, actual GPS NAVER, capture time/address, fast swipe). Tap again/swipe to hide. Only show the full mini-thumbnail rail when user explicitly selects 사진 목록 from the tool layer. Keep tool buttons accessible and safely tappable.
+- On video, show only contextual video playback/seek/mute/still capture, and manage actual audio/texture lifecycle. On still photos, there are no video controls, only image.
+- Under photo/dots present one quiet light-background 오늘의 이야기 text area. Below its text, **exactly ONE thin voice mini-player** with clip 1/N selection popover regardless of number of clips; do not stack bulky individual players; discreet + 녹음. No separate music section.
+- Existing one-flow 바로기록, old detailed diary, manual & automatic calendars and all source data are preserved. Representative selection drives both simple diary hero and new photo calendar tile by shared stable original media reference. Keep default design photo-dominant.
+- Historical rejected HTML: feature/moa-r469-daypic-inline-media-voice-ui-prototype-20261113 / design-prototypes/daypic-simple-diary/R469_INLINE_MEDIA_COMPACT_AUDIO_UI_PROTOTYPE.html.
+- **New improved interactive HTML UI prototype**: feature/moa-r469-daypic-photo-first-immersive-prototype-20261113 / design-prototypes/daypic-simple-diary/R469_PHOTO_FIRST_CLEAN_INLINE_UI_v2.html. Generic Unsplash photos used only as sample assets. Supports simulated swipe, representative state, action disclosure, optional filmstrip, fast-mode UI and voice clip picker. **No real MOA data/media/audio/GPS/share/video persistence is connected and no APK built.** The user screenshots are not republished to GitHub.
+- Current original signed user Golden stays R463. R467 exact R463 rescue unchanged. The prototype must not be confused with a functional Android upgrade. Future Android work needs source-verified data/recording/calendar integration and native Gallery life-cycle testing on Galaxy.
+
+**Priority:** This new photo-dominant default REPLACES prior suggestions of permanent thumbnail/action decks.
