@@ -1,0 +1,34 @@
+{
+  "package": "com.juhyeon.familyjournea",
+  "versionCode": 469,
+  "new_apk": "MOA_R469_DAYPIC_REAL_BINDINGS_SIGNED_BETA.apk",
+  "new_apk_size": 8962450,
+  "new_apk_sha256": "4c71ae8dbcff2252258e57154c5d19524a704d322961f9063f52f8806b7822e2",
+  "golden_source_apk_sha256": "9d2fd10d32a3bc35eb3132333e96edd8f565abd5daf3ce954b052f77083d8379",
+  "original_members_byte_identical": 138,
+  "original_members_total": 140,
+  "new_members_count": 2,
+  "original_signer_certificate_sha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
+  "original_signer_key_matched": true,
+  "all_zip_entries_crc": "PASS",
+  "all_stored_entries_4byte_alignment": "PASS",
+  "all_original_dex_payloads_identical": true,
+  "apk_manifest_versionCode": 469,
+  "new_assets": [
+    "assets/web/moa-r469-simple-diary.js",
+    "assets/web/moa-r469-simple-diary.css"
+  ],
+  "changed_original_assets": [
+    "AndroidManifest.xml",
+    "assets/web/index.html"
+  ],
+  "android_device_runtime": "NOT_TESTED",
+  "inline_video": "DEVICE_GATED",
+  "voice_recording": "USES_ORIGINAL_DIALOG",
+  "gallery_r203_exact_incard": "NOT_IMPLEMENTED",
+  "apk_v2_rsa_signature": "PASS",
+  "apk_v2_signed_content_digest": "PASS",
+  "original_certificate_match": "PASS",
+  "apk_signer_algorithm": "0x0103 RSA-PKCS1-SHA256",
+  "signature_bytes": 384
+}
