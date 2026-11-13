@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-13 (Asia/Seoul)
 **CURRENT USER-APPROVED GOLDEN:** **R435**. This is the first entrypoint for MOA work, unless a later explicitly user-approved Golden is documented above it. **Do NOT treat older R415/R419/R423/R427/R431 as the active implementation baseline.**
-**Latest development candidate (NOT Gold):** R439 Gallery lower Share/Map action deck from immutable R435; static signed PASS / physical Galaxy PENDING. See [R439 Gallery action bar + R441 exact R435 recovery](MOA_R439_R435_GALLERY_BOTTOM_SHARE_MAP_R441_EXACT_GOLDEN_RECOVERY_20261113.md). User's Samsung/MOA reference videos are stored PRIVATE in Library `R439_GALLERY_BOTTOM_ACTIONS_20261113/`. R435 remains approved Gold until explicitly changed by user.
+**Latest development candidate (NOT Gold):** R443 from user-accepted R439 Gallery footer. It defaults the original date/address panel to collapsed with a small reveal toggle and persisted '기본 표시' preference, shrinks the Share/Map footer to icon-only 50dp, and addresses chooser closing native Gallery by arming existing R227 onPause retention. See [R443 Gallery UI + Share retention + R445 exact R439 recovery](MOA_R443_R439_GALLERY_TOP_COLLAPSE_COMPACT_SHARE_RETENTION_R445_RECOVERY_20261113.md). User-private test videos `20904.mp4` / `20905.mp4` and original-signer release QA are stored in PRIVATE Library `/모아_프로젝트_근거_20261103/R443_GALLERY_POLISH_20261113/`. R443 is signed static PASS, actual Galaxy NOT YET TESTED. R435 immutable integrated Golden remains current until user explicitly changes it; R439 is its immediate candidate parent.
 
 
 ## Read in order
