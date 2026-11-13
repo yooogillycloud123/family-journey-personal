@@ -732,3 +732,21 @@ html #moa-r469-root[data-page="day"] .moa-r469-stage img{border-radius:21px!impo
 html #moa-r469-root[data-page="day"] .moa-r503-cover-star{display:none!important}
 html #moa-r469-root[data-page="day"] .moa-r469-pager{height:12px!important}
 @media(max-width:370px){html #moa-r469-root[data-page="calendar"] .moa-r511-sticky-weekdays{margin-left:9px!important;margin-right:9px!important}}
+
+/* R515: thumb-reachable entire lower dock, without a narrow centered capsule. */
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-dock{
+ flex:0 0 40px!important;min-height:40px!important;height:40px!important;
+ margin:0!important;padding:3px 7px 3px!important;justify-content:stretch!important;
+ background:var(--moa-r491-ui,#fff)!important;border:0!important;box-shadow:none!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{
+ display:block!important;flex:1 1 auto!important;box-sizing:border-box!important;
+ width:100%!important;max-width:none!important;min-width:0!important;
+ height:33px!important;min-height:33px!important;max-height:33px!important;
+ padding:0!important;margin:0!important;border-radius:12px!important;
+ font-size:12px!important;line-height:32px!important;
+}
+/* Make Web media an unobtrusive standby surface only while real native R463 host is mounted. */
+html #moa-r469-root.moa-r507-native-mounted[data-page="day"] .moa-r469-stage-media{
+ visibility:hidden!important;pointer-events:none!important;
+}
