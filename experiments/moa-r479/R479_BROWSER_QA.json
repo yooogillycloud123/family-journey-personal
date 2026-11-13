@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "environment": "Chromium synthetic mock, not Galaxy S26 Ultra",
+  "cases": [
+    "no redundant title/home/back/percent/progress",
+    "white empty-date cells",
+    "23px rounded single photo calendar",
+    "one calendar and 2-position selected/all slider",
+    "13/13 mocked existing media thumbs",
+    "event mark as thin lower line",
+    "modern year/month sheet",
+    "left fling changes month",
+    "Today restores current month",
+    "date opens in-card photo/day",
+    "family schedule opens in place, not standalone calendar",
+    "no JS errors"
+  ],
+  "swipe_result": "2026년 12월",
+  "not_verified": [
+    "on-device WebView pointer velocity and event DB writes",
+    "original R203 native photo inertia and video media playback",
+    "actual 14k photo throughput",
+    "same-signer Galaxy installation"
+  ]
+}
