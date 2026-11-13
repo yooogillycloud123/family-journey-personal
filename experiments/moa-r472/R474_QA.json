@@ -1,0 +1,23 @@
+{
+  "filename": "MOA_R474_EXACT_R463_GOLDEN_FORWARD_RECOVERY.apk",
+  "versionCode": 474,
+  "bytes": 8951160,
+  "sha256": "4232db05fc4003a0590ef7bf73e272a32899c2e51a2a29c5162d9fe139f10bf1",
+  "original_members_unchanged": 139,
+  "total_original_members": 140,
+  "17_original_dex_identical": true,
+  "apk_v2": {
+    "apk_v2_rsa_signature": "PASS",
+    "apk_v2_signed_content_digest": "PASS",
+    "original_certificate_match": "PASS",
+    "apk_signer_algorithm": "0x0103 RSA-PKCS1-SHA256",
+    "signature_bytes": 384
+  },
+  "zip_crc": "PASS",
+  "zip_alignment": "PASS",
+  "new_original_member_changes": [
+    "AndroidManifest.xml"
+  ],
+  "new_files": [],
+  "browser_smoke": "synthetic mocked browser tests only; real Galaxy and native video NOT tested"
+}
