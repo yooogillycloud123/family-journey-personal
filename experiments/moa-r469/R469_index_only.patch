@@ -1,0 +1,17 @@
+--- R463:assets/web/index.html
++++ R469:assets/web/index.html
+@@ -24,6 +24,7 @@
+ <link rel="stylesheet" href="moa-r139-calendar-unify.css" />
+ <link rel="stylesheet" href="moa-r141-monthly-report.css" />
+ <link rel="stylesheet" href="moa-r149-voice.css" />
++<link rel="stylesheet" href="moa-r469-simple-diary.css" />
+ <style id="moa-r115-splash-critical">#moa-launch{overflow:hidden}#moa-launch .moa-lockup{width:180px;height:180px;flex:0 0 180px;overflow:hidden}#moa-launch .moa-lockup img{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain}</style>
+ <!--/HEAD-->
+ <style>button[data-tab="battle"],#set-account-sec{display:none!important}</style>
+@@ -581,5 +582,6 @@
+ <script src="moa-r139-calendar-unify.js"></script>
+ <script src="moa-r141-monthly-report.js"></script>
+ <script src="moa-r149-voice.js"></script>
++<script src="moa-r469-simple-diary.js"></script>
+ <script src="moa-r389-home-dot.js"></script></body>
+ </html>
