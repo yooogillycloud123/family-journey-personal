@@ -1,0 +1,27 @@
+{
+  "synthetic_browser": "PASS",
+  "device_test": "NOT_RUN",
+  "cases": [
+    "photo day source toggle small ellipse no text/icons",
+    "photo/detail views same small sliding ellipse",
+    "vertical continuous month sections/no multi-month jumping",
+    "today full-cell rose outline not date number fill",
+    "family events isolated bottom photo-free 9px lane",
+    "older detailed diary still reachable and can return",
+    "month/year picker scroll all 201 years and choose among 12 months",
+    "top header no redundant home/count/progress",
+    "current month restored by Today",
+    "no JavaScript errors"
+  ],
+  "scroll_labels": [
+    "2026년 11월",
+    "2026년 12월"
+  ],
+  "family_mark_count": 1,
+  "screenshots": [
+    "R483_calendar.png",
+    "R483_picker.png",
+    "R483_photo_day.png",
+    "R483_detail_day.png"
+  ]
+}
