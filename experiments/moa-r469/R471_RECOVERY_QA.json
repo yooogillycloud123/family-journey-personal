@@ -1,0 +1,19 @@
+{
+  "package": "com.juhyeon.familyjournea",
+  "versionCode": 471,
+  "purpose": "EMERGENCY EXACT R463 FUNCTIONAL RECOVERY NOT NEW R469 CAPABILITIES",
+  "file": "MOA_R471_EXACT_R463_GOLDEN_FUNCTIONAL_RECOVERY.apk",
+  "size": 8951159,
+  "sha256": "458729163b4141ac39d7d1e6532f104d9362ecc400836c6619b353e8df3bb50a",
+  "original_r463_original_payloads_identical": 139,
+  "total_original_payloads": 140,
+  "only_changed_original_member": "AndroidManifest.xml versionCode 463->471",
+  "zip_crc": "PASS",
+  "dex_original": "IDENTICAL",
+  "alignment": "PASS",
+  "apk_v2_rsa_signature": "PASS",
+  "apk_v2_signed_content_digest": "PASS",
+  "original_certificate_match": "PASS",
+  "apk_signer_algorithm": "0x0103 RSA-PKCS1-SHA256",
+  "signature_bytes": 384
+}
