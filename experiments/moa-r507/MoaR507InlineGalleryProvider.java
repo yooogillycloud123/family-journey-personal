@@ -7,6 +7,11 @@ import android.content.ContentValues;
 import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.graphics.Matrix;
+import android.media.MediaPlayer;
+import android.graphics.RectF;
+import android.widget.ImageView;
+import android.view.TextureView;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
@@ -57,6 +62,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private int lastW = -1, lastH = -1;
   private FrameLayout nativeHost;
   private TextView coverStar;
+  private TextView railToggle;
+  private View railView;
+  private boolean railExpanded=true;
+  private boolean railToggleInstalled;
+  private long lastValidSnapshot;
+  private int snapshotFailures;
   private Object galleryRef;
   // R511: pre-draw armed rehost prevents a fullscreen black/white first frame.
   private FrameLayout armRoot;
@@ -143,10 +154,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     Object gallery=readField(a,"unifiedGallery");
     if(!galleryOpen(gallery)){
       if(ownsGallery) {
-        // Native hardware back has closed the gallery: leave the photo form, not
-        // a legacy WebView gallery. An intentional JS close clears pending first.
-        web.evaluateJavascript("if(window.__moaR507NativePending&&window.MoaR469SimpleDiary)window.MoaR469SimpleDiary.home();else window.__moaR507NativeMounted&&window.__moaR507NativeMounted(false);",null);
+        // R515: unexpected native-close while the day is active gets one guarded
+        // native re-open. Intentional JS close clears pending first, so never
+        // revive a Gallery after the user navigates away.
         clearCardMark();
+        web.evaluateJavascript("if(window.__moaR507NativePending&&window.__moaR515RecoverInline)window.__moaR515RecoverInline();else window.__moaR507NativeMounted&&window.__moaR507NativeMounted(false);",null);
       }
       if(android.os.SystemClock.uptimeMillis()-lastHello>1000){
         lastHello=android.os.SystemClock.uptimeMillis();
@@ -170,16 +182,31 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
           // the working native renderer for a single missed JS evaluation.
           long now=android.os.SystemClock.uptimeMillis();
           if(inactiveAt==0)inactiveAt=now;
-          if(ownsGallery && now-inactiveAt>1150){
-            invokeClose(gallery);clearCardMark();
-            web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(false);",null);
+          // R515: an inactive snapshot can be a WebView traversal, interim
+          // layout detach, or NAVER transition, not permission to drop the
+          // native Gallery after only one second. Only an explicit day/page
+          // exit (JS closeNativeGallery) closes the active native host.
+          // Preserve the last rendered frame during transient WebView updates.
+          if(ownsGallery && now-inactiveAt>10000L){
+            web.evaluateJavascript("(function(){var d=window.MoaR469SimpleDiary,s=d&&d.readOnlyStatus&&d.readOnlyStatus();return JSON.stringify({day:!!(s&&s.active&&s.page==='day'),pending:!!window.__moaR507NativePending});})()",verify->{
+              try{Object x=new JSONTokener(verify).nextValue();if(!(x instanceof String))return;JSONObject st=new JSONObject((String)x);
+                if(!st.optBoolean("day")||!st.optBoolean("pending")){invokeClose(gallery);clearCardMark();}
+              }catch(Throwable ignored){}
+            });
+            inactiveAt=now-8000L;
           }
           return;
         }
-        inactiveAt=0;
+        inactiveAt=0;lastValidSnapshot=android.os.SystemClock.uptimeMillis();snapshotFailures=0;
         if(state.optDouble("w")<50||state.optDouble("h")<100)return;
         attachCard(target,web,gallery,state);
-      }catch(Throwable e){if(ownsGallery){invokeClose(gallery);clearCardMark();}}
+      }catch(Throwable e){
+        // A malformed async WebView result must not close active video playback.
+        snapshotFailures++;
+        if(snapshotFailures>15 && ownsGallery){snapshotFailures=0;
+          web.evaluateJavascript("window.__moaR515RecoverInline&&window.__moaR515RecoverInline();",null);
+        }
+      }
     });}catch(Throwable e){processing=false;}
   }
   private void maybeArm(Activity a,WebView web){
@@ -241,6 +268,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   }
   private void clearCardMark(){
     disarm();
+    if(railToggle!=null && railToggle.getParent() instanceof ViewGroup)
+      ((ViewGroup)railToggle.getParent()).removeView(railToggle);
     if(coverStar!=null && coverStar.getParent() instanceof ViewGroup)
       ((ViewGroup)coverStar.getParent()).removeView(coverStar);
     if(inlineBack!=null && backOwner!=null && Build.VERSION.SDK_INT>=33)try{
@@ -248,7 +277,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }catch(Throwable ignored){}
     inlineBack=null;backOwner=null;
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
-    coverStar=null;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;
+    coverStar=null;railToggle=null;railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;
     lastX=lastY=Integer.MIN_VALUE;
   }
@@ -296,6 +325,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
     else host.setVisibility(View.VISIBLE);
     compactNativeCard(a,web,host,gallery);
+    fillNativeMediaCard(gallery);
     syncIndex(web,gallery,s.optString("cover",""));
   }
   private void installInlineBack(Activity a,WebView web){
@@ -358,12 +388,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       LinearLayout lower=(LinearLayout)lowerObject;nativeLower=lower;
       if(lower.getLayoutParams() instanceof FrameLayout.LayoutParams){
         FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)lower.getLayoutParams();
-        p.height=dp(a,154);lower.setLayoutParams(p);
+        p.height=dp(a,145);lower.setLayoutParams(p);
       }
       Object rail=readField(gallery,"rail");
       if(rail instanceof View && ((View)rail).getLayoutParams() instanceof LinearLayout.LayoutParams){
         LinearLayout.LayoutParams p=(LinearLayout.LayoutParams)((View)rail).getLayoutParams();
-        p.height=dp(a,54);((View)rail).setLayoutParams(p);
+        // Original native Gallery draws the selected thumbnail 8dp higher.
+        // A 54dp clip was too short for its 46dp drawing; reserve 64dp,
+        // then scale the artwork visually without clipping the selected tile.
+        p.height=dp(a,64);((View)rail).setLayoutParams(p);
+        ((View)rail).setPivotY(dp(a,32));((View)rail).setScaleY(.79f);
+        railView=(View)rail;
       }
       Object video=readField(gallery,"videoControls");
       if(video instanceof View && ((View)video).getLayoutParams() instanceof LinearLayout.LayoutParams){
@@ -376,7 +411,71 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         p.height=dp(a,30);((View)seek).setLayoutParams(p);
       }
     }
+    if(railView!=null && !railToggleInstalled){
+      railExpanded=a.getSharedPreferences("moa.r515.card_ui",0).getBoolean("rail_expanded",true);
+      installRailToggle(a,host);
+      setRailExpanded(a,railExpanded);
+    }
     compactDone=true;
+  }
+  // R515 keeps the original rail/OverScroller intact. Only the visibility and
+  // viewer-scoped LinearLayout heights are changed; original fullscreen Gallery
+  // is never entered through this code path.
+  private void installRailToggle(Activity a,FrameLayout host){
+    if(railToggleInstalled || railView==null)return;
+    TextView control=new TextView(a);
+    control.setText("⌄");control.setTextSize(15f);control.setTextColor(Color.WHITE);
+    control.setGravity(Gravity.CENTER);control.setClickable(true);control.setFocusable(true);
+    control.setContentDescription("사진 목록 접기");
+    GradientDrawable bg=new GradientDrawable();bg.setColor(0xbb24272e);bg.setCornerRadius(dp(a,12));
+    bg.setStroke(dp(a,.6f),0x668b8f99);control.setBackground(bg);
+    FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(a,32),dp(a,26),Gravity.RIGHT|Gravity.BOTTOM);
+    lp.rightMargin=dp(a,9);lp.bottomMargin=dp(a,190);
+    host.addView(control,lp);control.setElevation(dp(a,7));
+    control.setOnClickListener(v->{
+      setRailExpanded(a,!railExpanded);
+      a.getSharedPreferences("moa.r515.card_ui",0).edit().putBoolean("rail_expanded",railExpanded).apply();
+    });
+    railToggle=control;railToggleInstalled=true;
+  }
+  private void setRailExpanded(Activity a,boolean expanded){
+    railExpanded=expanded;
+    if(railView!=null)railView.setVisibility(expanded?View.VISIBLE:View.GONE);
+    if(nativeLower!=null && nativeLower.getLayoutParams() instanceof FrameLayout.LayoutParams){
+      FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)nativeLower.getLayoutParams();
+      lp.height=dp(a,expanded?145:92);nativeLower.setLayoutParams(lp);
+    }
+    if(railToggle!=null){
+      railToggle.setText(expanded?"⌄":"⌃");
+      railToggle.setContentDescription(expanded?"사진 목록 접기":"사진 목록 펼치기");
+      if(railToggle.getLayoutParams() instanceof FrameLayout.LayoutParams){
+        FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)railToggle.getLayoutParams();
+        p.bottomMargin=dp(a,expanded?181:120);railToggle.setLayoutParams(p);
+      }
+    }
+  }
+  // Only the in-card Gallery opts into center-crop. Never upscale the bitmap
+  // beyond what the original image decoder provides and never change fullscreen.
+  // Full bleed necessarily trims edges when image/video and stage ratios differ.
+  private void fillNativeMediaCard(Object gallery){
+    Object pictures=readField(gallery,"images");
+    if(pictures instanceof ImageView[]){
+      for(ImageView im:(ImageView[])pictures)if(im!=null && im.getScaleType()!=ImageView.ScaleType.CENTER_CROP)
+        im.setScaleType(ImageView.ScaleType.CENTER_CROP);
+    }
+    Object rawTexture=readField(gallery,"texture"),rawPlayer=readField(gallery,"media");
+    if(!(rawTexture instanceof TextureView)||!(rawPlayer instanceof MediaPlayer))return;
+    TextureView t=(TextureView)rawTexture;MediaPlayer player=(MediaPlayer)rawPlayer;
+    int vw,vh;try{vw=player.getVideoWidth();vh=player.getVideoHeight();}catch(Throwable e){return;}
+    if(vw<=0||vh<=0||t.getWidth()<30||t.getHeight()<30)return;
+    final float width=t.getWidth(),height=t.getHeight();
+    // Android R463 original FIT uses min. R515 owned card alone uses max.
+    float cover=Math.max(width/vw,height/vh);
+    Matrix expected=new Matrix();expected.setScale(vw*cover/width,vh*cover/height,width/2f,height/2f);
+    Matrix before=new Matrix();t.getTransform(before);
+    float[] x=new float[9],y=new float[9];before.getValues(x);expected.getValues(y);
+    if(Math.abs(x[0]-y[0])>.003f||Math.abs(x[4]-y[4])>.003f||Math.abs(x[2]-y[2])>1f||Math.abs(x[5]-y[5])>1f)
+      t.setTransform(expected);
   }
   private static String currentId(Object gallery){
     try {
