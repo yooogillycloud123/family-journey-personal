@@ -69,7 +69,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // Actual launcher alias targets MoaIconHost (DEX: subclasses AudioHost -> VoiceHost -> HostActivity).
   private static final String LAUNCHER_HOST="com.juhyeon.familyjourney.MoaIconHost";
   private static final String CTRL="com.juhyeon.familyjourney.MoaNaverWebProbeController";
-  private static final String TAG="MOA_R451_COMPACT_METADATA";
+  private static final String TAG="MOA_R459_BOTTOM_INFO";
   private static final Handler UI=new Handler(Looper.getMainLooper());
   private static final long VISIBLE_LAYOUT_MS=460L;
   private static final long REARM_COOLDOWN_MS=18000L;
@@ -589,6 +589,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     final View toggle;
     final CheckBox autoShow;
     final View collapsedSymbol;
+    final View infoAction;
     final View compactCard;
     final TextView compactTime;
     final TextView compactAddress;
@@ -598,11 +599,11 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     boolean mapEnabled=false;
     boolean infoExpanded=false;
     GalleryActions(Object g,FrameLayout h,LinearLayout l,FrameLayout r,View mb,View mi,
-       LinearLayout info,View toggle,CheckBox autoShow,View symbol,View card,
+       LinearLayout info,View toggle,CheckBox autoShow,View symbol,View infoAction,View card,
        TextView compactTime,TextView compactAddress,int infoTop,int old,int reserve){
       gallery=g;host=h;lower=l;root=r;mapButton=mb;mapGlyph=mi;
       this.info=info;this.toggle=toggle;this.autoShow=autoShow;
-      this.collapsedSymbol=symbol;this.compactCard=card;
+      this.collapsedSymbol=symbol;this.infoAction=infoAction;this.compactCard=card;
       this.compactTime=compactTime;this.compactAddress=compactAddress;
       originalInfoTop=infoTop;oldBottomMargin=old;reservedHeight=reserve;
     }
@@ -710,28 +711,34 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     if(entry.toggle==null||entry.toggle.getParent()!=entry.host)return;
     int y=r447TopToggleY(a,entry.host);
     int maxWidth=Math.max(dpx(a,180),entry.host.getWidth()-dpx(a,24));
-    int desiredWidth=entry.infoExpanded?Math.min(dpx(a,322),maxWidth):dpx(a,42);
-    int desiredHeight=entry.infoExpanded?-2:dpx(a,36);
+    int desiredWidth=Math.min(dpx(a,322),maxWidth);
     if(entry.toggle.getLayoutParams() instanceof FrameLayout.LayoutParams){
       FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)entry.toggle.getLayoutParams();
-      if(lp.topMargin!=y||lp.width!=desiredWidth||lp.height!=desiredHeight){
-        lp.topMargin=y;lp.width=desiredWidth;lp.height=desiredHeight;
+      if(lp.topMargin!=y||lp.width!=desiredWidth||lp.height!=-2){
+        lp.topMargin=y;lp.width=desiredWidth;lp.height=-2;
         entry.toggle.setLayoutParams(lp);
       }
     }
-    // The original original caption card stays alive for GPS/time resolution,
-    // but is NOT laid out visibly or given a second lower anchor.
+    // R459: the original metadata card stays alive but is rendered ONLY when
+    // expanded, at the same R451/R455 TOP anchor. No upper folded-map button.
     if(entry.info!=null&&entry.info.getVisibility()!=View.GONE)entry.info.setVisibility(View.GONE);
-    if(entry.collapsedSymbol.getVisibility()!=(entry.infoExpanded?View.GONE:View.VISIBLE))
-      entry.collapsedSymbol.setVisibility(entry.infoExpanded?View.GONE:View.VISIBLE);
-    if(entry.compactCard.getVisibility()!=(entry.infoExpanded?View.VISIBLE:View.GONE))
-      entry.compactCard.setVisibility(entry.infoExpanded?View.VISIBLE:View.GONE);
+    int cardVisible=galleryChrome&&entry.infoExpanded?View.VISIBLE:View.GONE;
+    if(entry.compactCard.getVisibility()!=cardVisible)
+      entry.compactCard.setVisibility(cardVisible);
     if(entry.infoExpanded)r451MirrorOriginalMetadata(entry);
-    int vis=galleryChrome?View.VISIBLE:View.GONE;
-    if(entry.toggle.getVisibility()!=vis)entry.toggle.setVisibility(vis);
-    entry.toggle.setContentDescription(entry.infoExpanded?
-      "촬영 시간과 주소 접기":"촬영 시간과 주소 펼치기");
-    if(galleryChrome){entry.toggle.setElevation(dpx(a,24));entry.toggle.bringToFront();}
+    if(entry.toggle.getVisibility()!=cardVisible)entry.toggle.setVisibility(cardVisible);
+    entry.toggle.setContentDescription("촬영 시간과 주소 정보 패널");
+    // The folded map icon always remains IN THE LOWER ACTION ROW and denotes
+    // the action. Checking '기본 표시' pins the visible card, so uncheck first
+    // when the user wants to collapse it again.
+    if(entry.collapsedSymbol!=null)entry.collapsedSymbol.setAlpha(entry.infoExpanded?1f:0.90f);
+    if(entry.infoAction!=null){
+      entry.infoAction.setSelected(entry.infoExpanded);
+      entry.infoAction.setContentDescription(entry.infoExpanded?
+        (entry.autoShow.isChecked()?"촬영정보 기본 표시 중. 접으려면 기본 표시를 해제하세요":"촬영 시간과 주소 접기"):
+        "촬영 시간과 주소 펼치기");
+    }
+    if(cardVisible==View.VISIBLE){entry.toggle.setElevation(dpx(a,24));entry.toggle.bringToFront();}
   }
   // Folded map icon in the user-provided silhouette's simple three-panel style.
   // Drawn natively so no new image assets / package resources / license are needed.
@@ -874,11 +881,26 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       // Existing thumbnail rail/video seek/play/mute/capture layouts stay untouched.
       GalleryActionButton share=r439Action(a,"share","공유",false,()->r443ShareKeepGallery(a,g));
       GalleryActionButton map=r439Action(a,"map","지도",true,()->r439Call(g,"r225OpenNaver"));
-      // Flexible capsule width based on number of registered actions: when future
-      // actions are added, widen this capsule only; the protected filmstrip is untouched.
+      // Third icon-only action toggles the ORIGINAL compact capture-info card.
+      // The lower pin remains GPS/navigation. This simple fold-map glyph is
+      // informational and must never trigger navigation.
+      LinearLayout infoAction=new LinearLayout(a);infoAction.setGravity(Gravity.CENTER);
+      infoAction.setMinimumHeight(dpx(a,42));infoAction.setClickable(true);infoAction.setFocusable(true);
+      infoAction.setTag("moa.gallery.action.info.r459");
+      infoAction.setContentDescription("촬영 시간과 주소 펼치기");
+      GradientDrawable infoRippleMask=new GradientDrawable();infoRippleMask.setColor(0xffffffff);
+      infoRippleMask.setCornerRadius(dpx(a,18));
+      infoAction.setBackground(new RippleDrawable(ColorStateList.valueOf(0x44ffffff),null,infoRippleMask));
+      GalleryFoldMapGlyph folded=new GalleryFoldMapGlyph(a);
+      // 25dp canvas produces an actual ~20dp white folded map mark, matching
+      // the neighboring original 21dp Gallery Share/Map icons.
+      infoAction.addView(folded,new LinearLayout.LayoutParams(dpx(a,25),dpx(a,25)));
+      // Shared 50dp footer / existing swipe rail remain untouched; only the
+      // flexible capsule grows from two actions to three.
       capsule.addView(share.touch,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
       capsule.addView(map.touch,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
-      int count=2, width=Math.min(Math.max(dpx(a,120),host.getWidth()-dpx(a,30)),dpx(a,20+count*65));
+      capsule.addView(infoAction,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
+      int count=3, width=Math.min(Math.max(dpx(a,120),host.getWidth()-dpx(a,30)),dpx(a,20+count*65));
       FrameLayout.LayoutParams capParams=new FrameLayout.LayoutParams(width,dpx(a,42),Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
       capParams.bottomMargin=dpx(a,3);
       overlay.addView(capsule,capParams);
@@ -896,18 +918,12 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
           infoOldTop=ilp.topMargin; // R451: source metadata stays unmodified / hidden.
         }
       }
-      // R451: the map-fold symbol and expanded compact card REPLACE one
-      // another at the SAME status-bar-safe top-center coordinates.
+      // Upper container now holds ONLY the expanded metadata. The original
+      // upper folded-map icon has been rehomed into the third bottom action.
       FrameLayout toggle=new FrameLayout(a);
-      toggle.setTag("moa.gallery.top.compact.info.r451");
-      toggle.setClickable(true);toggle.setFocusable(true);
-      toggle.setContentDescription("촬영 시간과 주소 펼치기");
-      GalleryFoldMapGlyph folded=new GalleryFoldMapGlyph(a);
-      GradientDrawable iconBg=new GradientDrawable();iconBg.setColor(0x661c1d22);
-      iconBg.setCornerRadius(dpx(a,13));
-      folded.setBackground(iconBg);
-      FrameLayout.LayoutParams foldedLp=new FrameLayout.LayoutParams(dpx(a,42),dpx(a,36),Gravity.CENTER);
-      toggle.addView(folded,foldedLp);
+      toggle.setTag("moa.gallery.top.compact.info.r459");
+      toggle.setClickable(false);toggle.setFocusable(false);
+      toggle.setContentDescription("촬영 시간과 주소 정보 패널");
       LinearLayout card=new LinearLayout(a);card.setOrientation(LinearLayout.VERTICAL);
       card.setPadding(dpx(a,11),dpx(a,7),dpx(a,11),dpx(a,7));
       GradientDrawable cardBg=new GradientDrawable();cardBg.setColor(0xcc1b1d22);
@@ -935,13 +951,22 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       LinearLayout.LayoutParams cbLp=new LinearLayout.LayoutParams(-1,dpx(a,26));
       cbLp.topMargin=dpx(a,2);card.addView(always,cbLp);
       int w=Math.max(dpx(a,180),Math.min(dpx(a,322),host.getWidth()-dpx(a,24)));
-      FrameLayout.LayoutParams topLp=new FrameLayout.LayoutParams(auto?w:dpx(a,42),auto?-2:dpx(a,36),Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+      FrameLayout.LayoutParams topLp=new FrameLayout.LayoutParams(w,-2,Gravity.TOP|Gravity.CENTER_HORIZONTAL);
       topLp.topMargin=r447TopToggleY(a,host);
       host.addView(toggle,topLp);toggle.setElevation(dpx(a,24));toggle.bringToFront();
       GalleryActions entry=new GalleryActions(g,host,lower,overlay,map.touch,map.glyph,info,toggle,always,
-        folded,card,time,address,infoOldTop,initial,reserved);
+        folded,infoAction,card,time,address,infoOldTop,initial,reserved);
       entry.infoExpanded=auto;
-      toggle.setOnClickListener(v->{entry.infoExpanded=!entry.infoExpanded;r443UpdateTopInfo(a,entry,true);});
+      // No top-tap listener. Both expand and collapse originate from the
+      // SAME third icon in the footer, unless '기본 표시' is checked (pinned).
+      infoAction.setOnClickListener(v->{
+        if(entry.infoExpanded&&entry.autoShow.isChecked()){
+          infoAction.setContentDescription("기본 표시 체크를 해제해야 촬영정보를 접을 수 있습니다");
+          return;
+        }
+        entry.infoExpanded=!entry.infoExpanded;
+        r443UpdateTopInfo(a,entry,true);
+      });
       always.setOnCheckedChangeListener((buttonView,checked)->{
         a.getSharedPreferences(GALLERY_INFO_PREFS,0).edit().putBoolean("show_on_open",checked).apply();
         // Checking changes the DEFAULT for future Gallery opens; do not
