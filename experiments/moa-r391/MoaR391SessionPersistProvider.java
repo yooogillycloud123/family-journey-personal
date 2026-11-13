@@ -14,6 +14,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
+import android.util.TypedValue;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -68,7 +70,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // Actual launcher alias targets MoaIconHost (DEX: subclasses AudioHost -> VoiceHost -> HostActivity).
   private static final String LAUNCHER_HOST="com.juhyeon.familyjourney.MoaIconHost";
   private static final String CTRL="com.juhyeon.familyjourney.MoaNaverWebProbeController";
-  private static final String TAG="MOA_R447_TOP_TOGGLE";
+  private static final String TAG="MOA_R451_FOLD_MAP_INFO";
   private static final Handler UI=new Handler(Looper.getMainLooper());
   private static final long VISIBLE_LAYOUT_MS=460L;
   private static final long REARM_COOLDOWN_MS=18000L;
@@ -585,6 +587,9 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     final View mapButton;
     final View mapGlyph;
     final LinearLayout info;
+    final LinearLayout compact;
+    final TextView compactTime;
+    final TextView compactAddress;
     final View toggle;
     final CheckBox autoShow;
     final int originalInfoTop;
@@ -593,9 +598,11 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     boolean mapEnabled=false;
     boolean infoExpanded=false;
     GalleryActions(Object g,FrameLayout h,LinearLayout l,FrameLayout r,View mb,View mi,
-       LinearLayout info,View toggle,CheckBox autoShow,int infoTop,int old,int reserve){
+        LinearLayout info,LinearLayout compact,TextView time,TextView address,
+        View toggle,CheckBox autoShow,int infoTop,int old,int reserve){
       gallery=g;host=h;lower=l;root=r;mapButton=mb;mapGlyph=mi;
-      this.info=info;this.toggle=toggle;this.autoShow=autoShow;
+      this.info=info;this.compact=compact;this.compactTime=time;
+      this.compactAddress=address;this.toggle=toggle;this.autoShow=autoShow;
       originalInfoTop=infoTop;oldBottomMargin=old;reservedHeight=reserve;
     }
   }
@@ -680,37 +687,85 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     int safe=Math.max(dpx(a,10),sysTop-hostScreenY+dpx(a,8));
     return Math.min(safe,Math.max(dpx(a,12),host.getHeight()-dpx(a,72)));
   }
-  // Tiny top arrow remains tappable even when date/address panel is collapsed.
-  // '기본 표시' inside the expanded metadata panel controls the persisted initial
-  // state for future gallery openings; default is intentionally COLLAPSED.
+  // R451: Three-fold MAP SYMBOL ONLY. No Korean '정보', chevron or capsule.
+  // 44dp transparent touch zone, 28dp solid map glyph; no image asset/license.
+  private static final class GalleryFoldMapIcon extends View {
+    private final Paint ink=new Paint(Paint.ANTI_ALIAS_FLAG);
+    GalleryFoldMapIcon(Activity a){super(a);setWillNotDraw(false);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+    @Override protected void onDraw(Canvas c){
+      super.onDraw(c);
+      float s=Math.min(getWidth(),getHeight())/45f;
+      c.save();c.translate((getWidth()-30*s)/2f,(getHeight()-28*s)/2f);c.scale(s,s);
+      ink.setStyle(Paint.Style.FILL);ink.setColor(0xfff7f7f8);
+      ink.setShadowLayer(2.0f,0f,1f,0x99000000);
+      Path left=new Path();
+      left.moveTo(9.7f,1f);left.lineTo(9.7f,23.6f);left.lineTo(2.9f,27f);
+      left.quadTo(.8f,28f,.8f,25.7f);left.lineTo(.8f,7.9f);
+      left.quadTo(.8f,6.9f,1.8f,6.1f);left.close();c.drawPath(left,ink);
+      Path mid=new Path();mid.moveTo(12.1f,1f);mid.lineTo(18.5f,5.2f);
+      mid.lineTo(18.5f,27f);mid.lineTo(12.1f,23.1f);mid.close();c.drawPath(mid,ink);
+      Path right=new Path();right.moveTo(20.9f,5.4f);right.lineTo(27.2f,.8f);
+      right.quadTo(29.2f,-.6f,29.2f,2f);right.lineTo(29.2f,21.3f);
+      right.quadTo(29.2f,22.6f,28f,23.5f);right.lineTo(20.9f,27f);
+      right.close();c.drawPath(right,ink);c.restore();
+    }
+  }
+  // Read existing native Gallery TextViews. Never invent an EXIF timestamp,
+  // geocode an address, or change the Gallery/MediaStore/Map implementation.
+  private static void r451CollectInfoText(View v,java.util.ArrayList<String> texts){
+    if(v==null)return;
+    if(v instanceof TextView && !(v instanceof CheckBox)){
+      String t=String.valueOf(((TextView)v).getText()).trim();
+      if(!t.isEmpty() && !t.equals("null") && !texts.contains(t))texts.add(t);
+    }
+    if(v instanceof ViewGroup){
+      ViewGroup g=(ViewGroup)v;
+      for(int k=0;k<g.getChildCount();k++)r451CollectInfoText(g.getChildAt(k),texts);
+    }
+  }
+  private static void r451RefreshCompactText(GalleryActions e){
+    String date="",address="";
+    // R225's real native TextViews: these track selected photo/video changes,
+    // EXIF, MediaStore, cached diary timestamp and Geocoder updates already.
+    try{
+      Object d=r439Field(e.gallery.getClass(),"r225CaptureTime").get(e.gallery);
+      Object p=r439Field(e.gallery.getClass(),"r225Address").get(e.gallery);
+      if(d instanceof TextView)date=String.valueOf(((TextView)d).getText()).trim();
+      if(p instanceof TextView)address=String.valueOf(((TextView)p).getText()).trim();
+    }catch(Throwable ignored){}
+    // Fallback is read-only, restricted to the original native info view.
+    if(date.isEmpty()||address.isEmpty()){
+      java.util.ArrayList<String> texts=new java.util.ArrayList<>();
+      r451CollectInfoText(e.info,texts);
+      if(date.isEmpty()&&texts.size()>0)date=texts.get(0);
+      if(address.isEmpty()&&texts.size()>1)address=texts.get(1);
+    }
+    if(!date.contentEquals(e.compactTime.getText()))e.compactTime.setText(date);
+    if(!address.contentEquals(e.compactAddress.getText()))e.compactAddress.setText(address);
+    e.compactAddress.setVisibility(address.isEmpty()?View.GONE:View.VISIBLE);
+  }
   private static void r443UpdateTopInfo(Activity a,GalleryActions entry,boolean galleryChrome){
     if(entry.toggle==null||entry.toggle.getParent()!=entry.host)return;
-    // Make the collapsed control independently visible; it must NOT inherit
-    // the original r225Info panel's GONE visibility, nor sit in the status bar.
-    int toggleTop=r447TopToggleY(a,entry.host);
+    final int toggleTop=r447TopToggleY(a,entry.host);
     if(entry.toggle.getLayoutParams() instanceof FrameLayout.LayoutParams){
       FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)entry.toggle.getLayoutParams();
       if(lp.topMargin!=toggleTop){lp.topMargin=toggleTop;entry.toggle.setLayoutParams(lp);}
     }
-    if(entry.info!=null){
-      int wantTop=toggleTop+dpx(a,44);
-      if(entry.info.getLayoutParams() instanceof FrameLayout.LayoutParams){
-        FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)entry.info.getLayoutParams();
-        if(p.topMargin!=wantTop){p.topMargin=wantTop;entry.info.setLayoutParams(p);}
-      }
+    // Original metadata remains readable by Android and retains its NAVER
+    // location state, but its oversized card and original pin are NOT drawn.
+    if(entry.info!=null&&entry.info.getVisibility()!=View.GONE)entry.info.setVisibility(View.GONE);
+    if(entry.compact!=null){
       int desired=galleryChrome&&entry.infoExpanded?View.VISIBLE:View.GONE;
-      if(entry.info.getVisibility()!=desired)entry.info.setVisibility(desired);
+      FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)entry.compact.getLayoutParams();
+      int y=toggleTop+dpx(a,43);
+      int width=Math.min(dpx(a,340),Math.max(dpx(a,170),entry.host.getWidth()-dpx(a,24)));
+      if(p.topMargin!=y||p.width!=width){p.topMargin=y;p.width=width;entry.compact.setLayoutParams(p);}
+      if(entry.compact.getVisibility()!=desired)entry.compact.setVisibility(desired);
+      if(desired==View.VISIBLE){r451RefreshCompactText(entry);entry.compact.setElevation(dpx(a,23));entry.compact.bringToFront();}
     }
-    int toggleVisibility=galleryChrome?View.VISIBLE:View.GONE;
-    if(entry.toggle.getVisibility()!=toggleVisibility)entry.toggle.setVisibility(toggleVisibility);
-    if(entry.toggle instanceof TextView){
-      TextView t=(TextView)entry.toggle;
-      String title=entry.infoExpanded?"정보 ⌃":"정보 ⌄";
-      if(!title.contentEquals(t.getText()))t.setText(title);
-      t.setContentDescription(entry.infoExpanded?"촬영 시간 및 위치 정보 접기":"촬영 시간 및 위치 정보 펼치기");
-    }
-    // The native Gallery re-lays out its original media controls on videos.
-    // Ensure the small control always stays visually above their overlay.
+    int show=galleryChrome?View.VISIBLE:View.GONE;
+    if(entry.toggle.getVisibility()!=show)entry.toggle.setVisibility(show);
+    entry.toggle.setContentDescription(entry.infoExpanded?"촬영 시간 및 위치 정보 접기":"촬영 시간 및 위치 정보 펼치기");
     if(galleryChrome){entry.toggle.setElevation(dpx(a,24));entry.toggle.bringToFront();}
   }
   // Simple canvas strokes avoid device-font-dependent emoji/icon spacing.
@@ -764,7 +819,8 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
           lp.bottomMargin=entry.oldBottomMargin;entry.lower.setLayoutParams(lp);
         }
       }
-      if(entry.autoShow!=null&&entry.autoShow.getParent()==entry.info)entry.info.removeView(entry.autoShow);
+      if(entry.compact!=null&&entry.compact.getParent() instanceof ViewGroup)
+         ((ViewGroup)entry.compact.getParent()).removeView(entry.compact);
       if(entry.info!=null&&entry.info.getLayoutParams() instanceof FrameLayout.LayoutParams){
         FrameLayout.LayoutParams infoLp=(FrameLayout.LayoutParams)entry.info.getLayoutParams();
         if(infoLp.topMargin!=entry.originalInfoTop){infoLp.topMargin=entry.originalInfoTop;entry.info.setLayoutParams(infoLp);}
@@ -838,42 +894,66 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       FrameLayout.LayoutParams deckParams=new FrameLayout.LayoutParams(-1,reserved,Gravity.BOTTOM);
       host.addView(overlay,deckParams);
       lowerLp.bottomMargin=initial+reserved;lower.setLayoutParams(lowerLp);
-      // R443: top metadata no longer sits permanently over the photo/video.
-      // We keep its existing date, resolved address, and original NAVER pin.
+      // R451: preserve original dynamic metadata as the single source of
+      // truth; paint only a small independent card when the fold-map is tapped.
       LinearLayout info=null;int infoOldTop=0;
       Object infoObj=r439Field(g.getClass(),"r225Info").get(g);
       if(infoObj instanceof LinearLayout && ((View)infoObj).getParent()==host){
         info=(LinearLayout)infoObj;
         if(info.getLayoutParams() instanceof FrameLayout.LayoutParams){
           FrameLayout.LayoutParams ilp=(FrameLayout.LayoutParams)info.getLayoutParams();
-          infoOldTop=ilp.topMargin;ilp.topMargin=dpx(a,26);info.setLayoutParams(ilp);
+          infoOldTop=ilp.topMargin;
         }
       }
-      // R447: small but legible, status-bar-safe expandable info chip.
-      TextView toggle=new TextView(a);toggle.setText("정보 ⌄");toggle.setTextSize(11f);
-      toggle.setTextColor(0xfff3f3f5);toggle.setGravity(Gravity.CENTER);
+      GalleryFoldMapIcon toggle=new GalleryFoldMapIcon(a);
+      toggle.setClickable(true);toggle.setFocusable(true);
       toggle.setContentDescription("촬영 시간 및 위치 정보 펼치기");
-      GradientDrawable infoChip=new GradientDrawable();infoChip.setColor(0xd31d2025);
-      infoChip.setCornerRadius(dpx(a,16));infoChip.setStroke(dpx(a,.5f),0x558c8d94);
-      toggle.setBackground(infoChip);toggle.setClickable(true);toggle.setFocusable(true);
-      toggle.setTag("moa.gallery.top.info.toggle.r447");
-      FrameLayout.LayoutParams topLp=new FrameLayout.LayoutParams(dpx(a,74),dpx(a,36),Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+      toggle.setTag("moa.gallery.top.fold.map.r451");
+      FrameLayout.LayoutParams topLp=new FrameLayout.LayoutParams(dpx(a,44),dpx(a,44),Gravity.TOP|Gravity.CENTER_HORIZONTAL);
       topLp.topMargin=r447TopToggleY(a,host);
-      host.addView(toggle,topLp);toggle.setElevation(dpx(a,24));toggle.bringToFront();
-      CheckBox always=new CheckBox(a);always.setText("기본 표시");always.setTextSize(11f);
-      always.setTextColor(0xffd4d4dc);
-      always.setButtonTintList(ColorStateList.valueOf(0xffcaa2bb));
-      always.setPadding(dpx(a,6),0,0,0);
-      always.setContentDescription("다음부터 촬영 정보 기본 표시");
+      host.addView(toggle,topLp);toggle.setElevation(dpx(a,24));
+      LinearLayout compact=new LinearLayout(a);
+      compact.setOrientation(LinearLayout.VERTICAL);compact.setGravity(Gravity.CENTER_VERTICAL);
+      compact.setPadding(dpx(a,12),dpx(a,7),dpx(a,12),dpx(a,8));
+      compact.setTag("moa.gallery.top.compact.info.r451");
+      GradientDrawable card=new GradientDrawable();
+      card.setColor(0xdc1d1f23);card.setCornerRadius(dpx(a,13));
+      card.setStroke(dpx(a,.5f),0x556a6b72);compact.setBackground(card);
+      LinearLayout row=new LinearLayout(a);row.setOrientation(LinearLayout.HORIZONTAL);
+      row.setGravity(Gravity.CENTER_VERTICAL);
+      TextView time=new TextView(a);time.setTextSize(12f);time.setTextColor(0xfff3f3f5);
+      time.setSingleLine(true);time.setEllipsize(TextUtils.TruncateAt.END);
+      if(Build.VERSION.SDK_INT>=26)time.setAutoSizeTextTypeUniformWithConfiguration(9,12,1,TypedValue.COMPLEX_UNIT_SP);
+      row.addView(time,new LinearLayout.LayoutParams(0,-2,1f));
+      CheckBox always=new CheckBox(a);
+      always.setText("기본 표시");always.setTextSize(10f);always.setTextColor(0xffe2d7de);
+      always.setButtonTintList(ColorStateList.valueOf(0xffcda7bf));
+      always.setPadding(dpx(a,2),0,0,0);always.setMinWidth(0);always.setMinimumWidth(0);
+      always.setContentDescription("다음 갤러리 열 때 촬영 정보를 기본 표시");
+      row.addView(always,new LinearLayout.LayoutParams(-2,dpx(a,29)));
+      compact.addView(row,new LinearLayout.LayoutParams(-1,-2));
+      TextView address=new TextView(a);address.setTextSize(11f);
+      address.setTextColor(0xffdedee2);address.setMaxLines(2);
+      address.setEllipsize(TextUtils.TruncateAt.END);
+      if(Build.VERSION.SDK_INT>=26)address.setAutoSizeTextTypeUniformWithConfiguration(9,11,1,TypedValue.COMPLEX_UNIT_SP);
+      compact.addView(address,new LinearLayout.LayoutParams(-1,-2));
+      FrameLayout.LayoutParams cardLp=new FrameLayout.LayoutParams(dpx(a,340),-2,Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+      cardLp.topMargin=topLp.topMargin+dpx(a,43);
+      host.addView(compact,cardLp);compact.setElevation(dpx(a,23));
       boolean auto=a.getSharedPreferences(GALLERY_INFO_PREFS,0).getBoolean("show_on_open",false);
       always.setChecked(auto);
-      if(info!=null)info.addView(always,new LinearLayout.LayoutParams(-1,dpx(a,31)));
-      GalleryActions entry=new GalleryActions(g,host,lower,overlay,map.touch,map.glyph,info,toggle,always,infoOldTop,initial,reserved);
+      GalleryActions entry=new GalleryActions(g,host,lower,overlay,map.touch,map.glyph,
+          info,compact,time,address,toggle,always,infoOldTop,initial,reserved);
       entry.infoExpanded=auto;
       toggle.setOnClickListener(v->{entry.infoExpanded=!entry.infoExpanded;r443UpdateTopInfo(a,entry,true);});
+      // When NOT pinned, tapping the contents itself also collapses it.
+      // When pinned, content taps do nothing; the checkbox remains interactive.
+      compact.setClickable(true);
+      compact.setOnClickListener(v->{if(!always.isChecked()){entry.infoExpanded=false;r443UpdateTopInfo(a,entry,true);}});
       always.setOnCheckedChangeListener((buttonView,checked)->{
         a.getSharedPreferences(GALLERY_INFO_PREFS,0).edit().putBoolean("show_on_open",checked).apply();
       });
+
       GALLERY_BARS.put(a,entry);
       r439UpdateGalleryBar(a,entry);
       // Re-anchor the existing video volume bubble to its original mute button

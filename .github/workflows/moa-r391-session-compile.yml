@@ -1,7 +1,7 @@
-name: MOA R447 Inset-Safe Gallery Info Toggle DEX
+name: MOA R451 Fold Map Compact Gallery Metadata DEX
 on:
   push:
-    branches: [feature/moa-r391-session-persist-20261112, feature/moa-r407-real-launcher-class-fix-20261112, feature/moa-r411-window-masked-rearm-keepalive-20261112, feature/moa-r415-gallery-owner-freeze-view-20261112, feature/moa-r419-visual-stability-20261113, feature/moa-r423-splash-theme-opaque-20261113, feature/moa-r427-collapsible-transparent-webbar-20261113, feature/moa-r431-naver-webbar-safe-touch-home-20261113, feature/moa-r435-draggable-naver-home-20261113, feature/moa-r439-gallery-bottom-actions-20261113, feature/moa-r443-gallery-top-collapse-share-retain-20261113, feature/moa-r447-gallery-info-toggle-inset-20261113]
+    branches: [feature/moa-r391-session-persist-20261112, feature/moa-r407-real-launcher-class-fix-20261112, feature/moa-r411-window-masked-rearm-keepalive-20261112, feature/moa-r415-gallery-owner-freeze-view-20261112, feature/moa-r419-visual-stability-20261113, feature/moa-r423-splash-theme-opaque-20261113, feature/moa-r427-collapsible-transparent-webbar-20261113, feature/moa-r431-naver-webbar-safe-touch-home-20261113, feature/moa-r435-draggable-naver-home-20261113, feature/moa-r439-gallery-bottom-actions-20261113, feature/moa-r443-gallery-top-collapse-share-retain-20261113, feature/moa-r447-gallery-info-toggle-inset-20261113, feature/moa-r451-gallery-fold-map-compact-info-20261113]
     paths:
       - 'experiments/moa-r391/**'
       - '.github/workflows/moa-r391-session-compile.yml'
