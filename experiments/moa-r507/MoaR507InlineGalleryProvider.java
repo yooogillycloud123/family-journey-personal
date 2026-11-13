@@ -430,7 +430,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     GradientDrawable bg=new GradientDrawable();bg.setColor(0xbb24272e);bg.setCornerRadius(dp(a,12));
     bg.setStroke(dp(a,.6f),0x668b8f99);control.setBackground(bg);
     FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(a,32),dp(a,26),Gravity.RIGHT|Gravity.BOTTOM);
-    lp.rightMargin=dp(a,9);lp.bottomMargin=dp(a,190);
+    lp.rightMargin=dp(a,9);lp.bottomMargin=dp(a,112);
     host.addView(control,lp);control.setElevation(dp(a,7));
     control.setOnClickListener(v->{
       setRailExpanded(a,!railExpanded);
@@ -450,7 +450,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       railToggle.setContentDescription(expanded?"사진 목록 접기":"사진 목록 펼치기");
       if(railToggle.getLayoutParams() instanceof FrameLayout.LayoutParams){
         FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)railToggle.getLayoutParams();
-        p.bottomMargin=dp(a,expanded?181:120);railToggle.setLayoutParams(p);
+        p.bottomMargin=dp(a,expanded?112:80);railToggle.setLayoutParams(p);
       }
     }
   }
