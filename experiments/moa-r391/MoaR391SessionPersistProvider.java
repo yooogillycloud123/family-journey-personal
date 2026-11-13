@@ -19,6 +19,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
+import android.view.VelocityTracker;
+import android.animation.ValueAnimator;
 import android.view.WindowManager;
 import android.graphics.PixelFormat;
 import android.webkit.WebView;
@@ -590,6 +592,10 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     final CheckBox autoShow;
     final View collapsedSymbol;
     final View infoAction;
+    final View fastAction;
+    final GalleryFastSwipeGlyph fastGlyph;
+    StageScrub stageScrub;
+    boolean fastSwipeEnabled=false;
     final View compactCard;
     final TextView compactTime;
     final TextView compactAddress;
@@ -600,11 +606,12 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     boolean infoExpanded=false;
     GalleryActions(Object g,FrameLayout h,LinearLayout l,FrameLayout r,View mb,View mi,
        LinearLayout info,View toggle,CheckBox autoShow,View symbol,View infoAction,View card,
-       TextView compactTime,TextView compactAddress,int infoTop,int old,int reserve){
+       TextView compactTime,TextView compactAddress,View fastAction,GalleryFastSwipeGlyph fastGlyph,int infoTop,int old,int reserve){
       gallery=g;host=h;lower=l;root=r;mapButton=mb;mapGlyph=mi;
       this.info=info;this.toggle=toggle;this.autoShow=autoShow;
       this.collapsedSymbol=symbol;this.infoAction=infoAction;this.compactCard=card;
       this.compactTime=compactTime;this.compactAddress=compactAddress;
+      this.fastAction=fastAction;this.fastGlyph=fastGlyph;
       originalInfoTop=infoTop;oldBottomMargin=old;reservedHeight=reserve;
     }
   }
@@ -750,7 +757,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       // R455: keep the 42x36dp tap surface and same-anchor compact card,
       // but cap the DRAWN three-fold map glyph at ~20dp, matching the
       // R443/R451 bottom Share glyph (~21dp). Do not resize the hitbox.
-      float maxGlyphPx=25f*getResources().getDisplayMetrics().density;
+      float maxGlyphPx=18f*getResources().getDisplayMetrics().density;
       float scale=Math.min(Math.min(getWidth(),getHeight()),maxGlyphPx)/35f;
       c.save();c.translate((getWidth()-35f*scale)*.5f,(getHeight()-35f*scale)*.5f);c.scale(scale,scale);
       pen.setColor(0xffe5e6e9);pen.setStyle(Paint.Style.FILL);
@@ -766,6 +773,185 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     v.setIncludeFontPadding(false);v.setGravity(Gravity.CENTER_VERTICAL);
     return v;
   }
+  // R463: visual-only bidirectional double-chevron action. The icon is as
+  // compact as the existing 21dp Share/Map controls, not a fourth large glyph.
+  private static final class GalleryFastSwipeGlyph extends View {
+    private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
+    private boolean active=false;
+    GalleryFastSwipeGlyph(Activity a){super(a);setWillNotDraw(false);}
+    void setActive(boolean enabled){active=enabled;invalidate();}
+    @Override protected void onDraw(Canvas c){
+      super.onDraw(c);
+      float scale=Math.min(getWidth(),getHeight())/26f;
+      c.save();c.translate((getWidth()-26f*scale)*.5f,(getHeight()-26f*scale)*.5f);
+      c.scale(scale,scale);
+      paint.setColor(active?0xfffaf4f9:0xffa0a3ad);
+      paint.setStrokeWidth(2.35f);paint.setStyle(Paint.Style.STROKE);
+      paint.setStrokeJoin(Paint.Join.ROUND);paint.setStrokeCap(Paint.Cap.ROUND);
+      c.drawLine(5,6,12,13,paint);c.drawLine(12,13,5,20,paint);
+      c.drawLine(14,6,21,13,paint);c.drawLine(21,13,14,20,paint);
+      if(active){paint.setStyle(Paint.Style.FILL);c.drawCircle(13,24,1.35f,paint);}
+      c.restore();
+    }
+  }
+
+  // R463 uses the SAME R203 fractional media index and Android OverScroller
+  // that already power the fast bottom filmstrip. It does not invent a second
+  // gallery/navigation engine, and it never touches R435's classes6.dex.
+  // The native original SwipeHandler remains installed on its original View.
+  // We mount a distinct overlay ONLY in user-selected fast mode; OFF removes it.
+  private static final class StageScrub implements View.OnTouchListener {
+    final GalleryActions entry;
+    final Object gallery;
+    final Class<?> type;
+    final FrameLayout stage;
+    final View originalTouch;
+    final View overlay;
+    final Method present;
+    final Method release;
+    final Method cancelFling;
+    final Method teardown;
+    final Field indexField;
+    final Field zoomField;
+    final Field railBrowsingField;
+    final Field motionField;
+    final int slop;
+    final float stride;
+    float downX,downY,startIndex,currentIndex;
+    long downTime;
+    VelocityTracker velocity;
+    boolean delegated=false,scrubbing=false;
+    StageScrub(Activity a,GalleryActions e) throws Exception {
+      entry=e;gallery=e.gallery;type=gallery.getClass();
+      Object stageObj=r439Field(type,"stage").get(gallery);
+      if(!(stageObj instanceof FrameLayout))throw new IllegalStateException("No native Gallery stage");
+      stage=(FrameLayout)stageObj;
+      if(stage.getChildCount()<4)throw new IllegalStateException("Gallery stage hierarchy changed");
+      // R227/R435 Gallery stage is three media pages + final transparent
+      // SwipeHandler View. Fail closed rather than intercept unrelated controls.
+      View found=stage.getChildAt(stage.getChildCount()-1);
+      if(found==null||found.getClass()!=View.class)throw new IllegalStateException("Native SwipeHandler target changed");
+      originalTouch=found;
+      present=type.getDeclaredMethod("r203Present",float.class);present.setAccessible(true);
+      release=type.getDeclaredMethod("r203ReleaseWithVelocity",float.class,float.class,float.class);release.setAccessible(true);
+      cancelFling=type.getDeclaredMethod("r203CancelFling");cancelFling.setAccessible(true);
+      teardown=type.getDeclaredMethod("teardownPlayer");teardown.setAccessible(true);
+      indexField=r439Field(type,"index");zoomField=r439Field(type,"photoZoom");
+      railBrowsingField=r439Field(type,"browsingRail");motionField=r439Field(type,"motion");
+      stride=Math.max(1f,dpx(a,44));
+      slop=Math.max(dpx(a,7),ViewConfiguration.get(a).getScaledTouchSlop());
+      overlay=new View(a);overlay.setBackgroundColor(0x00000000);
+      overlay.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+      overlay.setOnTouchListener(this);
+      stage.addView(overlay,new FrameLayout.LayoutParams(-1,-1));
+      overlay.bringToFront();
+    }
+    boolean attached(){return overlay.getParent()==stage;}
+    void destroy(){
+      recycleVelocity();
+      if(scrubbing)try{release.invoke(gallery,currentIndex,0f,1f);}catch(Throwable ignored){}
+      if(overlay.getParent()==stage)stage.removeView(overlay);
+      scrubbing=false;delegated=false;
+    }
+    void recycleVelocity(){if(velocity!=null){velocity.recycle();velocity=null;}}
+    void deliverDown(){
+      MotionEvent down=MotionEvent.obtain(downTime,downTime,MotionEvent.ACTION_DOWN,downX,downY,0);
+      try{originalTouch.dispatchTouchEvent(down);}finally{down.recycle();}
+      delegated=true;
+    }
+    void deliver(MotionEvent e){originalTouch.dispatchTouchEvent(e);}
+    void beginScrub() throws Exception {
+      cancelFling.invoke(gallery);
+      Object motion=motionField.get(gallery);
+      if(motion instanceof ValueAnimator){motionField.set(gallery,null);((ValueAnimator)motion).cancel();}
+      // Same media/video lifecycle used by original bottom GalleryRail when
+      // the user actually begins a multi-item horizontal drag.
+      teardown.invoke(gallery);
+      railBrowsingField.setBoolean(gallery,true);
+      scrubbing=true;
+    }
+    void scrubTo(float x) throws Exception {
+      currentIndex=startIndex-(x-downX)/stride;
+      present.invoke(gallery,currentIndex);
+    }
+    void releaseScrub(float vx) throws Exception {
+      // Original native OverScroller handles momentum, photo/video fractions,
+      // thumbnail sync, prefetch and final video preparation.
+      release.invoke(gallery,currentIndex,vx,1f);
+      scrubbing=false;
+    }
+    @Override public boolean onTouch(View v,MotionEvent ev){
+      if(!entry.fastSwipeEnabled||!attached())return false;
+      try{
+        if(!r439Field(type,"open").getBoolean(gallery))return false;
+        switch(ev.getActionMasked()){
+          case MotionEvent.ACTION_DOWN:
+            recycleVelocity();velocity=VelocityTracker.obtain();velocity.addMovement(ev);
+            downTime=ev.getDownTime();downX=ev.getX();downY=ev.getY();
+            startIndex=indexField.getInt(gallery);currentIndex=startIndex;
+            delegated=false;scrubbing=false;
+            // Existing photo pinch/zoom retains its original handler.
+            if(zoomField.getFloat(gallery)>1.01f)deliverDown();
+            return true;
+          case MotionEvent.ACTION_POINTER_DOWN:
+            if(scrubbing){releaseScrub(0f);}
+            if(!delegated)deliverDown();
+            deliver(ev);return true;
+          case MotionEvent.ACTION_MOVE:
+            if(velocity!=null)velocity.addMovement(ev);
+            if(delegated){deliver(ev);return true;}
+            if(ev.getPointerCount()!=1){deliverDown();deliver(ev);return true;}
+            float dx=ev.getX()-downX,dy=ev.getY()-downY;
+            if(!scrubbing){
+              if(Math.abs(dy)>slop&&Math.abs(dy)>Math.abs(dx)*1.12f){
+                deliverDown();deliver(ev);return true;
+              }
+              if(Math.abs(dx)<slop||Math.abs(dx)<Math.abs(dy)*1.12f)return true;
+              beginScrub();
+            }
+            scrubTo(ev.getX());return true;
+          case MotionEvent.ACTION_UP:
+            if(velocity!=null)velocity.addMovement(ev);
+            if(delegated){deliver(ev);recycleVelocity();return true;}
+            if(scrubbing){
+              scrubTo(ev.getX());float vx=0f;
+              if(velocity!=null){velocity.computeCurrentVelocity(1000,12000f);vx=velocity.getXVelocity();}
+              releaseScrub(vx);
+            }else{deliverDown();deliver(ev);} // taps, photo double-tap, video controls
+            recycleVelocity();return true;
+          case MotionEvent.ACTION_POINTER_UP:
+            if(delegated)deliver(ev);
+            return true;
+          case MotionEvent.ACTION_CANCEL:
+            if(delegated)deliver(ev);
+            if(scrubbing)releaseScrub(0f);
+            recycleVelocity();return true;
+          default:
+            if(delegated)deliver(ev);
+            return true;
+        }
+      }catch(Throwable error){
+        Log.w(TAG,"FAST_STAGE_TOUCH_"+error.getClass().getSimpleName());
+        try{if(scrubbing)releaseScrub(0f);}catch(Throwable ignored){}
+        recycleVelocity();return true;
+      }
+    }
+  }
+  private static boolean r463EnableFastSwipe(Activity a,GalleryActions entry){
+    try{
+      if(entry.stageScrub!=null&&entry.stageScrub.attached())return true;
+      entry.stageScrub=new StageScrub(a,entry);
+      return true;
+    }catch(Throwable t){Log.w(TAG,"FAST_STAGE_ATTACH_"+t.getClass().getSimpleName());return false;}
+  }
+  private static void r463DisableFastSwipe(GalleryActions entry){
+    if(entry.stageScrub!=null){entry.stageScrub.destroy();entry.stageScrub=null;}
+    entry.fastSwipeEnabled=false;
+    if(entry.fastAction!=null){entry.fastAction.setSelected(false);
+      entry.fastAction.setContentDescription("상단 빠른 연속 넘기기 켜기");}
+    if(entry.fastGlyph!=null)entry.fastGlyph.setActive(false);
+  }
+
   // Simple canvas strokes avoid device-font-dependent emoji/icon spacing.
   private static final class GalleryGlyph extends View {
     private final boolean map;
@@ -810,6 +996,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   private static void r439RemoveBar(Activity a){
     GalleryActions entry=GALLERY_BARS.remove(a);
     if(entry==null)return;
+    r463DisableFastSwipe(entry);
     try{
       if(entry.lower.getParent()==entry.host&&entry.lower.getLayoutParams() instanceof FrameLayout.LayoutParams){
         FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)entry.lower.getLayoutParams();
@@ -846,6 +1033,9 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         entry.mapButton.setContentDescription(mapActive?"촬영 장소 네이버 지도 열기":"GPS 위치가 없는 사진 · 지도 이용 불가");
       }
       r443UpdateTopInfo(a,entry,chrome);
+      if(entry.fastSwipeEnabled&&(entry.stageScrub==null||!entry.stageScrub.attached())){
+        r463DisableFastSwipe(entry); // fail closed if native stage was rebuilt
+      }
       FrameLayout.LayoutParams lower=(FrameLayout.LayoutParams)entry.lower.getLayoutParams();
       int want=entry.oldBottomMargin+entry.reservedHeight;
       if(lower.bottomMargin!=want){lower.bottomMargin=want;entry.lower.setLayoutParams(lower);}
@@ -894,13 +1084,23 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       GalleryFoldMapGlyph folded=new GalleryFoldMapGlyph(a);
       // 25dp canvas produces an actual ~20dp white folded map mark, matching
       // the neighboring original 21dp Gallery Share/Map icons.
-      infoAction.addView(folded,new LinearLayout.LayoutParams(dpx(a,25),dpx(a,25)));
+      infoAction.addView(folded,new LinearLayout.LayoutParams(dpx(a,21),dpx(a,21)));
       // Shared 50dp footer / existing swipe rail remain untouched; only the
       // flexible capsule grows from two actions to three.
       capsule.addView(share.touch,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
       capsule.addView(map.touch,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
       capsule.addView(infoAction,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
-      int count=3, width=Math.min(Math.max(dpx(a,120),host.getWidth()-dpx(a,30)),dpx(a,20+count*65));
+      // R463 action #4: opt-in upper-stage fast filmstrip physics, default OFF.
+      LinearLayout fastAction=new LinearLayout(a);fastAction.setGravity(Gravity.CENTER);
+      fastAction.setClickable(true);fastAction.setFocusable(true);
+      fastAction.setMinimumHeight(dpx(a,42));fastAction.setTag("moa.gallery.action.faststage.r463");
+      fastAction.setContentDescription("상단 빠른 연속 넘기기 켜기");
+      GradientDrawable fastMask=new GradientDrawable();fastMask.setColor(0xffffffff);fastMask.setCornerRadius(dpx(a,18));
+      fastAction.setBackground(new RippleDrawable(ColorStateList.valueOf(0x44ffffff),null,fastMask));
+      GalleryFastSwipeGlyph fastGlyph=new GalleryFastSwipeGlyph(a);
+      fastAction.addView(fastGlyph,new LinearLayout.LayoutParams(dpx(a,21),dpx(a,21)));
+      capsule.addView(fastAction,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
+      int count=4, width=Math.min(Math.max(dpx(a,120),host.getWidth()-dpx(a,30)),dpx(a,20+count*65));
       FrameLayout.LayoutParams capParams=new FrameLayout.LayoutParams(width,dpx(a,42),Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
       capParams.bottomMargin=dpx(a,3);
       overlay.addView(capsule,capParams);
@@ -955,7 +1155,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       topLp.topMargin=r447TopToggleY(a,host);
       host.addView(toggle,topLp);toggle.setElevation(dpx(a,24));toggle.bringToFront();
       GalleryActions entry=new GalleryActions(g,host,lower,overlay,map.touch,map.glyph,info,toggle,always,
-        folded,infoAction,card,time,address,infoOldTop,initial,reserved);
+        folded,infoAction,card,time,address,fastAction,fastGlyph,infoOldTop,initial,reserved);
       entry.infoExpanded=auto;
       // No top-tap listener. Both expand and collapse originate from the
       // SAME third icon in the footer, unless '기본 표시' is checked (pinned).
@@ -966,6 +1166,17 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         }
         entry.infoExpanded=!entry.infoExpanded;
         r443UpdateTopInfo(a,entry,true);
+      });
+      fastAction.setOnClickListener(v->{
+        if(entry.fastSwipeEnabled){r463DisableFastSwipe(entry);return;}
+        if(!r463EnableFastSwipe(a,entry)){
+          fastAction.setContentDescription("상단 빠른 연속 넘기기를 사용할 수 없습니다");
+          return;
+        }
+        entry.fastSwipeEnabled=true;
+        fastAction.setSelected(true);
+        fastGlyph.setActive(true);
+        fastAction.setContentDescription("상단 빠른 연속 넘기기 켜짐. 눌러서 끄기");
       });
       always.setOnCheckedChangeListener((buttonView,checked)->{
         a.getSharedPreferences(GALLERY_INFO_PREFS,0).edit().putBoolean("show_on_open",checked).apply();
