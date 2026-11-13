@@ -2,7 +2,7 @@
  * No new IndexedDB schema; never replaces native Gallery DEX or original audio functions.
  */
 (()=>{'use strict';
-const KEY='moa.r469.view.v1', DB='familyjourney-diary-v1', coverKey='calendar-covers-r29';
+const KEY='moa.r469.view.v1', DB='familyjourney-diary-v1', coverKey='calendar-covers-r29', R495_SCROLL_KEY='moa.r495.calendar.scroll.v1';
 const getState=()=>window.FamilyJourneyDiary?.state;
 const $=(q,r=document)=>r.querySelector(q);
 const valid=d=>/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(d||'')&&Number.isFinite(new Date(d+'T12:00:00').getTime())&&dayOf(new Date(d+'T12:00:00'))===d;
@@ -13,6 +13,74 @@ const dateLabel=d=>new Date(d+'T12:00:00').toLocaleDateString('ko-KR',{year:'num
 let ui={source:'curated',audioPlaying:false,open:false,page:'calendar',selected:dayOf(Date.now()),month:new Date(new Date().getFullYear(),new Date().getMonth(),1),date:'',media:[],idx:0,fast:false,tools:false,rail:false,info:false,clip:0,clips:[],dirty:false,photoToken:0,gesture:null,dragTarget:null,videoFallback:false,requestGeneration:0};
 let view=null, observer=null, pending=0, backInstalled=false;
 let r475ExitUntilHidden=false, r475AutostartScheduled=false, r475CalendarRefreshPending=false, r475LastDataKey='';
+// R495: user preference is additive; it does not write to original diary/Gallery databases.
+const r495ScrollMode=()=>{try{return localStorage.getItem(R495_SCROLL_KEY)==='page'?'page':'flow'}catch(_){return 'flow'}};
+let r495BackBinding=false,r495ScrollGesture=null,r495WheelUntil=0;
+function r495SetScrollMode(mode){
+ const safe=mode==='page'?'page':'flow';try{localStorage.setItem(R495_SCROLL_KEY,safe)}catch(_){}
+ if(view)view.dataset.monthScroll=safe;
+ document.querySelectorAll('[data-moa-r495-scroll]').forEach(x=>x.checked=x.value===safe);
+ if(ui.open&&ui.page==='calendar')render();
+}
+function r495InstallScrollSetting(){
+ const host=document.querySelector('#moa-r117-photo-settings .moa-r117-inner-rows')||document.querySelector('section.page[data-page="settings"] > ul.rows');
+ if(!host||document.getElementById('moa-r495-scroll-setting'))return;
+ const li=elem('li','moa-r495-scroll-setting');li.id='moa-r495-scroll-setting';
+ const heading=elem('strong','moa-r495-scroll-label','달력 이동 방식');
+ const description=elem('small','moa-r495-scroll-desc','한 달씩 이동하거나 위아래로 연속 탐색');
+ const options=elem('div','moa-r495-scroll-options');options.setAttribute('role','radiogroup');options.setAttribute('aria-label','달력 이동 방식');
+ for(const [val,name] of [['flow','연속 스크롤'],['page','한 달씩 이동']]){
+  const label=elem('label','moa-r495-scroll-choice'),radio=elem('input');radio.type='radio';radio.name='moa-r495-month-scroll';radio.value=val;radio.dataset.moaR495Scroll='1';radio.checked=r495ScrollMode()===val;
+  radio.addEventListener('change',()=>{if(radio.checked)r495SetScrollMode(val)});
+  label.append(radio,elem('span','',name));options.append(label);
+ }
+ li.append(heading,description,options);host.append(li);
+}
+function r495SyncLegacyRoot(){
+ const root=diaryRoot(),s=getState();if(!root)return;
+ // Prevent the older curated/automatic calendar from flashing while the single unified calendar mounts.
+ if(s?.open&&!root.hidden&&s.page==='calendar'&&!r475ExitUntilHidden)root.dataset.moaUnifiedPage='calendar';
+ else delete root.dataset.moaUnifiedPage;
+}
+function r495TryBack(){
+ if(!ui.open||document.getElementById('moa-r149-voice-modal'))return false;
+ const shade=view?.querySelector('.moa-r479-picker-backdrop');if(shade){shade.remove();return true}
+ return goBack();
+}
+function r495InstallBackHandlers(){
+ // Native host versions invoke either of two callbacks; rewrap if other retained modules reassign them.
+ for(const name of ['__fjBackOverlay','__photoMapBack']){
+  const prev=window[name];if(typeof prev==='function'&&prev.__moaR495Back)continue;
+  const wrapped=function(...args){if(r495TryBack())return true;return typeof prev==='function'?prev.apply(this,args):false};
+  wrapped.__moaR495Back=true;window[name]=wrapped;
+ }
+ if(r495BackBinding)return;r495BackBinding=true;
+ document.addEventListener('keydown',e=>{
+  if(!ui.open||!['Escape','Backspace'].includes(e.key))return;
+  if(e.key==='Backspace'&&e.target.closest?.('input,textarea,[contenteditable]'))return;
+  if(r495TryBack()){e.preventDefault();e.stopImmediatePropagation()}
+ },true);
+}
+function r495AttachMonthGestures(feed){
+ // PAGE = one and only one month per finger gesture. FLOW stays native inertial scroll.
+ feed.addEventListener('touchstart',e=>{if(r495ScrollMode()!=='page'||e.touches.length!==1)return;
+  r495ScrollGesture={y:e.touches[0].clientY,at:Date.now(),startMonth:new Date(ui.month)};
+ },{passive:true});
+ feed.addEventListener('touchend',e=>{const g=r495ScrollGesture;r495ScrollGesture=null;
+  if(!g||r495ScrollMode()!=='page'||e.changedTouches.length!==1)return;
+  const dy=e.changedTouches[0].clientY-g.y;
+  if(Math.abs(dy)<38)return;
+  r479SwipeBlockUntil=Date.now()+500;
+  ui.month=g.startMonth;
+  changeMonth(dy<0?1:-1);
+ },{passive:true});
+ feed.addEventListener('touchcancel',()=>{r495ScrollGesture=null},{passive:true});
+ feed.addEventListener('wheel',e=>{if(r495ScrollMode()!=='page')return;
+  e.preventDefault();if(Date.now()<r495WheelUntil||Math.abs(e.deltaY)<8)return;
+  r495WheelUntil=Date.now()+420;changeMonth(e.deltaY>0?1:-1);
+ },{passive:false});
+}
+
 
 const elem=(tag,cls,txt)=>{const x=document.createElement(tag);if(cls)x.className=cls;if(txt!==undefined)x.textContent=txt;return x};
 const btn=(label,action,cls)=>{const x=elem('button',cls,label);x.type='button';if(action)x.addEventListener('click',action);return x};
@@ -183,10 +251,10 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout
 
 function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
 function open(page='calendar',day){const s=getState();if(!s?.open)return false;mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
- try{localStorage.setItem(KEY,'simple')}catch(e){}render();r475LastDataKey=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');installBack();setTimeout(r475RefreshFamily,100);return true;}
-function close(){r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.open=false;ui.requestGeneration++;if(view)view.hidden=true;try{localStorage.removeItem(KEY)}catch(e){}return true;}
+ try{localStorage.setItem(KEY,'simple')}catch(e){}r495SyncLegacyRoot();r495InstallBackHandlers();render();r475LastDataKey=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');installBack();setTimeout(r475RefreshFamily,100);return true;}
+function close(){r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.open=false;ui.requestGeneration++;if(view)view.hidden=true;r495SyncLegacyRoot();try{localStorage.removeItem(KEY)}catch(e){}return true;}
 function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!confirm('작성 중인 내용이 있습니다. 저장하지 않고 돌아갈까요?'))return true;window.MoaVoicePlaybackUI?.stop?.();ui.page='calendar';ui.dirty=false;render();return true;}r475ExitUntilHidden=true;close();window.FamilyJourneyDiary?.close?.(false);return true;}
-function installBack(){if(backInstalled)return;backInstalled=true;const old=window.__fjBackOverlay;window.__fjBackOverlay=function(...args){if(ui.open&&!document.getElementById('moa-r149-voice-modal'))return goBack();return typeof old==='function'?old.apply(this,args):false};}
+function installBack(){if(backInstalled)return;backInstalled=true;r495InstallBackHandlers();}
 function r475ModeToggle(active,onPhoto,onDetail){
  const wrap=r483Pill(active,[{key:'photo',label:'사진형'},{key:'detail',label:'상세형'}],mode=>{if(mode==='photo')onPhoto();else onDetail()},'moa-r483-day-mode');
  wrap.classList.add('moa-r475-view-toggle');return wrap;
@@ -211,7 +279,7 @@ function r475DecorateDetail(){
  bar.classList.add('moa-r475-detail-switch');top.insertAdjacentElement('afterend',bar);
 }
 function addMode(){
- const s=getState(),root=diaryRoot();
+ const s=getState(),root=diaryRoot();r495SyncLegacyRoot();r495InstallBackHandlers();r495InstallScrollSetting();
  if(!s?.open||!root||root.hidden){r475ExitUntilHidden=false;return;}
  if(ui.open&&ui.page==='calendar'&&!s.load){
   const key=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');
@@ -248,13 +316,13 @@ function r472Nav(){
  const root=diaryRoot();root?.querySelector('.moa-r472-family-inside')?.remove();
 
 }
-function start(){mount();observer=new MutationObserver(sync);observer.observe(document.body,{childList:true,subtree:true});const root=diaryRoot();if(root)observer.observe(root,{childList:true,subtree:false,attributes:true,attributeFilter:['hidden']});sync();setTimeout(r472Nav,500);
+function start(){mount();r495InstallBackHandlers();r495InstallScrollSetting();observer=new MutationObserver(sync);observer.observe(document.body,{childList:true,subtree:true});const root=diaryRoot();if(root)observer.observe(root,{childList:true,subtree:false,attributes:true,attributeFilter:['hidden']});sync();setTimeout(r472Nav,500);
  const bar=document.getElementById('tabbar');if(bar)bar.addEventListener('click',e=>{
   if(!ui.open)return;const tab=e.target.closest('button[data-tab]')?.dataset.tab;
   if(tab&&tab!=='moa-plus'){r475ExitUntilHidden=true;close();}
  },true);}
 
-function render(){if(!ui.open||!view)return;ui.requestGeneration++;view.replaceChildren();view.dataset.page=ui.page;
+function render(){if(!ui.open||!view)return;ui.requestGeneration++;view.replaceChildren();view.dataset.page=ui.page;view.dataset.monthScroll=r495ScrollMode();r495SyncLegacyRoot();
  ui.page==='day'?renderDay():renderMonth();view.append(elem('div','moa-r469-status',''));view.scrollTop=0;r472Nav();setTimeout(r472RefreshVisibleThumbs,600);}
 function header(title,back){const h=elem('header','moa-r469-head');h.append(btn('‹',back,'moa-r469-back'),elem('strong','',title));return h;}
 function r483MonthKey(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`}
@@ -383,6 +451,7 @@ function r483EnqueueMonth(direction){
 function r483HandleScroll(){
  if(!r483Feed)return;
  const feed=r483Feed;
+ if(r495ScrollMode()==='page')return;
  r483SyncToolbar();
  if(feed.scrollTop+feed.clientHeight>feed.scrollHeight-360)r483EnqueueMonth(1);
  if(feed.scrollTop<340)r483EnqueueMonth(-1);
@@ -391,14 +460,14 @@ function renderMonth(){
  if(!getState())return;
  r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;r483ExtendBusy=false;
  const toolbar=elem('div','moa-r479-calendar-toolbar');
- const period=btn('',r479PeriodSheet,'moa-r479-period');period.append(elem('strong','',`${ui.month.getFullYear()}년 ${ui.month.getMonth()+1}월`),elem('span','','⌄'));period.setAttribute('aria-label','연도와 월 선택');toolbar.append(period);
+ const period=btn('',r479PeriodSheet,'moa-r479-period');period.append(elem('strong','',`${ui.month.getFullYear()}년 ${ui.month.getMonth()+1}월`));period.setAttribute('aria-label','연도와 월 선택');period.title='연도·월 선택';toolbar.append(period);
  const right=elem('div','moa-r479-right-stack');right.append(r479SourceControl());toolbar.append(right);view.append(toolbar);
  const feed=elem('div','moa-r483-month-feed');feed.setAttribute('role','region');feed.setAttribute('aria-label','월별 사진 일기, 위아래로 스크롤');r483Feed=feed;
  const selected=new Date(ui.month.getFullYear(),ui.month.getMonth(),1);
  for(let offset=-1;offset<=2;offset++){
   const section=r483MonthSection(new Date(selected.getFullYear(),selected.getMonth()+offset,1));feed.append(section)
  }
- view.append(feed);
+ view.append(feed);r495AttachMonthGestures(feed);
  const todayDock=elem('div','moa-r487-today-dock');
  const todayAction=btn('오늘 달력으로 이동',()=>{
   const today=new Date();ui.selected=dayOf(today);ui.month=new Date(today.getFullYear(),today.getMonth(),1);
@@ -419,7 +488,7 @@ function renderMonth(){
 function changeMonth(k){ui.month=new Date(ui.month.getFullYear(),ui.month.getMonth()+k,1);render();}
 function dayMedia(index){const m=ui.media[index];return m&&safeMedia(m.id)?m:null;}
 function setDay(day){if(!valid(day))return;ui.date=day;ui.selected=day;ui.page='day';ui.fast=false;ui.idx=0;ui.dirty=false;render();}
-function renderDay(){const d=ui.date,s=getState();if(!valid(d)||!s)return;ui.media=mediaFor(d);const chosen=mainCover(d,ui.media);const ri=ui.media.findIndex(x=>String(x.id)===String(chosen?.id));ui.idx=Math.min(ui.media.length-1,Math.max(0,ui.idx||ri));if(ui.idx===0&&ri>0)ui.idx=ri;
+function renderDay(){r495InstallBackHandlers();const d=ui.date,s=getState();if(!valid(d)||!s)return;ui.media=mediaFor(d);const chosen=mainCover(d,ui.media);const ri=ui.media.findIndex(x=>String(x.id)===String(chosen?.id));ui.idx=Math.min(ui.media.length-1,Math.max(0,ui.idx||ri));if(ui.idx===0&&ri>0)ui.idx=ri;
  const current=s.curatedEntries?.get(d)||s.entries?.get(d),wrap=elem('div','moa-r469-day');
  wrap.append(header(dateLabel(d),goBack));
  const views=r475ModeToggle('photo',()=>{},()=>r475OpenDetail(d));
