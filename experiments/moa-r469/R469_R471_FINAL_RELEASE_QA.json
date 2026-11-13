@@ -1,0 +1,18 @@
+{
+  "stage": "SIGNED_BETA_WITH_REAL_WEB_BINDINGS",
+  "apk469_sha256": "4c71ae8dbcff2252258e57154c5d19524a704d322961f9063f52f8806b7822e2",
+  "recovery471_sha256": "458729163b4141ac39d7d1e6532f104d9362ecc400836c6619b353e8df3bb50a",
+  "certificate_same_as_r463": true,
+  "apk_v2_signed_content_digest": "PASS",
+  "17_dex_original_payloads": "IDENTICAL",
+  "original_zip_members_preserved": 138,
+  "original_zip_members_total": 140,
+  "new_zip_members": 2,
+  "node_js_syntax": "PASS",
+  "physical_galaxy_test": "PENDING",
+  "native_inline_full_gallery_features": "PARTIAL",
+  "video_content_uri": "PENDING_ANDROID_TEST",
+  "audio_seek": "NOT_IMPLEMENTED",
+  "browser_emulator_smoke": "CHROMIUM_HEADLESS_TIMED_OUT",
+  "golden_still": "R463"
+}
