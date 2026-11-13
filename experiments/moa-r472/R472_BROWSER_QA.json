@@ -1,0 +1,12 @@
+{
+  "synthetic_browser_420x850": "PASS",
+  "calendar_13_photos_loaded": "PASS",
+  "five_main_tabs_in_correct_order": "PASS",
+  "one_global_plus_only": "PASS",
+  "native_month_picker_present": "PASS",
+  "same_page_inline_gallery_3_slides": "PASS",
+  "horizontal_scroll_and_one_active_pager": "PASS",
+  "hidden_tools_toggle": "PASS",
+  "js_errors": [],
+  "warning": "MOCK photo inputs, not actual Android WebView or original R203 video/zoom/voice performance"
+}
