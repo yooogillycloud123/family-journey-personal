@@ -1,0 +1,34 @@
+# MOA R459 — move the TOP Folded-Map info toggle to a THIRD BOTTOM Gallery action (2026-11-13)
+
+## User request / grounding
+- User's screenshot `20978.png` (PRIVATE Library only) shows successfully working R455 top folded-map icon, full-screen photo/video gallery, horizontal thumbnail rail and 2-button bottom capsule (Share / GPS NAVER Map).
+- Explicit innovation: remove TOP folded-map icon entirely; add this same three-panel Folded-Map icon **alongside** existing lower Share and NAVER Map pin, as 3rd bottom icon. Bottom 3rd button toggles the EXISTING compact capture time/address/`기본 표시` card at its original status-bar-safe TOP location; a second lower button press hides the card **when checkbox is unchecked**. Checking `기본 표시` pins opened card and persists default-open for the next gallery entry (uncheck to fold again). Top must have no collapsed icon. Bottom GPS Map action must remain a separate NAVIGATION operation from the Folded-Map INFORMATION action.
+- No request to change photo/video player, mute, frame capture, thumbnails, gallery sharing, first-party NAVER favorite write, login cookies, launch splash or the existing draggable native pink Home.
+
+## Baseline and precise implementation
+- Immutable user-designated integrated Golden **R435**, untouched. The user-tested latest working Gallery baseline was exact signed **R455** versionCode455 SHA256 `9676fc801c67d547a972505f3353ac261f19d37e33d92851dda2df68f97ff166`.
+- Development branch: `feature/moa-r459-gallery-bottom-info-toggle-20261113`, derived **directly from R455**. Java source `experiments/moa-r391/MoaR391SessionPersistProvider.java`, recompiles ONLY supplemental `classes17.dex`.
+- `MoaNativeGallery` from original classes6 unchanged and remains the sole real owner of media/player/rail and metadata. The Gallery overlay already has `GALLERY_BAR_DP=50`; no new height allocation, no media re-layout. Action capsule width dynamically grows from count=2 to count=3; existing Share `r443ShareKeepGallery` and GPS map `r225OpenNaver` callback logic unchanged.
+- Move existing `GalleryFoldMapGlyph` (R455 actual ~20dp white map artwork) to a new accessible ripple-backgrounded `infoAction` button in the lower capsule after Share and the original GPS pin. Use a 25dp native glyph View and 42dp click height, matching lower icon language.
+- TOP `toggle` FrameLayout now holds **only** the original expanded `compactCard`, no folded glyph child and no top onClick; parent non-clickable so checkbox child remains interactive. When closed, entire top container `GONE`. When expanded, card appears at old R451/R455 `r447TopToggleY` center-aligned TOP anchor (time + live address + `기본 표시` checkbox); original metadata mirror stays bound to `r225CaptureTime`/`r225Address`.
+- Third lower infoAction single click toggles `infoExpanded` and calls the shared `r443UpdateTopInfo` view reconciliation. When `autoShow.isChecked()` and already expanded, second lower press retains panel as pinned by user's stated checkbox condition; uncheck to close. Existing `show_on_open` SharedPreferences key/checkbox persists user-selected default on subsequent gallery opens.
+- Original video owner and original `classes6.dex` gallery, all 16 original DEX, NAVER writer JS, R389 Home JS and R435 draggable Home remain byte-identical.
+
+## Signed releases and verification
+- Android GitHub Actions javac/D8 [run 43370601796](https://github.com/yooogillycloud123/family-journey-personal/actions/runs/43370601796) **SUCCESS**. New classes17.dex **58,328 bytes**, SHA256 **`ee7492ca9fde45f66238370cc15689b4e72f48c780da9971bc2d44d95dc41125`**.
+- R459 installation APK `MOA_R459_BOTTOM_GALLERY_INFO_BUTTON_SIGNED_BETA.apk` versionCode **459**, size **8,971,234 bytes**, SHA256 **`cbdb253a2f2e73439b26d0b1d292d59ba0bcdbc2292fbafa8edb7739e77b6a7b`**. Original package `com.juhyeon.familyjournea`, original signing cert SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+- Independent APK v2 RSA PKCS1 SHA256 signature **and complete signed-content chunked digest** verified PASS. All ZIP members CRC, original 17 DEX header SHA1 and Adler32 checks, STORED 4-byte alignment PASS. Compared to exact R455 APK 140 members, **138/140 uncompressed entry contents byte-identical**; changed only AndroidManifest versionCode and classes17.dex. Protected original native Gallery classes6, NAVER writer JS, main WebView, icon themes byte-identical.
+- R461 `MOA_R461_EXACT_R455_FUNCTIONAL_FORWARD_RECOVERY.apk`, versionCode **461**, size **8,970,800 bytes**, SHA256 **`a80cef29f396cf0283a82a68b61b4f186358a4f678c661a34f2ae5b62679a5c9`**. **139/140 original R455 entry contents identical**, only Manifest versionCode changed. Emergency severe R459 regression ONLY; restores original upper icon and 2-item bottom toolbar, not R459 UI. If installing R461, next APK must have code >461.
+- Full release ZIP `MOA_R459_BOTTOM_INFO_R461_EXACT_R455_RECOVERY_QA.zip`, size **12,979,338 bytes**, SHA256 **`c933e4b8b6e1be949d0fd19be708e2d8e7ca727306f4787f6f48b6282026681a`**. Contains two exact signed APKs, Java source, minimal diff, QA JSON, Korean README, new-chat prompt, SHA256SUMS; **no signing key/password, private photo/video, GPS or login cookies**.
+- Private Library `/모아_프로젝트_근거_20261103/R459_GALLERY_BOTTOM_INFO_20261113/` holds signed artifacts, QA, README, complete source and private original screenshot `20978_PRIVATE_USER_REFERENCE_GALLERY.png`.
+- **Device status:** CI/crypto/byte preservation/source contract PASS, **physical Galaxy appearance, click/pin/test still NOT VERIFIED**. Do not promote R459 to Golden without user.
+
+## Device acceptance / next chat
+1. Install R459 by in-place upgrade; NEVER uninstall, clear app data/cache or NAVER cookies. Existing v455/v457 supported because v459 > v457.
+2. Open native Gallery (photo and video). Confirm top no longer has folded-map button when card collapsed. Bottom capsule shows three icons: Share, GPS pin for Naver navigation, folded-map for capture info.
+3. Tap third lower icon: show live time/address/`기본 표시` at same previous TOP card anchor. Tap again unchecked: hide. Check `기본 표시`: card remains and defaults open on next Gallery; uncheck then click lower icon to fold.
+4. Ensure Share chooser still opens without returning to Diary; lower GPS pin still navigates, and Gallery back/filmstrip/video pause/mute/still capture/volume retain exactly R455.
+5. Verify NAVER offscreen favorites/account session, startup cover, reconnect/rearm and draggable Home unaffected.
+6. If serious regression ONLY, in-place R461 exact R455 feature recovery. Future code after R461 >461. The R435 immutable Gold must never be overwritten.
+
+**READ FIRST**: `MOA_READ_FIRST_NEW_CHAT.md`, `MOA_WIP_CHECKPOINT_CURRENT.md`, this file, original R455 handoff and R435 user Golden lock. No AirPods changes.
