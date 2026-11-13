@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>MOA — Photo First Diary UI Study (not an APK)</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;background:#f6f6f4;color:#252427;font-synthesis:none}
+*{box-sizing:border-box}
+button,textarea,input{font:inherit}button{cursor:pointer}button:focus-visible{outline:2px solid #d56783;outline-offset:2px}
+.sheet{width:100%;max-width:430px;min-height:100vh;margin:0 auto;background:#fff;box-shadow:0 16px 70px #241a2610}
+.header{height:72px;padding:18px 20px 10px;display:flex;align-items:center;justify-content:space-between}
+.headerDate{font-size:15px;font-weight:650;letter-spacing:-.04em}
+.headerSide{display:flex;align-items:center;gap:8px}
+.cleanBtn{border:0;background:transparent;padding:7px;font-size:13px;color:#5e5a5e}
+.hero{height:clamp(330px,57vh,525px);width:100%;background:linear-gradient(120deg,#b8b8aa,#c9aca2);position:relative;overflow:hidden;touch-action:pan-y;user-select:none}
+.hero img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.heroTint{position:absolute;inset:0;background:linear-gradient(#0002,transparent 25%,transparent 72%,#0003);pointer-events:none}
+.heroMore{position:absolute;right:13px;top:13px;height:31px;width:31px;border:0;border-radius:100%;background:#1116;color:white;font-size:21px;line-height:1;backdrop-filter:blur(12px)}
+.heroVideo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:58px;height:58px;display:none;align-items:center;justify-content:center;border:1px solid #fff8;border-radius:50%;background:#16161b6b;color:#fff;font-size:24px;backdrop-filter:blur(10px)}
+.heroVideo.visible{display:flex}
+.heroIndex{position:absolute;left:13px;bottom:13px;font-size:11px;background:#1919196b;color:#fff;border-radius:18px;padding:5px 8px;opacity:0;transition:opacity .18s}
+.hero.showActions .heroIndex{opacity:1}
+.heroInfo{position:absolute;inset:auto 12px 13px;padding:12px 14px;border-radius:13px;background:#1b1b1cdb;color:#fff;font-size:12px;line-height:1.6;display:none;max-height:110px;overflow:auto}
+.heroInfo.open{display:block}
+.pager{display:flex;align-items:center;justify-content:center;gap:6px;height:27px}
+.pager button{width:6px;height:6px;border:0;border-radius:50%;padding:0;background:#d5d2d3;transition:width .15s}
+.pager button.on{background:#bf607e;width:15px;border-radius:8px}
+.controls{display:none;margin:1px 18px 0;padding:9px 6px 7px;border-radius:16px;background:#f5f3f3}
+.controls.open{display:block}
+.actions{display:flex;align-items:center;justify-content:space-around}
+.tool{width:20%;min-height:41px;display:grid;place-items:center;background:transparent;border:0;color:#6f6b6d;border-radius:10px}
+.tool.on{color:#ba466c;background:#fff}
+.tool svg{height:19px;width:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.controlHint{font-size:10px;text-align:center;color:#a19b9e;margin:4px 0 0}
+.tinyLink{color:#837980;font-size:11px;background:none;border:0;padding:5px 4px}
+.thumbRail{display:none;gap:6px;overflow:auto;padding:8px 0 2px;scrollbar-width:none}
+.thumbRail.open{display:flex}
+.tinyThumb{border:2px solid transparent;border-radius:7px;overflow:hidden;width:54px;height:45px;flex:0 0 54px;padding:0;position:relative;background:#bcb6ba}
+.tinyThumb.selected{border-color:#c44c77}
+.tinyThumb img{width:100%;height:100%;object-fit:cover}
+.tinyThumb small{position:absolute;top:1px;right:2px;color:white;text-shadow:0 0 4px #000}
+.story{margin:21px 18px 0;background:#f7f7f6;border-radius:18px;padding:19px 18px 17px}
+.dayTitle{font-size:13px;letter-spacing:-.02em;font-weight:700;color:#423c40;margin:0 0 12px}
+.story textarea{display:block;width:100%;border:0;resize:vertical;min-height:112px;background:transparent;color:#2e2b2d;font-size:13px;line-height:1.85;outline:0;letter-spacing:-.01em}
+.story textarea::placeholder{color:#a39da0}
+.audioDivider{height:1px;background:#e8e4e5;margin:13px 0 12px}
+.audioHeader{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#827c80;margin-bottom:10px}
+.recordAdd{border:0;background:transparent;color:#bb597e;font-size:11px;padding:0}
+.audioRow{display:flex;align-items:center;gap:10px}
+.play{border:0;border-radius:50%;height:31px;width:31px;background:#343034;color:white;font-size:14px;flex:none}
+.audioInfo{flex:1;min-width:0}
+.audioName{font-size:12px;color:#514d50;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.audioName b{font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.audioSeek{appearance:none;width:100%;height:3px;border-radius:7px;background:#ded9dc;accent-color:#bc4d7a;margin:8px 0 2px}
+.audioSeek::-webkit-slider-thumb{appearance:none;width:8px;height:8px;border-radius:100%;background:#bd5d81}
+.voiceChoose{border:0;background:#ece9ea;border-radius:100px;color:#6f656b;font-size:11px;padding:7px 9px;flex:none}
+.audioChoices{display:none;margin-top:11px;border-top:1px solid #eae5e7;padding-top:8px}
+.audioChoices.open{display:block}
+.audioChoices button{width:100%;display:flex;justify-content:space-between;padding:10px 3px;border:0;border-bottom:1px solid #ece8e9;background:none;color:#555053;font-size:12px;text-align:left}
+.after{display:flex;justify-content:space-between;align-items:center;margin:16px 19px 0;padding-bottom:14px}
+.after span{font-size:11px;color:#aaa3a6}
+.save{border:0;border-radius:9px;padding:8px 13px;background:#353137;color:white;font-size:12px}
+.toast{min-height:25px;text-align:center;margin:6px 15px;color:#ad5674;font-size:11px}
+.dev{font-size:10px;line-height:1.55;color:#a7a0a2;margin:8px 19px 0;padding:0 0 25px}
+@media (max-width:360px){.hero{height:390px}.story{margin:15px 13px 0}.controls{margin:0 13px}.header{padding-left:15px;padding-right:15px}}
+</style></head>
+<body>
+<main class="sheet">
+<header class="header">
+ <button class="cleanBtn" id="back" aria-label="뒤로">‹</button>
+ <div class="headerDate">2026년 11월 13일 <span style="color:#a9a3a5;font-size:11px;font-weight:400">금</span></div>
+ <button class="cleanBtn" id="save" aria-label="저장">완료</button>
+</header>
+<section class="hero" id="hero" tabindex="0" aria-label="사진 영역: 좌우 스와이프, 탭하면 편집 버튼 표시">
+ <img id="heroImg" alt="UI 시연용 사진"/>
+ <div class="heroTint"></div>
+ <button id="more" class="heroMore" aria-label="사진 도구 표시">···</button>
+ <button id="videoPlay" class="heroVideo" aria-label="샘플 영상 시연">▶</button>
+ <div id="heroIndex" class="heroIndex"></div>
+ <div id="heroInfo" class="heroInfo">촬영정보는 실제 모아의 사진 메타데이터에서 불러오도록 연결할 예정입니다.</div>
+</section>
+<div id="pager" class="pager" aria-label="사진 페이지"></div>
+<section id="controls" class="controls" aria-label="사진 도구">
+ <div class="actions">
+ <button class="tool" id="represent" title="대표 사진으로 지정" aria-label="대표 사진으로 지정"><svg viewBox="0 0 24 24"><path d="m12 2.8 2.8 6.1 6.6.6-5 4.5 1.5 6.5L12 17.1 6.1 20.5l1.5-6.5-5-4.5 6.6-.6Z"/></svg></button>
+ <button class="tool" id="share" title="공유" aria-label="공유"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="m7 11 10-5M7 13l10 5"/></svg></button>
+ <button class="tool" id="gps" title="네이버 지도" aria-label="네이버 지도 이동"><svg viewBox="0 0 24 24"><path d="M12 21s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg></button>
+ <button class="tool" id="info" title="촬영 정보" aria-label="촬영 정보"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button>
+ <button class="tool" id="fast" title="빠른 넘기기" aria-label="빠른 스와이프"><svg viewBox="0 0 24 24"><path d="m4 5 7 7-7 7M12 5l7 7-7 7"/></svg></button>
+ </div>
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1px">
+ <span class="controlHint" id="representLabel">대표사진 지정 가능</span>
+ <button class="tinyLink" id="toggleThumbs">사진 목록 ⌄</button>
+ </div>
+ <div id="thumbRail" class="thumbRail"></div>
+</section>
+<section class="story">
+ <h2 class="dayTitle">오늘의 이야기</h2>
+ <textarea id="memo" placeholder="오늘의 순간을 기록해 보세요.">조용했던 오후, 생각보다 오래 기억하고 싶은 순간이 생겼다.</textarea>
+ <div class="audioDivider"></div>
+ <div class="audioHeader"><span id="clipsCount">음성 메모 · 3개</span><button id="recordAdd" class="recordAdd">＋ 녹음</button></div>
+ <div class="audioRow">
+  <button class="play" id="playAudio" aria-label="선택한 녹음 재생">▶</button>
+  <div class="audioInfo"><div class="audioName"><b id="audioName">녹음 1</b><span id="audioTime" style="font-size:10px;color:#999094">00:28</span></div><input type="range" id="audioSeek" class="audioSeek" value="0" min="0" max="28" aria-label="음성 진행 위치"/></div>
+  <button class="voiceChoose" id="selectClip">1/3⌄</button>
+ </div>
+ <div id="audioChoices" class="audioChoices"></div>
+</section>
+<div class="after"><span>MOA · 간편 일기 UI</span><button id="saveBottom" class="save">기록 완료</button></div>
+<div id="toast" class="toast" aria-live="polite"></div>
+<p class="dev">R463 골든 보존 · 새로운 사진 중심 UI 시안입니다. 이 시안의 사진과 음성은 예시이고, 실제 영상 재생·네이버 지도·녹음·대표사진 영구 저장 등은 아직 모아 앱과 연결되지 않았습니다.</p>
+</main>
+<script>
+(function(){
+ const asset=[
+  {url:'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1050&q=85',video:false},
+  {url:'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=1050&q=85',video:false},
+  {url:'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=1050&q=85',video:true},
+  {url:'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1050&q=85',video:false}
+ ];
+ const clips=[{name:'녹음 1 · 오전 9:42',sec:28},{name:'녹음 2 · 오후 2:15',sec:72},{name:'녹음 3 · 오후 7:36',sec:43}];
+ const $=id=>document.getElementById(id);
+ let index=0,rep=0,fast=false,actions=false,thumbs=false,info=false,voiceIdx=0,voicePlaying=false,videoPlaying=false,start=null,gesture=false;
+ function toast(s){$('toast').textContent=s;}
+ function time(t){return '0'+Math.floor(t/60)+':'+String(t%60).padStart(2,'0');}
+ function render(){
+  $('heroImg').src=asset[index].url;$('heroImg').onerror=function(){this.style.opacity=0;$('hero').style.background='linear-gradient(125deg,#a9b2ad,#c6a99e)';};
+  $('heroImg').onload=function(){this.style.opacity=1;};
+  $('heroIndex').textContent=(index+1)+' / '+asset.length+(index===rep?' · ★ 대표':'');
+  $('videoPlay').classList.toggle('visible',asset[index].video);$('videoPlay').textContent='▶';videoPlaying=false;
+  $('represent').classList.toggle('on',index===rep);
+  $('representLabel').textContent=index===rep?'현재 사진이 대표로 지정됨':'현재 사진을 대표로 지정';
+  $('pager').innerHTML='';$('thumbRail').innerHTML='';
+  asset.forEach((p,i)=>{
+   let dot=document.createElement('button');dot.className=i===index?'on':'';dot.title='사진 '+(i+1);dot.onclick=()=>go(i);$('pager').appendChild(dot);
+   let th=document.createElement('button');th.className='tinyThumb'+(i===index?' selected':'');th.title='사진 '+(i+1);th.innerHTML='<img src="'+p.url+'" alt=""/>'+(i===rep?'<small>★</small>':'')+(p.video?'<small style="left:3px;top:auto;bottom:2px">▶</small>':'');th.onclick=()=>go(i);$('thumbRail').appendChild(th);
+  });
+ }
+ function go(i){index=Math.max(0,Math.min(asset.length-1,i));$('hero').style.background='linear-gradient(120deg,#b8b8aa,#c9aca2)';if(info){info=false;$('info').classList.remove('on');$('heroInfo').classList.remove('open');}render();}
+ function openActions(force){actions=typeof force==='boolean'?force:!actions;$('controls').classList.toggle('open',actions);$('hero').classList.toggle('showActions',actions);$('more').textContent=actions?'×':'···';}
+ $('more').onclick=e=>{e.stopPropagation();openActions()};
+ $('hero').addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;start={x:e.clientX,y:e.clientY};gesture=false;});
+ $('hero').addEventListener('pointerup',e=>{if(!start||e.target.closest('button')){start=null;return;}let dx=e.clientX-start.x,dy=e.clientY-start.y;if(Math.abs(dx)>32&&Math.abs(dx)>Math.abs(dy)*1.25){gesture=true;const steps=fast?Math.max(1,Math.round(Math.abs(dx)/85)):1;go(index+(dx<0?steps:-steps));if(actions)openActions(false);}else if(Math.abs(dx)<12&&Math.abs(dy)<12){openActions();}start=null;});
+ $('hero').addEventListener('keydown',e=>{if(e.key==='ArrowLeft')go(index-1);if(e.key==='ArrowRight')go(index+1);});
+ $('represent').onclick=()=>{rep=index;render();toast('대표사진 지정(시연) · 실제 저장은 앱 연동 예정');};
+ $('share').onclick=()=>toast('실제 모아의 공유 기능 연결 예정');
+ $('gps').onclick=()=>toast('사진 GPS가 있을 때만 네이버 지도 이동 연결 예정');
+ $('info').onclick=()=>{info=!info;$('info').classList.toggle('on',info);$('heroInfo').classList.toggle('open',info);};
+ $('fast').onclick=()=>{fast=!fast;$('fast').classList.toggle('on',fast);toast('빠른 넘기기 '+(fast?'ON':'OFF')+' (시연)');};
+ $('toggleThumbs').onclick=()=>{thumbs=!thumbs;$('thumbRail').classList.toggle('open',thumbs);$('toggleThumbs').textContent=thumbs?'사진 목록 ⌃':'사진 목록 ⌄';};
+ $('videoPlay').onclick=e=>{e.stopPropagation();videoPlaying=!videoPlaying;$('videoPlay').textContent=videoPlaying?'Ⅱ':'▶';toast('영상 재생은 실제 영상 파일 연동 전입니다');};
+ function voiceRender(){let c=clips[voiceIdx];$('audioName').textContent=c.name;$('audioTime').textContent=time(c.sec);$('audioSeek').max=c.sec;$('audioSeek').value=0;$('selectClip').textContent=(voiceIdx+1)+'/'+clips.length+'⌄';$('clipsCount').textContent='음성 메모 · '+clips.length+'개';voicePlaying=false;$('playAudio').textContent='▶';$('audioChoices').innerHTML='';clips.forEach((v,i)=>{let b=document.createElement('button');b.innerHTML='<span>'+v.name+'</span><span>'+time(v.sec)+'</span>';b.onclick=()=>{voiceIdx=i;voiceRender();$('audioChoices').classList.remove('open')};$('audioChoices').appendChild(b)});}
+ $('selectClip').onclick=()=>{$('audioChoices').classList.toggle('open');};
+ $('playAudio').onclick=()=>{voicePlaying=!voicePlaying;$('playAudio').textContent=voicePlaying?'Ⅱ':'▶';toast('음성은 예시입니다 · 실제 음성 파일 연동 전')};
+ $('recordAdd').onclick=()=>toast('실제 모아의 여러 녹음 추가 기능 연결 예정');
+ $('save').onclick=$('saveBottom').onclick=()=>toast('실제 모아의 일기 저장 기능 연동 전입니다');
+ $('back').onclick=()=>toast('실제 모아의 날짜·달력으로 복귀 연결 예정');
+ voiceRender();render();
+})();
+</script>
+</body></html>
