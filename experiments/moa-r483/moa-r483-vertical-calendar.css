@@ -600,3 +600,23 @@ html #moa-r469-root[data-page="day"] .moa-r475-family-item{
 }
 #moa-r495-scroll-setting .moa-r495-scroll-choice input{accent-color:var(--moa-r491-accent,#bb527e);width:14px;height:14px;margin:0}
 @media(max-width:375px){html #moa-r469-root[data-page="calendar"] .moa-r479-period strong{font-size:19px!important}}
+
+/* R499: calm photo diary controls inherit original icon/theme palette, no duplicate geo buttons. */
+#moa-r469-root[data-page="calendar"] .moa-r479-period{border:0!important;box-shadow:none!important;background:transparent!important;border-radius:0!important;padding:0 2px!important;min-height:38px!important}
+#moa-r469-root[data-page="calendar"] .moa-r479-period strong{border-bottom:1px solid color-mix(in srgb,var(--moa-r491-muted,#aaa) 26%,transparent);line-height:1.38;padding-bottom:2px}
+#moa-r469-root[data-page="calendar"] .moa-r487-today-action{width:94px!important;max-width:94px!important;height:36px!important;min-height:36px!important;border-radius:16px!important;font-size:13px!important}
+#moa-r469-root[data-page="calendar"] .moa-r487-today-dock{justify-content:center!important}
+#moa-r469-root .moa-r469-tools{background:var(--moa-r491-surface,#f8f7f8)!important;border:1px solid color-mix(in srgb,var(--moa-r491-muted,#9c9a9c) 13%,transparent)!important;border-radius:14px!important;padding:4px 7px 5px!important;box-shadow:none!important}
+#moa-r469-root .moa-r469-actions{height:40px;gap:4px;align-items:center}
+#moa-r469-root .moa-r469-actions button{height:36px!important;flex:1;width:auto!important;display:flex;align-items:center;justify-content:center;border-radius:9px!important;color:var(--moa-r491-ink,#323138)!important}
+#moa-r469-root .moa-r469-actions svg{width:18px;height:18px;display:block}
+#moa-r469-root .moa-r469-actions button.active{color:var(--moa-r491-accent,#b65380)!important;background:var(--moa-r491-empty,#f0e9ef)!important}
+#moa-r469-root .moa-r469-rail-toggle{width:26px!important;height:19px!important;min-height:19px!important;margin:1px auto 0!important;padding:0!important;border-radius:10px!important;background:transparent!important;font-size:0!important;display:flex;align-items:center;justify-content:center}
+#moa-r469-root .moa-r469-rail-toggle::after{content:'';width:13px;height:5px;border-radius:20px;background:var(--moa-r491-muted,#8d8690);opacity:.48;transition:transform .2s ease}
+#moa-r469-root .moa-r469-rail-toggle[aria-expanded="true"]::after{transform:rotate(180deg)}
+#moa-r469-root .moa-r469-rail{display:flex;overflow-x:auto!important;scroll-behavior:auto!important;-webkit-overflow-scrolling:touch;scroll-snap-type:none!important;touch-action:pan-x!important;overscroll-behavior-x:contain;padding:3px 5px 5px!important;gap:5px!important}
+#moa-r469-root .moa-r469-rail-item{flex:0 0 50px;height:48px;width:50px;border-radius:7px!important;touch-action:pan-x}
+#moa-r469-root .moa-r499-video-controls{position:absolute;z-index:5;left:10px;right:10px;bottom:10px;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+#moa-r469-root .moa-r499-video-controls button{pointer-events:auto;background:#24242bdc!important;color:white!important;border-radius:18px!important;width:35px;height:32px;display:grid;place-items:center;font-size:17px!important;border:1px solid #fff5!important}
+#moa-r469-root .moa-r469-more{width:30px!important;height:30px!important;font-size:14px!important}
+html[data-moa-ui="black"] #moa-r469-root .moa-r469-actions button{color:#eee!important}
