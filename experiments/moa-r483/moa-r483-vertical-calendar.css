@@ -676,3 +676,59 @@ html #moa-r469-root .moa-r503-rail-star.active{color:#ffdc8c;border-color:#ffdc8
 #moa-r469-root.moa-r507-native-mounted .moa-r469-pager,
 #moa-r469-root.moa-r507-native-mounted .moa-r469-tools{visibility:hidden!important;pointer-events:none!important;}
 #moa-r469-root.moa-r507-native-mounted .moa-r469-stage{isolation:isolate;}
+
+
+/* R511 — fixed weekday header; date grid ONLY scrolls. Native Gallery Golden unaffected. */
+html #moa-r469-root[data-page="calendar"] .moa-r511-sticky-weekdays{
+ display:grid!important;flex:0 0 35px!important;min-height:35px!important;
+ grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;
+ margin:0 9px 2px!important;padding:0 0 1px!important;
+ background:var(--moa-r491-ui,#fff)!important;z-index:8;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r511-weekday{
+ display:flex;align-items:center;justify-content:center;min-width:0;
+ height:32px;border-radius:11px;font-size:12px;font-weight:650;
+ color:var(--moa-r491-muted,#7f7882)!important;
+ background:var(--moa-r491-surface,#fff)!important;
+ border:1px solid color-mix(in srgb,var(--moa-r491-muted,#888) 11%,transparent)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-month-grid{
+ grid-template-rows:repeat(var(--moa-r487-week-rows,5),minmax(0,1fr))!important;
+}
+/* Readable month transition without a repeating weekday row or a strong color separator. */
+html #moa-r469-root[data-page="calendar"] .moa-r483-month{overflow:visible!important}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month::before{
+ content:'';position:absolute;left:15%;right:15%;height:2px;top:0;
+ z-index:5;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--moa-r491-accent,#a65482) 25%,transparent),transparent);
+ pointer-events:none;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month.moa-r511-active-month::before{opacity:0}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month:not(.moa-r511-active-month) .moa-r483-month-title{
+ position:absolute!important;top:6px!important;left:50%!important;transform:translateX(-50%)!important;
+ width:auto!important;height:23px!important;min-height:23px!important;max-width:none!important;
+ clip:auto!important;clip-path:none!important;overflow:visible!important;
+ margin:0!important;padding:3px 10px!important;border:1px solid color-mix(in srgb,var(--moa-r491-accent,#b35e88) 26%,transparent)!important;
+ border-radius:999px!important;background:var(--moa-r491-surface,#fff)!important;
+ color:var(--moa-r491-ink,#29272c)!important;font-size:11px!important;line-height:16px!important;
+ font-weight:650!important;white-space:nowrap!important;z-index:6!important;
+ box-shadow:0 2px 9px #00000010!important;pointer-events:none;
+}
+/* Compact daily header so that the actual media viewer gets more vertical space. */
+html #moa-r469-root[data-page="day"] .moa-r469-head{
+ min-height:41px!important;height:41px!important;padding:0 17px 1px!important;margin:0!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r469-back{display:none!important}
+html #moa-r469-root[data-page="day"] .moa-r469-head strong{margin-left:auto;font-size:14px!important}
+html #moa-r469-root[data-page="day"] .moa-r483-day-mode{
+ height:33px!important;min-height:33px!important;margin-top:0!important;margin-bottom:0!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r469-stage{
+ height:clamp(370px,64vh,660px)!important;
+ border-radius:23px!important;overflow:hidden!important;
+ background:var(--moa-r491-empty,#f0eef1)!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r469-stage img{border-radius:21px!important}
+/* The star now lives in the native Gallery action deck, never over a photo. */
+html #moa-r469-root[data-page="day"] .moa-r503-cover-star{display:none!important}
+html #moa-r469-root[data-page="day"] .moa-r469-pager{height:12px!important}
+@media(max-width:370px){html #moa-r469-root[data-page="calendar"] .moa-r511-sticky-weekdays{margin-left:9px!important;margin-right:9px!important}}
