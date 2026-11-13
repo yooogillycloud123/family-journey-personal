@@ -278,3 +278,203 @@
 #moa-r469-root[data-page="calendar"] .moa-r487-today-action{display:block;width:100%;height:43px;min-height:43px;border-radius:13px;background:#927a68;color:#fff;font-size:14px;font-weight:650;letter-spacing:-.02em;border:1px solid #8f7664;box-shadow:0 1px 2px #60433221;padding:0 18px;text-align:center}
 #moa-r469-root[data-page="calendar"] .moa-r487-today-action:active{background:#7b6758;transform:scale(.995)}
 @media(max-width:375px){#moa-r469-root[data-page="calendar"] .moa-r483-month-feed{padding-left:9px!important;padding-right:9px!important}#moa-r469-root[data-page="calendar"] .moa-r479-period strong{font-size:22px!important}#moa-r469-root[data-page="calendar"] .moa-r487-today-dock{padding-left:9px;padding-right:9px}}
+/* MOA R491 — UX correction after physical R487 screenshots.
+   All properties follow existing R117 data-moa-ui auto/icon pink/white/black/peach palette.
+   No changes to diary stores, 17 original native DEX, photo records or navigation. */
+html{
+ --moa-r491-accent:#ad3d63;--moa-r491-on-accent:#fff;
+ --moa-r491-ui:#fffcfa;--moa-r491-surface:#fff;
+ --moa-r491-empty:#f2f0ee;--moa-r491-grid:#e4dfe2;
+ --moa-r491-ink:#302a32;--moa-r491-muted:#79727b;
+ --moa-r491-track:#f3eef1;--moa-r491-track-border:#d4c8ce;
+ --moa-r491-dock-border:#e1d8df;
+}
+html[data-moa-ui="peach"]{
+ --moa-r491-accent:#a74463;--moa-r491-on-accent:#fff;
+ --moa-r491-ui:#fffcfa;--moa-r491-surface:#fff;
+ --moa-r491-empty:#f4f1ef;--moa-r491-grid:#e5dfe1;
+ --moa-r491-ink:#302a32;--moa-r491-muted:#786d76;
+ --moa-r491-track:#f8eef1;--moa-r491-track-border:#d9c9d0;
+ --moa-r491-dock-border:#e5dde0;
+}
+html[data-moa-ui="pink"]{
+ --moa-r491-accent:#c70762;--moa-r491-on-accent:#fff;
+ --moa-r491-ui:#fffafd;--moa-r491-surface:#fff;
+ --moa-r491-empty:#f5f0f3;--moa-r491-grid:#eadce4;
+ --moa-r491-ink:#2c2430;--moa-r491-muted:#807181;
+ --moa-r491-track:#f8f0f5;--moa-r491-track-border:#ddc4d1;
+ --moa-r491-dock-border:#eadce4;
+}
+html[data-moa-ui="white"]{
+ --moa-r491-accent:#262831;--moa-r491-on-accent:#fff;
+ --moa-r491-ui:#fff;--moa-r491-surface:#fff;
+ --moa-r491-empty:#f0f1f4;--moa-r491-grid:#dee1e7;
+ --moa-r491-ink:#272c32;--moa-r491-muted:#69717d;
+ --moa-r491-track:#f1f2f5;--moa-r491-track-border:#cdd1d9;
+ --moa-r491-dock-border:#dce0e6;
+}
+html[data-moa-ui="black"]{
+ --moa-r491-accent:#e4dce7;--moa-r491-on-accent:#211b27;
+ --moa-r491-ui:#1d1b23;--moa-r491-surface:#29262e;
+ --moa-r491-empty:#38343d;--moa-r491-grid:#4c4350;
+ --moa-r491-ink:#f4eff5;--moa-r491-muted:#c2b7c6;
+ --moa-r491-track:#39333e;--moa-r491-track-border:#766b79;
+ --moa-r491-dock-border:#504654;
+}
+/* Respect the active UI theme live: R117 changes html[data-moa-ui] after user selects Settings. */
+html #moa-r469-root,
+html #moa-r469-root[data-page="calendar"]{
+ background:var(--moa-r491-ui)!important;color:var(--moa-r491-ink)!important;
+}
+html #moa-r469-root button:focus-visible,
+html #fj-diary-root .moa-r483-oval-switch:focus-within{outline-color:var(--moa-r491-accent)!important}
+html #moa-r469-root[data-page="calendar"] .moa-r479-calendar-toolbar{
+ background:var(--moa-r491-ui)!important;
+}
+html #moa-r469-root .moa-r479-period,
+html #moa-r469-root .moa-r479-period strong{color:var(--moa-r491-ink)!important}
+html #moa-r469-root .moa-r479-period span{color:var(--moa-r491-muted)!important}
+/* Small visual slider, but preserve broad invisible 68x40 hit area for both ends.
+   Visual ~44x19, ~50% of R487 76x30; each tappable zone 34x40. */
+html #moa-r469-root .moa-r483-oval-switch,
+html #fj-diary-root .moa-r483-oval-switch{
+ position:relative;display:grid!important;grid-template-columns:1fr 1fr!important;
+ width:68px!important;max-width:68px!important;min-width:68px!important;
+ height:40px!important;min-height:40px!important;max-height:40px!important;
+ padding:0!important;margin:0!important;border:0!important;
+ background:transparent!important;box-shadow:none!important;
+ border-radius:22px!important;align-items:center!important;gap:0!important;
+ isolation:isolate;touch-action:pan-y;
+}
+html #moa-r469-root .moa-r483-oval-switch::before,
+html #fj-diary-root .moa-r483-oval-switch::before{
+ content:"";display:block;position:absolute;z-index:0;
+ width:44px;height:19px;left:calc(50% - 22px);top:calc(50% - 9.5px);
+ background:var(--moa-r491-track);border:1px solid var(--moa-r491-track-border);
+ border-radius:100px;box-sizing:border-box;
+}
+html #moa-r469-root .moa-r483-thumb,
+html #fj-diary-root .moa-r483-thumb{
+ position:absolute!important;z-index:1;pointer-events:none;
+ width:18px!important;height:15px!important;min-width:18px!important;
+ left:calc(50% - 19px)!important;top:calc(50% - 7.5px)!important;
+ background:var(--moa-r491-accent)!important;
+ border:1px solid color-mix(in srgb,var(--moa-r491-accent) 82%,var(--moa-r491-ink))!important;
+ border-radius:100px!important;box-shadow:0 1px 2px #0002!important;
+ transform:translateX(0)!important;transition:transform .18s ease!important;
+}
+html #moa-r469-root .moa-r483-oval-switch[data-source="automatic"] .moa-r483-thumb,
+html #moa-r469-root .moa-r483-oval-switch[data-source="detail"] .moa-r483-thumb,
+html #fj-diary-root .moa-r483-oval-switch[data-source="detail"] .moa-r483-thumb{
+ transform:translateX(20px)!important;
+}
+html #moa-r469-root .moa-r483-toggle-hit,
+html #fj-diary-root .moa-r483-toggle-hit{
+ width:100%!important;height:40px!important;min-height:40px!important;max-height:40px!important;
+ border:0!important;background:transparent!important;box-shadow:none!important;
+ padding:0!important;margin:0!important;position:relative;z-index:2;
+ border-radius:18px!important;color:transparent!important;font-size:0!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r479-right-stack{
+ flex:0 0 68px!important;width:68px!important;min-width:68px!important;
+ height:44px!important;align-items:center!important;justify-content:center!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r479-period{max-width:calc(100% - 74px)!important}
+html #moa-r469-root .moa-r483-day-mode,
+html #fj-diary-root .moa-r483-day-mode{
+ width:68px!important;height:40px!important;min-height:40px!important;
+ margin-right:16px!important;margin-left:auto!important;justify-content:flex-end!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-month-grid{
+ border-radius:21px!important;gap:3px!important;
+ background:var(--moa-r491-grid)!important;
+ box-shadow:none!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-week{
+ color:var(--moa-r491-muted)!important;background:var(--moa-r491-surface)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date,
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-blank{
+ border-radius:7px!important;overflow:hidden!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date{
+ background:var(--moa-r491-empty)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-blank{
+ background:var(--moa-r491-surface)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date img{
+ position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+ object-fit:cover!important;border-radius:7px!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date:not(:has(img.moa-r472-image-ready)) .moa-r469-day-number{
+ color:var(--moa-r491-muted)!important;background:transparent!important;text-shadow:none!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date.today{
+ outline:2px solid var(--moa-r491-accent)!important;
+ outline-offset:-2px!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date.selected:not(.today){
+ outline:1.5px solid var(--moa-r491-accent)!important;outline-offset:-1.5px!important;
+}
+/* Event is one 3px accent stroke INSIDE THE photo/date tile. No white reserved lane. */
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r483-event-lane{
+ position:absolute!important;left:0!important;right:0!important;bottom:0!important;
+ height:7px!important;background:transparent!important;border:0!important;
+ box-shadow:none!important;pointer-events:none;z-index:4;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r483-event-lane .moa-r475-event-mark{
+ position:absolute!important;left:6px!important;right:6px!important;
+ top:auto!important;bottom:2px!important;width:auto!important;
+ height:3px!important;border-radius:8px!important;
+ background:var(--moa-r491-accent)!important;
+ box-shadow:0 0 1px var(--moa-r491-surface)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-dock{
+ background:var(--moa-r491-ui)!important;
+ border-top:1px solid var(--moa-r491-dock-border)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{
+ background:var(--moa-r491-accent)!important;
+ color:var(--moa-r491-on-accent)!important;
+ border:1px solid var(--moa-r491-accent)!important;
+ box-shadow:0 2px 7px #00000015!important;
+ border-radius:15px!important;font-size:14px!important;font-weight:700!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action:active{
+ filter:brightness(.93)!important;
+}
+/* Date/photo/detail surfaces also inherit existing R117 screen theme. */
+html #moa-r469-root .moa-r469-head,
+html #moa-r469-root .moa-r469-head strong{color:var(--moa-r491-ink)!important}
+html #moa-r469-root .moa-r469-head button{color:var(--moa-r491-muted)!important}
+html #moa-r469-root .moa-r469-story{
+ background:var(--moa-r491-surface)!important;
+ border:1px solid var(--moa-r491-grid)!important;
+ color:var(--moa-r491-ink)!important;
+}
+html #moa-r469-root .moa-r469-story-title,
+html #moa-r469-root .moa-r469-text{color:var(--moa-r491-ink)!important}
+html #moa-r469-root .moa-r469-text::placeholder{color:var(--moa-r491-muted)!important}
+html #moa-r469-root .moa-r469-dot.active{background:var(--moa-r491-accent)!important}
+html #moa-r469-root .moa-r469-stage{background:var(--moa-r491-empty)!important}
+html #moa-r469-root .moa-r479-picker-sheet{
+ background:var(--moa-r491-surface)!important;color:var(--moa-r491-ink)!important;
+}
+html #moa-r469-root .moa-r483-year-list{background:var(--moa-r491-empty)!important}
+html #moa-r469-root .moa-r483-year-option,
+html #moa-r469-root .moa-r483-month-option{
+ background:var(--moa-r491-surface)!important;color:var(--moa-r491-ink)!important;
+}
+html #moa-r469-root .moa-r483-year-option.active,
+html #moa-r469-root .moa-r483-month-option.active{
+ background:var(--moa-r491-track)!important;color:var(--moa-r491-accent)!important;
+ box-shadow:inset 0 0 0 1px var(--moa-r491-track-border)!important;
+}
+html #moa-r469-root .moa-r479-picker-close{
+ color:var(--moa-r491-ink)!important;background:var(--moa-r491-empty)!important;
+}
+/* Black theme: light accent is high contrast on a dark surface, but selected foreground
+   must be dark when ON that light accent. Button text elsewhere retains pale ink. */
+html[data-moa-ui="black"] #moa-r469-root .moa-r469-day-number,
+html[data-moa-ui="black"] #moa-r469-root .moa-r469-week{color:var(--moa-r491-muted)}
