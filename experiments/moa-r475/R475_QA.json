@@ -1,0 +1,27 @@
+{
+  "filename": "MOA_R475_UNIFIED_DIARY_COMPACT_VIEW_SIGNED_BETA.apk",
+  "versionCode": 475,
+  "bytes": 8968280,
+  "sha256": "4227494156eba7784dd7838fcabf95ceba7809e72ef518e935475fcc948bd7c1",
+  "original_members_unchanged": 138,
+  "total_original_members": 140,
+  "17_original_dex_identical": true,
+  "apk_v2": {
+    "apk_v2_rsa_signature": "PASS",
+    "apk_v2_signed_content_digest": "PASS",
+    "original_certificate_match": "PASS",
+    "apk_signer_algorithm": "0x0103 RSA-PKCS1-SHA256",
+    "signature_bytes": 384
+  },
+  "zip_crc": "PASS",
+  "zip_alignment": "PASS",
+  "new_original_member_changes": [
+    "AndroidManifest.xml",
+    "assets/web/index.html"
+  ],
+  "new_files": [
+    "assets/web/moa-r475-unified-diary.js",
+    "assets/web/moa-r475-unified-diary.css"
+  ],
+  "browser_smoke": "synthetic mocked browser tests only; real Galaxy, native R203 or video NOT tested"
+}
