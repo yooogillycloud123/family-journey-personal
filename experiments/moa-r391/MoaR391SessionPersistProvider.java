@@ -26,6 +26,9 @@ import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.CheckBox;
+import android.widget.Button;
+import android.media.MediaPlayer;
 import android.graphics.drawable.GradientDrawable;
 import android.view.WindowInsets;
 import android.webkit.CookieManager;
@@ -65,7 +68,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // Actual launcher alias targets MoaIconHost (DEX: subclasses AudioHost -> VoiceHost -> HostActivity).
   private static final String LAUNCHER_HOST="com.juhyeon.familyjourney.MoaIconHost";
   private static final String CTRL="com.juhyeon.familyjourney.MoaNaverWebProbeController";
-  private static final String TAG="MOA_R439_GALLERY_BAR";
+  private static final String TAG="MOA_R443_GALLERY_POLISH";
   private static final Handler UI=new Handler(Looper.getMainLooper());
   private static final long VISIBLE_LAYOUT_MS=460L;
   private static final long REARM_COOLDOWN_MS=18000L;
@@ -565,12 +568,13 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // Preserve the advanced R227 native gallery DEX. NAVER's sibling WebView must
   // never become the MOA LocalAudio host or demote its origin trust bit.
 
-  // R439: Gallery-only bottom action deck. Attach to the ACTUAL existing native
+  // R443: Gallery-only bottom action deck and top collapsible metadata. Attach to the ACTUAL existing native
   // R435 Gallery FrameLayout. Do not replace, recompile, move or resize the
   // protected classes6.dex GalleryRail, TextureView or MediaPlayer implementation.
   // Additional actions later belong ONLY in action specs, never in lowerControls.
   private static final String GALLERY_CLASS="com.juhyeon.familyjourney.MoaNativeGallery";
-  private static final int GALLERY_BAR_DP=72;
+  private static final int GALLERY_BAR_DP=50;
+  private static final String GALLERY_INFO_PREFS="moa_r443_gallery_top_info_v1";
   private static final WeakHashMap<Activity, GalleryActions> GALLERY_BARS=new WeakHashMap<>();
   private static long galleryLastLogAt=0L;
   private static final class GalleryActions {
@@ -580,12 +584,19 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     final FrameLayout root;
     final View mapButton;
     final View mapGlyph;
-    final TextView mapLabel;
+    final LinearLayout info;
+    final View toggle;
+    final CheckBox autoShow;
+    final int originalInfoTop;
     final int oldBottomMargin;
     final int reservedHeight;
     boolean mapEnabled=false;
-    GalleryActions(Object g,FrameLayout h,LinearLayout l,FrameLayout r,View mb,View mi,TextView ml,int old,int reserve){
-      gallery=g;host=h;lower=l;root=r;mapButton=mb;mapGlyph=mi;mapLabel=ml;oldBottomMargin=old;reservedHeight=reserve;
+    boolean infoExpanded=false;
+    GalleryActions(Object g,FrameLayout h,LinearLayout l,FrameLayout r,View mb,View mi,
+       LinearLayout info,View toggle,CheckBox autoShow,int infoTop,int old,int reserve){
+      gallery=g;host=h;lower=l;root=r;mapButton=mb;mapGlyph=mi;
+      this.info=info;this.toggle=toggle;this.autoShow=autoShow;
+      originalInfoTop=infoTop;oldBottomMargin=old;reservedHeight=reserve;
     }
   }
   // Reflection is strictly limited to known R435 original private Gallery
@@ -608,6 +619,64 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       Method m=gallery.getClass().getDeclaredMethod(methodName);
       m.setAccessible(true);m.invoke(gallery);
     }catch(Throwable error){Log.w(TAG,"GALLERY_ACTION_"+methodName+"_"+error.getClass().getSimpleName());}
+  }
+  // R443: original HostActivity.onPause() closes Gallery unless
+  // r227RetainForExternalMap()==true. Android Sharesheet is another Activity
+  // just like the approved Naver Maps handoff; use the existing retention path.
+  // No custom media transfer, no duplicate chooser, no changing Gallery DEX.
+  private static void r443ShareKeepGallery(Activity a,Object g){
+    try{
+      Class<?> c=g.getClass();
+      if(!r439Field(c,"open").getBoolean(g))return;
+      Field pending=r439Field(c,"r227ExternalMapPending");
+      Field wasPlaying=r439Field(c,"r227VideoWasPlaying");
+      boolean playing=false;
+      try{
+        Object player=r439Field(c,"media").get(g);
+        boolean prepared=r439Field(c,"prepared").getBoolean(g);
+        if(prepared&&player instanceof MediaPlayer){
+          playing=((MediaPlayer)player).isPlaying();
+          if(playing)((MediaPlayer)player).pause();
+        }
+      }catch(Throwable mediaError){Log.w(TAG,"SHARE_PLAYER_STATE_"+mediaError.getClass().getSimpleName());}
+      wasPlaying.setBoolean(g,playing);
+      pending.setBoolean(g,true);
+      Method shouldRetain=c.getDeclaredMethod("r227RetainForExternalMap");shouldRetain.setAccessible(true);
+      if(!Boolean.TRUE.equals(shouldRetain.invoke(g))){
+        pending.setBoolean(g,false);wasPlaying.setBoolean(g,false);
+        Log.w(TAG,"SHARE_RETENTION_UNAVAILABLE");return;
+      }
+      r439Call(g,"shareOriginal");
+      // If chooser did not open, clear the temporary flag while our Activity
+      // remains foreground. When chooser opened, original onResume() restores it.
+      UI.postDelayed(()->{
+        try{
+          if(a.hasWindowFocus()&&r439Field(c,"r227ExternalMapPending").getBoolean(g)){
+            Method resume=c.getDeclaredMethod("r227ResumeFromExternalMap");
+            resume.setAccessible(true);resume.invoke(g);
+          }
+        }catch(Throwable ignored){}
+      },1800L);
+      Log.i(TAG,"GALLERY_SHARE_CHOOSER_RETAINED");
+    }catch(Throwable error){Log.w(TAG,"GALLERY_SHARE_RETAIN_FAILED_"+error.getClass().getSimpleName());}
+  }
+
+  // Tiny top arrow remains tappable even when date/address panel is collapsed.
+  // '기본 표시' inside the expanded metadata panel controls the persisted initial
+  // state for future gallery openings; default is intentionally COLLAPSED.
+  private static void r443UpdateTopInfo(Activity a,GalleryActions entry,boolean galleryChrome){
+    if(entry.info==null||entry.toggle==null)return;
+    boolean show=galleryChrome&&entry.infoExpanded;
+    int desired=show?View.VISIBLE:View.GONE;
+    if(entry.info.getVisibility()!=desired)entry.info.setVisibility(desired);
+    int toggleVisibility=galleryChrome?View.VISIBLE:View.GONE;
+    if(entry.toggle.getVisibility()!=toggleVisibility)entry.toggle.setVisibility(toggleVisibility);
+    if(entry.toggle instanceof TextView){
+      TextView t=(TextView)entry.toggle;
+      String glyph=entry.infoExpanded?"⌃":"⌄";
+      if(!glyph.contentEquals(t.getText()))t.setText(glyph);
+      t.setContentDescription(entry.infoExpanded?"촬영 정보 접기":"촬영 시간과 위치 정보 펼치기");
+    }
   }
   // Simple canvas strokes avoid device-font-dependent emoji/icon spacing.
   private static final class GalleryGlyph extends View {
@@ -635,24 +704,20 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     }
   }
   private static final class GalleryActionButton {
-    final LinearLayout touch;
-    final GalleryGlyph glyph;
-    final TextView caption;
-    GalleryActionButton(LinearLayout t,GalleryGlyph g,TextView c){touch=t;glyph=g;caption=c;}
+    final LinearLayout touch;final GalleryGlyph glyph;
+    GalleryActionButton(LinearLayout t,GalleryGlyph g){touch=t;glyph=g;}
   }
   private static GalleryActionButton r439Action(Activity a,String id,String label,boolean isMap,Runnable callback){
     LinearLayout button=new LinearLayout(a);button.setOrientation(LinearLayout.VERTICAL);
     button.setGravity(Gravity.CENTER);button.setPadding(0,0,0,0);
-    button.setMinimumHeight(dpx(a,50));button.setClickable(true);button.setFocusable(true);
+    button.setMinimumHeight(dpx(a,42));button.setClickable(true);button.setFocusable(true);
     button.setContentDescription(label);button.setTag("moa.gallery.action."+id);
-    GradientDrawable rippleMask=new GradientDrawable();rippleMask.setColor(0xffffffff);rippleMask.setCornerRadius(dpx(a,20));
+    GradientDrawable rippleMask=new GradientDrawable();rippleMask.setColor(0xffffffff);rippleMask.setCornerRadius(dpx(a,18));
     button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x44ffffff),null,rippleMask));
-    GalleryGlyph glyph=new GalleryGlyph(a,isMap);button.addView(glyph,new LinearLayout.LayoutParams(dpx(a,27),dpx(a,27)));
-    TextView text=new TextView(a);text.setText(label);text.setTextSize(10f);text.setTextColor(0xffebebed);
-    text.setGravity(Gravity.CENTER);text.setSingleLine(true);
-    LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dpx(a,17));p.topMargin=dpx(a,1);button.addView(text,p);
+    GalleryGlyph glyph=new GalleryGlyph(a,isMap);
+    button.addView(glyph,new LinearLayout.LayoutParams(dpx(a,21),dpx(a,21)));
     button.setOnClickListener(v->{if(button.isEnabled())callback.run();});
-    return new GalleryActionButton(button,glyph,text);
+    return new GalleryActionButton(button,glyph);
   }
   private static void r439RemoveBar(Activity a){
     GalleryActions entry=GALLERY_BARS.remove(a);
@@ -664,6 +729,13 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
           lp.bottomMargin=entry.oldBottomMargin;entry.lower.setLayoutParams(lp);
         }
       }
+      if(entry.autoShow!=null&&entry.autoShow.getParent()==entry.info)entry.info.removeView(entry.autoShow);
+      if(entry.info!=null&&entry.info.getLayoutParams() instanceof FrameLayout.LayoutParams){
+        FrameLayout.LayoutParams infoLp=(FrameLayout.LayoutParams)entry.info.getLayoutParams();
+        if(infoLp.topMargin!=entry.originalInfoTop){infoLp.topMargin=entry.originalInfoTop;entry.info.setLayoutParams(infoLp);}
+        entry.info.setVisibility(View.VISIBLE); // restore untouched original metadata behavior
+      }
+      if(entry.toggle.getParent() instanceof ViewGroup)((ViewGroup)entry.toggle.getParent()).removeView(entry.toggle);
       if(entry.root.getParent() instanceof ViewGroup)((ViewGroup)entry.root.getParent()).removeView(entry.root);
     }catch(Throwable ignored){}
   }
@@ -681,10 +753,10 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       boolean mapActive=pinObj instanceof View&&((View)pinObj).getVisibility()==View.VISIBLE;
       if(entry.mapEnabled!=mapActive){
         entry.mapEnabled=mapActive;entry.mapButton.setEnabled(mapActive);entry.mapGlyph.setEnabled(mapActive);
-        entry.mapLabel.setTextColor(mapActive?0xffebebed:0xff797b82);
         entry.mapGlyph.invalidate();
         entry.mapButton.setContentDescription(mapActive?"촬영 장소 네이버 지도 열기":"GPS 위치가 없는 사진 · 지도 이용 불가");
       }
+      r443UpdateTopInfo(a,entry,chrome);
       FrameLayout.LayoutParams lower=(FrameLayout.LayoutParams)entry.lower.getLayoutParams();
       int want=entry.oldBottomMargin+entry.reservedHeight;
       if(lower.bottomMargin!=want){lower.bottomMargin=want;entry.lower.setLayoutParams(lower);}
@@ -711,24 +783,58 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       int reserved=dpx(a,GALLERY_BAR_DP);
       FrameLayout.LayoutParams lowerLp=(FrameLayout.LayoutParams)lower.getLayoutParams();
       int initial=lowerLp.bottomMargin;
-      FrameLayout overlay=new FrameLayout(a);overlay.setTag("moa.gallery.action.deck.r439");
+      FrameLayout overlay=new FrameLayout(a);overlay.setTag("moa.gallery.action.deck.r443");
       overlay.setBackgroundColor(0x00000000);overlay.setClipChildren(false);
       LinearLayout capsule=new LinearLayout(a);capsule.setGravity(Gravity.CENTER);capsule.setOrientation(LinearLayout.HORIZONTAL);
-      GradientDrawable bg=new GradientDrawable();bg.setColor(0xf5222326);bg.setCornerRadius(dpx(a,28));
-      bg.setStroke(dpx(a,.7f),0x66494a4d);capsule.setBackground(bg);
+      GradientDrawable bg=new GradientDrawable();bg.setColor(0xf5222326);bg.setCornerRadius(dpx(a,22));
+      bg.setStroke(dpx(a,.6f),0x66494a4d);capsule.setBackground(bg);
       // Extensibility: new action specs can be appended to THIS row only.
       // Existing thumbnail rail/video seek/play/mute/capture layouts stay untouched.
-      GalleryActionButton share=r439Action(a,"share","공유",false,()->r439Call(g,"shareOriginal"));
+      GalleryActionButton share=r439Action(a,"share","공유",false,()->r443ShareKeepGallery(a,g));
       GalleryActionButton map=r439Action(a,"map","지도",true,()->r439Call(g,"r225OpenNaver"));
-      capsule.addView(share.touch,new LinearLayout.LayoutParams(0,dpx(a,54),1f));
-      capsule.addView(map.touch,new LinearLayout.LayoutParams(0,dpx(a,54),1f));
-      FrameLayout.LayoutParams capParams=new FrameLayout.LayoutParams(-1,dpx(a,56),Gravity.BOTTOM);
-      capParams.leftMargin=dpx(a,17);capParams.rightMargin=dpx(a,17);capParams.bottomMargin=dpx(a,6);
+      // Flexible capsule width based on number of registered actions: when future
+      // actions are added, widen this capsule only; the protected filmstrip is untouched.
+      capsule.addView(share.touch,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
+      capsule.addView(map.touch,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
+      int count=2, width=Math.min(Math.max(dpx(a,120),host.getWidth()-dpx(a,30)),dpx(a,20+count*65));
+      FrameLayout.LayoutParams capParams=new FrameLayout.LayoutParams(width,dpx(a,42),Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+      capParams.bottomMargin=dpx(a,3);
       overlay.addView(capsule,capParams);
       FrameLayout.LayoutParams deckParams=new FrameLayout.LayoutParams(-1,reserved,Gravity.BOTTOM);
       host.addView(overlay,deckParams);
       lowerLp.bottomMargin=initial+reserved;lower.setLayoutParams(lowerLp);
-      GalleryActions entry=new GalleryActions(g,host,lower,overlay,map.touch,map.glyph,map.caption,initial,reserved);
+      // R443: top metadata no longer sits permanently over the photo/video.
+      // We keep its existing date, resolved address, and original NAVER pin.
+      LinearLayout info=null;int infoOldTop=0;
+      Object infoObj=r439Field(g.getClass(),"r225Info").get(g);
+      if(infoObj instanceof LinearLayout && ((View)infoObj).getParent()==host){
+        info=(LinearLayout)infoObj;
+        if(info.getLayoutParams() instanceof FrameLayout.LayoutParams){
+          FrameLayout.LayoutParams ilp=(FrameLayout.LayoutParams)info.getLayoutParams();
+          infoOldTop=ilp.topMargin;ilp.topMargin=dpx(a,26);info.setLayoutParams(ilp);
+        }
+      }
+      TextView toggle=new TextView(a);toggle.setText("⌄");toggle.setTextSize(18f);
+      toggle.setTextColor(0xbbe5e5eb);toggle.setGravity(Gravity.CENTER);
+      toggle.setContentDescription("촬영 시간과 위치 정보 펼치기");
+      toggle.setBackgroundColor(0x6617191c);toggle.setClickable(true);toggle.setFocusable(true);
+      toggle.setTag("moa.gallery.top.info.toggle.r443");
+      FrameLayout.LayoutParams topLp=new FrameLayout.LayoutParams(dpx(a,38),dpx(a,27),Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+      topLp.topMargin=dpx(a,4);host.addView(toggle,topLp);
+      CheckBox always=new CheckBox(a);always.setText("기본 표시");always.setTextSize(11f);
+      always.setTextColor(0xffd4d4dc);
+      always.setButtonTintList(ColorStateList.valueOf(0xffcaa2bb));
+      always.setPadding(dpx(a,6),0,0,0);
+      always.setContentDescription("다음부터 촬영 정보 기본 표시");
+      boolean auto=a.getSharedPreferences(GALLERY_INFO_PREFS,0).getBoolean("show_on_open",false);
+      always.setChecked(auto);
+      if(info!=null)info.addView(always,new LinearLayout.LayoutParams(-1,dpx(a,31)));
+      GalleryActions entry=new GalleryActions(g,host,lower,overlay,map.touch,map.glyph,info,toggle,always,infoOldTop,initial,reserved);
+      entry.infoExpanded=auto;
+      toggle.setOnClickListener(v->{entry.infoExpanded=!entry.infoExpanded;r443UpdateTopInfo(a,entry,true);});
+      always.setOnCheckedChangeListener((buttonView,checked)->{
+        a.getSharedPreferences(GALLERY_INFO_PREFS,0).edit().putBoolean("show_on_open",checked).apply();
+      });
       GALLERY_BARS.put(a,entry);
       r439UpdateGalleryBar(a,entry);
       // Re-anchor the existing video volume bubble to its original mute button
@@ -892,62 +998,3 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       }
       r.ownedBrowser=true;
       compactNaverChrome(r.activity); // fold dark header before the first visible browser frame
-      r.startedAt=SystemClock.elapsedRealtime();
-      if(r.cover!=null){r.cover.bringToFront();r.cover.invalidate();}
-      stage(r,"VISIBLE_STARTED_MASKED");
-      // No fragile URL/DOM/mode preference gates: short manual visible period alone worked on the user's phone.
-      final int epoch=++r.epoch;
-      UI.postDelayed(()->stepHide(r,epoch),VISIBLE_LAYOUT_MS);
-    }catch(Throwable t){stage(r,"BEGIN_EXCEPTION_"+t.getClass().getSimpleName());finish(r,false);}
-  }
-  @Override public boolean onCreate(){
-    try{
-      Application app=(Application)getContext().getApplicationContext();
-      app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks(){
-        @Override public void onActivityCreated(Activity a,Bundle b){
-          if(valid(a)){
-            LIVE_HOSTS.put(a,Boolean.TRUE);
-            if(!keepaliveScheduled){keepaliveScheduled=true;UI.postDelayed(()->keepalive(),1200L);}
-            Run r=new Run(a);RUNS.put(a,r);
-          }
-        }
-        @Override public void onActivityStarted(Activity a){}
-        @Override public void onActivityResumed(Activity a){
-          Run r=RUNS.get(a);
-          if(r!=null&&!r.attempted&&!r.finished)UI.postDelayed(()->begin(r),55L);
-          if(valid(a)){
-            attachChromeObserver(a);
-            UI.postDelayed(()->compactNaverChrome(a),140L);
-            UI.postDelayed(()->repairGalleryOwner(a),1200L);
-            UI.postDelayed(()->ensureGalleryBottomBar(a),200L);
-            int next=++nextMonitorId;
-            MONITORS.put(a,next);UI.postDelayed(()->monitor(a,next),650L);
-          }
-        }
-        @Override public void onActivityPaused(Activity a){
-          detachChromeObserver(a);
-          MONITORS.remove(a);
-          Run r=RUNS.get(a);
-          if(r!=null&&!r.finished)finish(r,false);
-          persist();
-        }
-        @Override public void onActivityStopped(Activity a){persist();}
-        @Override public void onActivitySaveInstanceState(Activity a,Bundle b){}
-        @Override public void onActivityDestroyed(Activity a){
-          detachChromeObserver(a);CHROME.remove(a);r439RemoveBar(a);
-          MONITORS.remove(a);REARM_AT.remove(a);GALLERY_REPAIR_AT.remove(a);LIVE_HOSTS.remove(a);
-          Run r=RUNS.remove(a);
-          if(r!=null&&!r.finished)finish(r,false);
-          // Never leave a WebView tied to a destroyed Activity; keep cookies only.
-          try{Class.forName(CTRL).getMethod("dispose").invoke(null);}catch(Throwable ignored){}
-        }
-      });
-    }catch(Throwable t){Log.e(TAG,"CALLBACK_REGISTER_FAILED");}
-    return true;
-  }
-  @Override public Cursor query(Uri u,String[] projection,String selection,String[] args,String sort){return null;}
-  @Override public String getType(Uri u){return null;}
-  @Override public Uri insert(Uri u,ContentValues values){return null;}
-  @Override public int delete(Uri u,String selection,String[] args){return 0;}
-  @Override public int update(Uri u,ContentValues values,String selection,String[] args){return 0;}
-}
