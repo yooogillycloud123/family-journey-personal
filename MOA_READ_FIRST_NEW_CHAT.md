@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-13 (Asia/Seoul)
 **CURRENT USER-APPROVED GOLDEN:** **R435**. This is the first entrypoint for MOA work, unless a later explicitly user-approved Golden is documented above it. **Do NOT treat older R415/R419/R423/R427/R431 as the active implementation baseline.**
-**Latest development candidate (NOT Gold):** **R451** from working R447: removes textual `정보` pill, shows tiny three-panel folded-map icon only when closed; tapping toggles a same-anchor compact original capture time/address and persistent `기본 표시` checkbox; no upper NAVER pin (bottom map remains). Source/CI/original signer/full APK digest, ZIP/DEX PASS; user Galaxy physical test **PENDING**. See [R451 handoff](MOA_R451_R447_SAME_ANCHOR_MAPFOLD_COMPACT_METADATA_R453_RECOVERY_20261113.md). Private Library `/모아_프로젝트_근거_20261103/R451_MAP_FOLD_INFO_20261113/` contains R451, exact R447 functional R453 recovery, QA and user screenshots. R435 is still the immutable user-approved primary Golden. If installing R453, future code >453.
+**Latest development candidate (NOT Gold):** **R455** signed versionCode455, from user-confirmed R451. Only top-center three-panel folded-map WHITE symbol draw size reduced from ~29dp to ~20dp, matching lower Share icon (21dp); unchanged 42×36dp touch target, same anchor, compact time/address/checkbox, bottom Share/Map and native video/gallery/NAVER. CI/API signed content+DEX PASS, user Galaxy visual test PENDING. Read [R455 handoff](MOA_R455_R451_TOP_MAP_SYMBOL_21DP_R457_RECOVERY_20261113.md); private Library `/모아_프로젝트_근거_20261103/R455_TOP_GLYPH_21DP_20261113/` includes APK, exact R451 functional recovery R457, full ZIP QA and new-chat prompt. R435 user Golden stays immutable. After R457 installed, next versionCode>457.
 
 
 ## Read in order
