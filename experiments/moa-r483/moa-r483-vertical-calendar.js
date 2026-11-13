@@ -48,7 +48,9 @@ function r475UpdateFamilyDom(){
  for(const tile of view.querySelectorAll('.moa-r469-date')){
   const day=(tile.getAttribute('aria-label')||'').slice(0,10);
   const has=r475Events(day).length>0, dot=tile.querySelector('.moa-r475-event-mark');
-  if(has&&!dot){const node=elem('span','moa-r475-event-mark');node.setAttribute('aria-label','가족 일정 있음');tile.append(node)}
+  const lane=tile.querySelector('.moa-r483-event-lane')||tile;
+  if(has&&!dot){const node=elem('span','moa-r475-event-mark');node.setAttribute('aria-label','가족 일정 있음');lane.append(node)}
+  if(has&&dot&&dot.parentElement!==lane)lane.append(dot);
   if(!has&&dot)dot.remove();
  }
  const panel=$('.moa-r475-family',view);if(!panel||ui.page!=='day')return;
@@ -313,6 +315,8 @@ let r483Feed=null,r483OnScroll=0,r483ExtendBusy=false,r483ImageObserver=null;
 function r483MonthSection(date){
  const y=date.getFullYear(),m=date.getMonth(),days=new Date(y,m+1,0).getDate(),offset=new Date(y,m,1).getDay();
  const section=elem('section','moa-r483-month');section.dataset.month=r483MonthKey(date);
+ section.style.setProperty('--moa-r487-week-rows',String(Math.ceil((offset+days)/7)));
+ section.setAttribute('aria-label',`${y}년 ${m+1}월 사진 달력`);
  section.append(elem('h2','moa-r483-month-title',`${y}년 ${m+1}월`));
  const grid=elem('div','moa-r469-month-grid');grid.setAttribute('aria-label',`${y}년 ${m+1}월 달력`);
  for(const dow of ['일','월','화','수','목','금','토'])grid.append(elem('span','moa-r469-week',dow));
@@ -388,13 +392,20 @@ function renderMonth(){
  r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;r483ExtendBusy=false;
  const toolbar=elem('div','moa-r479-calendar-toolbar');
  const period=btn('',r479PeriodSheet,'moa-r479-period');period.append(elem('strong','',`${ui.month.getFullYear()}년 ${ui.month.getMonth()+1}월`),elem('span','','⌄'));period.setAttribute('aria-label','연도와 월 선택');toolbar.append(period);
- const right=elem('div','moa-r479-right-stack');right.append(btn('오늘',()=>{ui.month=new Date(new Date().getFullYear(),new Date().getMonth(),1);ui.selected=dayOf(Date.now());render()},'moa-r479-today'));right.append(r479SourceControl());toolbar.append(right);view.append(toolbar);
+ const right=elem('div','moa-r479-right-stack');right.append(r479SourceControl());toolbar.append(right);view.append(toolbar);
  const feed=elem('div','moa-r483-month-feed');feed.setAttribute('role','region');feed.setAttribute('aria-label','월별 사진 일기, 위아래로 스크롤');r483Feed=feed;
  const selected=new Date(ui.month.getFullYear(),ui.month.getMonth(),1);
- for(let offset=-1;offset<=4;offset++){
+ for(let offset=-1;offset<=2;offset++){
   const section=r483MonthSection(new Date(selected.getFullYear(),selected.getMonth()+offset,1));feed.append(section)
  }
  view.append(feed);
+ const todayDock=elem('div','moa-r487-today-dock');
+ const todayAction=btn('오늘 달력으로 이동',()=>{
+  const today=new Date();ui.selected=dayOf(today);ui.month=new Date(today.getFullYear(),today.getMonth(),1);
+  // Recreate only the calendar presentation; original diary/gallery stores stay untouched.
+  render();
+ },'moa-r487-today-action');
+ todayAction.setAttribute('aria-label','오늘 날짜의 달력으로 이동');todayDock.append(todayAction);view.append(todayDock);
  r483ImageObserver=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting)r483FetchMonth(entry.target)},{root:feed,rootMargin:'240px 0px'});
  for(const section of feed.children)r483ImageObserver.observe(section);
  feed.addEventListener('scroll',()=>{if(r483OnScroll)return;r483OnScroll=requestAnimationFrame(()=>{r483OnScroll=0;r483HandleScroll()})},{passive:true});
