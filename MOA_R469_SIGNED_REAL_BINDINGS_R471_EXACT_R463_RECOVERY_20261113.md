@@ -1,0 +1,46 @@
+# MOA R469 — signed real WebView bindings BETA + R471 exact R463 recovery (2026-11-13)
+
+## User intent and current truth
+The user explicitly requested actual connections for the DayPic-inspired simple photo diary, not another inert UI mock. Preserve **user-designated immutable integrated GOLDEN R463**, including original full native Gallery, existing manual/automatic photo calendars, diary, `바로기록`, NAVER session/offscreen photo save, floating MOA Home, original voice recording, original signing cert. This **R469 signed beta is real installable app code** but does NOT yet implement every native R463 high-fidelity Gallery feature inside its newly embedded hero.
+
+- Current **USER GOLDEN is R463**, APK SHA256 `9d2fd10d32a3bc35eb3132333e96edd8f565abd5daf3ce954b052f77083d8379`, original signer cert SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`. Frozen Gold branch `golden/moa-r463-user-approved-20261113`. Not edited.
+- R469 developmental source branch `feature/moa-r469-daypic-real-web-bindings-20261113`, from **exact frozen R463**, directory `experiments/moa-r469/`. Source and QA records are committed, APK bytes only in PRIVATE Library (do not upload signed proprietary APK to public GitHub).
+- **SIGNED R469 BETA APK:** `MOA_R469_DAYPIC_REAL_BINDINGS_SIGNED_BETA.apk`, package `com.juhyeon.familyjournea`, versionCode **469**, size **8,962,450B**, SHA256 **`4c71ae8dbcff2252258e57154c5d19524a704d322961f9063f52f8806b7822e2`**. Original same signing certificate; APK Signature Scheme v2 RSA signature and FULL signed-content digest, ZIP CRC, zip alignment, all 17 original DEX payloads pass independent tests. **138 of 140 original R463 ZIP payloads BYTE IDENTICAL**; changed only `AndroidManifest.xml` versionCode and `assets/web/index.html` two small loader lines; added `assets/web/moa-r469-simple-diary.js`, `assets/web/moa-r469-simple-diary.css` (142 total ZIP members). Original Gallery `classes6.dex` and all 17 original DEX untouched; NAVER writer and Home button JS untouched.
+- **EMERGENCY R471 EXACT R463 functional forward restore:** `MOA_R471_EXACT_R463_GOLDEN_FUNCTIONAL_RECOVERY.apk`, versionCode **471**, size **8,951,159B**, SHA256 **`458729163b4141ac39d7d1e6532f104d9362ecc400836c6619b353e8df3bb50a`**. 139/140 R463 ZIP payloads identical; changed original manifest versionCode ONLY. Same signer cert, signed-content SHA256 digest/ZIP/17 DEX pass. Installing R471 removes R469 new UI code but retains original R463 behavior and user app data when installed OVER existing app, not uninstalled. If R471 installed future APK versionCode must be **>471**. Do not use R467 (versionCode467) to try to downgrade over R469.
+- **FULL ORIGINAL-SIGNED RELEASE ZIP** `MOA_R469_SIGNED_BETA_R471_EXACT_R463_RECOVERY_FULL_QA.zip`, size **12,931,115B**, SHA256 **`3e27a08868ba4cad28b2595ba30ef001fb70c039f91090b8f1e8f4553283e7b8`**. Includes both signed APKs, source JS/CSS and minimal index patch, SHA256 checksums, three QA JSONs, Korean README. **NO personal photos/video, user account cookies, private signing keys, signing passwords or other secrets**.
+- PRIVATE Library immutable release folder `/모아_프로젝트_근거_20261103/R469_SIGNED_BETA_R471_EXACT_RECOVERY_20261113/`, contains exact APKs/ZIP/JS/CSS/patch/QA/readme/checksums. Earlier stage folder `R469_DAYPIC_REAL_WEB_BINDINGS_STAGE1_20261113` held superseded source snapshots; use **SIGNED_BETA** folder.
+
+## R469 new actual data binding implementation
+Original `assets/web/family-diary.js` exposed `FamilyJourneyDiary.state` with curatedEntries, entries, byDay, byVideoDay, byId, covers and `__requestThumbs`; original IndexedDB `familyjourney-diary-v1` with original `curated`, `entries`, `meta` stores, and `calendar-covers-r29` for curated day representative media. Original `moa-r149-voice.js` exposed `MoaLocalAudio.list(date)`, `MoaVoicePlaybackUI.play/stop` and `MoaVoiceDiaryNative.open`; these served as source, not an invented new backend.
+
+- Adds **third '사진 일기' view** into existing diary mode selector; old selected-photo and automatic calendar untouched. Photo-filled 7-column monthly date grid, real thumbnails, separate selected-day outline vs Today label, month navigation, progress percentage, date-aware center `+`, Today/Home, day navigation.
+- New restrained DayPic-style **in-page photo+story** with equal outer 16px margins, 21px rounded stage and story card, tall photo-first UI, tiny dots, hidden `···` contextual row, optional rail. Media photo IDs from the same date's original curated/automatic media; original thumbnail bridge renders assets. One-finger stage swipe works in this new UI; OFF one item, ON JS multiple-step movement. **This is NOT original R203 native kinetic physics**.
+- Representative `☆` writes original `covers.curated[date]` to original IndexedDB `meta/calendar-covers-r29`; no photo reorder, date cover selected on returning calendar. Same existing media IDs.
+- Native Share `sharePhoto`/`diaryShareVideo`, original GPS metadata helper `FamilyJourneyDiaryGeo.attach`, original capture time display, optional photo/video stage controls linked where possible.
+- Shared diary date body saved via a single **atomic IndexedDB read-modify-write transaction** into the original `curated` or `entries` store depending on source record presence, preserving other original fields including moments/activities/associations; no new duplicate diary DB, no right-vs-left Quick Record destination chooser. Existing moment notes shown via optional detail disclosure; original detailed editor path kept.
+- Existing multiple date-specific M4A clips listed via `MoaLocalAudio.list(date)`, one compact voice player and 1/N selector, existing native voice Play/Stop and native recorder; original audio clip storage unchanged. **Per-clip seek/progress is not implemented (slider disabled)**.
+- In-card HTML5 video attempts local `content://media/external/video/media/<video-id>`, on WebView errors displays manual `diaryPlayVideo` original native fallback. This is not verified on Galaxy.
+- No new app permission/package/sidecar, no uninstall/reset, no changes to NAVER owner session behavior.
+
+## HONEST limitations and QA state
+**Static source/crypto PASS; physical Galaxy install/run/media behavior PENDING.** Node JS syntax PASS. Chromium headless smoke harness timed out; no browser runtime success claims. Need test actual diary mode toggle and stage/voice lifecycle on Galaxy.
+
+**Not yet R463 parity in new inline stage**: original `MoaNativeGallery` high-fidelity `TextureView+MediaPlayer` lives in fullscreen `classes6.dex` and has NOT been safely embedded into the new diary card; full native R203 multi-item momentum, native 1% seek/frame capture/mute/volume, pinch/double-tap image zoom, full original resolution picture, video in-place play with WebView content URI permissions and camera quick-capture route regression remain unverified/partial. Voice record uses original native UI, not newly skinned quiet recorder; multi-record list/play is wired but waveform/seek not. All these must be honestly treated as **future integration tasks**, not falsely marked PASS.
+- The original high-fidelity gallery remains accessible/unchanged outside new simple UI.
+- Before promoting new golden: real in-app launch; photo calendar daily click; representative persists across relaunch; old curated/entries+moments preservation after write; Quick Record one-flow; multiple native voice clips and Play/Stop/reopen; Share/GPS entry return to selected media; video in-page fallback; original Gallery fast mode/seek/capture/mute; NAVER offscreen save; app homepage and pink MOA dot.
+- **Risk:** IndexedDB original data compatibility must be device-tested; keep user data backups and DO NOT clear application data or uninstall. Do not state app features physically confirmed simply because APK v2 verifies.
+
+## Installation / recovery
+1. Install R469 in-place over R463 matching original cert. **Do not uninstall app, clear data/cache, reset NAVER cookies**. If currently using a forward-recovery R467 build, versionCode469 is higher and installable.
+2. Open original `일기` and check new third **사진 일기** selector. Test previously saved dates and photos then one **non-critical** diary text entry with original detailed entry parity. Test audio/cover and original favorites.
+3. If critical regression, install **R471** over R469; R471 provides R463 exact functional APK contents except versionCode. After installing R471, future versionCode >471.
+4. R463 Gold remains current official Golden until user explicitly approves R469 based on physical device results.
+
+## Signed source lineage
+The exact JS/CSS from final R469 signed APK resides at:
+- `feature/moa-r469-daypic-real-web-bindings-20261113/experiments/moa-r469/moa-r469-simple-diary.js`
+- `feature/moa-r469-daypic-real-web-bindings-20261113/experiments/moa-r469/moa-r469-simple-diary.css`
+- `feature/moa-r469-daypic-real-web-bindings-20261113/experiments/moa-r469/R469_index_only.patch`.
+Original APK manifest and v2 signature were applied privately without publishing signing material. Further work MUST fork this R469 branch on its current source, but preserve original frozen R463 and create separately signed exact R463 rescue > next candidate.
+
+**NO AirPods/Android Auto source was changed.**
