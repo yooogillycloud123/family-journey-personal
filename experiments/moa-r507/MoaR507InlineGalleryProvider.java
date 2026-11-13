@@ -16,6 +16,11 @@ import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.view.animation.LinearInterpolator;
+import android.widget.LinearLayout;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -53,12 +58,34 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private FrameLayout nativeHost;
   private TextView coverStar;
   private Object galleryRef;
+  // R511: pre-draw armed rehost prevents a fullscreen black/white first frame.
+  private FrameLayout armRoot;
+  private ViewTreeObserver.OnPreDrawListener armGuard;
+  private JSONObject armedState;
+  private boolean inlineArmed;
+  private long armDeadline, inactiveAt;
+  // Translation-only position changes avoid relayout of R463 TextureView on every scroll tick.
+  private int baseX,baseY;
+  private boolean compactDone;
+  private LinearLayout nativeLower,actionCapsule;
+  private FrameLayout actionDeck;
+  private OnBackInvokedCallback inlineBack;
+  private Activity backOwner;
 
   private static final String SNAPSHOT =
       "(function(){try{" +
       "var d=window.MoaR469SimpleDiary,s=d&&d.readOnlyStatus&&d.readOnlyStatus();"+
       "var e=document.querySelector('#moa-r469-root .moa-r469-stage');"+
       "if(!s||!s.active||s.page!=='day'||window.__moaR507NativePending!==true||!e) return JSON.stringify({active:false});"+
+      "var r=e.getBoundingClientRect();"+
+      "return JSON.stringify({active:true,x:r.left,y:r.top,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,cover:(window.__moaR507CoverId||'')});"+
+      "}catch(e){return JSON.stringify({active:false});}})()";
+
+  private static final String ARM_SNAPSHOT =
+      "(function(){try{"+
+      "var d=window.MoaR469SimpleDiary,s=d&&d.readOnlyStatus&&d.readOnlyStatus();"+
+      "var e=document.querySelector('#moa-r469-root .moa-r469-stage');"+
+      "if(!window.__moaR511InlineArm||!s||!s.active||s.page!=='day'||!e)return JSON.stringify({active:false});"+
       "var r=e.getBoundingClientRect();"+
       "return JSON.stringify({active:true,x:r.left,y:r.top,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,cover:(window.__moaR507CoverId||'')});"+
       "}catch(e){return JSON.stringify({active:false});}})()";
@@ -76,7 +103,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       try {tick();} catch(Throwable ignored) {
         // No change to the working R463 native Gallery on unexpected reflection failure.
         clearCardMark();
-      } finally {main.postDelayed(this, ownsGallery?95:resumed?350:850);}
+      } finally {main.postDelayed(this, ownsGallery?55:resumed?160:850);}
     }
   };
   private static Field field(Class<?> cls,String name){
@@ -115,12 +142,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     WebView web=findWeb(a);if(web==null)return;
     Object gallery=readField(a,"unifiedGallery");
     if(!galleryOpen(gallery)){
-      if(ownsGallery) {clearCardMark();web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(false);",null);}
+      if(ownsGallery) {
+        // Native hardware back has closed the gallery: leave the photo form, not
+        // a legacy WebView gallery. An intentional JS close clears pending first.
+        web.evaluateJavascript("if(window.__moaR507NativePending&&window.MoaR469SimpleDiary)window.MoaR469SimpleDiary.home();else window.__moaR507NativeMounted&&window.__moaR507NativeMounted(false);",null);
+        clearCardMark();
+      }
       if(android.os.SystemClock.uptimeMillis()-lastHello>1000){
         lastHello=android.os.SystemClock.uptimeMillis();
-        // Signal only on the trusted host WebView; no browser injection and no page mutation.
         web.evaluateJavascript("window.__moaR507BridgeReady=true;",null);
       }
+      maybeArm(a,web);
       return;
     }
     if(processing)return;
@@ -134,27 +166,90 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         if(!(value instanceof String))return;
         JSONObject state=new JSONObject((String)value);
         if(!state.optBoolean("active")){
-          // Only a Gallery session *we* had owned is auto-closed; unrelated native
-          // fullscreen Gallery sessions and all existing map-return behavior stay intact.
-          if(ownsGallery){
+          // Scroll/DOM transitions briefly detach the Web stage. Do not close
+          // the working native renderer for a single missed JS evaluation.
+          long now=android.os.SystemClock.uptimeMillis();
+          if(inactiveAt==0)inactiveAt=now;
+          if(ownsGallery && now-inactiveAt>1150){
             invokeClose(gallery);clearCardMark();
             web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(false);",null);
           }
           return;
         }
+        inactiveAt=0;
         if(state.optDouble("w")<50||state.optDouble("h")<100)return;
         attachCard(target,web,gallery,state);
       }catch(Throwable e){if(ownsGallery){invokeClose(gallery);clearCardMark();}}
     });}catch(Throwable e){processing=false;}
   }
+  private void maybeArm(Activity a,WebView web){
+    if(ownsGallery||inlineArmed||processing)return;
+    processing=true;
+    web.evaluateJavascript(ARM_SNAPSHOT,raw->{
+      processing=false;
+      if(!resumed||a!=foreground||inlineArmed)return;
+      try{
+        Object v=new JSONTokener(raw).nextValue();
+        if(!(v instanceof String))return;
+        JSONObject state=new JSONObject((String)v);
+        if(!state.optBoolean("active")||state.optDouble("w")<150||state.optDouble("h")<180)return;
+        FrameLayout root=a.findViewById(android.R.id.content);
+        if(root==null)return;
+        armRoot=root;armedState=state;inlineArmed=true;
+        armDeadline=android.os.SystemClock.uptimeMillis()+5000;
+        installPreDrawGuard(a,web,root);
+        web.evaluateJavascript("window.__moaR511NativeArmed=true;",null);
+      }catch(Throwable ignored){}
+    });
+  }
+  private void disarm(){
+    if(armRoot!=null&&armGuard!=null)try{
+      ViewTreeObserver obs=armRoot.getViewTreeObserver();
+      if(obs.isAlive())obs.removeOnPreDrawListener(armGuard);
+    }catch(Throwable ignored){}
+    armRoot=null;armGuard=null;armedState=null;inlineArmed=false;
+  }
+  private void installPreDrawGuard(Activity a,WebView web,FrameLayout root){
+    final ViewTreeObserver.OnPreDrawListener watcher=new ViewTreeObserver.OnPreDrawListener(){
+      @Override public boolean onPreDraw(){
+        if(!inlineArmed||armRoot!=root)return true;
+        if(!resumed||foreground!=a||android.os.SystemClock.uptimeMillis()>armDeadline){disarm();return true;}
+        Object gallery=readField(a,"unifiedGallery");
+        Object hostObject=readField(gallery,"host");
+        if(!(hostObject instanceof FrameLayout))return true;
+        FrameLayout host=(FrameLayout)hostObject;
+        if(host.getParent()!=root||armedState==null)return true;
+        // Hide the original fullscreen host before its FIRST draw, even if
+        // Gallery.open() has not reached its final open=true assignment.
+        host.setAlpha(0f);
+        if(!galleryOpen(gallery))return true;
+        // UI thread before the first completed frame: resize in-card first.
+        try{attachCard(a,web,gallery,armedState);}catch(Throwable ignored){}
+        disarm();
+        host.postDelayed(()->{
+          if(host==nativeHost&&galleryOpen(gallery)&&ownsGallery)
+            host.animate().alpha(1f).setDuration(135).start();
+        },45);
+        return true;
+      }
+    };
+    armGuard=watcher;
+    root.getViewTreeObserver().addOnPreDrawListener(watcher);
+  }
   private static void invokeClose(Object gallery){
     try{gallery.getClass().getMethod("close").invoke(gallery);}catch(Throwable ignored){}
   }
   private void clearCardMark(){
+    disarm();
     if(coverStar!=null && coverStar.getParent() instanceof ViewGroup)
       ((ViewGroup)coverStar.getParent()).removeView(coverStar);
-    coverStar=null;nativeHost=null;galleryRef=null;
-    ownsGallery=false;lastIndex=-1;lastW=lastH=-1;
+    if(inlineBack!=null && backOwner!=null && Build.VERSION.SDK_INT>=33)try{
+      backOwner.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(inlineBack);
+    }catch(Throwable ignored){}
+    inlineBack=null;backOwner=null;
+    if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
+    coverStar=null;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;
+    compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;
     lastX=lastY=Integer.MIN_VALUE;
   }
   private static int rounded(double x){return (int)Math.round(x);}
@@ -178,37 +273,110 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(w>root.getWidth()+3||h>root.getHeight()+3)return;
     if(host!=nativeHost){
       clearCardMark();nativeHost=host;galleryRef=gallery;ownsGallery=true;
-      installCoverStar(a,web,host,gallery);
+      GradientDrawable round=new GradientDrawable();round.setColor(Color.BLACK);round.setCornerRadius(dp(a,23));
+      host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
+      installInlineBack(a,web);
       web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
     }
-    if(x!=lastX||y!=lastY||w!=lastW||h!=lastH){
+    if(w!=lastW||h!=lastH){
+      // Size changes are infrequent. Never continuously relayout a live TextureView.
       FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(w,h,Gravity.TOP|Gravity.LEFT);
       lp.leftMargin=x;lp.topMargin=y;
-      host.setLayoutParams(lp);
-      // Preserve original Layout/TextureView/gallery owner and R463 footer intact.
-      host.setClipChildren(true);host.setClipToPadding(true);
-      lastX=x;lastY=y;lastW=w;lastH=h;
+      host.animate().cancel();host.setTranslationX(0f);host.setTranslationY(0f);
+      host.setLayoutParams(lp);baseX=x;baseY=y;
+    }else if(x!=lastX||y!=lastY){
+      // Hardware-accelerated translation instead of repeatedly applying LayoutParams:
+      // 55ms frame interpolation tracks a moving WebView card without staccato relayout.
+      float tx=x-baseX,ty=y-baseY;
+      if(Math.abs(y-lastY)>240||Math.abs(x-lastX)>240){host.animate().cancel();host.setTranslationX(tx);host.setTranslationY(ty);}
+      else host.animate().translationX(tx).translationY(ty).setDuration(56)
+       .setInterpolator(new LinearInterpolator()).start();
     }
+    lastX=x;lastY=y;lastW=w;lastH=h;
     if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
     else host.setVisibility(View.VISIBLE);
+    compactNativeCard(a,web,host,gallery);
     syncIndex(web,gallery,s.optString("cover",""));
   }
-  private void installCoverStar(Activity a,WebView web,FrameLayout host,Object gallery){
+  private void installInlineBack(Activity a,WebView web){
+    if(Build.VERSION.SDK_INT<33||inlineBack!=null)return;
+    try{
+      // Overlay priority only during this photo-card session. Unrelated original
+      // R463 fullscreen Gallery retains its own Android Back callback and behavior.
+      inlineBack=()->web.evaluateJavascript("window.MoaR469SimpleDiary&&window.MoaR469SimpleDiary.home&&window.MoaR469SimpleDiary.home();",null);
+      a.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_OVERLAY,inlineBack);
+      backOwner=a;
+    }catch(Throwable e){inlineBack=null;backOwner=null;}
+  }
+  private void compactNativeCard(Activity a,WebView web,FrameLayout host,Object gallery){
+    View found=host.findViewWithTag("moa.gallery.action.deck.r443");
+    if(!(found instanceof FrameLayout))return; // R391 adds native actions asynchronously
+    FrameLayout deck=(FrameLayout)found;
+    if(deck.getChildCount()!=1||!(deck.getChildAt(0) instanceof LinearLayout))return;
+    LinearLayout capsule=(LinearLayout)deck.getChildAt(0);
+    if(capsule.getChildCount()<4)return;
+    if(compactDone&&deck==actionDeck)return;
+    actionDeck=deck;actionCapsule=capsule;
+    if(deck.getLayoutParams() instanceof FrameLayout.LayoutParams){
+      FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)deck.getLayoutParams();
+      p.height=dp(a,44);deck.setLayoutParams(p);
+    }
+    if(capsule.getLayoutParams() instanceof FrameLayout.LayoutParams){
+      FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)capsule.getLayoutParams();
+      p.height=dp(a,37);p.width=Math.min(Math.max(dp(a,215),host.getWidth()-dp(a,20)),dp(a,258));
+      p.bottomMargin=dp(a,2);capsule.setLayoutParams(p);
+    }
+    GradientDrawable bg=new GradientDrawable();bg.setColor(0xe5212229);bg.setCornerRadius(dp(a,19));
+    bg.setStroke(dp(a,.5f),0x447d828c);capsule.setBackground(bg);
+    for(int i=0;i<capsule.getChildCount();i++){
+      View action=capsule.getChildAt(i);action.setMinimumHeight(dp(a,36));
+      if(action.getLayoutParams() instanceof LinearLayout.LayoutParams){
+        LinearLayout.LayoutParams p=(LinearLayout.LayoutParams)action.getLayoutParams();
+        p.height=dp(a,36);action.setLayoutParams(p);
+      }
+      if(action instanceof ViewGroup){ViewGroup group=(ViewGroup)action;
+        for(int k=0;k<group.getChildCount();k++){
+          View glyph=group.getChildAt(k);glyph.setScaleX(.82f);glyph.setScaleY(.82f);
+        }
+      }
+    }
     TextView star=new TextView(a);star.setText("☆");star.setTextSize(20);
-    star.setTextColor(0xffffd7a4);star.setGravity(Gravity.CENTER);
+    star.setTextColor(Color.WHITE);star.setGravity(Gravity.CENTER);
     star.setContentDescription("현재 사진을 달력 대표사진으로 지정");
-    star.setClickable(true);star.setFocusable(true);
-    GradientDrawable bg=new GradientDrawable();bg.setColor(0xc923252d);bg.setCornerRadius(dp(a,21));
-    bg.setStroke(dp(a,1),0x88ffffff);star.setBackground(bg);
-    FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(a,42),dp(a,42),Gravity.TOP|Gravity.RIGHT);
-    lp.topMargin=dp(a,8);lp.rightMargin=dp(a,9);
-    host.addView(star,lp);
+    star.setTag("moa.gallery.inline.cover.r511");star.setClickable(true);star.setFocusable(true);
     star.setOnClickListener(v->{
       String id=currentId(gallery);if(id.length()==0)return;
-      String quoted=JSONObject.quote(id);
-      web.evaluateJavascript("window.MoaR469SimpleDiary&&window.MoaR469SimpleDiary.setCoverNative&&window.MoaR469SimpleDiary.setCoverNative("+quoted+");",null);
+      web.evaluateJavascript("window.MoaR469SimpleDiary&&window.MoaR469SimpleDiary.setCoverNative&&window.MoaR469SimpleDiary.setCoverNative("+JSONObject.quote(id)+");",null);
+      star.setText("★");
     });
+    capsule.addView(star,0,new LinearLayout.LayoutParams(0,dp(a,36),1f));
     coverStar=star;
+    // Adapt ONLY this owned in-card instance. Original Gallery next opens from
+    // fresh host+controls and retains its exact R463 sizes and positions.
+    Object lowerObject=readField(gallery,"lowerControls");
+    if(lowerObject instanceof LinearLayout){
+      LinearLayout lower=(LinearLayout)lowerObject;nativeLower=lower;
+      if(lower.getLayoutParams() instanceof FrameLayout.LayoutParams){
+        FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)lower.getLayoutParams();
+        p.height=dp(a,154);lower.setLayoutParams(p);
+      }
+      Object rail=readField(gallery,"rail");
+      if(rail instanceof View && ((View)rail).getLayoutParams() instanceof LinearLayout.LayoutParams){
+        LinearLayout.LayoutParams p=(LinearLayout.LayoutParams)((View)rail).getLayoutParams();
+        p.height=dp(a,54);((View)rail).setLayoutParams(p);
+      }
+      Object video=readField(gallery,"videoControls");
+      if(video instanceof View && ((View)video).getLayoutParams() instanceof LinearLayout.LayoutParams){
+        LinearLayout.LayoutParams p=(LinearLayout.LayoutParams)((View)video).getLayoutParams();
+        p.height=dp(a,38);((View)video).setLayoutParams(p);
+      }
+      Object seek=readField(gallery,"seekRow");
+      if(seek instanceof View && ((View)seek).getLayoutParams() instanceof LinearLayout.LayoutParams){
+        LinearLayout.LayoutParams p=(LinearLayout.LayoutParams)((View)seek).getLayoutParams();
+        p.height=dp(a,30);((View)seek).setLayoutParams(p);
+      }
+    }
+    compactDone=true;
   }
   private static String currentId(Object gallery){
     try {
