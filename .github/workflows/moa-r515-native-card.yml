@@ -64,3 +64,5 @@ jobs:
         with:
           name: MOA-R515-native-card-DEX
           path: build/moa-r515/
+
+# R515 second reproducible DEX build: final rail-toggle anchor source commit 723f7cd5d13fdaaca7f00fd92e71381995309715
