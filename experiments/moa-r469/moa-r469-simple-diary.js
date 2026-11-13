@@ -20,8 +20,8 @@ function diaryRoot(){return document.getElementById('fj-diary-root');}
 function db(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB,2);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.onblocked=()=>reject(Error('기존 일기 저장소 사용 중'));});}
 async function stored(table,key){const d=await db();try{return await new Promise((resolve,reject)=>{const r=d.transaction(table,'readonly').objectStore(table).get(key);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});}finally{d.close();}}
 async function persist(table,key,record){const d=await db();try{await new Promise((resolve,reject)=>{const tx=d.transaction(table,'readwrite'),st=tx.objectStore(table);table==='curated'||table==='entries'?st.put(record):st.put(record,key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}finally{d.close();}}
-async function mergeCuratedBody(day,body){const d=await db();try{return await new Promise((resolve,reject)=>{
- const tx=d.transaction('curated','readwrite'),store=tx.objectStore('curated');let result=null;
+async function mergeDiaryBody(day,body,table){if(!['curated','entries'].includes(table))throw Error('unsupported diary table');const d=await db();try{return await new Promise((resolve,reject)=>{
+ const tx=d.transaction(table,'readwrite'),store=tx.objectStore(table);let result=null;
  const get=store.get(day);get.onsuccess=()=>{const original=get.result||{day,selectionMode:'manual',title:'',tags:[],feeling:'',activities:{},photoIds:[],moments:[]};
   result={...original,day,body,selectionMode:original.selectionMode||'manual',updatedAt:Date.now(),source:original.source||'owner'};
   store.put(result);};get.onerror=()=>{try{tx.abort()}catch(_){}};
@@ -65,7 +65,7 @@ function header(title,back){const h=elem('header','moa-r469-head');h.append(btn(
 function renderMonth(){const s=getState();if(!s)return;const y=ui.month.getFullYear(),m=ui.month.getMonth(),days=new Date(y,m+1,0).getDate(),offset=new Date(y,m,1).getDay();
  const h=header('사진 일기',()=>close());view.append(h);
  const monthBar=elem('nav','moa-r469-month-head');monthBar.append(btn('‹',()=>changeMonth(-1)),btn(`${y}년 ${m+1}월`,()=>{const v=prompt('이동할 연도-월 (YYYY-MM)',`${y}-${String(m+1).padStart(2,'0')}`);if(/^\d{4}-(0[1-9]|1[0-2])$/.test(v||'')){ui.month=new Date(v+'-01T12:00:00');render();}},'moa-r469-month-name'),btn('›',()=>changeMonth(1)),btn('오늘',()=>{ui.month=new Date();ui.month.setDate(1);ui.selected=dayOf(Date.now());render()},'moa-r469-today'));view.append(monthBar);
- const records=[...s.curatedEntries?.values()||[]].filter(e=>e?.day?.startsWith(`${y}-${String(m+1).padStart(2,'0')}-`)&&(e.body||e.title||(e.moments||[]).length)).length;
+ const records=new Set([...(s.curatedEntries?.values()||[]),...(s.entries?.values()||[])].filter(e=>e?.day?.startsWith(`${y}-${String(m+1).padStart(2,'0')}-`)&&(e.body||e.title||(e.moments||[]).length)).map(e=>e.day)).size;
  const progress=elem('div','moa-r469-progress');progress.append(elem('span','',`이번 달 기록 ${records} / ${days}일`),elem('span','',`${Math.round(records/days*100)}%`));view.append(progress);
  const bar=elem('div','moa-r469-progressbar');const inner=elem('span');inner.style.width=(records/days*100)+'%';bar.append(inner);view.append(bar);
  const grid=elem('div','moa-r469-month-grid');for(const d of ['일','월','화','수','목','금','토'])grid.append(elem('span','moa-r469-week',d));
@@ -81,7 +81,7 @@ function changeMonth(k){ui.month=new Date(ui.month.getFullYear(),ui.month.getMon
 function dayMedia(index){const m=ui.media[index];return m&&safeMedia(m.id)?m:null;}
 function setDay(day){if(!valid(day))return;ui.date=day;ui.selected=day;ui.page='day';ui.fast=false;ui.idx=0;ui.dirty=false;render();}
 function renderDay(){const d=ui.date,s=getState();if(!valid(d)||!s)return;ui.media=mediaFor(d);const chosen=mainCover(d,ui.media);const ri=ui.media.findIndex(x=>String(x.id)===String(chosen?.id));ui.idx=Math.min(ui.media.length-1,Math.max(0,ui.idx||ri));if(ui.idx===0&&ri>0)ui.idx=ri;
- const current=s.curatedEntries?.get(d),wrap=elem('div','moa-r469-day');wrap.append(header(dateLabel(d),goBack));
+ const current=s.curatedEntries?.get(d)||s.entries?.get(d),wrap=elem('div','moa-r469-day');wrap.append(header(dateLabel(d),goBack));
  const stage=elem('div','moa-r469-stage');stage.dataset.moaStage='yes';stage.tabIndex=0;stage.setAttribute('aria-label','사진 영상 좌우로 이동');stage.append(elem('div','moa-r469-stage-media'));
  const more=btn('···',()=>{ui.tools=!ui.tools;toggleTools()},'moa-r469-more');more.setAttribute('aria-label','사진 기능');stage.append(more);wrap.append(stage);
  stage.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;ui.gesture={x:e.clientX,y:e.clientY,at:Date.now()}});
@@ -96,7 +96,7 @@ function renderDay(){const d=ui.date,s=getState();if(!valid(d)||!s)return;ui.med
  const story=elem('section','moa-r469-story');story.append(elem('strong','moa-r469-story-title','오늘의 이야기'));
  const area=elem('textarea','moa-r469-text');area.placeholder='오늘의 소중한 순간을 기록해 보세요.';area.value=current?.body||'';area.oninput=()=>{ui.dirty=true;};story.append(area);
  const momentNotes=(current?.moments||[]).filter(x=>String(x.note||'').trim());if(momentNotes.length){const details=elem('details','moa-r469-moments');details.append(elem('summary','',`바로기록 ${momentNotes.length}개`));for(const m of momentNotes){const p=elem('p','',m.note);details.append(p)}story.append(details);}
- const voicehead=elem('div','moa-r469-voice-head');voicehead.append(elem('span','',`음성 메모`),btn('♩',()=>openNativeRecorder(),'moa-r469-record'));voicehead.lastChild.setAttribute('aria-label','기존 음성 녹음 기능');story.append(voicehead);
+ const voicehead=elem('div','moa-r469-voice-head');const recButton=btn('',()=>openNativeRecorder(),'moa-r469-record');recButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4M8.5 21h7"/></svg>';recButton.setAttribute('aria-label','기존 음성 녹음 기능');voicehead.append(elem('span','','음성 메모'),recButton);story.append(voicehead);
  const voice=elem('div','moa-r469-voice-player');voice.innerHTML='<button class="moa-r469-voice-play" aria-label="녹음 듣기">▷</button><div class="moa-r469-voice-detail"><span></span><input type="range" min="0" max="100" value="0" aria-label="재생 시간 탐색" disabled></div><button class="moa-r469-voice-select" aria-label="녹음 선택">0/0⌄</button>';
  voice.querySelector('.moa-r469-voice-play').onclick=()=>playVoice();voice.querySelector('.moa-r469-voice-select').onclick=()=>voiceListToggle();story.append(voice);
  const chooser=elem('div','moa-r469-voice-list');chooser.hidden=true;story.append(chooser);
@@ -126,7 +126,7 @@ async function onAction(e){const op=e.target.closest('button[data-op]')?.dataset
 async function saveCover(id){const s=getState();if(!s?.covers)return;const covers=s.covers,old=covers.curated?.[ui.date];if(!covers.curated)covers.curated={};covers.curated[ui.date]=String(id);
  try{await persist('meta',coverKey,covers);notify('대표 사진이 달력 표지로 저장됐습니다.');renderMedia();}catch(e){if(old===undefined)delete covers.curated[ui.date];else covers.curated[ui.date]=old;notify('대표 사진 저장 실패: '+String(e))}}
 async function saveStory(){const s=getState();if(!s)return;const textarea=$('.moa-r469-text',view);if(!textarea)return;const text=textarea.value.trim(),day=ui.date;
- try{const updated=await mergeCuratedBody(day,text);s.curatedEntries.set(day,updated);ui.dirty=false;notify('기존 일기 저장소에 저장했습니다. 바로기록·시간대별 기록은 보존됩니다.');}
+ try{const table=s.curatedEntries?.has(day)?'curated':s.entries?.has(day)?'entries':'curated';const updated=await mergeDiaryBody(day,text,table);(table==='curated'?s.curatedEntries:s.entries).set(day,updated);ui.dirty=false;notify('기존 일기 저장소에 저장했습니다. 바로기록·시간대별 기록은 보존됩니다.');}
  catch(e){notify('저장 실패: '+String(e))}
 }
 function parseVoices(){let list=[];try{list=JSON.parse(window.MoaLocalAudio?.list?.(ui.date)||'[]')}catch(e){}
