@@ -374,10 +374,14 @@ function r479PeriodSheet(){
  }
  const label=elem('div','moa-r483-picker-labels');label.append(elem('span','','연도'),elem('span','','월'));sheet.append(label);
  picker.append(years,months);sheet.append(picker);
- sheet.append(elem('p','moa-r479-picker-hint','연도를 스크롤해 선택하고 월을 누르면 해당 달로 이동합니다.'));
+ sheet.append(elem('p','moa-r479-picker-hint','연도와 월을 각각 스크롤해 선택할 수 있습니다.'));
  shade.append(sheet);shade.addEventListener('click',e=>{if(e.target===shade)shade.remove()});shade.addEventListener('keydown',e=>{if(e.key==='Escape'){shade.remove();e.preventDefault()}});
  view.append(shade);
- requestAnimationFrame(()=>{const active=years.querySelector('.active');if(active)years.scrollTop=active.offsetTop-years.offsetTop-years.clientHeight/2+active.clientHeight/2});
+ requestAnimationFrame(()=>{
+  for(const panel of [years,months]){const active=panel.querySelector('.active');
+   if(active)panel.scrollTop=active.offsetTop-panel.offsetTop-panel.clientHeight/2+active.clientHeight/2;
+  }
+ });
 }
 function r479SetSource(source){
  if(!['curated','automatic'].includes(source)||ui.source===source)return;
@@ -516,6 +520,8 @@ function renderDay(){r495InstallBackHandlers();const d=ui.date,s=getState();if(!
  const views=r475ModeToggle('photo',()=>{},()=>r475OpenDetail(d));
  views.classList.add('moa-r475-photo-switch');wrap.append(views);
  const stage=elem('div','moa-r469-stage');stage.dataset.moaStage='yes';stage.tabIndex=0;stage.setAttribute('aria-label','사진 영상 좌우로 이동');stage.append(elem('div','moa-r469-stage-media'));
+ const coverStar=btn('☆',()=>{const media=dayMedia(ui.idx);if(media)saveCover(media.id)},'moa-r503-cover-star');
+ coverStar.setAttribute('aria-label','현재 사진을 달력 대표 사진으로 지정');coverStar.title='달력 대표 사진으로 지정';stage.append(coverStar);
  const more=btn('···',()=>{ui.tools=!ui.tools;toggleTools()},'moa-r469-more');more.setAttribute('aria-label','사진 기능');stage.append(more);wrap.append(stage);
  stage.addEventListener('keydown',e=>{
   if(e.key==='ArrowLeft'){changeMedia(ui.idx-1);e.preventDefault()}
@@ -571,8 +577,11 @@ function r472UpdatePager(){
  dots.replaceChildren();const count=ui.media.length;if(!count)return;
  const range=count<=9?Array.from({length:count},(_,i)=>i):Array.from({length:7},(_,i)=>Math.max(0,Math.min(count-7,ui.idx-3))+i);
  for(const i of range){const dot=btn('',()=>changeMedia(i),'moa-r469-dot'+(i===ui.idx?' active':''));dot.setAttribute('aria-label',`${i+1}번째 사진`);dots.append(dot)}
- const star=$('[data-op="cover"]',view),m=dayMedia(ui.idx);
- if(star&&m)star.classList.toggle('active',String(getState()?.covers?.curated?.[ui.date]||'')===String(m.id));
+ const star=$('.moa-r503-cover-star',view),m=dayMedia(ui.idx);
+ if(star){const active=!!m&&String(getState()?.covers?.[ui.source]?.[ui.date]||'')===String(m.id);
+  star.textContent=active?'★':'☆';star.classList.toggle('active',active);
+  star.setAttribute('aria-pressed',String(active));star.disabled=!m;
+ }
  const fast=$('[data-op="fast"]',view);if(fast)fast.classList.toggle('active',ui.fast);
  if(ui.rail)renderRail();
 }
@@ -606,7 +615,7 @@ function renderMedia(){
  },{passive:true});
  track.addEventListener('click',e=>{
   if(e.target.closest('button,video,input'))return;
-  if(e.target.closest('.moa-r472-slide')){const media=dayMedia(ui.idx);if(media)r499OpenOriginalGallery(media);}
+  if(e.target.closest('.moa-r472-slide')){ui.tools=!ui.tools;toggleTools();}
  });
  medias.forEach((m,i)=>{
   const slide=elem('div','moa-r472-slide');slide.dataset.idx=String(i);
@@ -639,9 +648,13 @@ function renderRail(){const r=$('.moa-r469-rail',view);if(!r||!ui.rail)return;
  // Never recreate children during a fling; DOM replacement previously cancelled inertia and selection.
  if(r.children.length!==ui.media.length||[...r.children].some((x,i)=>x.dataset.id!==String(ui.media[i]?.id))){
   r.replaceChildren();const imgs=[];
-  ui.media.forEach((m,i)=>{const tile=btn('',()=>changeMedia(i),'moa-r469-rail-item');tile.dataset.id=String(m.id);tile.title='대표 사진으로 지정: 길게 누르기';
-   const img=elem('img');img.dataset.id=String(m.id);tile.append(img);if(isVideo(m))tile.append(elem('small','','▶'));
-   tile.addEventListener('contextmenu',e=>{e.preventDefault();saveCover(m.id)});r.append(tile);imgs.push(img)});
+  ui.media.forEach((m,i)=>{const tile=elem('div','moa-r469-rail-item');tile.dataset.id=String(m.id);
+   const select=btn('',()=>changeMedia(i),'moa-r503-rail-select');select.setAttribute('aria-label',`${i+1}번째 사진·영상 보기`);
+   const img=elem('img');img.dataset.id=String(m.id);select.append(img);
+   if(isVideo(m))select.append(elem('small','','▶'));
+   const star=btn('☆',()=>saveCover(m.id),'moa-r503-rail-star');star.setAttribute('aria-label',`${i+1}번째 사진을 달력 대표로 지정`);
+   star.setAttribute('aria-pressed','false');star.title='달력 대표 지정';
+   tile.append(select,star);r.append(tile);imgs.push(img)});
   fillImages(imgs);
   if(!r.dataset.synced){r.dataset.synced='1';let nextFrame=0;
    r.addEventListener('scroll',()=>{if(r499RailSync||nextFrame)return;nextFrame=requestAnimationFrame(()=>{nextFrame=0;if(!ui.rail||!ui.open)return;
@@ -651,7 +664,13 @@ function renderRail(){const r=$('.moa-r469-rail',view);if(!r||!ui.rail)return;
    })},{passive:true});
   }
  }
- for(const [i,x] of [...r.children].entries())x.classList.toggle('active',i===ui.idx);
+ for(const [i,x] of [...r.children].entries()){
+  x.classList.toggle('active',i===ui.idx);
+  const cover=x.querySelector('.moa-r503-rail-star');if(cover){
+   const selected=String(getState()?.covers?.[ui.source]?.[ui.date]||'')===String(ui.media[i]?.id);
+   cover.classList.toggle('active',selected);cover.textContent=selected?'★':'☆';cover.setAttribute('aria-pressed',String(selected));
+  }
+ }
  if(!r.dataset.lastIndex||Number(r.dataset.lastIndex)!==ui.idx){r.dataset.lastIndex=String(ui.idx);
   r499RailSync+=Number(!r499RailOrigin);const x=r.children[ui.idx];if(x&&!r499RailOrigin){const center=x.offsetLeft+x.offsetWidth/2-r.clientWidth/2;
     r.scrollTo({left:Math.max(0,center),behavior:'auto'});}
@@ -662,11 +681,32 @@ async function onAction(e){const op=e.target.closest('button[data-op]')?.dataset
  if(op==='fast'){ui.fast=!ui.fast;const track=$('.moa-r472-track',view);if(track)track.classList.toggle('is-fast',ui.fast);r472UpdatePager();notify(ui.fast?'빠른 연속 넘기기 ON':'한 장씩 넘기기 OFF');return}
  if(op==='share'){if(!nativePost(isVideo(m)?'diaryShareVideo':'sharePhoto',{id:String(m.id)}))notify('Android 공유 기능을 연결할 수 없습니다.');return}
  if(op==='cover'){await saveCover(m.id);return}
- if(op==='geo'){const pane=$('.moa-r469-info',view);if(pane){pane.hidden=false;pane.replaceChildren();try{if(typeof window.FamilyJourneyDiaryGeo?.attach==='function')window.FamilyJourneyDiaryGeo.attach(pane,String(m.id));else pane.textContent='현재 사진의 GPS 지도를 연결할 수 없습니다.'}catch(err){pane.textContent=String(err)}}return;}
+ if(op==='geo'){r503OpenNaverLocation(m);return;}
  if(op==='info'){const pane=$('.moa-r469-info',view);if(!pane)return;ui.info=!ui.info;pane.hidden=!ui.info;if(ui.info){pane.replaceChildren(elem('p','',`촬영: ${new Date(Number(m.t)||Date.now()).toLocaleString('ko-KR')}`));try{window.FamilyJourneyDiaryGeo?.attach?.(pane,String(m.id))}catch(e){}}return;}
 }
+
+function r503OpenNaverLocation(media){
+ const pane=$('.moa-r469-info',view);if(!pane||!media)return;
+ pane.hidden=false;pane.replaceChildren();ui.info=true;
+ if(typeof window.FamilyJourneyDiaryGeo?.attach!=='function'){
+  pane.textContent='원본 GPS 위치 기능을 사용할 수 없습니다.';return;
+ }
+ const mediaId=String(media.id);let finished=false;
+ const findNativeMap=()=>{
+  if(finished||!pane.isConnected||String(dayMedia(ui.idx)?.id)!==mediaId)return false;
+  const b=[...pane.querySelectorAll('button')].find(x=>x.textContent?.trim()==='네이버지도');
+  if(b){finished=true;observer.disconnect();b.click();return true}
+  if(/촬영 위치 정보 없음|bridge_unavailable/.test(pane.textContent||'')){
+   finished=true;observer.disconnect();return true;
+  }
+  return false;
+ };
+ const observer=new MutationObserver(findNativeMap);observer.observe(pane,{childList:true,subtree:true});
+ try{window.FamilyJourneyDiaryGeo.attach(pane,mediaId);}catch(e){observer.disconnect();pane.textContent='GPS 위치 확인 중 오류가 발생했습니다.';return;}
+ findNativeMap();setTimeout(()=>{if(!finished){finished=true;observer.disconnect();}},6000);
+}
 async function saveCover(id){const s=getState();if(!s?.covers)return;const covers=s.covers;const source=ui.source;const old=covers[source]?.[ui.date];if(!covers[source])covers[source]={};covers[source][ui.date]=String(id);
- try{await persist('meta',coverKey,covers);notify('대표 사진이 달력 표지로 저장됐습니다.');renderMedia();}catch(e){if(old===undefined)delete covers[source][ui.date];else covers[source][ui.date]=old;notify('대표 사진 저장 실패: '+String(e))}}
+ try{await persist('meta',coverKey,covers);notify('대표 사진이 달력 표지로 저장됐습니다.');r472UpdatePager();}catch(e){if(old===undefined)delete covers[source][ui.date];else covers[source][ui.date]=old;notify('대표 사진 저장 실패: '+String(e))}}
 async function saveStory(){const s=getState();if(!s)return;const textarea=$('.moa-r469-text',view);if(!textarea)return;const text=textarea.value.trim(),day=ui.date;
  try{const table=s.curatedEntries?.has(day)?'curated':s.entries?.has(day)?'entries':'curated';const updated=await mergeDiaryBody(day,text,table);(table==='curated'?s.curatedEntries:s.entries).set(day,updated);ui.dirty=false;notify('기존 일기 저장소에 저장했습니다. 바로기록·시간대별 기록은 보존됩니다.');}
  catch(e){notify('저장 실패: '+String(e))}
@@ -716,6 +756,6 @@ function playInlineVideo(media){
 
 const originalAudioEvent=window.__moaNativeAudioEvent;
 if(typeof originalAudioEvent==='function'){window.__moaNativeAudioEvent=function(evt){originalAudioEvent.apply(this,arguments);if(!ui.open||ui.page!=='day')return;const event=String(evt?.event||'');if(event==='play_started'||event==='play_resumed'){ui.audioPlaying=true;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='Ⅱ';}else if(['play_paused','play_finished','play_error'].includes(event)){ui.audioPlaying=false;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='▷';}if(['record_saved','delete'].includes(event))setTimeout(refreshVoices,250);};}
-window.MoaR469SimpleDiary={openCalendar:()=>open('calendar'),openDay:d=>open('day',d),close,readOnlyStatus:()=>({active:ui.open,page:ui.page,date:ui.date,mediaCount:ui.media.length,voiceCount:ui.clips.length})};
+window.MoaR469SimpleDiary={openCalendar:()=>open('calendar'),openDay:d=>open('day',d),home:()=>ui.open?(ui.page==='day'?goBack():true):false,close,readOnlyStatus:()=>({active:ui.open,page:ui.page,date:ui.date,mediaCount:ui.media.length,voiceCount:ui.clips.length})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
