@@ -84,11 +84,15 @@ The user has clarified the earlier proposed `tap hero photo -> separate native G
 - **Today's date** has a distinct small marker (dot/Today accent) so it is not confused with the **selected date** when browsing a different month/day. On tapping a date, update highlight immediately, keep selected date when returning from the diary, synchronize central `+` context to that selected date. Use accessible semantics and not color-only indicators.
 - Do not alter/delete original manually-selected and automatic calendars. The highlight is part of the **third** added calendar screen.
 
-### C. 바로기록 integrated destination chooser
-- The user already has **바로기록** (quick capture) and wants this entry path represented in the **new simple UI**, not rebuilt as a competing disconnected recording system.
-- On quick capture/compose, offer clear **save destination choices** such as `새 간편 일기` and `기존 상세 일기` (the actual wording can match MOA's established terminology after source inspection). Respect selected/current date context. Preserve an option to switch destination **before final save** without losing entered text, media or recording.
-- Storage must be **non-destructive and nonduplicating**: destination choice selects an appropriate VIEW/EDITOR/association (or an explicit entry type), **not separate blind writes** into two unrelated tables. Reuse existing MOA persistence and diary/date/media association after inspecting R463 app storage schema; guarantee existing original time-segmented diary/바로기록 content does not vanish, reassign dates, or double save. If the new simple view cannot safely represent an existing detailed element, show a link to original entry rather than silently dropping it.
-- Quick capture card supports photo/video selection, short text, voice recording if possible, save or continue-in-editor; still use existing MOA permissions and URI grants.
+### C. 바로기록 — ONE recording/save workflow, TWO UI presentations (LATEST USER CORRECTION)
+
+**This section supersedes and REVOKES the earlier suggestion of a two-option destination chooser or separate `간편 일기` vs `상세 일기` save dialog.** The user does not want to split 바로기록 into two workflows.
+
+- Keep the existing **single 바로기록** capture and save mechanism, as-is for detailed chronological entries. The new simple Diary shows the same date's relevant saved media/text/voice as a **concise, polished presentation** in `오늘의 사진` and `오늘의 일기` without asking the user where to save.
+- If an entry is created from within the new simple UI, it naturally appears in that UI and should remain accessible to the existing detailed Diary wherever the shared data model allows; do not silently create two duplicated diary records or replace old chronological records.
+- UI transformation is a **read/view model adapter** where possible: detailed time-stamped entries can be grouped/summarized into today's simple photo/text/voice layout while preserving original timestamps, source media IDs and edit provenance.
+- The precise R463 current `바로기록` data model, text/audio/media links, original write APIs, and whether an additive simple-entry type is needed must be source-verified before implementation. Never promise a common database structure or update original data without checking.
+- There is **no destination picker, no duplicate Quick Capture app, and no extra save step.** The context/date determines the displayed date; one authoritative storage operation supports multiple views.
 
 ### D. Voice inside 오늘의 일기, not a DayPic music section
 - The user **explicitly requires voice recording AND playback** from inside `오늘의 일기`, preserving any existing MOA audio/voice features.
@@ -103,7 +107,35 @@ The user has clarified the earlier proposed `tap hero photo -> separate native G
 ### Implementation gates updated
 1. Map actual R463 diary persistence and quick-capture and `MediaRecorder` flow; identify exact extant APIs to reuse, prove source-backed functionality before coding bridge.
 2. Build an **inline interaction proof** with photo/video horizontal gestures, media-index & miniature-rail synchronization, vertical-scroll arbitration and light-theme nonblack stage; maintain existing R463 fullscreen viewer as fallback, not forced navigation.
-3. Add selected-day highlight distinct from Today and date-aware central plus; connect quick-capture destination chooser without duplicate diary writes; add voice record/play component that attaches to the same selected day.
+3. Add selected-day highlight distinct from Today and date-aware central plus; connect existing single 바로기록 flow to both detailed and simple presentations without duplicate writes; add voice record/play component that attaches to the same selected day.
 4. Integrate feature controls incrementally, physical Galaxy verify stage fling/zoom/video/voice and date context. Preserve R463 user GOLDEN and original R467 exact restore. Future signed candidate code >=469 from separate branch only.
 
 **Status:** New explicit user design clarification recorded. Still a DESIGN PROPOSAL, not an implemented APK. It overrides any earlier line in this proposal implying that the primary use of the hero photo is only to tap into a separate black fullscreen gallery.
+
+
+## 2026-11-13 FINAL REFINEMENT — Multi-clip audio and bounded in-page media interactions
+
+**Newest user correction (takes priority over all earlier destination-choice language anywhere):** 바로기록 remains one workflow. Existing detailed Diary shows detailed chronological contents; new simple Diary presents the SAME relevant date content concisely. No save-destination modal, no duplicate save, no second Quick Record system.
+
+### Voice clips: 0..N per day, not a single global audio slot
+- Each recording session produces an independent clip with stable ID, recorded-at timestamp, duration and source link. A diary date can contain zero, one, or many clips. Existing clips must survive another recording, edits, process relaunch and date navigation.
+- Inside `오늘의 일기`, display a compact vertically growing list (or collapsed count when many) with per-clip play/pause, seek/progress and elapsed/total time; one clip plays at a time. `녹음 추가` appends; it NEVER overwrites the prior one.
+- While recording show state, elapsed time, pause/resume/stop where supported, safe cancellation and mic permission. On leaving the screen, preserve a pending draft rather than silently discarding, and finalize writing atomically when the existing save mechanism permits. Delete requires clear targeted confirmation; do not delete all on single item action.
+- Respect the existing R463 audio recording/playback ownership and Android audio focus. Source-verify `MediaRecorder` and actual DB/URI association before wiring; historical POC is not proof the current shipped APK has a ready in-card multiple-recording API.
+- A voice clip is a diary attachment/record: **do not introduce a DayPic-like music section**.
+
+### Restrict photo/video gestures to a bounded in-page hero area
+- The new `오늘의 사진` region is a **self-contained media viewport** within the scrollable Diary page. Horizontal drag, fast/slow R463 mode, pinch/double tap on photo, video seek/play/pause/mute/frame capture, Share/GPS/capture-info actions should act **only inside its designated media viewport and controls**.
+- Horizontal motions inside the viewport own media navigation; vertical movement outside it (and predominately vertical gestures inside it when not pinch/seek) should be left to the page's vertical scroll after proper gesture arbitration. Do not place a fullscreen transparent touch overlay across the editor or block note/voice input.
+- Keep video media indexed with photos in the same selected-date collection. On media switch, pause/clean up the prior video and audio before starting the next item. Preserve frame and rail index synchronization, safe lifecycle on navigate-away/reopen, media aspect/crop, video Surface/TextureView and audio focus.
+- Avoid layout jump: stable reserved stage height or responsive aspect constraint; native control bar and thumbnail rail must not overlap note editor or mic list. Optional expanded viewer is secondary, and the default is **NOT** a forced black viewer.
+- This requires a safe host adapter/reuse of native R463 Gallery logic; simply reparenting its fullscreen Activity or replicating R203 physics in a second unverified engine is NOT acceptable.
+
+### Acceptance gates
+1. Existing Quick Capture save → original detail shows original chronological data; new simple Diary shows concise presentation for same date; NO choice prompt, NO duplicate record, NO write-loss.
+2. Record three separate audio clips on one date, play each and seek individually, reopen Diary with all three intact, do not overlap audio, append a fourth without replacing earlier clips.
+3. Embedded photo/video collection allows seamless horizontal swipes in its bounded area; outside media region vertical page scroll, text editing and voice controls remain responsive; ON fast mode is scoped to this region and OFF retains single-step.
+4. Mixed photo→video→photo navigation handles video lifecycle/no stale audio, supports native mute/seek/capture with no child view clipping or layout jumping. Returning from share/map keeps same media.
+5. All existing manual/automatic calendars and detailed time-based Diary preserved unchanged; selected date highlight/Today marker/new calendar remain additive. R463 signed Golden and R467 exact recovery untouched.
+
+**Status:** updated DESIGN ONLY, no APK editing/build/test. Next engineering effort must verify the original R463 quick-capture and audio storage schema and Gallery host embedding constraints first.
