@@ -1,0 +1,27 @@
+{
+  "filename": "MOA_R483_VERTICAL_PHOTO_CALENDAR_SIGNED_BETA.apk",
+  "versionCode": 483,
+  "bytes": 8974266,
+  "sha256": "dcd4ff0f5b623b4503c133d83d38d4c9dd39499b01c89c7691581a8980ecc408",
+  "original_members_unchanged": 138,
+  "total_original_members": 140,
+  "17_original_dex_identical": true,
+  "apk_v2": {
+    "apk_v2_rsa_signature": "PASS",
+    "apk_v2_signed_content_digest": "PASS",
+    "original_certificate_match": "PASS",
+    "apk_signer_algorithm": "0x0103 RSA-PKCS1-SHA256",
+    "signature_bytes": 384
+  },
+  "zip_crc": "PASS",
+  "zip_alignment": "PASS",
+  "new_original_member_changes": [
+    "AndroidManifest.xml",
+    "assets/web/index.html"
+  ],
+  "new_files": [
+    "assets/web/moa-r483-vertical-calendar.js",
+    "assets/web/moa-r483-vertical-calendar.css"
+  ],
+  "browser_smoke": "Chromium UI mock PASS; IndexedDB live writes, Android native R203 and Galaxy device NOT tested"
+}
