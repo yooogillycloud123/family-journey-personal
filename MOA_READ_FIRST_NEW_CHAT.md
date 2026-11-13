@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-13 (Asia/Seoul)
 **CURRENT USER-APPROVED GOLDEN:** **R435**. This is the first entrypoint for MOA work, unless a later explicitly user-approved Golden is documented above it. **Do NOT treat older R415/R419/R423/R427/R431 as the active implementation baseline.**
-**Latest development candidate (NOT Gold):** **R447** from R443. User found R443 #2–#4 PASS but top `⌄` info toggle invisible near OS status bar (20918.png/20920.mp4, privately archived). R447 positions a readable `정보 ⌄` inset-safe toggle above the native gallery with original time/address/Map/`기본 표시` expansion. Source/CI/crypto PASS, physical Galaxy **PENDING**. Full [R447 handoff](MOA_R447_R443_GALLERY_INFO_TOGGLE_STATUS_INSET_R449_RECOVERY_20261113.md). R449 is exact R443 functional recovery, emergency only. Source branch `feature/moa-r447-gallery-info-toggle-inset-20261113`, private Library `/모아_프로젝트_근거_20261103/R447_INFO_TOGGLE_FIX_20261113/`. R435 remains immutable user-approved integrated Golden.
+**Latest development candidate (NOT Gold):** **R451** from working R447: removes textual `정보` pill, shows tiny three-panel folded-map icon only when closed; tapping toggles a same-anchor compact original capture time/address and persistent `기본 표시` checkbox; no upper NAVER pin (bottom map remains). Source/CI/original signer/full APK digest, ZIP/DEX PASS; user Galaxy physical test **PENDING**. See [R451 handoff](MOA_R451_R447_SAME_ANCHOR_MAPFOLD_COMPACT_METADATA_R453_RECOVERY_20261113.md). Private Library `/모아_프로젝트_근거_20261103/R451_MAP_FOLD_INFO_20261113/` contains R451, exact R447 functional R453 recovery, QA and user screenshots. R435 is still the immutable user-approved primary Golden. If installing R453, future code >453.
 
 
 ## Read in order
