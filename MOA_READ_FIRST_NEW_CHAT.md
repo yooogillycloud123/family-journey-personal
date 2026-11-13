@@ -8,6 +8,10 @@
 
 This **promotes exact R463** from signed beta to the latest **user-designated baseline**, not a claim of independent exhaustive on-device testing. **R435 is the prior user-approved Golden, archived and intact, but NOT the current development base.** Earlier R459/R455/R451/R443 etc remain historical. Do not select them for new MOA updates automatically.
 
+## Latest user-requested UI direction (PROPOSAL ONLY — R463 Gold remains unchanged)
+
+**2026-11-13:** User requests a DayPic-inspired **third photo-filled calendar and simple two-section daily diary**, not replacement of original manually chosen-photo calendar / automatic-photo calendar / rich time-segmented diary. See [R463 additive Photo Calendar + Simple Diary UI design](MOA_R463_DAYPIC_INSPIRED_ADDITIVE_PHOTO_CALENDAR_SIMPLE_DIARY_UI_PLAN_20261113.md) and top of [WIP](MOA_WIP_CHECKPOINT_CURRENT.md). New calendar fills date cells with photos, small date overlay, date-aware central `+`, explicit Today and Home. Simple editor uses **오늘의 사진 / 오늘의 일기** only (no `오늘의 음악`); reuse existing native Gallery/video/share/GPS and extend safely. This is a **briefing proposal, not implemented**; no APK, code, signing, or Golden change has been made. Await user's additional design choices before building. Retain R463 as the exact original Golden.
+
 ## Mandatory read order
 
 1. Per ChatGPT Project-level rule, first read `yooogillycloud123/workexcel-devbridge/main/AA_AirPods_FINAL_READ_FIRST_v1.0_20261005.md` in full; also read private Library `/에어팟안드로이드/AA_AirPods_READ_FIRST_NEW_CHAT.txt` and `/에어팟안드로이드/AA_AirPods_MASTER_HANDOFF_v3.3_20260928.md`. For MOA requests, **do not modify AirPods/Android Auto code or runtime**.
