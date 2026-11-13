@@ -724,24 +724,24 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     }
   }
   private static void r451RefreshCompactText(GalleryActions e){
-    if(e.info==null)return;
-    java.util.ArrayList<String> all=new java.util.ArrayList<>();
-    r451CollectInfoText(e.info,all);
     String date="",address="";
-    for(String s:all){
-      String t=s.replace("\n"," ").trim();
-      if(t.equals("기본 표시")||t.contains("네이버지도")||t.equals("지도")||t.equals("NAVER"))continue;
-      if(date.isEmpty()&&(t.contains("촬영")||t.matches(".*[12][0-9]{3}[.\\-/][01]?[0-9].*"))){date=t;continue;}
-      if(address.isEmpty()&&(t.contains("대한민국")||t.contains("주소")||t.contains("위치")||t.matches(".*[가-힣]+(시|군|구|동|읍|면|로|길)\\s.*"))){address=t;continue;}
-    }
-    // Some Gallery builds expose just the two top-level TextViews with no label.
-    for(String s:all){
-      if(date.isEmpty()){date=s;continue;}
-      if(address.isEmpty()&&!s.equals(date)&&!s.contains("네이버")&&!s.equals("지도")){address=s;break;}
+    // R225's real native TextViews: these track selected photo/video changes,
+    // EXIF, MediaStore, cached diary timestamp and Geocoder updates already.
+    try{
+      Object d=r439Field(e.gallery.getClass(),"r225CaptureTime").get(e.gallery);
+      Object p=r439Field(e.gallery.getClass(),"r225Address").get(e.gallery);
+      if(d instanceof TextView)date=String.valueOf(((TextView)d).getText()).trim();
+      if(p instanceof TextView)address=String.valueOf(((TextView)p).getText()).trim();
+    }catch(Throwable ignored){}
+    // Fallback is read-only, restricted to the original native info view.
+    if(date.isEmpty()||address.isEmpty()){
+      java.util.ArrayList<String> texts=new java.util.ArrayList<>();
+      r451CollectInfoText(e.info,texts);
+      if(date.isEmpty()&&texts.size()>0)date=texts.get(0);
+      if(address.isEmpty()&&texts.size()>1)address=texts.get(1);
     }
     if(!date.contentEquals(e.compactTime.getText()))e.compactTime.setText(date);
     if(!address.contentEquals(e.compactAddress.getText()))e.compactAddress.setText(address);
-    // Omit address row rather than an invented location when GPS is unavailable.
     e.compactAddress.setVisibility(address.isEmpty()?View.GONE:View.VISIBLE);
   }
   private static void r443UpdateTopInfo(Activity a,GalleryActions entry,boolean galleryChrome){
