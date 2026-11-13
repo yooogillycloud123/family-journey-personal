@@ -51,3 +51,7 @@
 #moa-r469-root .moa-r469-status{font-size:11px;line-height:1.6;color:var(--accent,#a65777);margin:10px 16px;min-height:18px}
 @media(max-width:360px){#moa-r469-root .moa-r469-stage{margin:0 13px}#moa-r469-root .moa-r469-story{margin:10px 13px 0}#moa-r469-root .moa-r469-month-grid{margin:0 13px}}
 /* Native overlay still owns microphone and original audio-clip lifecycle. */
+
+#fj-diary-root .fd23-modes:has(.moa-r469-choose){grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+#fj-diary-root .fd23-modes .moa-r469-choose{font-size:12px;color:var(--accent,#ad4875);background:#fff9fc}
+#moa-r469-root .moa-r469-record svg{height:19px;width:19px;stroke:currentColor;stroke-width:1.55;fill:none;stroke-linecap:round;stroke-linejoin:round}
