@@ -1,0 +1,6 @@
+--- R463:assets/web/index.html
++++ R472:assets/web/index.html
+@@ CSS: after moa-r149-voice.css
++<link rel="stylesheet" href="moa-r472-simple-diary.css" />
+@@ JS: after moa-r149-voice.js
++<script src="moa-r472-simple-diary.js"></script>
