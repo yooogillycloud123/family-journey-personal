@@ -620,3 +620,50 @@ html #moa-r469-root[data-page="day"] .moa-r475-family-item{
 #moa-r469-root .moa-r499-video-controls button{pointer-events:auto;background:#24242bdc!important;color:white!important;border-radius:18px!important;width:35px;height:32px;display:grid;place-items:center;font-size:17px!important;border:1px solid #fff5!important}
 #moa-r469-root .moa-r469-more{width:30px!important;height:30px!important;font-size:14px!important}
 html[data-moa-ui="black"] #moa-r469-root .moa-r469-actions button{color:#eee!important}
+
+
+/* R503: clean period title and matching year/month scrollable columns; app theme-driven. */
+html #moa-r469-root[data-page="calendar"] .moa-r479-period,
+html #moa-r469-root[data-page="calendar"] .moa-r479-period strong{
+ border:0!important;border-bottom:0!important;box-shadow:none!important;background:transparent!important;
+ text-decoration:none!important;padding-bottom:0!important;
+}
+html #moa-r469-root .moa-r483-picker-columns{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:12px!important;}
+html #moa-r469-root .moa-r483-picker-labels{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:12px!important;}
+html #moa-r469-root .moa-r483-picker-columns>.moa-r483-year-list,
+html #moa-r469-root .moa-r483-picker-columns>.moa-r483-picker-months{
+ display:flex!important;flex-direction:column!important;gap:6px!important;min-width:0!important;
+ overflow-y:auto!important;overscroll-behavior-y:contain!important;scrollbar-width:thin;
+ background:var(--moa-r491-surface,#fff)!important;padding:2px 3px!important;border-radius:15px!important;
+ height:326px!important;min-height:0!important;max-height:326px!important;
+}
+html #moa-r469-root .moa-r483-year-option,
+html #moa-r469-root .moa-r483-month-option{
+ flex:0 0 43px!important;min-height:43px!important;width:100%!important;
+ border-radius:13px!important;background:var(--moa-r491-surface,#fff)!important;
+ border:1px solid var(--moa-r491-grid,#eee)!important;color:var(--moa-r491-ink,#282630)!important;
+ font-size:15px!important;box-shadow:none!important;
+}
+html #moa-r469-root .moa-r483-year-option.active,
+html #moa-r469-root .moa-r483-month-option.active{
+ border-color:var(--moa-r491-accent,#ad648b)!important;
+ color:var(--moa-r491-accent,#ad648b)!important;
+ background:var(--moa-r491-surface,#fff)!important;
+ box-shadow:inset 0 0 0 1px var(--moa-r491-accent,#ad648b)!important;
+}
+/* Original transparent period control remains fully tappable at least 39px high. */
+html #moa-r469-root[data-page="day"] .moa-r503-cover-star{
+ position:absolute;z-index:8;left:12px;top:12px;border:1px solid #fff9;
+ background:#18181ab0;color:#fff;border-radius:50%;width:35px;height:35px;
+ font-size:22px;line-height:1;display:grid;place-items:center;padding:0;
+ box-shadow:0 2px 7px #0002;
+}
+html #moa-r469-root[data-page="day"] .moa-r503-cover-star.active{color:#ffd56a;border-color:#ffe59b;}
+html #moa-r469-root[data-page="day"] .moa-r503-cover-star:focus-visible{outline:3px solid var(--moa-r491-accent,#c45d85);outline-offset:2px}
+
+/* R503 thumb cover selector is explicit; per-media star and rail selection are separate hit targets. */
+html #moa-r469-root .moa-r469-rail-item{position:relative!important;overflow:hidden!important;border-radius:8px!important;}
+html #moa-r469-root .moa-r503-rail-select{position:absolute;inset:0;width:100%;height:100%;border:0;padding:0;background:transparent;}
+html #moa-r469-root .moa-r503-rail-select img{width:100%;height:100%;object-fit:cover;}
+html #moa-r469-root .moa-r503-rail-star{position:absolute;top:1px;right:1px;z-index:5;width:19px;height:19px;padding:0!important;border-radius:50%;font-size:13px;line-height:1;background:#151517b3;color:white;border:1px solid #fff6;display:grid;place-items:center;touch-action:manipulation;}
+html #moa-r469-root .moa-r503-rail-star.active{color:#ffdc8c;border-color:#ffdc8c;}
