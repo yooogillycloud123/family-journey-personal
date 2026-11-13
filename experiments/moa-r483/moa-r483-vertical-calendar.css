@@ -667,3 +667,12 @@ html #moa-r469-root .moa-r503-rail-select{position:absolute;inset:0;width:100%;h
 html #moa-r469-root .moa-r503-rail-select img{width:100%;height:100%;object-fit:cover;}
 html #moa-r469-root .moa-r503-rail-star{position:absolute;top:1px;right:1px;z-index:5;width:19px;height:19px;padding:0!important;border-radius:50%;font-size:13px;line-height:1;background:#151517b3;color:white;border:1px solid #fff6;display:grid;place-items:center;touch-action:manipulation;}
 html #moa-r469-root .moa-r503-rail-star.active{color:#ffdc8c;border-color:#ffdc8c;}
+
+/* R507: when real R463 native Gallery host is aligned with photo card, it owns
+   images/video/rail/4-action footer; hide duplicate web media controls ONLY
+   while native host is successfully mounted. The original story/agenda stay. */
+#moa-r469-root.moa-r507-native-mounted .moa-r469-more,
+#moa-r469-root.moa-r507-native-mounted .moa-r503-cover-star,
+#moa-r469-root.moa-r507-native-mounted .moa-r469-pager,
+#moa-r469-root.moa-r507-native-mounted .moa-r469-tools{visibility:hidden!important;pointer-events:none!important;}
+#moa-r469-root.moa-r507-native-mounted .moa-r469-stage{isolation:isolate;}
