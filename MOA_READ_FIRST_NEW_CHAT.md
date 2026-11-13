@@ -2,6 +2,8 @@
 
 **Updated:** 2026-11-13 (Asia/Seoul)
 **CURRENT USER-APPROVED GOLDEN:** **R435**. This is the first entrypoint for MOA work, unless a later explicitly user-approved Golden is documented above it. **Do NOT treat older R415/R419/R423/R427/R431 as the active implementation baseline.**
+**Latest development candidate (NOT Gold):** R439 Gallery lower Share/Map action deck from immutable R435; static signed PASS / physical Galaxy PENDING. See [R439 Gallery action bar + R441 exact R435 recovery](MOA_R439_R435_GALLERY_BOTTOM_SHARE_MAP_R441_EXACT_GOLDEN_RECOVERY_20261113.md). User's Samsung/MOA reference videos are stored PRIVATE in Library `R439_GALLERY_BOTTOM_ACTIONS_20261113/`. R435 remains approved Gold until explicitly changed by user.
+
 
 ## Read in order
 1. Project-level canonical `yooogillycloud123/workexcel-devbridge/main/AA_AirPods_FINAL_READ_FIRST_v1.0_20261005.md` and Library `AA_AirPods_READ_FIRST_NEW_CHAT.txt`, `AA_AirPods_MASTER_HANDOFF_v3.3_20260928.md` as required by this ChatGPT Project. **Do not touch AirPods/Android Auto for MOA requests.**
