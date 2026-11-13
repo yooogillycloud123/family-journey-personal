@@ -740,7 +740,11 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     GalleryFoldMapGlyph(Activity a){super(a);setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);setWillNotDraw(false);}
     @Override protected void onDraw(Canvas c){
       super.onDraw(c);
-      float scale=Math.min(getWidth(),getHeight())/35f;
+      // R455: keep the 42x36dp tap surface and same-anchor compact card,
+      // but cap the DRAWN three-fold map glyph at ~20dp, matching the
+      // R443/R451 bottom Share glyph (~21dp). Do not resize the hitbox.
+      float maxGlyphPx=25f*getResources().getDisplayMetrics().density;
+      float scale=Math.min(Math.min(getWidth(),getHeight()),maxGlyphPx)/35f;
       c.save();c.translate((getWidth()-35f*scale)*.5f,(getHeight()-35f*scale)*.5f);c.scale(scale,scale);
       pen.setColor(0xffe5e6e9);pen.setStyle(Paint.Style.FILL);
       Path p=new Path();p.moveTo(4,10);p.lineTo(13,4);p.lineTo(13,26);p.lineTo(4,32);p.close();c.drawPath(p,pen);
