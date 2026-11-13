@@ -367,7 +367,7 @@ function r483EnqueueMonth(direction){
  if(direction<0){
   const originalHeight=feed.scrollHeight;
   for(const section of news)feed.prepend(section);
-  feed.scrollTop+=feed.scrollHeight-originalHeight;
+  /* Browser preserves the visual anchor when earlier months are prepended. */
  }else for(const section of news)feed.append(section);
  // Keep a bounded render window while retaining the anchored scroll position.
  const all=[...feed.querySelectorAll(':scope > .moa-r483-month')];
@@ -375,7 +375,7 @@ function r483EnqueueMonth(direction){
   const remove=all.slice(direction<0?18:0,direction<0?undefined:all.length-18);
   const oldHeight=feed.scrollHeight;
   for(const section of remove){r483ImageObserver?.unobserve(section);section.remove()}
-  if(direction>0)feed.scrollTop-=oldHeight-feed.scrollHeight;
+  /* Browser scroll anchoring keeps the current visible section after top-trim. */
  }
  for(const section of news)r483ImageObserver?.observe(section);
  r483ExtendBusy=false;
