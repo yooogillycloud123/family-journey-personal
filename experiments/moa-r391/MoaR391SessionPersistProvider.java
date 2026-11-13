@@ -68,7 +68,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // Actual launcher alias targets MoaIconHost (DEX: subclasses AudioHost -> VoiceHost -> HostActivity).
   private static final String LAUNCHER_HOST="com.juhyeon.familyjourney.MoaIconHost";
   private static final String CTRL="com.juhyeon.familyjourney.MoaNaverWebProbeController";
-  private static final String TAG="MOA_R443_GALLERY_POLISH";
+  private static final String TAG="MOA_R447_TOP_TOGGLE";
   private static final Handler UI=new Handler(Looper.getMainLooper());
   private static final long VISIBLE_LAYOUT_MS=460L;
   private static final long REARM_COOLDOWN_MS=18000L;
@@ -661,22 +661,57 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     }catch(Throwable error){Log.w(TAG,"GALLERY_SHARE_RETAIN_FAILED_"+error.getClass().getSimpleName());}
   }
 
+  // R447: unlike R443's TOP+4dp, keep the collapsed toggle BELOW the
+  // system status bar even on fullscreen/inset-drawing Samsung devices.
+  // All coordinates below are native pixels; the Gallery host can start
+  // at screen y=0 or below status bar depending on Android window flags.
+  private static int r447TopToggleY(Activity a,FrameLayout host){
+    int hostScreenY=0;
+    try{int[] p=new int[2];host.getLocationOnScreen(p);hostScreenY=p[1];}
+    catch(Throwable ignored){}
+    int sysTop=0;
+    try{
+      WindowInsets in=a.getWindow().getDecorView().getRootWindowInsets();
+      if(in!=null){
+        if(Build.VERSION.SDK_INT>=30)sysTop=in.getInsets(WindowInsets.Type.statusBars()).top;
+        else sysTop=in.getStableInsetTop();
+      }
+    }catch(Throwable ignored){}
+    int safe=Math.max(dpx(a,10),sysTop-hostScreenY+dpx(a,8));
+    return Math.min(safe,Math.max(dpx(a,12),host.getHeight()-dpx(a,72)));
+  }
   // Tiny top arrow remains tappable even when date/address panel is collapsed.
   // '기본 표시' inside the expanded metadata panel controls the persisted initial
   // state for future gallery openings; default is intentionally COLLAPSED.
   private static void r443UpdateTopInfo(Activity a,GalleryActions entry,boolean galleryChrome){
-    if(entry.info==null||entry.toggle==null)return;
-    boolean show=galleryChrome&&entry.infoExpanded;
-    int desired=show?View.VISIBLE:View.GONE;
-    if(entry.info.getVisibility()!=desired)entry.info.setVisibility(desired);
+    if(entry.toggle==null||entry.toggle.getParent()!=entry.host)return;
+    // Make the collapsed control independently visible; it must NOT inherit
+    // the original r225Info panel's GONE visibility, nor sit in the status bar.
+    int toggleTop=r447TopToggleY(a,entry.host);
+    if(entry.toggle.getLayoutParams() instanceof FrameLayout.LayoutParams){
+      FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)entry.toggle.getLayoutParams();
+      if(lp.topMargin!=toggleTop){lp.topMargin=toggleTop;entry.toggle.setLayoutParams(lp);}
+    }
+    if(entry.info!=null){
+      int wantTop=toggleTop+dpx(a,44);
+      if(entry.info.getLayoutParams() instanceof FrameLayout.LayoutParams){
+        FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)entry.info.getLayoutParams();
+        if(p.topMargin!=wantTop){p.topMargin=wantTop;entry.info.setLayoutParams(p);}
+      }
+      int desired=galleryChrome&&entry.infoExpanded?View.VISIBLE:View.GONE;
+      if(entry.info.getVisibility()!=desired)entry.info.setVisibility(desired);
+    }
     int toggleVisibility=galleryChrome?View.VISIBLE:View.GONE;
     if(entry.toggle.getVisibility()!=toggleVisibility)entry.toggle.setVisibility(toggleVisibility);
     if(entry.toggle instanceof TextView){
       TextView t=(TextView)entry.toggle;
-      String glyph=entry.infoExpanded?"⌃":"⌄";
-      if(!glyph.contentEquals(t.getText()))t.setText(glyph);
-      t.setContentDescription(entry.infoExpanded?"촬영 정보 접기":"촬영 시간과 위치 정보 펼치기");
+      String title=entry.infoExpanded?"정보 ⌃":"정보 ⌄";
+      if(!title.contentEquals(t.getText()))t.setText(title);
+      t.setContentDescription(entry.infoExpanded?"촬영 시간 및 위치 정보 접기":"촬영 시간 및 위치 정보 펼치기");
     }
+    // The native Gallery re-lays out its original media controls on videos.
+    // Ensure the small control always stays visually above their overlay.
+    if(galleryChrome){entry.toggle.setElevation(dpx(a,24));entry.toggle.bringToFront();}
   }
   // Simple canvas strokes avoid device-font-dependent emoji/icon spacing.
   private static final class GalleryGlyph extends View {
@@ -814,13 +849,17 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
           infoOldTop=ilp.topMargin;ilp.topMargin=dpx(a,26);info.setLayoutParams(ilp);
         }
       }
-      TextView toggle=new TextView(a);toggle.setText("⌄");toggle.setTextSize(18f);
-      toggle.setTextColor(0xbbe5e5eb);toggle.setGravity(Gravity.CENTER);
-      toggle.setContentDescription("촬영 시간과 위치 정보 펼치기");
-      toggle.setBackgroundColor(0x6617191c);toggle.setClickable(true);toggle.setFocusable(true);
-      toggle.setTag("moa.gallery.top.info.toggle.r443");
-      FrameLayout.LayoutParams topLp=new FrameLayout.LayoutParams(dpx(a,38),dpx(a,27),Gravity.TOP|Gravity.CENTER_HORIZONTAL);
-      topLp.topMargin=dpx(a,4);host.addView(toggle,topLp);
+      // R447: small but legible, status-bar-safe expandable info chip.
+      TextView toggle=new TextView(a);toggle.setText("정보 ⌄");toggle.setTextSize(11f);
+      toggle.setTextColor(0xfff3f3f5);toggle.setGravity(Gravity.CENTER);
+      toggle.setContentDescription("촬영 시간 및 위치 정보 펼치기");
+      GradientDrawable infoChip=new GradientDrawable();infoChip.setColor(0xd31d2025);
+      infoChip.setCornerRadius(dpx(a,16));infoChip.setStroke(dpx(a,.5f),0x558c8d94);
+      toggle.setBackground(infoChip);toggle.setClickable(true);toggle.setFocusable(true);
+      toggle.setTag("moa.gallery.top.info.toggle.r447");
+      FrameLayout.LayoutParams topLp=new FrameLayout.LayoutParams(dpx(a,74),dpx(a,36),Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+      topLp.topMargin=r447TopToggleY(a,host);
+      host.addView(toggle,topLp);toggle.setElevation(dpx(a,24));toggle.bringToFront();
       CheckBox always=new CheckBox(a);always.setText("기본 표시");always.setTextSize(11f);
       always.setTextColor(0xffd4d4dc);
       always.setButtonTintList(ColorStateList.valueOf(0xffcaa2bb));
