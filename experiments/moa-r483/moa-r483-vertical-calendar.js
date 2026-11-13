@@ -19,13 +19,24 @@ let r475ExitUntilHidden=false, r475AutostartScheduled=false, r475CalendarRefresh
 // On missing provider / unsupported activity / invalid MediaStore ID, retain the
 // full R503 web presentation and never launch an unexpected fullscreen viewer.
 let r507Generation=0,r507Timer=0,r507Opened=false;
+let r515RecoveryAttempts=0,r515LastNativeMount=0;
 // R511 pre-draw guard arm state; do not start native fullscreen before the provider is ready.
 window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
 window.__moaR507NativePending=false;
 window.__moaR507NativeMounted=function(mounted){
  if(!ui.open||ui.page!=='day')mounted=false;
  if(view)view.classList.toggle('moa-r507-native-mounted',!!mounted);
+ if(mounted)r515LastNativeMount=Date.now();
  if(!mounted){window.__moaR507NativePending=false;r507Opened=false;}
+};
+// R515: a transient Activity/WebView update must not demote the in-card native Gallery.
+window.__moaR515RecoverInline=function(){
+ if(!ui.open||ui.page!=='day'||!window.__moaR507NativePending)return false;
+ if(++r515RecoveryAttempts>2){r507StopInline();notify('네이티브 갤러리를 다시 연결하지 못했습니다. 사진 데이터는 유지됩니다.');return false;}
+ r507Opened=false;window.__moaR507NativePending=false;window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
+ view?.classList.remove('moa-r507-native-mounted');
+ clearTimeout(r507Timer);r507Timer=setTimeout(()=>{if(ui.open&&ui.page==='day')r507StartInline()},260);
+ return true;
 };
 window.__moaR507NativeSelected=function(index){
  if(!ui.open||ui.page!=='day'||!window.__moaR507NativePending)return;
@@ -580,7 +591,7 @@ function renderMonth(){
 function changeMonth(k){ui.month=new Date(ui.month.getFullYear(),ui.month.getMonth()+k,1);render();}
 function dayMedia(index){const m=ui.media[index];return m&&safeMedia(m.id)?m:null;}
 function setDay(day){if(!valid(day))return;ui.date=day;ui.selected=day;ui.page='day';ui.fast=false;ui.idx=0;ui.dirty=false;render();}
-function renderDay(){r495InstallBackHandlers();const d=ui.date,s=getState();if(!valid(d)||!s)return;ui.media=mediaFor(d);const chosen=mainCover(d,ui.media);const ri=ui.media.findIndex(x=>String(x.id)===String(chosen?.id));ui.idx=Math.min(ui.media.length-1,Math.max(0,ui.idx||ri));if(ui.idx===0&&ri>0)ui.idx=ri;
+function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui.date,s=getState();if(!valid(d)||!s)return;ui.media=mediaFor(d);const chosen=mainCover(d,ui.media);const ri=ui.media.findIndex(x=>String(x.id)===String(chosen?.id));ui.idx=Math.min(ui.media.length-1,Math.max(0,ui.idx||ri));if(ui.idx===0&&ri>0)ui.idx=ri;
  const current=s.curatedEntries?.get(d)||s.entries?.get(d),wrap=elem('div','moa-r469-day');
  wrap.append(header(dateLabel(d),goBack));
  const views=r475ModeToggle('photo',()=>{},()=>r475OpenDetail(d));
