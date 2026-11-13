@@ -139,3 +139,36 @@ The user has clarified the earlier proposed `tap hero photo -> separate native G
 5. All existing manual/automatic calendars and detailed time-based Diary preserved unchanged; selected date highlight/Today marker/new calendar remain additive. R463 signed Golden and R467 exact recovery untouched.
 
 **Status:** updated DESIGN ONLY, no APK editing/build/test. Next engineering effort must verify the original R463 quick-capture and audio storage schema and Gallery host embedding constraints first.
+
+
+---
+
+## 2026-11-13 LATEST DESIGN UPDATE — representative photo, clean context footer, and compact audio picker
+
+**User intent is visual restraint.** The new DayPic-inspired diary screen must reuse existing R463 capabilities, but it must NOT permanently show the entire fullscreen Gallery control surface on top of every photo. Photo/video remains the hero, with only on-demand controls. A separate five-slot, slim icon-only action bar sits BELOW the miniature thumbnail rail.
+
+### Hero photo/video
+- The user can designate the CURRENT media item as a **representative photo**. This controls the initial hero image for this day and the corresponding new photo-calendar cell. It must be persisted by day + stable original media ID, subject to verifying the R463 diary schema. Never duplicate, reorder, rename or move physical photos; previous AND next chronological photo/video items remain freely swipable in both directions from the representative.
+- Default layout: large in-page photo/video viewport with a discreet 1/N indicator, selected representative star marker, and absolutely minimal overlay. Horizontal gestures operate only inside this bounded media surface, and vertical gestures outside it scroll the diary. No forced black fullscreen viewer; optional expand only.
+- Video playback/seek/mute/capture overlay appears only when current item is a VIDEO. On photo, keep the picture itself visually unobstructed. When changing items, stop previous video sound and cleanly prepare next media without stage jumping.
+- Below the synchronized miniature swipe rail, add **five compact icons** in one capsule: **대표 지정 (star) / 공유 / GPS 지도 이동 / 촬영정보 접기 / 빠른 넘기기 ON-OFF**. GPS button is gated on actual GPS; metadata disclosure does not launch map. Buttons retain sufficient touch targets despite small glyphs. No giant text labels in the visual bar (accessibility labels stay). Hide rare secondary actions under an overflow menu instead of stacking more rows.
+
+### Multiple voices without a long old-style list
+- In the simple diary's text section, provide ONE premium-looking mini player row, independent of the number of voice recordings. It has a small Play/Pause circle, one thin audio-progress line/waveform, time counter, selected clip label, and a compact count selector (e.g. 2/5 with down chevron).
+- If the selector is tapped, reveal a small on-demand drawer/sheet with all individual recordings (date/time/duration); picking a clip switches the SINGLE visible player. Never show five bulky permanent Play rows. Existing clips remain separate and persistent; '+ 녹음' safely appends, doesn't overwrite. One clip plays at a time and sound focus must arbitrate against gallery video.
+- If no voice clips, show a subtle '녹음' affordance. If one clip, the same compact player still looks natural. No DayPic music section.
+- A waveform drawn in prototypes is decorative until actual audio-level data is sourced; do not fake saved recording data in production.
+
+### Demo artifact and boundaries
+- New separate development branch: feature/moa-r469-daypic-inline-media-voice-ui-prototype-20261113, based on frozen R463 Golden. The interactive HTML prototype source is design-prototypes/daypic-simple-diary/R469_INLINE_MEDIA_COMPACT_AUDIO_UI_PROTOTYPE.html.
+- Prototype supports sample photo gestures, representative star selection, fast-toggle visualization, folded info, selection of multiple sample voice clips in ONE player and a simple diary text layout. **It is NOT yet a signed Android APK or integration with actual R463 MediaStore, video playback, microphone audio, Naver Maps, diary storage or the Android Sharesheet.** This status must remain explicit.
+- Original native R463 fullscreen gallery, original 50dp four-icon bar, fast stage swipe, R227 share retention, Naver background saving, all original diary/quick capture/voice functions and current R463 Golden are protected. R467 remains the exact R463 emergency recovery. No new user-approved Golden.
+- Before production APK: identify actual current diary/voice/capture data APIs, implement non-destructive representative selection mapping, embed Gallery's media lifecycle safely inside a bounded view with video and gesture arbitration, connect a single mini-player to original multiple audio attachments, test Gallery/Map/Share and media zoom on Galaxy, and finally build/sign a separate R463-derived v469+ APK with an exact functional recovery version above the candidate.
+
+### Acceptance criteria
+- Choose the third of several media as representative; reopen and see it first but still swipe both to earlier and later images/videos in original order, without affecting other dates.
+- Hero UI stays clean for photos, and shows only necessary video controls for video; stage horizontal gestures cannot block note textarea or voice buttons.
+- With six recordings only one player is visible; chooser lets the user select each clip, append seventh safely, and keep independent stored clips without audio overlap.
+- No Quick Record destination chooser, no duplicate diary writes, no change to original detailed diary or selected/automatic photo calendars. No mandatory black gallery on ordinary photo swipes.
+
+**This document is a design + separately interactive UI preview. R463 remains the user's immutable Golden; no new APK has been built or installed.**
