@@ -1,0 +1,32 @@
+{
+  "status": "SOURCE_STATIC_PASS_NOT_APK",
+  "golden_hash_verified": true,
+  "original_zip_entries": 140,
+  "modified_original_assets": [
+    "assets/web/index.html"
+  ],
+  "new_assets": [
+    "assets/web/moa-r469-simple-diary.js",
+    "assets/web/moa-r469-simple-diary.css"
+  ],
+  "unchanged_legacy_modules": [
+    "assets/web/family-diary.js",
+    "assets/web/moa-r149-voice.js",
+    "assets/web/fj-naver-favorites.js",
+    "classes6.dex",
+    "classes17.dex"
+  ],
+  "node_check": "PASS",
+  "android_install_test": "NOT_RUN",
+  "original_signer_available": "NOT_VERIFIED",
+  "inline_video_playback": "FALLBACK_NOT_DEVICE_VERIFIED",
+  "native_R203_exact_reuse": false,
+  "voice_seek": "NOT_VERIFIED",
+  "file_hashes": {
+    "index.html": "1bd004173c78d926c94534ea0cf7c9c47a84a047b04c10097fb0b0688810ef34",
+    "moa-r469-simple-diary.css": "aabd0ffa99f2b133a6f7b9a6abb2e536e1347756f97c6a29da1512a00caef6b5",
+    "R469_index_only.patch": "aa8869fb23adc01855f92c531bbd6f7ec0c178067e400f9c11ba610e9ca71abc",
+    "README_R469_STAGE1_KO.md": "28bac105b9a7cf6a1cefc78f0c5d27365e650a1bbb438276ab1adc37156cb339",
+    "moa-r469-simple-diary.js": "3c5047fdf3478364a98ca66dc41e6495a3522b1e16bc8a054e621512c8514f1e"
+  }
+}
