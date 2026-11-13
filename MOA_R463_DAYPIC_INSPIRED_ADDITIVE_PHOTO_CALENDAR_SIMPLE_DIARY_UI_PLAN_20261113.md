@@ -226,3 +226,19 @@ The user uploaded a DayPic recording screen (private user screenshot 21052.png) 
 - Acceptance: screen edges align across photo and story with equal radius at all viewport widths; silent default controls; no black gallery required for everyday swipe; mic tap shows focused recording UI; when actual native integration is implemented, media play/mute/seek/capture/Share/GPS/zoom/fast swipe and multi-clip audio must pass on device without breaking original R463 workflows.
 
 **PRECEDENCE:** This addendum supersedes older plan text that displayed a photo hero flush to device edge while the diary card was inset, or a permanent heavy audio toolbar. User approved the general structure but not the implementation, and the R463 Golden remains unchanged.
+
+
+---
+
+
+## 2026-11-13 ACTUAL INSTALLABLE FEATURE CONNECTION STAGE R469 (POST-DESIGN)
+
+The user ordered actual app integration. The independent R469 feature branch has now progressed beyond the historical HTML mock to an **installable original-signer signed APK**. See [release and truth handoff](MOA_R469_SIGNED_REAL_BINDINGS_R471_EXACT_R463_RECOVERY_20261113.md) for detailed source, SHA256, precise verification, user device acceptance and partial-feature distinctions.
+
+**Built:** signed `MOA_R469_DAYPIC_REAL_BINDINGS_SIGNED_BETA.apk` v469 SHA256 `4c71ae8dbcff2252258e57154c5d19524a704d322961f9063f52f8806b7822e2`. Original R463 certificate same, APK v2 signed content digest PASS; 17 original DEX untouched. New JS/CSS installed in the APK with minimal index loader; photo calendar, original diary body/curated date mapping, cover photo mapping, M4A native clip listing/play/recorder, original Share/GPS and simple photo swipe code are **actually wired to original app bridges**.
+
+**Not yet done/confirmed:** Native R463 fullscreen video TextureView/MediaPlayer is **not fully embedded** into the in-card photo/video stage; only HTML5 Content URI inline attempt and original native fallback. No actual original R203 kinetic OverScroller reuse, pinch zoom, inline frame capture/mute/volume, original pixel-perfect 1% precision or real voice seek; actual Samsung device run untested. Do **not** call these features implemented or claim R469 user GOLDEN. Chromium headless smoke timed out, Node syntax and cryptographic static checks succeeded. Keep next APK stage focused on native media host integration after device R469 feedback.
+
+**Safety:** Existing R463 current user Gold frozen, no wipe, emergency original-signer **R471** signed APK exact R463 functionality except version code, SHA256 `458729163b4141ac39d7d1e6532f104d9362ecc400836c6619b353e8df3bb50a`. If R471 installed, next code >471. PRIVATE Library `/모아_프로젝트_근거_20261103/R469_SIGNED_BETA_R471_EXACT_RECOVERY_20261113/`. No signing key in released ZIP or public GitHub. Source/QA on `feature/moa-r469-daypic-real-web-bindings-20261113/experiments/moa-r469/`.
+
+**Keep design acceptance criteria**: day-selected representative photo and safe diary writes, clean photo/story identical aligned sides, native advanced Gallery in-card parity, fast swipe OFF one item / ON R203 true momentum, video play/mute/capture/volume, audio native multi-clips/seek, hidden contextual actions, original detailed Diary and NAVER offscreen save unchanged.
