@@ -1,3 +1,5 @@
+> **SUPERSEDING 2026-11-13 USER DECISION:** R463 is now the explicit **CURRENT USER-APPROVED MOA INTEGRATED GOLDEN**. The following original R463 release notes correctly describe its initial BETA/device-testing status at build time, **but that historical label no longer defines the active Golden**. Read [R463 current Golden lock](MOA_R463_GOLDEN_LOCK_READ_FIRST_20261113.md) and [new-chat prompt](MOA_NEW_CHAT_RESUME_PROMPT_R463_GOLDEN_20261113.md). The frozen exact R463 source branch is `golden/moa-r463-user-approved-20261113`. New exact R463 functional emergency recovery is R467 (not old R465, which restores R459). Previously approved R435 is historical and preserved.
+
 # MOA R463 — Opt-in native Gallery upper fast consecutive swipe / R465 exact R459 recovery (2026-11-13)
 
 ## Latest user request and evidence
