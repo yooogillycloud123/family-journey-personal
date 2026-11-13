@@ -65,3 +65,45 @@ No music section in the basic view. Never accidentally conflate absent music wit
 - Confirm whether the simple diary text should be same as existing diary's summary or separately stored additive note after schema inspection.
 
 **This proposal is recorded against the immutable R463 Golden; it is NOT an implemented R469 APK and must not be described as user-approved final UI.**
+
+
+---
+
+## 2026-11-13 ADDENDUM — USER CORRECTIONS TO PRIOR BRIEF (AUTHORITATIVE FOR THIS UI PROPOSAL)
+
+The user has clarified the earlier proposed `tap hero photo -> separate native Gallery` **is insufficient as the default experience**. The new DayPic-inspired screen should itself offer as much as possible of the existing MOA R463 full Gallery/Diary interaction IN PLACE, not make users enter a black-screen standalone Gallery each time. Keep the full-sized/open Gallery option only as an optional escalation.
+
+### A. Embedded photo/video stage — gestures without tapping, no mandatory black viewer
+- In **오늘의 사진** section the hero photo/video is an **interactive in-place Gallery stage**. Touch and horizontally drag **directly inside the embedded hero** to switch among multiple day-media items; when the fast-swipe switch is ON, reuse R463 original R203 fractional/momentum engine and synchronize an optional miniature rail; when OFF retain one-at-a-time behavior. The user should not first tap to open a different full-screen Gallery in order to swipe.
+- Keep the editor's DayPic-inspired clean/light theme and text area visible while swiping the hero; **do not auto-navigate to an all-black full-screen viewer**. Optional maximize/expand allows distraction-free viewing while **retaining a nonblack/light configurable surround** and a smooth return with the same media item/index. If a separate R463 black full-screen Activity is still used internally, it must not be the only path for inline interactions.
+- Reuse **the existing R463 Gallery engine's state/gesture/MediaPlayer/MediaStore access** through a safely embedded adapter or reused Stage+Rail logic. Critical engineering qualification: original `MoaNativeGallery` is tightly coupled to a native fullscreen host, so embedding is a **real layout/touch ownership and lifecycle integration effort**; it is not yet proven possible by simply dropping the Activity into a card. Do NOT claim a complete in-card engine already exists or implement an independent low-quality duplicate. Prototype an adapter that leaves original `classes6.dex` intact and preserves an optional exact R463 full viewer.
+- Embedded stage must account for vertical page scrolling versus horizontal media swipe, pinch/double-tap zoom, video timeline scrubbing, video play/pause/mute/volume/frame capture, original Share chooser and return, NAVER GPS action, folded capture time/address info and upper fast-swipe ON/OFF. Small context actions should be accessible in/under the hero without the entire editor turning into a full-screen overlay. Handle video-swipe transitions without audio overlap.
+
+### B. Date selection should be obvious visually
+- The currently **selected calendar date** receives a clear but polished highlight: e.g. theme-colored rounded 2dp stroke + subtle tinted overlay/inner elevation. Highlight remains legible atop bright/dark full-bleed photos.
+- **Today's date** has a distinct small marker (dot/Today accent) so it is not confused with the **selected date** when browsing a different month/day. On tapping a date, update highlight immediately, keep selected date when returning from the diary, synchronize central `+` context to that selected date. Use accessible semantics and not color-only indicators.
+- Do not alter/delete original manually-selected and automatic calendars. The highlight is part of the **third** added calendar screen.
+
+### C. 바로기록 integrated destination chooser
+- The user already has **바로기록** (quick capture) and wants this entry path represented in the **new simple UI**, not rebuilt as a competing disconnected recording system.
+- On quick capture/compose, offer clear **save destination choices** such as `새 간편 일기` and `기존 상세 일기` (the actual wording can match MOA's established terminology after source inspection). Respect selected/current date context. Preserve an option to switch destination **before final save** without losing entered text, media or recording.
+- Storage must be **non-destructive and nonduplicating**: destination choice selects an appropriate VIEW/EDITOR/association (or an explicit entry type), **not separate blind writes** into two unrelated tables. Reuse existing MOA persistence and diary/date/media association after inspecting R463 app storage schema; guarantee existing original time-segmented diary/바로기록 content does not vanish, reassign dates, or double save. If the new simple view cannot safely represent an existing detailed element, show a link to original entry rather than silently dropping it.
+- Quick capture card supports photo/video selection, short text, voice recording if possible, save or continue-in-editor; still use existing MOA permissions and URI grants.
+
+### D. Voice inside 오늘의 일기, not a DayPic music section
+- The user **explicitly requires voice recording AND playback** from inside `오늘의 일기`, preserving any existing MOA audio/voice features.
+- A compact microphone control records/pauses/stops; saved recordings show small playable rows with waveform/progress, elapsed time and Play/Pause plus optional re-record/delete. Notes and audio attach to the current date entry and are restored on reopen. **Audio is content attached to today's diary**, NOT a separate `오늘의 음악` panel.
+- Original MOA `MoaMomentAudioHostActivity` history contains `MediaRecorder` and source-recording POC code, but exact R463 shipped workflow and attachment schema must be inspected before claiming this voice wiring already works inside this editor. Avoid duplicating storage and permission flows; request microphone permission only as already supported.
+
+### E. Visual priority and feature completeness
+- New `사진 달력` → `오늘의 사진` interactive embedded media stage → `오늘의 일기` text + voice: all within a coherent minimal UI. Existing advanced operations are **contextual action buttons/disclosures**, not many permanently open panels.
+- The user wants to migrate or link **almost all usable MOA diary/gallery functions to this surface**, not merely provide a shortcut to the legacy interface. Before implementation, produce a source-verified feature-to-UI map for: existing photo picker/gallery, continuous lower rail & optional upper fast motion, video media controls, GPS/metadata, Share, selected/automatic calendar, quick capture, legacy time-block diary, voice record/play, save/restore, and navigation.
+- Preserve the existing R463 50dp Gallery toolbar and fullscreen behavior as a protected mode; the in-card action row can visually adapt but should invoke the same underlying media services. Optional fullscreen is secondary and should **not auto-blacken the background** in the new simple diary.
+
+### Implementation gates updated
+1. Map actual R463 diary persistence and quick-capture and `MediaRecorder` flow; identify exact extant APIs to reuse, prove source-backed functionality before coding bridge.
+2. Build an **inline interaction proof** with photo/video horizontal gestures, media-index & miniature-rail synchronization, vertical-scroll arbitration and light-theme nonblack stage; maintain existing R463 fullscreen viewer as fallback, not forced navigation.
+3. Add selected-day highlight distinct from Today and date-aware central plus; connect quick-capture destination chooser without duplicate diary writes; add voice record/play component that attaches to the same selected day.
+4. Integrate feature controls incrementally, physical Galaxy verify stage fling/zoom/video/voice and date context. Preserve R463 user GOLDEN and original R467 exact restore. Future signed candidate code >=469 from separate branch only.
+
+**Status:** New explicit user design clarification recorded. Still a DESIGN PROPOSAL, not an implemented APK. It overrides any earlier line in this proposal implying that the primary use of the hero photo is only to tap into a separate black fullscreen gallery.
