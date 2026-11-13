@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "source": "Synthetic Chromium fixture, NOT installed Galaxy execution",
+  "cases": [
+    "single default calendar/no duplicate third calendar",
+    "curated vs automatic filter",
+    "family event marker",
+    "small <=29px header photo/detail toggle",
+    "inline photo stage present",
+    "unsaved draft guard",
+    "original detailed editor re-use",
+    "return to photo without losing day",
+    "five bottom nav tabs",
+    "calendar thumbnail 13/13",
+    "zero JS errors"
+  ],
+  "not_tested": [
+    "native R203 momentum",
+    "real 1k+ video + 14k media loading",
+    "native in-card volume/frame-capture/zoom",
+    "real family schedule DB refresh on Galaxy",
+    "real diary IndexedDB transactional save on device"
+  ]
+}
