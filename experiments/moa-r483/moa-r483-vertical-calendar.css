@@ -278,5 +278,3 @@
 #moa-r469-root[data-page="calendar"] .moa-r487-today-action{display:block;width:100%;height:43px;min-height:43px;border-radius:13px;background:#927a68;color:#fff;font-size:14px;font-weight:650;letter-spacing:-.02em;border:1px solid #8f7664;box-shadow:0 1px 2px #60433221;padding:0 18px;text-align:center}
 #moa-r469-root[data-page="calendar"] .moa-r487-today-action:active{background:#7b6758;transform:scale(.995)}
 @media(max-width:375px){#moa-r469-root[data-page="calendar"] .moa-r483-month-feed{padding-left:9px!important;padding-right:9px!important}#moa-r469-root[data-page="calendar"] .moa-r479-period strong{font-size:22px!important}#moa-r469-root[data-page="calendar"] .moa-r487-today-dock{padding-left:9px;padding-right:9px}}
-/* Virtual window trimming uses explicit scrollTop compensation; prevent browser double-anchoring. */
-#moa-r469-root[data-page="calendar"] .moa-r483-month-feed{overflow-anchor:none!important}
