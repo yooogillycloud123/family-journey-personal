@@ -19,6 +19,8 @@ let r475ExitUntilHidden=false, r475AutostartScheduled=false, r475CalendarRefresh
 // On missing provider / unsupported activity / invalid MediaStore ID, retain the
 // full R503 web presentation and never launch an unexpected fullscreen viewer.
 let r507Generation=0,r507Timer=0,r507Opened=false;
+// R511 pre-draw guard arm state; do not start native fullscreen before the provider is ready.
+window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
 window.__moaR507NativePending=false;
 window.__moaR507NativeMounted=function(mounted){
  if(!ui.open||ui.page!=='day')mounted=false;
@@ -33,13 +35,13 @@ window.__moaR507NativeSelected=function(index){
 function r507StopInline(){
  ++r507Generation;clearTimeout(r507Timer);r507Timer=0;
  const opened=r507Opened;
- r507Opened=false;window.__moaR507NativePending=false;
+ r507Opened=false;window.__moaR507NativePending=false;window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
  view?.classList.remove('moa-r507-native-mounted');
  if(opened){try{window.MoaLocalAudio?.closeNativeGallery?.()}catch(e){console.warn('R507 inline close',e)}}
 }
 function r507StartInline(){
  const generation=++r507Generation;
- const waitUntil=Date.now()+6500;
+ const waitUntil=Date.now()+8000;
  const tryOpen=()=>{
   if(generation!==r507Generation||!ui.open||ui.page!=='day'||view?.hidden)return;
   if(!window.__moaR507BridgeReady || typeof window.MoaLocalAudio?.openNativeGallery!=='function'){
@@ -49,6 +51,12 @@ function r507StartInline(){
   const ids=ui.media.map(x=>String(x.id));
   if(!ids.length||ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id)))return;
   if(!view?.querySelector('.moa-r469-stage')?.isConnected)return;
+  window.__moaR511InlineArm=true;
+  if(!window.__moaR511NativeArmed){
+   if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,70);
+   else {window.__moaR511InlineArm=false;notify('사진형 네이티브 준비 지연 · 안전하게 웹 보기 유지');}
+   return;
+  }
   window.__moaR507NativePending=true;
   // Real R463 MoaNativeGallery opens photo AND video in one native rail.
   let ok=false;
@@ -63,7 +71,7 @@ function r507StartInline(){
    if(!view?.classList.contains('moa-r507-native-mounted')){
     r507StopInline();notify('현재 기기에서 사진형 내장 갤러리를 연결할 수 없어 기존 사진형으로 전환했습니다.');
    }
-  },1600);
+  },2700);
  };
  r507Timer=setTimeout(tryOpen,140);
 }
@@ -468,7 +476,7 @@ function r483MonthSection(date){
  section.setAttribute('aria-label',`${y}년 ${m+1}월 사진 달력`);
  section.append(elem('h2','moa-r483-month-title',`${y}년 ${m+1}월`));
  const grid=elem('div','moa-r469-month-grid');grid.setAttribute('aria-label',`${y}년 ${m+1}월 달력`);
- for(const dow of ['일','월','화','수','목','금','토'])grid.append(elem('span','moa-r469-week',dow));
+ // R511: weekdays are a single fixed header outside the month scroll feed.
  for(let i=0;i<offset;i++)grid.append(elem('span','moa-r469-blank'));
  const prefix=`${y}-${String(m+1).padStart(2,'0')}-`;
  for(let n=1;n<=days;n++){
@@ -497,6 +505,7 @@ function r483SyncToolbar(){
  const sections=[...r483Feed.children];if(!sections.length)return;
  let active=sections[0];const top=r483Feed.getBoundingClientRect().top;
  for(const section of sections){if(section.getBoundingClientRect().top<=top+78)active=section;else break}
+ for(const section of sections)section.classList.toggle('moa-r511-active-month',section===active);
  const displayed=r483MonthDate(active.dataset.month),title=$('.moa-r479-period strong',view);
  if(title)title.textContent=`${displayed.getFullYear()}년 ${displayed.getMonth()+1}월`;
  ui.month=displayed;
@@ -543,7 +552,9 @@ function renderMonth(){
  const toolbar=elem('div','moa-r479-calendar-toolbar');
  const period=btn('',r479PeriodSheet,'moa-r479-period');period.append(elem('strong','',`${ui.month.getFullYear()}년 ${ui.month.getMonth()+1}월`));period.setAttribute('aria-label','연도와 월 선택');period.title='연도·월 선택';toolbar.append(period);
  const right=elem('div','moa-r479-right-stack');right.append(r479SourceControl());toolbar.append(right);view.append(toolbar);
- const feed=elem('div','moa-r483-month-feed');feed.setAttribute('role','region');feed.setAttribute('aria-label','월별 사진 일기, 위아래로 스크롤');r483Feed=feed;
+ const weekdayBar=elem('div','moa-r511-sticky-weekdays');weekdayBar.setAttribute('role','row');weekdayBar.setAttribute('aria-label','요일 고정 표시');
+ for(const day of ['일','월','화','수','목','금','토'])weekdayBar.append(elem('span','moa-r511-weekday',day));view.append(weekdayBar);
+ const feed=elem('div','moa-r483-month-feed');feed.setAttribute('role','region');feed.setAttribute('aria-label','요일 고정, 월별 날짜와 사진을 위아래로 스크롤');r483Feed=feed;
  const selected=new Date(ui.month.getFullYear(),ui.month.getMonth(),1);
  for(let offset=-1;offset<=2;offset++){
   const section=r483MonthSection(new Date(selected.getFullYear(),selected.getMonth()+offset,1));feed.append(section)
