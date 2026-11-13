@@ -998,3 +998,62 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       }
       r.ownedBrowser=true;
       compactNaverChrome(r.activity); // fold dark header before the first visible browser frame
+      r.startedAt=SystemClock.elapsedRealtime();
+      if(r.cover!=null){r.cover.bringToFront();r.cover.invalidate();}
+      stage(r,"VISIBLE_STARTED_MASKED");
+      // No fragile URL/DOM/mode preference gates: short manual visible period alone worked on the user's phone.
+      final int epoch=++r.epoch;
+      UI.postDelayed(()->stepHide(r,epoch),VISIBLE_LAYOUT_MS);
+    }catch(Throwable t){stage(r,"BEGIN_EXCEPTION_"+t.getClass().getSimpleName());finish(r,false);}
+  }
+  @Override public boolean onCreate(){
+    try{
+      Application app=(Application)getContext().getApplicationContext();
+      app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks(){
+        @Override public void onActivityCreated(Activity a,Bundle b){
+          if(valid(a)){
+            LIVE_HOSTS.put(a,Boolean.TRUE);
+            if(!keepaliveScheduled){keepaliveScheduled=true;UI.postDelayed(()->keepalive(),1200L);}
+            Run r=new Run(a);RUNS.put(a,r);
+          }
+        }
+        @Override public void onActivityStarted(Activity a){}
+        @Override public void onActivityResumed(Activity a){
+          Run r=RUNS.get(a);
+          if(r!=null&&!r.attempted&&!r.finished)UI.postDelayed(()->begin(r),55L);
+          if(valid(a)){
+            attachChromeObserver(a);
+            UI.postDelayed(()->compactNaverChrome(a),140L);
+            UI.postDelayed(()->repairGalleryOwner(a),1200L);
+            UI.postDelayed(()->ensureGalleryBottomBar(a),200L);
+            int next=++nextMonitorId;
+            MONITORS.put(a,next);UI.postDelayed(()->monitor(a,next),650L);
+          }
+        }
+        @Override public void onActivityPaused(Activity a){
+          detachChromeObserver(a);
+          MONITORS.remove(a);
+          Run r=RUNS.get(a);
+          if(r!=null&&!r.finished)finish(r,false);
+          persist();
+        }
+        @Override public void onActivityStopped(Activity a){persist();}
+        @Override public void onActivitySaveInstanceState(Activity a,Bundle b){}
+        @Override public void onActivityDestroyed(Activity a){
+          detachChromeObserver(a);CHROME.remove(a);r439RemoveBar(a);
+          MONITORS.remove(a);REARM_AT.remove(a);GALLERY_REPAIR_AT.remove(a);LIVE_HOSTS.remove(a);
+          Run r=RUNS.remove(a);
+          if(r!=null&&!r.finished)finish(r,false);
+          // Never leave a WebView tied to a destroyed Activity; keep cookies only.
+          try{Class.forName(CTRL).getMethod("dispose").invoke(null);}catch(Throwable ignored){}
+        }
+      });
+    }catch(Throwable t){Log.e(TAG,"CALLBACK_REGISTER_FAILED");}
+    return true;
+  }
+  @Override public Cursor query(Uri u,String[] projection,String selection,String[] args,String sort){return null;}
+  @Override public String getType(Uri u){return null;}
+  @Override public Uri insert(Uri u,ContentValues values){return null;}
+  @Override public int delete(Uri u,String selection,String[] args){return 0;}
+  @Override public int update(Uri u,ContentValues values,String selection,String[] args){return 0;}
+}
