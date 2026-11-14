@@ -345,7 +345,16 @@ function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!con
   const oldRoot=diaryRoot();if(oldRoot&&!oldRoot.hidden)oldRoot.dataset.moaUnifiedPage='calendar';
   ui.page='calendar';ui.dirty=false;r507StopInline();window.MoaVoicePlaybackUI?.stop?.();render();return true;}r475ExitUntilHidden=true;close();window.FamilyJourneyDiary?.close?.(false);return true;}
 // The R519 native overlay callback and Web host both lead to the same day→calendar route.
-window.__moaR519NativeBack=function(){if(!ui.open||ui.page!=='day')return false;return r495TryBack()};
+window.__moaR519NativeBack=function(){
+ if(!ui.open||ui.page!=='day')return false;
+ // Voice/recording popups keep their original close priority.
+ if(document.getElementById('moa-r149-voice-modal')){
+  const h=window.__fjBackOverlay;if(typeof h==='function')return h();
+  const close=document.querySelector('#moa-r149-voice-modal button[aria-label*="닫기"]');
+  if(close){close.click();return true;}return false;
+ }
+ return r495TryBack();
+};
 function installBack(){if(backInstalled)return;backInstalled=true;r495InstallBackHandlers();}
 function r475ModeToggle(active,onPhoto,onDetail){
  const wrap=r483Pill(active,[{key:'photo',label:'사진형'},{key:'detail',label:'상세형'}],mode=>{if(mode==='photo')onPhoto();else onDetail()},'moa-r483-day-mode');
