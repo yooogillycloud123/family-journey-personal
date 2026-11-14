@@ -1,8 +1,8 @@
-name: MOA R539 Native Photo Card LAB compile and syntax QA
+name: MOA R543 Native Photo Card LAB compile and syntax QA
 on:
   push:
     branches:
-      - feature/moa-r539-gallery-index-resume-scroll-unified-header-20261114
+      - feature/moa-r543-native-gallery-first-recovery-compact-menu-20261114
     paths:
       - experiments/moa-r483/moa-r483-vertical-calendar.js
       - experiments/moa-r483/moa-r483-vertical-calendar.css
@@ -45,15 +45,15 @@ jobs:
           assert "window.__moaR527DayToken" in js
           assert "setRailExpanded" in java
           assert "window.__moaR539AdvancedSelection" in js
-          assert "window.__moaR539RecoverAfterReturn" in js
+          assert "window.__moaR543RebuildInline" in js
           assert "r539DayChrome" in js and "r539OnDayScroll" in js
           assert "window.__moaR539AdvancedSelection" in java
-          assert "data.startsWith(\"s,\")" in java and "data.startsWith(\"r,\")" in java
+          assert "hadMountedOnPause" in java and "nativeHost.setAlpha(\"1\".equals(ctrl[2])?0f:1f)" not in java
           assert "moa-r539-day-controls" in css
-          assert "returnFromBackground=!fullNativeOpen" in java
-          print("R539 SOURCE SAFETY CHECKS=PASS")
+          assert "returnFromBackground=hadMountedOnPause&&!fullNativeOpen" in java
+          print("R543 SOURCE SAFETY CHECKS=PASS")
           PY
-      - name: Compile additive R539 DEX
+      - name: Compile additive R543 DEX
         run: |
           set -euo pipefail
           mkdir -p /tmp/moa531/classes /tmp/moa531/dex build/moa-r531
@@ -66,7 +66,7 @@ jobs:
           assert b"MoaR507InlineGalleryProvider" in b
           pathlib.Path("build/moa-r531/native-dex-sha256.json").write_text(json.dumps({"sha256":hashlib.sha256(b).hexdigest(),"size":len(b)},indent=2))
           pathlib.Path("build/moa-r531/classes18.dex").write_bytes(b)
-          print("MOA_R539_NATIVE_DEX_SHA256",hashlib.sha256(b).hexdigest())
+          print("MOA_R543_NATIVE_DEX_SHA256",hashlib.sha256(b).hexdigest())
           PY
       - name: Collect exact modified source bundle
         run: |
@@ -78,6 +78,6 @@ jobs:
           sha256sum build/moa-r531/classes18.dex build/moa-r531/moa-r483-vertical-calendar.js build/moa-r531/moa-r483-vertical-calendar.css build/moa-r531/MoaR507InlineGalleryProvider.java > build/moa-r531/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: MOA-R539-ADDITIVE-DEX-LAB
+          name: MOA-R543-ADDITIVE-DEX-LAB
           path: build/moa-r531/
           if-no-files-found: error
