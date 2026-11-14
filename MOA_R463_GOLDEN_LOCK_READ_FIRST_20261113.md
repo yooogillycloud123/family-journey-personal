@@ -1,3 +1,5 @@
+> **2026-11-14 LATEST MOA SUPERSESSION NOTICE:** This R463 document is a **historical, still-immutable previous approved Golden record**, not the current development baseline. After this document, the user confirmed **R567 physically successful on Galaxy and explicitly approved R567 as current Golden**. Do NOT start new development from R463. Latest mandatory read: [R567 user-approved Golden lock](MOA_R567_USER_APPROVED_GOLDEN_LOCK_READ_FIRST_20261114.md) + [R567 new-chat prompt](MOA_NEW_CHAT_RESUME_PROMPT_R567_USER_DEVICE_PASS_20261114.md). Original R463 APK/source/hash remain preserved byte-for-byte.
+
 # MOA R463 — USER-APPROVED CURRENT INTEGRATED GOLDEN LOCK
 
 **승인일:** 2026-11-13 (Asia/Seoul)
