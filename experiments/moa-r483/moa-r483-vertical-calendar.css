@@ -773,3 +773,8 @@ html #moa-r469-root.moa-r507-native-mounted[data-page="day"] .moa-r469-stage-med
 /* R519 final cascade override after R515 geometry; retain full-width hit surface. */
 html #moa-r469-root[data-page="calendar"] .moa-r487-today-dock{height:36px!important;min-height:36px!important;flex-basis:36px!important;}
 html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{height:29px!important;min-height:29px!important;max-height:29px!important;line-height:27px!important;font-size:15px!important;}
+
+/* R523 strict user instruction: blank Today tap strip — no text, no glyph. */
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{font-size:0!important;color:transparent!important;}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action::before,
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action::after{content:none!important;display:none!important;}
