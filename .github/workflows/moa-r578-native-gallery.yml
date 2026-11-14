@@ -1,7 +1,7 @@
-name: MOA R578 R567-Golden-safe native photo card smoke and DEX
+name: MOA R580 R567-Golden-safe native card source+DEX regression
 on:
   push:
-    branches: ['feature/moa-r578-r576-restore-native-photo-crop-quickrecord-refresh-rail-20261115']
+    branches: ['feature/moa-r580-r578-photo-day-consistency-smooth-reveal-rail-20261115']
     paths:
       - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
       - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
@@ -71,19 +71,21 @@ jobs:
           assert 'moa-r572-toast-leave' in fav and 'toastTimer=setTimeout' in fav
           assert 'r570OpenFavorite' in java and 'updateVideoAmbient' in java
           assert 'r574PhotoRefreshAttempts' in java and 'deck.setBackgroundColor(Color.TRANSPARENT)' in java
-          assert 'r578HydrateSelectedDay' in js and 'r578CalendarKey(s)' in js
+          assert 'r578HydrateSelectedDay' in js and 'r580HydrateCalendarMonth' in js and 'r580SavedIds' in js
           assert 'r578RestoreGoldenPhotoCrop' in java and 'ImageView.ScaleType.CENTER_CROP' in java
           assert 'r578MissingPhotoId' in java and 'refreshOriginalMediaIfBlank(gallery)' in java
-          assert 'R578: measure the actual FILMSTRIP' in java and 'film.setTranslationY(desired)' in java
+          assert 'R580: the R578 film-only translation' in java and 'lower.setTranslationY(desired)' in java
           assert 'parent.addView(poster' in java and 'texture.setOpaque(false)' in java
           assert 'R578: undo R570/R572 blanket video background removal' in css
           assert 'r570OpenFavorite' in java and 'r572SyncFastSetting' in java
           assert 'r572FirstPhotoPending=false' in java and 'r576TightenMeasuredRail' in java
-          print('R578 exact R567 crop/video ambient restored, IndexedDB hydration, measured rail, saved action+Naver contracts PASS')
+          assert 'r580PhotoPending' in java and 'r580AwaitPhotoId' in java
+          assert 'IDBKeyRange.bound' in js and 'setTimeout(()=>r578HydrateSelectedDay(true)' in js
+          print('R580 photo drawable gate, canonical saved-IDs, calendar+day IDB refresh, measured native lower rail contracts PASS')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MOA-R578-classes18-DEX-and-QA
+          name: MOA-R580-classes18-DEX-and-QA
           path: build/moa-r578/
           if-no-files-found: warn
