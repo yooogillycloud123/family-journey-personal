@@ -7,6 +7,7 @@
  const idOK=id=>/^(?:v)?[0-9]{1,18}$/.test(String(id));
  const pendingGeo=new Map(), inProgress=new Set();
  let seq=0, oldLocationHandler=null, wrappedLocationHandler=null;
+ let toastEpoch=0,toastTimer=null;
  function installGeoResultProxy(){
    if(window.__fjDiaryMediaLocationResult===wrappedLocationHandler)return;
    oldLocationHandler=window.__fjDiaryMediaLocationResult;
@@ -25,7 +26,15 @@
    let label=chrome.querySelector('.moa-r570-save-status');
    if(!label){label=document.createElement('div');label.className='moa-r570-save-status';
      label.setAttribute('role','status');label.setAttribute('aria-live','polite');chrome.append(label);}
+   clearTimeout(toastTimer);const current=++toastEpoch;
+   label.classList.remove('moa-r572-toast-leave');
    label.textContent=String(message||'');
+   // Never leave a persistent white pill covering the photo diary. Any new
+   // provider callback replaces the notice and gets its own 3.8sec lifetime.
+   toastTimer=setTimeout(()=>{if(current!==toastEpoch)return;
+     label.classList.add('moa-r572-toast-leave');
+     setTimeout(()=>{if(current===toastEpoch)label.remove();},220);
+   },3800);
  }
  function requestLocation(id,callback){
    if(!idOK(id)||!window.NativeHost||typeof window.NativeHost.post!=='function')return false;
@@ -75,4 +84,5 @@
    return true; // This means REQUEST ACCEPTED, never "saved".
  }
  window.MoaR570PhotoFavorites=Object.freeze({save});
+})();
 })();
