@@ -83,8 +83,8 @@ jobs:
           # R551 violated lifecycle ownership: selectDay first, then close.
           detail=js.split("function r475OpenDetail(day)",1)[1].split("function r475DecorateDetail()",1)[0]
           assert detail.index("r523DayExiting=true;") < detail.index("close();") < detail.index("window.FamilyJourneyDiary?.selectDay?.(day);")
-          assert "window.__moaR567ForegroundNativeClosed" in js
-          assert "window.__moaR567ForegroundNativeClosed(" in java
+          assert "window.__moaR563ForegroundNativeClosed" in js
+          assert "window.__moaR563ForegroundNativeClosed(" in java
           assert "window.__moaR551NativeLost" not in java
           assert "refreshOriginalMediaIfBlank(gallery);" in java
           assert "getDeclaredMethod(\"refreshPages\")" in java
