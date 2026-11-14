@@ -67,9 +67,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private int lastX = Integer.MIN_VALUE, lastY = Integer.MIN_VALUE;
   private int lastW = -1, lastH = -1;
   private FrameLayout nativeHost;
-  private TextView coverStar;
-  private RailIcon railToggle;
-  private TextView advancedButton;
+  private UnifiedGlyph coverStar;
+  private UnifiedGlyph railToggle;
+  private UnifiedGlyph advancedButton;
   private boolean initialCardChromeHidden=false;
   private boolean fullNativeOpen=false,fullNativeSeenOpen=false;
   private long fullNativeStartedAt=0L;
@@ -112,6 +112,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private int ownedDayToken;
   private boolean positionPortSettingUp;
   private long suppressArmUntil;
+  // R535: one guarded same-day native surface rebuild after leaving and returning
+  // to the Activity. Android may discard the Gallery TextureView compositor.
+  private boolean returnFromBackground=false;
+  private long backgroundStartedAt=0L;
+  private int foregroundEpoch=0;
 
   private static final String SNAPSHOT =
       "(function(){try{" +
@@ -262,6 +267,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       return;
     }
     if(!galleryOpen(gallery)){
+      // On activity return the original renderer can lose its SurfaceTexture
+      // without a user Back. Let the guarded resume transaction restore it;
+      // do not interpret this lifecycle gap as intentional day exit.
+      if(returnFromBackground && ownsGallery && !fullNativeOpen)return;
       ensurePositionChannel(web);
       if(ownsGallery) {
         // A media transition can briefly clear the original open flag. Do not
@@ -287,6 +296,16 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }
     nativeCloseDetectedAt=0L;
     ensurePositionChannel(web);
+    // R535: WebMessagePort's fast path bypasses attachCard. Even when geometry
+    // keeps streaming, the old video ambient MUST be hidden immediately when
+    // a different PHOTO is selected; do not leave a blurred video layer on top.
+    if(ownsGallery && gallery==galleryRef){
+      final String selected=currentId(gallery);
+      if(!selected.equals(lastFillId)){
+        lastFillId=selected;fillPrepareAttempts=0;lastFillAt=0L;
+        updateAmbientForSelection(a,gallery,selected);
+      }
+    }
     // The DOM compositor pushes exact card positions during scrolling. Do NOT
     // fight its order with another delayed evaluateJavascript snapshot/Matrix.
     if(positionWeb==web && positionPort!=null && ownsGallery &&
@@ -399,8 +418,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     disarm();
     if(advancedButton!=null && advancedButton.getParent() instanceof ViewGroup)
       ((ViewGroup)advancedButton.getParent()).removeView(advancedButton);
-    if(ambientPoster!=null&&ambientPoster.getParent() instanceof ViewGroup)
+    if(ambientPoster!=null&&ambientPoster.getParent() instanceof ViewGroup){
+      ambientPoster.setVisibility(View.GONE);
       ((ViewGroup)ambientPoster.getParent()).removeView(ambientPoster);
+    }
     if(galleryRef!=null){Object tx=readField(galleryRef,"texture");if(tx instanceof TextureView)try{((TextureView)tx).setOpaque(true);}catch(Throwable ignored){}}
     if(railToggle!=null && railToggle.getParent() instanceof ViewGroup)
       ((ViewGroup)railToggle.getParent()).removeView(railToggle);
@@ -538,7 +559,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }
     if(capsule.getLayoutParams() instanceof FrameLayout.LayoutParams){
       FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)capsule.getLayoutParams();
-      p.height=dp(a,34);p.width=Math.min(Math.max(dp(a,215),host.getWidth()-dp(a,18)),dp(a,280));
+      p.height=dp(a,34);p.width=Math.min(Math.max(dp(a,260),host.getWidth()-dp(a,18)),dp(a,306));
       p.bottomMargin=dp(a,1);capsule.setLayoutParams(p);
     }
     GradientDrawable bg=new GradientDrawable();bg.setColor(0xe5212229);bg.setCornerRadius(dp(a,19));
@@ -550,19 +571,21 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         p.height=dp(a,34);action.setLayoutParams(p);
       }
       if(action instanceof ViewGroup){ViewGroup group=(ViewGroup)action;
+        // R531 reduced the already compact R463 icons to 74%, making the four
+        // original symbols visibly smaller than star/filmstrip/expand. Keep
+        // their original click listeners and 34dp hit boxes; normalize artwork.
         for(int k=0;k<group.getChildCount();k++){
-          View glyph=group.getChildAt(k);glyph.setScaleX(.74f);glyph.setScaleY(.74f);
+          View glyph=group.getChildAt(k);glyph.setScaleX(.96f);glyph.setScaleY(.96f);
         }
       }
     }
-    TextView star=new TextView(a);star.setText("☆");star.setTextSize(20);
-    star.setTextColor(Color.WHITE);star.setGravity(Gravity.CENTER);
+    UnifiedGlyph star=new UnifiedGlyph(a,UnifiedGlyph.STAR);
     star.setContentDescription("현재 사진을 달력 대표사진으로 지정");
     star.setTag("moa.gallery.inline.cover.r511");star.setClickable(true);star.setFocusable(true);
     star.setOnClickListener(v->{
       String id=currentId(gallery);if(id.length()==0)return;
       web.evaluateJavascript("window.MoaR469SimpleDiary&&window.MoaR469SimpleDiary.setCoverNative&&window.MoaR469SimpleDiary.setCoverNative("+JSONObject.quote(id)+");",null);
-      star.setText("★");
+      star.setSelected(true);star.invalidate();
     });
     capsule.addView(star,0,new LinearLayout.LayoutParams(0,dp(a,34),1f));
     coverStar=star;
@@ -630,24 +653,21 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       deck.setVisibility(View.GONE);
     }
     if(advancedButton==null){
-      TextView advanced=new TextView(a);advanced.setText("⤢");advanced.setTextSize(20f);
-      advanced.setTextColor(Color.WHITE);advanced.setGravity(Gravity.CENTER);
+      // R535: seventh symbol inside the SAME bottom action capsule, never a
+      // floating top-right overlay. Original four R463 listeners remain intact.
+      UnifiedGlyph advanced=new UnifiedGlyph(a,UnifiedGlyph.EXPAND);
       advanced.setContentDescription("원래 고급 갤러리 전체 화면으로 열기");
-      advanced.setTag("moa.gallery.card.advanced.r531");advanced.setClickable(true);advanced.setFocusable(true);
-      GradientDrawable circle=new GradientDrawable();circle.setShape(GradientDrawable.OVAL);circle.setColor(0x88232229);
-      advanced.setBackground(circle);
-      FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(dp(a,36),dp(a,36),Gravity.TOP|Gravity.RIGHT);
-      p.rightMargin=dp(a,12);p.topMargin=dp(a,12);host.addView(advanced,p);
-      advanced.setVisibility(View.GONE);
+      advanced.setTag("moa.gallery.card.advanced.r535");advanced.setClickable(true);advanced.setFocusable(true);
+      capsule.addView(advanced,new LinearLayout.LayoutParams(0,dp(a,34),1f));
       advanced.setOnClickListener(v->enterOriginalFullscreen(web,gallery));
       advancedButton=advanced;
     }
     compactDone=true;
   }
   private void syncAdvancedButton(Object gallery){
-    if(advancedButton==null)return;
-    boolean chrome=Boolean.TRUE.equals(readField(gallery,"chromeVisible"));
-    advancedButton.setVisibility(chrome?View.VISIBLE:View.GONE);
+    // Parent R463 action deck itself owns show/hide on the media tap.
+    if(advancedButton!=null && advancedButton.getVisibility()!=View.VISIBLE)
+      advancedButton.setVisibility(View.VISIBLE);
   }
   private void enterOriginalFullscreen(WebView web,Object gallery){
     if(!ownsGallery||fullNativeOpen||gallery!=galleryRef||!isTrustedWeb(web))return;
@@ -661,17 +681,41 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // R515 keeps the original rail/OverScroller intact. Only the visibility and
   // viewer-scoped LinearLayout heights are changed; original fullscreen Gallery
   // is never entered through this code path.
-  // R531: consistent 1.6dp outlined filmstrip. No font-dependent up arrow.
-  private static final class RailIcon extends View{
+  // R535: consistent 19dp outlined assets in 34dp hit slots. No font glyphs.
+  private static final class UnifiedGlyph extends View{
+    static final int STAR=0,RAIL=1,EXPAND=2;
+    private final int kind;
     private final android.graphics.Paint paint=new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-    RailIcon(Activity a){super(a);paint.setColor(Color.WHITE);paint.setStyle(android.graphics.Paint.Style.STROKE);
-      paint.setStrokeWidth(1.6f*a.getResources().getDisplayMetrics().density);}
+    UnifiedGlyph(Activity a,int kind){super(a);this.kind=kind;
+      paint.setColor(Color.WHITE);paint.setStyle(android.graphics.Paint.Style.STROKE);
+      paint.setStrokeWidth(1.65f*a.getResources().getDisplayMetrics().density);
+      paint.setStrokeJoin(android.graphics.Paint.Join.ROUND);
+      paint.setStrokeCap(android.graphics.Paint.Cap.ROUND);
+    }
     @Override protected void onDraw(android.graphics.Canvas canvas){
       super.onDraw(canvas);float d=getResources().getDisplayMetrics().density;
       float cx=getWidth()/2f,cy=getHeight()/2f;
-      for(int i=0;i<3;i++){
-        float x=cx+((i-1)*6.2f)*d;
-        canvas.drawRoundRect(x-3.3f*d,cy-5.0f*d,x+3.3f*d,cy+5.0f*d,1.2f*d,1.2f*d,paint);
+      if(kind==STAR){
+        android.graphics.Path path=new android.graphics.Path();
+        for(int i=0;i<10;i++){
+          double th=Math.PI*(-.5+i/5.0);float r=(i%2==0?9.2f:4.0f)*d;
+          float x=cx+(float)Math.cos(th)*r,y=cy+(float)Math.sin(th)*r;
+          if(i==0)path.moveTo(x,y);else path.lineTo(x,y);
+        }
+        path.close();paint.setStyle(isSelected()?android.graphics.Paint.Style.FILL:android.graphics.Paint.Style.STROKE);
+        canvas.drawPath(path,paint);paint.setStyle(android.graphics.Paint.Style.STROKE);
+      }else if(kind==RAIL){
+        for(int i=0;i<3;i++){
+          float x=cx+(i-1)*6.8f*d;
+          canvas.drawRoundRect(x-3.05f*d,cy-7.7f*d,x+3.05f*d,cy+7.7f*d,1.1f*d,1.1f*d,paint);
+        }
+      }else{
+        // Four corners: visual footprint exactly 19x19dp like other actions.
+        float a=9.5f*d,b=4.0f*d;
+        canvas.drawLine(cx-a,cy-b,cx-a,cy-a,paint);canvas.drawLine(cx-a,cy-a,cx-b,cy-a,paint);
+        canvas.drawLine(cx+b,cy-a,cx+a,cy-a,paint);canvas.drawLine(cx+a,cy-a,cx+a,cy-b,paint);
+        canvas.drawLine(cx-a,cy+b,cx-a,cy+a,paint);canvas.drawLine(cx-a,cy+a,cx-b,cy+a,paint);
+        canvas.drawLine(cx+b,cy+a,cx+a,cy+a,paint);canvas.drawLine(cx+a,cy+a,cx+a,cy+b,paint);
       }
     }
   }
@@ -679,7 +723,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(railToggleInstalled || railView==null)return;
     // In-card ONLY: sixth icon in the existing native action deck.
     // Do not create another free-floating button covering video controls.
-    RailIcon control=new RailIcon(a);
+    UnifiedGlyph control=new UnifiedGlyph(a,UnifiedGlyph.RAIL);
     control.setClickable(true);control.setFocusable(true);
     control.setContentDescription("사진 목록 접기");
     control.setTag("moa.gallery.inline.rail.toggle.r519");
@@ -707,6 +751,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // Only the in-card Gallery opts into center-crop. Never upscale the bitmap
   // beyond what the original image decoder provides and never change fullscreen.
   // Full bleed necessarily trims edges when image/video and stage ratios differ.
+  private void updateAmbientForSelection(Activity a,Object gallery,String id){
+    Object raw=readField(gallery,"texture");
+    if(raw instanceof TextureView)updateVideoAmbient(a,(TextureView)raw,id);
+    else if(ambientPoster!=null)ambientPoster.setVisibility(View.GONE);
+  }
   private void fillNativeMediaCard(Activity a,Object gallery){
     Object pictures=readField(gallery,"images");
     if(pictures instanceof ImageView[]){
@@ -736,7 +785,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       ImageView poster=new ImageView(a);poster.setScaleType(ImageView.ScaleType.CENTER_CROP);
       poster.setBackgroundColor(0xff38343a);poster.setAlpha(.77f);
       if(Build.VERSION.SDK_INT>=31)poster.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(22f,22f,android.graphics.Shader.TileMode.CLAMP));
-      parent.addView(poster,Math.max(0,parent.indexOfChild(texture)),new FrameLayout.LayoutParams(-1,-1));
+      // Absolute bottom of the native stage. Photos must ALWAYS paint above
+      // video ambient, even in the brief interval before selection callbacks.
+      parent.addView(poster,0,new FrameLayout.LayoutParams(-1,-1));
       ambientPoster=poster;ambientParent=parent;ambientMediaId="";
     }
     ambientPoster.setVisibility(View.VISIBLE);texture.setOpaque(false);
@@ -769,7 +820,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(!(idx instanceof Integer))return;
     int i=(Integer)idx;
     String id=currentId(gallery);
-    if(coverStar!=null){coverStar.setText(id.equals(cover)?"★":"☆");}
+    if(coverStar!=null){coverStar.setSelected(id.equals(cover));coverStar.invalidate();}
     if(i!=lastIndex){
       lastIndex=i;
       web.evaluateJavascript("window.__moaR507NativeSelected&&window.__moaR507NativeSelected("+i+");",null);
@@ -777,8 +828,43 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   }
   private static int dp(Activity a,float n){return (int)(n*a.getResources().getDisplayMetrics().density+.5f);}
 
-  @Override public void onActivityResumed(Activity a){foreground=a;resumed=true;}
-  @Override public void onActivityPaused(Activity a){if(foreground==a)resumed=false;}
+  // R535: the original Gallery may keep an open=true flag despite a discarded
+  // TextureView compositor after Home/Recents/other apps. On return, rebuild
+  // only this in-card session once; retain the JS day/media state and never
+  // send the normal R523 native Back/day-exit callback.
+  private void rebindAfterReturn(Activity a,int epoch){
+    if(!resumed||foreground!=a||epoch!=foregroundEpoch||!returnFromBackground||
+       !ownsGallery||fullNativeOpen||a.isFinishing()||a.isDestroyed())return;
+    returnFromBackground=false;
+    final WebView web=findWeb(a);
+    final Object gallery=readField(a,"unifiedGallery");
+    final int token=ownedDayToken;
+    if(web==null||!isTrustedWeb(web)||gallery!=galleryRef||token<=0)return;
+    // Verify that this is STILL the same photo-day, not a stale callback from
+    // a user navigating away while the app was offscreen.
+    web.evaluateJavascript("(function(){var d=window.MoaR469SimpleDiary,s=d&&d.readOnlyStatus&&d.readOnlyStatus();return !!(s&&s.active&&s.page==='day'&&window.__moaR507NativePending&&window.__moaR527DayToken==="+token+");})()",answer->{
+      if(!resumed||foreground!=a||epoch!=foregroundEpoch||!"true".equals(answer)||
+         !ownsGallery||gallery!=galleryRef)return;
+      suppressArmUntil=android.os.SystemClock.uptimeMillis()+450L;
+      clearCardMark();invokeClose(gallery);
+      // Own re-entry does NOT trigger user Back. Reuse existing JS session and
+      // selected index, generating a new position-channel token before reopen.
+      web.evaluateJavascript("window.__moaR535ResumeInline&&window.__moaR535ResumeInline("+token+");",null);
+    });
+  }
+  @Override public void onActivityResumed(Activity a){
+    foreground=a;resumed=true;final int epoch=++foregroundEpoch;
+    if(returnFromBackground && android.os.SystemClock.uptimeMillis()-backgroundStartedAt>=350L)
+      main.postDelayed(()->rebindAfterReturn(a,epoch),380L);
+    else returnFromBackground=false;
+  }
+  @Override public void onActivityPaused(Activity a){
+    if(foreground==a){
+      resumed=false;++foregroundEpoch;
+      returnFromBackground=ownsGallery&&!fullNativeOpen;
+      backgroundStartedAt=android.os.SystemClock.uptimeMillis();
+    }
+  }
   @Override public void onActivityDestroyed(Activity a){if(foreground==a){closePositionPort();foreground=null;resumed=false;clearCardMark();}}
   @Override public void onActivityCreated(Activity a,Bundle b){}
   @Override public void onActivityStarted(Activity a){}
