@@ -2,7 +2,7 @@ name: MOA R547 Native Photo Card LAB compile and syntax QA
 on:
   push:
     branches:
-      - feature/moa-r547-native-gallery-first-recovery-compact-menu-20261114
+      - feature/moa-r547-native-gallery-owner-lifecycle-no-web-regression-20261114
     paths:
       - experiments/moa-r483/moa-r483-vertical-calendar.js
       - experiments/moa-r483/moa-r483-vertical-calendar.css
@@ -45,7 +45,7 @@ jobs:
           assert "window.__moaR527DayToken" in js
           assert "setRailExpanded" in java
           assert "window.__moaR539AdvancedSelection" in js
-          assert "window.__moaR547RebuildInline" in js
+          assert "window.__moaR543RebuildInline" in js
           assert "r539DayChrome" in js and "r539OnDayScroll" in js
           assert "window.__moaR539AdvancedSelection" in java
           assert "hadMountedOnPause" in java and "nativeHost.setAlpha(\"1\".equals(ctrl[2])?0f:1f)" not in java
