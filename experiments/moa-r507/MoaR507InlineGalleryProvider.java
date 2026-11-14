@@ -234,8 +234,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       if(data.startsWith("s,")){
         String[] ctrl=data.split(",",-1);
         if(ctrl.length!=3||Integer.parseInt(ctrl[1])!=ownedDayToken)return;
-        if(nativeHost!=null && ownsGallery && galleryOpen(galleryRef))
+        if(nativeHost!=null && ownsGallery && galleryOpen(galleryRef)){
           nativeHost.setAlpha("1".equals(ctrl[2])?0f:1f);
+          if("0".equals(ctrl[2]))
+            web.evaluateJavascript("window.__moaR539NativeScrollSettled&&"+
+              "window.__moaR539NativeScrollSettled("+ownedDayToken+");",null);
+        }
         return;
       }
       if(data.startsWith("r,")){
@@ -295,12 +299,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         String id=currentId(gallery);
         if(!id.isEmpty())fullNativeLastId=id;
       } else if(fullNativeSeenOpen||now-fullNativeStartedAt>2900L){
-        // Original native Gallery's current index survives the close in many
-        // versions; prefer it over the last sampled frame when still available.
-        final Object ix=readField(gallery,"index");
-        if(ix instanceof Integer)fullNativeLastIndex=(Integer)ix;
-        String id=currentId(gallery);
-        if(!id.isEmpty())fullNativeLastId=id;
+        // Some Gallery.close() implementations RESET index/ids to the first
+        // photo. Do not overwrite the last index observed WHILE still open.
         final int selected=fullNativeLastIndex;
         final String chosen=JSONObject.quote(fullNativeLastId);
         fullNativeOpen=false;fullNativeSeenOpen=false;
