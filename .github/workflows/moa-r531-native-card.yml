@@ -1,8 +1,8 @@
-name: MOA R547 Native Photo Card LAB compile and syntax QA
+name: MOA R551 Native Photo Card LAB compile and syntax QA
 on:
   push:
     branches:
-      - feature/moa-r547-native-gallery-owner-lifecycle-no-web-regression-20261114
+      - feature/moa-r551-native-late-mount-no-autoclose-20261114
     paths:
       - experiments/moa-r483/moa-r483-vertical-calendar.js
       - experiments/moa-r483/moa-r483-vertical-calendar.css
@@ -52,13 +52,21 @@ jobs:
           assert "moa-r539-day-controls" in css
           assert "nativeOwnerActivity!=null && a!=nativeOwnerActivity" in java
           assert "if(healthy)" in java and "ONLY the unusable host" in java
-          assert "window.__moaR547RebuildDamagedHost" in js
-          assert "moa-r547-native-owner" in css and "moa-r547-native-owner" in js
+          assert "window.__moaR551RebuildDamagedHost" in js
+          assert "moa-r551-native-owner" in css and "moa-r551-native-owner" in js
           assert "returnFromBackground=hadMountedOnPause" in java
           assert "nativeHost.setAlpha(\"1\".equals" not in java
-          print("R547 SOURCE SAFETY CHECKS=PASS")
+          assert "window.__moaR551NativeLost" in js
+          assert "window.__moaR507NativePending=true;" in js
+          assert "if(r507Opened&&window.__moaR507NativePending)return;" in js
+          assert "Never close a native gallery on a timer" in js
+          assert "if(!ownsGallery && !inlineArmed && !processing)maybeArm(a,web);" in java
+          assert "if(!galleryOpen(gallery))return true;" in java
+          assert "host.setAlpha(0f);" not in java
+          assert "MoaR507InlineGalleryProvider" in java
+          print("R551 SOURCE SAFETY CHECKS=PASS")
           PY
-      - name: Compile additive R547 DEX
+      - name: Compile additive R551 DEX
         run: |
           set -euo pipefail
           mkdir -p /tmp/moa531/classes /tmp/moa531/dex build/moa-r531
@@ -71,7 +79,7 @@ jobs:
           assert b"MoaR507InlineGalleryProvider" in b
           pathlib.Path("build/moa-r531/native-dex-sha256.json").write_text(json.dumps({"sha256":hashlib.sha256(b).hexdigest(),"size":len(b)},indent=2))
           pathlib.Path("build/moa-r531/classes18.dex").write_bytes(b)
-          print("MOA_R547_NATIVE_DEX_SHA256",hashlib.sha256(b).hexdigest())
+          print("MOA_R551_NATIVE_DEX_SHA256",hashlib.sha256(b).hexdigest())
           PY
       - name: Collect exact modified source bundle
         run: |
@@ -83,6 +91,6 @@ jobs:
           sha256sum build/moa-r531/classes18.dex build/moa-r531/moa-r483-vertical-calendar.js build/moa-r531/moa-r483-vertical-calendar.css build/moa-r531/MoaR507InlineGalleryProvider.java > build/moa-r531/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: MOA-R547-ADDITIVE-DEX-LAB
+          name: MOA-R551-ADDITIVE-DEX-LAB
           path: build/moa-r531/
           if-no-files-found: error
