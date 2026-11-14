@@ -614,7 +614,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(host!=nativeHost){
       final int newToken=s.optInt("token",ownedDayToken);
       clearCardMark();nativeHost=host;galleryRef=gallery;nativeOwnerActivity=a;ownsGallery=true;ownedDayToken=newToken;lastPositionMessageAt=0;
-      GradientDrawable round=new GradientDrawable();round.setColor(Color.BLACK);round.setCornerRadius(dp(a,23));
+      GradientDrawable round=new GradientDrawable();
+      // R576: a transparent native card while the first photo is decoding
+      // allows the already displayed WebView still to remain underneath.
+      round.setColor(Color.TRANSPARENT);round.setCornerRadius(dp(a,23));
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
       r572FirstPhotoPending=!currentId(gallery).startsWith("v");
       r572FirstPhotoDeadline=android.os.SystemClock.uptimeMillis()+950L;
@@ -668,6 +671,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     syncIndex(web,gallery,s.optString("cover",""));
     r572FinishEntry(a,web,gallery);
     r572SyncFastSetting(a);
+    if(railExpanded)r576TightenMeasuredRail(a);
   }
   // Keep the existing Web poster visible until the ORIGINAL native center photo
   // has a non-null drawable. Never gate video TextureView availability (doing
@@ -694,16 +698,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       }
       r572FirstPhotoPending=false;
     }
-    // VIDEO: the original TextureView stays VISIBLE and prepares behind an
-    // inert black poster, avoiding intermediate gray/scaled first frames.
-    final String playing=currentId(gallery);
-    if(playing.startsWith("v")&&ambientPoster!=null&&
-       playing.equals(ambientMediaId)&&ambientPoster.getVisibility()==View.VISIBLE){
-      long elapsed=android.os.SystemClock.uptimeMillis()-r574VideoCurtainAt;
-      if((actualMediaReady(gallery)&&elapsed>=360L)||elapsed>=2200L){
-        ambientPoster.setVisibility(View.GONE);
-      }
-    }
+    // R576: R574's opaque black poster above TextureView hid the decoded
+    // video until a timer expired, visibly creating a new black flash. Keep
+    // the original R463 MediaPlayer/TextureView visible with the R570 BELOW-
+    // texture neutral background only. Do not synthesize a video curtain.
     if(!r572NativeMountAck){
       r572NativeMountAck=true;
       web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
@@ -1000,6 +998,106 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     dialog.show();
   }
   private void r570MoveOrder(Activity a,LinearLayout capsule,ArrayList<String> order,int pos,int delta){
+    }
+    if(favoriteButton==null){
+      // Keep Save separate from the compact capture-address/default-display card.
+      UnifiedGlyph favorite=new UnifiedGlyph(a,UnifiedGlyph.FAVORITE);
+      favorite.setContentDescription("현재 사진 네이버 즐겨찾기 저장");
+      favorite.setTag("moa.gallery.inline.favorite.r570");favorite.setClickable(true);favorite.setFocusable(true);
+      favorite.setOnClickListener(v->r570OpenFavorite(a,web,gallery));
+      capsule.addView(favorite,new LinearLayout.LayoutParams(0,dp(a,34),1f));favoriteButton=favorite;
+    }
+    if(advancedButton==null){
+      // R535: seventh symbol inside the SAME bottom action capsule, never a
+      // floating top-right overlay. Original four R463 listeners remain intact.
+      UnifiedGlyph advanced=new UnifiedGlyph(a,UnifiedGlyph.EXPAND);
+      advanced.setContentDescription("원래 고급 갤러리 전체 화면으로 열기");
+      advanced.setTag("moa.gallery.card.advanced.r535");advanced.setClickable(true);advanced.setFocusable(true);
+      capsule.addView(advanced,new LinearLayout.LayoutParams(0,dp(a,34),1f));
+      advanced.setOnClickListener(v->enterOriginalFullscreen(web,gallery));
+      advancedButton=advanced;
+    }
+    // Move *existing View objects* only: ORIGINAL OnClickListeners never change.
+    r570InitActionOrder(a,capsule,r570Share,r570Naver,r570Info,r570Fast);
+    compactDone=true;
+  }
+  private void syncAdvancedButton(Object gallery){
+    // Parent R463 action deck itself owns show/hide on the media tap.
+    if(advancedButton!=null && advancedButton.getVisibility()!=View.VISIBLE)
+      advancedButton.setVisibility(View.VISIBLE);
+  }
+  // R570: original R463 actions retain their own listeners and distinct identity.
+  // Reordering only reparents the same views inside the photo-only action capsule.
+  private void r570InitActionOrder(Activity a,LinearLayout capsule,
+         View share,View naver,View info,View fast){
+    if(capsule==null||coverStar==null||favoriteButton==null||railToggle==null||advancedButton==null)return;
+    r570Actions.clear();
+    r570Actions.put("cover",coverStar);r570Actions.put("share",share);
+    r570Actions.put("naver",naver);r570Actions.put("info",info);
+    r570Actions.put("fast",fast);r570Actions.put("favorite",favoriteButton);
+    r570Actions.put("rail",railToggle);r570Actions.put("expand",advancedButton);
+    if(r570Actions.size()!=8)return;
+    for(final View v:r570Actions.values()){
+      // Do NOT replace OnClickListener or intercept original media gestures.
+      v.setOnLongClickListener(target->{r570OpenOrder(a,capsule);return true;});
+    }
+    // Native art has different intrinsic bounds; normalize visual footprints
+    // while retaining 34dp per-action touch areas.
+    float[] ratios={1f,.78f,.78f,.78f,.78f,1f,1f,1f};
+    for(int i=0;i<R570_ROLES.length;i++){
+      View role=r570Actions.get(R570_ROLES[i]);if(role==null)continue;
+      View glyph=role instanceof ViewGroup&&((ViewGroup)role).getChildCount()>0?
+         ((ViewGroup)role).getChildAt(0):role;
+      if(glyph instanceof UnifiedGlyph)continue; // native artwork centered/scaled at draw time
+      glyph.setScaleX(ratios[i]);glyph.setScaleY(ratios[i]);
+    }
+    r570ApplyOrder(a,capsule);
+  }
+  private ArrayList<String> r570SavedRoles(Activity a){
+    final String value=a.getSharedPreferences("moa.r570.photo.actions",0).getString("order","");
+    ArrayList<String> order=new ArrayList<>();
+    if(value.length()>0){for(String role:value.split(",")){if(r570Actions.containsKey(role)&&!order.contains(role))order.add(role);}}
+    // Fail closed: corrupt preference cannot remove any original action.
+    if(order.size()!=R570_ROLES.length){order.clear();order.addAll(Arrays.asList(R570_ROLES));}
+    return order;
+  }
+  private void r570ApplyOrder(Activity a,LinearLayout capsule){
+    if(capsule==null||r570Actions.size()!=8)return;
+    ArrayList<String> order=r570SavedRoles(a);
+    for(String role:order){View v=r570Actions.get(role);
+      if(v==null)return;
+    }
+    // Never re-create actions or listeners. No Gallery replacement.
+    for(String role:order){View v=r570Actions.get(role);
+      if(v.getParent()==capsule)capsule.removeView(v);
+    }
+    for(String role:order){View v=r570Actions.get(role);
+      capsule.addView(v,new LinearLayout.LayoutParams(0,dp(a,34),1f));
+    }
+  }
+  private static String r570RoleLabel(String role){
+    switch(role){case "cover":return "대표 사진";case "share":return "공유";
+      case "naver":return "네이버 지도";case "info":return "촬영 정보";
+      case "fast":return "연속 넘기기";case "favorite":return "네이버 저장";
+      case "rail":return "사진 목록";case "expand":return "전체 화면";default:return role;}
+  }
+  private void r570OpenOrder(Activity a,LinearLayout capsule){
+    if(a==null||a.isFinishing()||capsule!=actionCapsule||r570Actions.size()!=8)return;
+    if(r570OrderDialog!=null&&r570OrderDialog.isShowing())return;
+    ArrayList<String> ids=r570SavedRoles(a);
+    final int[] pos={0};
+    String[] labels=new String[ids.size()];
+    for(int i=0;i<ids.size();i++)labels[i]=(i+1)+". "+r570RoleLabel(ids.get(i));
+    AlertDialog dialog=new AlertDialog.Builder(a)
+      .setTitle("사진형 아이콘 순서")
+      .setSingleChoiceItems(labels,0,(d,which)->pos[0]=which)
+      .setPositiveButton("왼쪽으로",(d,which)->r570MoveOrder(a,capsule,ids,pos[0],-1))
+      .setNeutralButton("오른쪽으로",(d,which)->r570MoveOrder(a,capsule,ids,pos[0],1))
+      .setNegativeButton("닫기",(d,which)->{})
+      .create();r570OrderDialog=dialog;
+    dialog.show();
+  }
+  private void r570MoveOrder(Activity a,LinearLayout capsule,ArrayList<String> order,int pos,int delta){
     if(pos<0||pos>=order.size()||pos+delta<0||pos+delta>=order.size())return;
     Collections.swap(order,pos,pos+delta);
     a.getSharedPreferences("moa.r570.photo.actions",0).edit()
@@ -1146,11 +1244,45 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       if(lp.height!=h){lp.height=h;nativeLower.setLayoutParams(lp);}
       if(railView!=null)railView.setTranslationY(expanded?dp(a,video?9:7):0f);
     }
+    if(!expanded&&nativeLower!=null)nativeLower.setTranslationY(0f);
+    if(expanded)r576TightenMeasuredRail(a);
     if(railToggle!=null){
       railToggle.invalidate();
       railToggle.setContentDescription(expanded?"사진 목록 접기":"사진 목록 펼치기");
       railToggle.setSelected(!expanded);
     }
+  }
+  // R576: compact the real, measured vertical gap between the LAST visible
+  // original gallery lower-row child and the existing eight-action capsule.
+  // This moves the whole original nativeLower, including gestures and video
+  // buttons, so touch coordinates/selected thumbnail never become detached.
+  // It is card-local, idempotent, bounded, and not used by fullscreen Gallery.
+  private void r576TightenMeasuredRail(Activity a){
+    if(!ownsGallery||nativeLower==null||actionDeck==null||!railExpanded||
+       nativeLower.getParent()==null||actionDeck.getParent()==null)return;
+    final LinearLayout lower=nativeLower;final FrameLayout deck=actionDeck;
+    lower.post(()->{
+      if(!ownsGallery||nativeLower!=lower||actionDeck!=deck||!railExpanded||
+         lower.getParent()==null||deck.getParent()==null)return;
+      try{
+        int[] dock=new int[2];deck.getLocationInWindow(dock);
+        float old=lower.getTranslationY();
+        float maxBottom=Float.NEGATIVE_INFINITY;
+        for(int k=0;k<lower.getChildCount();k++){
+          View item=lower.getChildAt(k);
+          if(item==null||item.getVisibility()!=View.VISIBLE||item.getHeight()<=0)continue;
+          int[] p=new int[2];item.getLocationInWindow(p);
+          float actualBottom=p[1]+item.getHeight()*(.5f+.5f*item.getScaleY());
+          maxBottom=Math.max(maxBottom,actualBottom);
+        }
+        if(!Float.isFinite(maxBottom))return;
+        float visualGap=dock[1]-maxBottom;
+        // Convert measured gap back to the unshifted baseline, then request
+        // 7dp of breathing space. Never overlap the capsule or move >38dp.
+        float want=Math.max(0f,Math.min(dp(a,38),old+visualGap-dp(a,7)));
+        if(Math.abs(want-old)>dp(a,1))lower.setTranslationY(want);
+      }catch(Throwable ignored){}
+    });
   }
   // Only the in-card Gallery opts into center-crop. Never upscale the bitmap
   // beyond what the original image decoder provides and never change fullscreen.
@@ -1185,25 +1317,15 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       if(ambientPoster!=null&&ambientPoster.getParent() instanceof ViewGroup)
         ((ViewGroup)ambientPoster.getParent()).removeView(ambientPoster);
       ImageView poster=new ImageView(a);poster.setScaleType(ImageView.ScaleType.CENTER_CROP);
-      poster.setBackgroundColor(Color.BLACK);poster.setAlpha(1f);
+      poster.setBackgroundColor(0xff28272c);poster.setAlpha(1f);
       // Absolute bottom of the native stage. Photos must ALWAYS paint above
       // video ambient, even in the brief interval before selection callbacks.
-      poster.setClickable(false);poster.setFocusable(false);
-      poster.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-      // Put this one-time opaque black curtain ABOVE video output, never
-      // above the original host-level rail/seek/action controls.
-      parent.addView(poster,new FrameLayout.LayoutParams(-1,-1));
+      parent.addView(poster,0,new FrameLayout.LayoutParams(-1,-1));
       ambientPoster=poster;ambientParent=parent;ambientMediaId="";
     }
-    texture.setOpaque(true);
-    // Do not re-show the curtain on every 155ms Gallery tick after the first
-    // native video frame has become visible: that caused repeated flashing.
+    ambientPoster.setVisibility(View.VISIBLE);texture.setOpaque(false);
     if(id.equals(ambientMediaId))return;
-    ambientMediaId=id;
-    r574VideoCurtainAt=android.os.SystemClock.uptimeMillis();
-    ambientPoster.setVisibility(View.VISIBLE);
-    ambientPoster.bringToFront();
-    ambientPoster.setImageDrawable(null);
+    ambientMediaId=id;ambientPoster.setImageDrawable(null);
     final ImageView target=ambientPoster;
     // R570: fixed neutral backdrop for in-card VIDEO only. The historical
     // asynchronous blurred poster flashed/recomposited behind each TextureView
