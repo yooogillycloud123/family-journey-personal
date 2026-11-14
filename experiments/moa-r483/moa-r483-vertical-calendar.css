@@ -848,3 +848,8 @@ html #fj-diary-root[data-page="day"]>.fd23-timeline{margin-top:12px!important;}
 html #moa-r469-root.moa-r539-scroll-proxy.moa-r507-native-mounted[data-page="day"] .moa-r469-stage-media{
  visibility:visible!important;pointer-events:none!important;
 }
+/* The original detailed editor has 15px ROOT side padding, while photo root
+   has none. Remove the duplicated 15px chrome indentation so both modes align. */
+html #fj-diary-root[data-page="day"] .moa-r539-day-chrome{
+ margin-left:2px!important;margin-right:2px!important;
+}
