@@ -52,8 +52,8 @@ jobs:
           assert "moa-r539-day-controls" in css
           assert "nativeOwnerActivity!=null && a!=nativeOwnerActivity" in java
           assert "if(healthy)" in java and "ONLY the unusable host" in java
-          assert "window.__moaR551RebuildDamagedHost" in js
-          assert "moa-r551-native-owner" in css and "moa-r551-native-owner" in js
+          assert "window.__moaR547RebuildDamagedHost" in js
+          assert "moa-r547-native-owner" in css and "moa-r547-native-owner" in js
           assert "returnFromBackground=hadMountedOnPause" in java
           assert "nativeHost.setAlpha(\"1\".equals" not in java
           assert "window.__moaR551NativeLost" in js
