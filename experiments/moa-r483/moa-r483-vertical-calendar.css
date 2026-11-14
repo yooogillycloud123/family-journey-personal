@@ -792,3 +792,59 @@ html #moa-r469-root[data-page="calendar"] .moa-r487-today-action::after{content:
 #moa-r469-root .moa-r531-web-advanced{position:relative;z-index:auto;width:20%;height:43px;min-height:43px;background:transparent;color:inherit;display:flex;align-items:center;justify-content:center;border-radius:9px;padding:0;}
 #moa-r469-root .moa-r531-web-advanced svg{width:19px;height:19px;display:block;}
 #moa-r469-root.moa-r507-native-mounted .moa-r531-web-advanced{display:none!important;}
+
+
+/* R539: single shared date + switch + ⋯ controls for photo and detailed modes. */
+html #moa-r469-root[data-page="day"],html #fj-diary-root[data-page="day"]{
+ padding-top:calc(8px + env(safe-area-inset-top))!important;
+}
+#moa-r469-root[data-page="day"] .moa-r539-day-chrome,
+#fj-diary-root[data-page="day"] .moa-r539-day-chrome{
+ position:relative;display:block;padding:0;margin:0 17px 4px;min-height:75px;
+ color:var(--moa-r491-ink,#302a32);font-family:system-ui,'Noto Sans KR',sans-serif;
+}
+#moa-r469-root .moa-r539-day-head,#fj-diary-root .moa-r539-day-head{
+ display:flex;align-items:center;justify-content:flex-end;min-height:41px;height:41px;padding:0!important;margin:0!important;
+}
+#moa-r469-root .moa-r539-day-head strong,#fj-diary-root .moa-r539-day-head strong{
+ color:var(--moa-r491-ink,#302a32)!important;font-size:14px!important;font-weight:650!important;text-align:right;
+}
+#moa-r469-root .moa-r539-day-controls,#fj-diary-root .moa-r539-day-controls{
+ position:relative;z-index:12;display:flex;align-items:center;justify-content:flex-end;gap:6px;height:34px;margin:0!important;padding:0!important;
+}
+html #moa-r469-root .moa-r539-day-controls .moa-r483-day-mode,
+html #fj-diary-root .moa-r539-day-controls .moa-r483-day-mode{
+ margin:0!important;max-width:68px!important;min-width:68px!important;width:68px!important;height:34px!important;min-height:34px!important;flex:0 0 68px!important;
+}
+html #moa-r469-root .moa-r539-day-controls .moa-r483-toggle-hit,
+html #fj-diary-root .moa-r539-day-controls .moa-r483-toggle-hit{height:34px!important;min-height:34px!important;max-height:34px!important;}
+html #moa-r469-root .moa-r539-day-settings,
+html #fj-diary-root .moa-r539-day-settings{
+ display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;min-height:34px;
+ border:1px solid color-mix(in srgb,var(--moa-r491-muted,#888) 17%,transparent);border-radius:11px;
+ background:var(--moa-r491-surface,#fff);color:var(--moa-r491-muted,#776b73);font-size:21px;
+ letter-spacing:0;line-height:1;padding:0;box-shadow:none;
+}
+html #moa-r469-root .moa-r539-photo-settings{
+ position:absolute;right:0;top:38px;z-index:70;width:min(230px,75vw);padding:11px;
+ background:var(--moa-r491-surface,#fff);color:var(--moa-r491-ink,#302a32);
+ border:1px solid var(--moa-r491-grid,#e7e1e6);border-radius:14px;box-shadow:0 8px 28px #0002;
+}
+html #moa-r469-root .moa-r539-stable-option{display:flex;align-items:center;gap:8px;font-size:12px;min-height:34px;}
+html #moa-r469-root .moa-r539-stable-option input{accent-color:var(--moa-r491-accent,#b45b8c);width:17px;height:17px;}
+html #moa-r469-root .moa-r539-settings-detail{border:0;border-radius:9px;background:var(--moa-r491-track,#f5eef3);color:var(--moa-r491-ink,#302a32);width:100%;padding:10px;margin-top:6px;font-size:12px;}
+/* Original detailed header and verbose introductory headings are replaced ONLY
+   visually. Its original settings/actions/listeners and data are preserved. */
+html #fj-diary-root[data-page="day"]>.fd23-top,
+html #fj-diary-root[data-page="day"]>.fd23-banner,
+html #fj-diary-root[data-page="day"]>.fd23-daystats,
+html #fj-diary-root[data-page="day"]>.fd23-shortcuts,
+html #fj-diary-root[data-page="day"]>.fd23-timeline>h3,
+html #fj-diary-root[data-page="day"]>.fd23-written>h2{display:none!important;}
+html #fj-diary-root[data-page="day"]>.fd23-written:not(:has(p,small)){display:none!important;}
+html #fj-diary-root[data-page="day"]>.fd23-timeline{margin-top:12px!important;}
+/* Temporarily render the same WebView slide under invisible native pixels so
+   the moving photo belongs to ONE compositor during vertical fling. */
+html #moa-r469-root.moa-r539-scroll-proxy.moa-r507-native-mounted[data-page="day"] .moa-r469-stage-media{
+ visibility:visible!important;pointer-events:none!important;
+}
