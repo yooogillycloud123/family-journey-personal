@@ -1,0 +1,33 @@
+[
+  {
+    "test": "cold-start same persisted Quick Record loaded into photo gallery from existing curated IndexedDB",
+    "result": "PASS",
+    "observation": {
+      "calls": [
+        {
+          "ids": [
+            "987650001"
+          ],
+          "index": 0,
+          "day": "2026-11-14"
+        }
+      ],
+      "media": 1,
+      "record": [
+        "987650001"
+      ]
+    }
+  },
+  {
+    "test": "a second same-day Quick Record does not require calendar Map.size increase",
+    "result": "PASS"
+  },
+  {
+    "test": "existing indexed R567 photo retains immediate native gallery open",
+    "result": "PASS"
+  },
+  {
+    "test": "orphaned moment does not resurrect intentionally removed photo",
+    "result": "PASS"
+  }
+]
