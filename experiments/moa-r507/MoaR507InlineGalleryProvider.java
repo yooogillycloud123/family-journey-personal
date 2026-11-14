@@ -96,6 +96,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private View railView;
   private boolean railExpanded=true;
   private boolean railToggleInstalled;
+  // R572: entry reveal, photo-only thumbnail geometry, stable native fast preference.
+  private boolean r572FirstPhotoPending=false, r572NativeMountAck=false;
+  private long r572FirstPhotoDeadline=0L;
+  private boolean r572FastRestorePending=false, r572FastRestoreDone=false;
+  private boolean r572FastSeen=false, r572FastState=false;
+  private Boolean r572LastVideoRail=null;
   private long lastValidSnapshot;
   private int snapshotFailures;
   private Object galleryRef;
@@ -286,7 +292,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // R535 original single geometry owner: exact integer target, no overshoot.
       nativeHost.setTranslationX(ix-baseX);
       nativeHost.setTranslationY(iy-baseY);
-      nativeHost.setVisibility(iy+ih<0||iy>root.getHeight()?View.INVISIBLE:View.VISIBLE);
+      nativeHost.setVisibility(r572FirstPhotoPending||iy+ih<0||iy>root.getHeight()?View.INVISIBLE:View.VISIBLE);
       lastPositionMessageAt=android.os.SystemClock.uptimeMillis();
       lastX=ix;lastY=iy;
     }catch(Throwable ignored){}
@@ -364,6 +370,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // keeps streaming, the old video ambient MUST be hidden immediately when
     // a different PHOTO is selected; do not leave a blurred video layer on top.
     if(ownsGallery && gallery==galleryRef){
+      r572FinishEntry(a,web,gallery);
+      r572SyncFastSetting(a);
+      r572SyncRailHeight(a,gallery);
       final String selected=currentId(gallery);
       if(!selected.equals(lastFillId)){
         lastFillId=selected;fillPrepareAttempts=0;lastFillAt=0L;
@@ -555,6 +564,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     r570SaveDialog=null;r570OrderDialog=null;
     nativeOwnerActivity=null;
     coverStar=null;railToggle=null;advancedButton=null;favoriteButton=null;r570Actions.clear();railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;ambientPoster=null;ambientParent=null;ambientMediaId="";initialCardChromeHidden=false;
+    r572FirstPhotoPending=false;r572NativeMountAck=false;r572FirstPhotoDeadline=0L;
+    r572FastRestorePending=false;r572FastRestoreDone=false;r572FastSeen=false;
+    r572LastVideoRail=null;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
     exitInFlight=false;ownedDayToken=0;nativeCloseDetectedAt=0L;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
     lastX=lastY=Integer.MIN_VALUE;
@@ -597,9 +609,14 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       clearCardMark();nativeHost=host;galleryRef=gallery;nativeOwnerActivity=a;ownsGallery=true;ownedDayToken=newToken;lastPositionMessageAt=0;
       GradientDrawable round=new GradientDrawable();round.setColor(Color.BLACK);round.setCornerRadius(dp(a,23));
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
+      r572FirstPhotoPending=!currentId(gallery).startsWith("v");
+      r572FirstPhotoDeadline=android.os.SystemClock.uptimeMillis()+950L;
+      r572NativeMountAck=false;r572FastRestorePending=true;r572FastRestoreDone=false;
+      r572FastSeen=false;r572LastVideoRail=null;
       installInlineBack(a,web);
       monitorNativeHost(a,web,gallery,host);
-      web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
+      // R572: do NOT hide the already-painted Web photo poster before the
+      // actual original native ImageView has a drawable. Video starts on black. 
     }
     // Preserve TextureView dimensions during video/controls updates. The prior
     // version relaid out the native host for every tiny WebView viewport wobble,
@@ -621,7 +638,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       lastGeometrySnapshotY=y;
     }
     lastX=x;lastY=y;lastW=w;lastH=h;
-    if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
+    if(r572FirstPhotoPending||y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
     else host.setVisibility(View.VISIBLE);
     compactNativeCard(a,web,host,gallery);
     syncAdvancedButton(gallery);
@@ -641,6 +658,53 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       fillNativeMediaCard(a,gallery);lastFillAt=now;fillPrepareAttempts++;
     }
     syncIndex(web,gallery,s.optString("cover",""));
+    r572FinishEntry(a,web,gallery);
+    r572SyncFastSetting(a);
+  }
+  // Keep the existing Web poster visible until the ORIGINAL native center photo
+  // has a non-null drawable. Never gate video TextureView availability (doing
+  // so could deadlock its SurfaceTexture). 950ms fail-open prevents stuck gray.
+  private void r572FinishEntry(Activity a,WebView web,Object gallery){
+    if(!ownsGallery||gallery!=galleryRef||nativeHost==null||!galleryOpen(gallery))return;
+    if(r572FirstPhotoPending){
+      if(!actualMediaReady(gallery) &&
+          android.os.SystemClock.uptimeMillis()<r572FirstPhotoDeadline)return;
+      r572FirstPhotoPending=false;
+    }
+    if(!r572NativeMountAck){
+      r572NativeMountAck=true;
+      web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
+    }
+    if(nativeHost.getVisibility()!=View.VISIBLE && lastY!=Integer.MIN_VALUE &&
+        lastY+lastH>0 && lastY<a.findViewById(android.R.id.content).getHeight())
+      nativeHost.setVisibility(View.VISIBLE);
+  }
+  private void r572SyncFastSetting(Activity a){
+    if(!ownsGallery||actionCapsule==null||!r572NativeMountAck)return;
+    View fast=r570Actions.get("fast");if(fast==null)return;
+    if(!r572FastRestoreDone && r572FastRestorePending){
+      r572FastRestoreDone=true;r572FastRestorePending=false;
+      boolean preferred=a.getSharedPreferences("moa.r572.photo.fast",0).getBoolean("fast_enabled",false);
+      if(preferred&&!fast.isSelected()){
+        // Call the ORIGINAL R463 listener, never create a second SwipeHandler.
+        fast.performClick();
+      }
+      r572FastState=fast.isSelected();r572FastSeen=true;
+      return;
+    }
+    boolean current=fast.isSelected();
+    if(r572FastSeen&&current!=r572FastState){
+      r572FastState=current;
+      a.getSharedPreferences("moa.r572.photo.fast",0).edit().putBoolean("fast_enabled",current).apply();
+    }
+  }
+  private void r572SyncRailHeight(Activity a,Object gallery){
+    if(!ownsGallery||railView==null||nativeLower==null||gallery==null)return;
+    boolean video=currentId(gallery).startsWith("v");
+    if(r572LastVideoRail==null||r572LastVideoRail.booleanValue()!=video){
+      r572LastVideoRail=video;
+      setRailExpanded(a,railExpanded);
+    }
   }
   private void installInlineBack(Activity a,WebView web){
     if(Build.VERSION.SDK_INT<33)return;
@@ -709,7 +773,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       p.height=dp(a,34);p.width=Math.min(Math.max(dp(a,260),host.getWidth()-dp(a,18)),dp(a,306));
       p.bottomMargin=dp(a,1);capsule.setLayoutParams(p);
     }
-    GradientDrawable bg=new GradientDrawable();bg.setColor(0xe5212229);bg.setCornerRadius(dp(a,19));
+    // R572: native footer visually SEPARATE from media. It remains inside the
+    // trusted nativeHost hit bounds (no negative margins / lost touch events).
+    GradientDrawable footer=new GradientDrawable();footer.setColor(0xf61c1d23);
+    footer.setStroke(dp(a,.45f),0x775c5d66);deck.setBackground(footer);
+    GradientDrawable bg=new GradientDrawable();bg.setColor(0x90212229);bg.setCornerRadius(dp(a,19));
     bg.setStroke(dp(a,.5f),0x447d828c);capsule.setBackground(bg);
     for(int i=0;i<capsule.getChildCount();i++){
       View action=capsule.getChildAt(i);action.setMinimumHeight(dp(a,34));
@@ -722,7 +790,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         // original symbols visibly smaller than star/filmstrip/expand. Keep
         // their original click listeners and 34dp hit boxes; normalize artwork.
         for(int k=0;k<group.getChildCount();k++){
-          View glyph=group.getChildAt(k);glyph.setScaleX(.96f);glyph.setScaleY(.96f);
+          View glyph=group.getChildAt(k);glyph.setScaleX(.78f);glyph.setScaleY(.78f);
         }
       }
     }
@@ -743,7 +811,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       LinearLayout lower=(LinearLayout)lowerObject;nativeLower=lower;
       if(lower.getLayoutParams() instanceof FrameLayout.LayoutParams){
         FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)lower.getLayoutParams();
-        p.height=dp(a,137);lower.setLayoutParams(p);
+        p.height=dp(a,currentId(gallery).startsWith("v")?137:112);lower.setLayoutParams(p);
       }
       Object rail=readField(gallery,"rail");
       if(rail instanceof View && ((View)rail).getLayoutParams() instanceof LinearLayout.LayoutParams){
@@ -843,12 +911,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }
     // Native art has different intrinsic bounds; normalize visual footprints
     // while retaining 34dp per-action touch areas.
-    float[] ratios={.94f,.92f,.92f,1.02f,.96f,1f,1f,1f};
+    float[] ratios={1f,.78f,.78f,.78f,.78f,1f,1f,1f};
     for(int i=0;i<R570_ROLES.length;i++){
       View role=r570Actions.get(R570_ROLES[i]);if(role==null)continue;
       View glyph=role instanceof ViewGroup&&((ViewGroup)role).getChildCount()>0?
          ((ViewGroup)role).getChildAt(0):role;
-      if(glyph instanceof UnifiedGlyph)continue; // fixed 19dp custom canvas
+      if(glyph instanceof UnifiedGlyph)continue; // native artwork centered/scaled at draw time
       glyph.setScaleX(ratios[i]);glyph.setScaleY(ratios[i]);
     }
     r570ApplyOrder(a,capsule);
@@ -977,6 +1045,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     @Override protected void onDraw(android.graphics.Canvas canvas){
       super.onDraw(canvas);float d=getResources().getDisplayMetrics().density;
       float cx=getWidth()/2f,cy=getHeight()/2f;
+      // Native STAR/RAIL/EXPAND were 18–20dp, while the existing R463
+      // share/info strokes were ~16dp. Scale ART, never the 34dp hit target.
+      canvas.save();canvas.scale(kind==FAVORITE?.84f:.78f,kind==FAVORITE?.84f:.78f,cx,cy);
       if(kind==STAR){
         android.graphics.Path path=new android.graphics.Path();
         for(int i=0;i<10;i++){
@@ -1006,6 +1077,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         canvas.drawLine(cx-a,cy+b,cx-a,cy+a,paint);canvas.drawLine(cx-a,cy+a,cx-b,cy+a,paint);
         canvas.drawLine(cx+b,cy+a,cx+a,cy+a,paint);canvas.drawLine(cx+a,cy+a,cx+a,cy+b,paint);
       }
+      canvas.restore();
     }
   }
   private void installRailToggle(Activity a,LinearLayout capsule){
@@ -1029,7 +1101,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(railView!=null)railView.setVisibility(expanded?View.VISIBLE:View.GONE);
     if(nativeLower!=null && nativeLower.getLayoutParams() instanceof FrameLayout.LayoutParams){
       FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)nativeLower.getLayoutParams();
-      lp.height=dp(a,expanded?137:82);nativeLower.setLayoutParams(lp);
+      // Original photo lower stack reserved the *video* 137dp even on photos,
+      // leaving a tall blank gulf between thumbnails and icons. Only reduce
+      // in-card photo chrome; video controls/seek retain their old reservation.
+      boolean video=galleryRef!=null && currentId(galleryRef).startsWith("v");
+      int h=dp(a,expanded?(video?137:112):(video?82:82));
+      if(lp.height!=h){lp.height=h;nativeLower.setLayoutParams(lp);}
     }
     if(railToggle!=null){
       railToggle.invalidate();
@@ -1072,13 +1149,13 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       if(ambientPoster!=null&&ambientPoster.getParent() instanceof ViewGroup)
         ((ViewGroup)ambientPoster.getParent()).removeView(ambientPoster);
       ImageView poster=new ImageView(a);poster.setScaleType(ImageView.ScaleType.CENTER_CROP);
-      poster.setBackgroundColor(0xff28272c);poster.setAlpha(1f);
+      poster.setBackgroundColor(Color.BLACK);poster.setAlpha(1f);
       // Absolute bottom of the native stage. Photos must ALWAYS paint above
       // video ambient, even in the brief interval before selection callbacks.
       parent.addView(poster,0,new FrameLayout.LayoutParams(-1,-1));
       ambientPoster=poster;ambientParent=parent;ambientMediaId="";
     }
-    ambientPoster.setVisibility(View.VISIBLE);texture.setOpaque(false);
+    ambientPoster.setVisibility(View.VISIBLE);texture.setOpaque(true);
     if(id.equals(ambientMediaId))return;
     ambientMediaId=id;ambientPoster.setImageDrawable(null);
     final ImageView target=ambientPoster;
