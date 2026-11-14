@@ -80,9 +80,6 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private String r578MissingPhotoId="";
   private long r578MissingPhotoSince=0L;
   private int r578PhotoRefreshCount=0;
-  // R580: do not display a blank native photo before its actual drawable.
-  // The already-rendered Web photo remains visible until the same native ID is ready.
-  private String r580AwaitPhotoId="";
   private int lastIndex = -1;
   private int lastX = Integer.MIN_VALUE, lastY = Integer.MIN_VALUE;
   private int lastW = -1, lastH = -1;
@@ -392,7 +389,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // yet delivered a drawable. Wait for its own async decoder, then invoke
       // only ORIGINAL refreshPages; never Gallery.close/reopen, never fake PASS.
       if(!selected.startsWith("v")&&!selected.isEmpty()&&
-         nativeHost!=null){
+         nativeHost!=null&&nativeHost.getVisibility()==View.VISIBLE){
         long tick=android.os.SystemClock.uptimeMillis();
         if(!selected.equals(r578MissingPhotoId)){
           r578MissingPhotoId=selected;r578MissingPhotoSince=tick;r578PhotoRefreshCount=0;
@@ -590,7 +587,6 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
 
     // Restore additive in-card rail placement on original Gallery disposal.
     if(nativeLower!=null)nativeLower.setTranslationY(0f);
-    r580AwaitPhotoId="";
     if(railView!=null)railView.setTranslationY(0f);
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
     if(r570SaveDialog!=null&&r570SaveDialog.isShowing())r570SaveDialog.dismiss();
@@ -686,11 +682,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     lastX=x;lastY=y;lastW=w;lastH=h;
     // R576: preserve the original Gallery's own first-frame and refresh path.
     // Do not hide a live host behind a synthetic black/transparent curtain.
-    // R580 photo reveal: unlike R572/R574, no MediaStore index/timeout gate;
-    // only the ORIGINAL live image drawable determines native visibility.
-    // Invisible host does not block its async original decoder or the Web poster.
-    boolean r580PhotoPending=!currentId(gallery).startsWith("v") && !actualMediaReady(gallery);
-    if(y+h<0||y>root.getHeight()||r580PhotoPending)host.setVisibility(View.INVISIBLE);
+    // R582: media readiness is not a native-host visibility gate. A blank
+    // images[1] slot must not hide the entire Gallery controls and rail.
+    // Preserve proven R567/R578 native mount behavior and original refresh.
+    if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
     else host.setVisibility(View.VISIBLE);
     compactNativeCard(a,web,host,gallery);
     syncAdvancedButton(gallery);
@@ -719,15 +714,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // entire native host even after reopening the app. No synthetic fade.
   private void r572FinishEntry(Activity a,WebView web,Object gallery){
     if(!ownsGallery||gallery!=galleryRef||nativeHost==null||!galleryOpen(gallery))return;
-    final String r580Id=currentId(gallery);
-    if(!r580Id.startsWith("v")&&!actualMediaReady(gallery)){
-      // No synthetic dark/gray curtain and no successful-mount ACK on a blank frame.
-      // The original Gallery stays OPEN and retries its own decoder below.
-      r580AwaitPhotoId=r580Id;
-      nativeHost.setVisibility(View.INVISIBLE);
-      return;
-    }
-    r580AwaitPhotoId="";
+    // R582: restore confirmed native-mount ACK independent of ImageView
+    // drawable availability, as in Golden R567 and R578.
     if(!r572NativeMountAck){
       r572NativeMountAck=true;
       web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
