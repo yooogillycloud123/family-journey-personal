@@ -405,6 +405,62 @@ function mediaFor(day){const s=getState();if(!s)return [];
  return (ui.source==='automatic'?all.filter(p=>!hidden.has(String(p.id))):selected)
    .filter(p=>safeMedia(p.id)).sort((a,b)=>(Number(a.t)||0)-(Number(b.t)||0));
 }
+// R578: a native Quick Record is ACKed to IndexedDB, but the separate Web
+// photo calendar may already have cached that day. Directly re-read the SAME
+// existing `curated` store; never write a second record or create a new DB.
+let r578SyncDayAt=0,r578SyncDayRunning=false,r578RefreshSeq=0;
+function r578DayKey(s,day){
+ const e=s?.curatedEntries?.get(day);
+ const photo=Array.isArray(e?.photoIds)?e.photoIds.map(String).join(','):'';
+ const moments=Array.isArray(e?.moments)?e.moments.length:0;
+ return String(e?.updatedAt||0)+'|'+photo+'|'+moments;
+}
+function r578CalendarKey(s){
+ if(!s)return '';
+ const month=ui.month.getFullYear()+'-'+String(ui.month.getMonth()+1).padStart(2,'0');
+ const rows=[];
+ if(s.curatedEntries?.forEach)s.curatedEntries.forEach((e,d)=>{
+   if(String(d).startsWith(month))rows.push(String(d)+'='+String(e?.updatedAt||0)+'/'+
+     (Array.isArray(e?.photoIds)?e.photoIds.map(String).join(','):'')+'/'+
+     (Array.isArray(e?.moments)?e.moments.length:0));
+ });
+ rows.sort();
+ return [s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,
+  s.byVideoDay?.size||0,s.byId?.size||0,rows.join(';')].join(':');
+}
+async function r578HydrateSelectedDay(){
+ if(!ui.open||ui.page!=='day'||view?.hidden||r578SyncDayRunning)return false;
+ const day=ui.date,now=Date.now();
+ if(now-r578SyncDayAt<1000)return false;
+ r578SyncDayAt=now;r578SyncDayRunning=true;
+ const seq=++r578RefreshSeq;
+ try{
+  const database=await db();
+  let item=null;
+  try{item=await new Promise((resolve,reject)=>{
+   const tx=database.transaction('curated','readonly');
+   const q=tx.objectStore('curated').get(day);
+   q.onsuccess=()=>resolve(q.result||null);q.onerror=()=>reject(q.error);
+  });}finally{database.close()}
+  if(seq!==r578RefreshSeq||!ui.open||ui.page!=='day'||ui.date!==day)return false;
+  const state=getState();if(!state?.curatedEntries||!item)return false;
+  const previous=state.curatedEntries.get(day),oldKey=r578DayKey(state,day);
+  if(!previous||Number(item.updatedAt||0)>=Number(previous.updatedAt||0))
+   state.curatedEntries.set(day,item);
+  const nextKey=r578DayKey(state,day);
+  if(oldKey!==nextKey){
+   // Rebuild only dormant Web posters; never close/restart a healthy R567 host.
+   if(!r507Opened&&!window.__moaR507NativePending){
+    const latest=mediaFor(day);
+    ui.media=latest;ui.idx=Math.min(Math.max(0,ui.idx),Math.max(0,latest.length-1));
+    renderMedia();
+    if(latest.length){r576BlockedSignature='';r507StartInline();}
+   }
+  }
+  return oldKey!==nextKey;
+ }catch(_){return false}
+ finally{r578SyncDayRunning=false}
+}
 function mainCover(day,media){const s=getState();const preferred=String(s?.covers?.[ui.source]?.[day]||'');return media.find(x=>String(x.id)===preferred)||media[0]||null;}
 let r475ScheduleCache=[];let r479FamilyLocallyWritten=false,r479SwipeBlockUntil=0,r479Animating=false;
 function r475Events(day){try{const f=window.MoaFamilySchedule;const e=!r479FamilyLocallyWritten&&f?.ready?f.visibleEvents:r475ScheduleCache;return Array.isArray(e)?e.filter(x=>x?.date===day):[]}catch(_){return []}}
@@ -548,7 +604,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout
 
 function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('scroll',()=>r527SyncGeometry(),{passive:true});n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
 function open(page='calendar',day){const s=getState();if(!s?.open)return false;r527BeginDay();mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
- try{localStorage.setItem(KEY,'simple')}catch(e){}r495SyncLegacyRoot();r495InstallBackHandlers();render();r475LastDataKey=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');installBack();setTimeout(r475RefreshFamily,100);return true;}
+ try{localStorage.setItem(KEY,'simple')}catch(e){}r495SyncLegacyRoot();r495InstallBackHandlers();render();r475LastDataKey=r578CalendarKey(s);installBack();setTimeout(r475RefreshFamily,100);return true;}
 function close(){r507StopInline();view?.classList.remove('moa-r547-native-owner');r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.open=false;ui.requestGeneration++;if(view)view.hidden=true;r495SyncLegacyRoot();try{localStorage.removeItem(KEY)}catch(e){}return true;}
 function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!confirm('작성 중인 내용이 있습니다. 저장하지 않고 돌아갈까요?'))return true;
   // Mark intentional exit BEFORE closing Gallery: native callbacks cannot
@@ -699,9 +755,10 @@ function addMode(){
  if(ui.open&&ui.page==='day'&&!r523DayExiting&&!r531Advanced&&
     !r507Opened&&!window.__moaR507NativePending){
    const latest=mediaFor(ui.date);
-   const was=ui.media.map(m=>String(m.id)).join(',');
-   const next=latest.map(m=>String(m.id)).join(',');
+   const was=ui.media.map(m=>String(m.id)+'/'+(m.approx?'?':'!')).join(',');
+   const next=latest.map(m=>String(m.id)+'/'+(m.approx?'?':'!')).join(',');
    if(was!==next){
+     if(!r507Opened&&!window.__moaR507NativePending)r576BlockedSignature='';
      const chosen=String(ui.media[ui.idx]?.id||'');
      ui.media=latest;
      const pos=latest.findIndex(m=>String(m.id)===chosen);
@@ -712,9 +769,10 @@ function addMode(){
    }
  }
 
+ if(ui.open&&ui.page==='day'&&!r523DayExiting&&(!ui.media.length||ui.media.some(m=>m.approx)))r578HydrateSelectedDay();
  if(!s?.open||!root||root.hidden){r475ExitUntilHidden=false;return;}
  if(ui.open&&ui.page==='calendar'&&!s.load){
-  const key=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');
+  const key=r578CalendarKey(s);
   if(key!==r475LastDataKey&&!r475CalendarRefreshPending){r475LastDataKey=key;r475CalendarRefreshPending=true;
    setTimeout(()=>{r475CalendarRefreshPending=false;if(ui.open&&ui.page==='calendar'&&!ui.dirty)render()},240);
   }
@@ -1002,7 +1060,9 @@ function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui
  // Do not show the web-gallery chrome for a second while the existing native
  // Gallery is mounting. The static media poster may remain underneath.
  if(ui.media.length)view.classList.add('moa-r519-native-entering','moa-r547-native-owner');
- renderMedia();refreshVoices();if(ui.media.length)r507StartInline();else view.classList.remove('moa-r519-native-entering');r527SyncGeometry(true);}
+ renderMedia();refreshVoices();if(ui.media.length)r507StartInline();else view.classList.remove('moa-r519-native-entering');r527SyncGeometry(true);
+  // The original Quick Record writer may finish while photo-day is first mounted.
+  setTimeout(r578HydrateSelectedDay,100);setTimeout(r578HydrateSelectedDay,1250);}
 function r472MediaSelected(index){
  if(!Number.isFinite(index)||!ui.media.length)return;
  const next=Math.max(0,Math.min(ui.media.length-1,index));
