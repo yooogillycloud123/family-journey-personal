@@ -84,7 +84,14 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private boolean compactDone;
   private LinearLayout nativeLower,actionCapsule;
   private FrameLayout actionDeck;
+  // R523: one Back gesture must never trigger an automatic native reopen.
   private OnBackInvokedCallback inlineBack;
+  private boolean exitInFlight;
+  private long lastNativeBackAt;
+  private String lastVideoGeometryId="";
+  private int fillPrepareAttempts;
+  private long lastGeometrySnapshotAt;
+  private int lastGeometrySnapshotY;
   private Activity backOwner;
 
   private static final String SNAPSHOT =
@@ -118,7 +125,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       try {tick();} catch(Throwable ignored) {
         // No change to the working R463 native Gallery on unexpected reflection failure.
         clearCardMark();
-      } finally {main.postDelayed(this, ownsGallery?32:resumed?160:850);}
+      } finally {main.postDelayed(this, ownsGallery?48:resumed?160:850);}
     }
   };
   private static Field field(Class<?> cls,String name){
@@ -158,11 +165,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     Object gallery=readField(a,"unifiedGallery");
     if(!galleryOpen(gallery)){
       if(ownsGallery) {
-        // R515: unexpected native-close while the day is active gets one guarded
-        // native re-open. Intentional JS close clears pending first, so never
-        // revive a Gallery after the user navigates away.
+        // R523: R519 was re-opening the Gallery just after Android's ORIGINAL
+        // gallery Back had closed it. The reopen was mistaken for a failed Back,
+        // leaving the user trapped for repeated gestures. An owned Gallery close
+        // (even if delivered by R463's own dispatcher) is an EXIT, never a retry.
         clearCardMark();
-        web.evaluateJavascript("if(window.__moaR507NativePending&&window.__moaR515RecoverInline)window.__moaR515RecoverInline();else window.__moaR507NativeMounted&&window.__moaR507NativeMounted(false);",null);
+        web.evaluateJavascript("window.__moaR523NativeClosed&&window.__moaR523NativeClosed();",null);
       }
       if(android.os.SystemClock.uptimeMillis()-lastHello>1000){
         lastHello=android.os.SystemClock.uptimeMillis();
@@ -207,8 +215,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       }catch(Throwable e){
         // A malformed async WebView result must not close active video playback.
         snapshotFailures++;
-        if(snapshotFailures>15 && ownsGallery){snapshotFailures=0;
-          web.evaluateJavascript("window.__moaR515RecoverInline&&window.__moaR515RecoverInline();",null);
+        if(snapshotFailures>15 && ownsGallery){
+          // Invalid JS snapshots are a transient WebView condition, not a reason
+          // to restart a playing native video or to resurrect the old UI.
+          snapshotFailures=0;
         }
       }
     });}catch(Throwable e){processing=false;}
@@ -285,6 +295,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
     coverStar=null;railToggle=null;railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
+    exitInFlight=false;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
     lastX=lastY=Integer.MIN_VALUE;
   }
   private static int rounded(double x){return (int)Math.round(x);}
@@ -313,8 +324,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       installInlineBack(a,web);
       web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
     }
-    if(w!=lastW||h!=lastH){
-      // Size changes are infrequent. Never continuously relayout a live TextureView.
+    // Preserve TextureView dimensions during video/controls updates. The prior
+    // version relaid out the native host for every tiny WebView viewport wobble,
+    // while R463 also recomputed its video matrix: the visible zoom yo-yo.
+    boolean significantResize=(lastW<0||lastH<0||Math.abs(w-lastW)>dp(a,9)||Math.abs(h-lastH)>dp(a,9));
+    if(significantResize){
+      // Only real size changes relayout the native host; motion is translation.
       FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(w,h,Gravity.TOP|Gravity.LEFT);
       lp.leftMargin=x;lp.topMargin=y;
       host.animate().cancel();host.setTranslationX(0f);host.setTranslationY(0f);
@@ -323,9 +338,18 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // R519: no lagging animator on a WebView-scrolling native sibling.
       // Move by GPU translation to the ACTUAL observed card position, without
       // 56ms easing that made Gallery feel dragged up/down behind the finger.
-      float tx=x-baseX,ty=y-baseY;
-      host.animate().cancel();
-      host.setTranslationX(tx);host.setTranslationY(ty);
+      // A small bounded prediction reduces the perceived WebView/native
+      // bridge latency during a fling. Never animate the TextureView itself.
+      long stamp=android.os.SystemClock.uptimeMillis();
+      float lead=0f;
+      if(lastGeometrySnapshotAt>0 && stamp>lastGeometrySnapshotAt){
+        long dt=stamp-lastGeometrySnapshotAt;
+        float speed=(float)(y-lastGeometrySnapshotY)/Math.max(12L,dt);
+        if(dt<130 && Math.abs(speed)>.30f)
+          lead=Math.max(-dp(a,18),Math.min(dp(a,18),speed*13f));
+      }
+      host.setTranslationX(x-baseX);host.setTranslationY(y-baseY+lead);
+      lastGeometrySnapshotAt=stamp;lastGeometrySnapshotY=y;
     }
     lastX=x;lastY=y;lastW=w;lastH=h;
     if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
@@ -335,8 +359,16 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     final long now=android.os.SystemClock.uptimeMillis();
     // Large Matrix/MediaPlayer queries belong to media changes, not every
     // scroll poll. Throttled retry covers a newly prepared video stream.
-    if(!mediaId.equals(lastFillId)||now-lastFillAt>420L){
-      fillNativeMediaCard(gallery);lastFillAt=now;lastFillId=mediaId;
+    if(!mediaId.equals(lastFillId)){
+      // New media: reset exactly-once + bounded delayed-prepare fill.
+      lastFillId=mediaId;fillPrepareAttempts=0;lastFillAt=0;
+    }
+    // The R519 420ms infinite video Matrix loop competed with R463's own
+    // updateVideoGeometry() on every playback/chrome tick and caused flicker.
+    // Try once immediately and at most twice while MediaPlayer is preparing;
+    // then leave the playback pipeline's transforms alone until media changes.
+    if(fillPrepareAttempts<3 && now-lastFillAt>700L){
+      fillNativeMediaCard(gallery);lastFillAt=now;fillPrepareAttempts++;
     }
     syncIndex(web,gallery,s.optString("cover",""));
   }
@@ -346,6 +378,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // Overlay priority only during this photo-card session. Unrelated original
       // R463 fullscreen Gallery retains its own Android Back callback and behavior.
       inlineBack=()->{
+        // Native Back may be delivered multiple times by Samsung predictive-
+        // gesture/legacy callback dispatch; one logical day-exit only.
+        long now=android.os.SystemClock.uptimeMillis();
+        if(exitInFlight && now-lastNativeBackAt<1800L)return;
         // An open diary keyboard owns the first Back gesture. Hide IME without
         // changing text/recording state; second Back exits the Photo day.
         try{
@@ -359,7 +395,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         }catch(Throwable ignored){}
         // Native Back must exit the PHOTO DAY, not merely Gallery.close() which
         // exposes the abandoned legacy web photo editor underneath.
-        web.evaluateJavascript("if(window.__moaR519NativeBack)window.__moaR519NativeBack();else window.MoaR469SimpleDiary&&window.MoaR469SimpleDiary.home&&window.MoaR469SimpleDiary.home();",null);
+        exitInFlight=true;lastNativeBackAt=now;
+        web.evaluateJavascript("if(window.__moaR523NativeBack)window.__moaR523NativeBack();else if(window.__moaR519NativeBack)window.__moaR519NativeBack();",null);
       };
       a.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_OVERLAY+50,inlineBack);
       backOwner=a;
@@ -373,14 +410,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     LinearLayout capsule=(LinearLayout)deck.getChildAt(0);
     if(capsule.getChildCount()<4)return;
     if(compactDone&&deck==actionDeck){
-      // Original R463 Gallery.updateChromeLayout() legitimately restores 208dp
-      // when its own chrome toggles. Re-apply the SMALL card height only here;
-      // never patch or alter the standalone Gallery's code.
-      if(nativeLower!=null && nativeLower.getLayoutParams() instanceof FrameLayout.LayoutParams){
-        FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)nativeLower.getLayoutParams();
-        int expected=dp(a,railExpanded?137:82);
-        if(lp.height!=expected){lp.height=expected;nativeLower.setLayoutParams(lp);}
-      }
+      // Do not fight R463's internal video/chrome layout every 48ms. Compaction
+      // occurs ONCE when the in-card host mounts or the user toggles the rail.
       return;
     }
     actionDeck=deck;actionCapsule=capsule;
