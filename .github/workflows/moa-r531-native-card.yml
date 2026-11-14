@@ -56,7 +56,7 @@ jobs:
           assert "moa-r547-native-owner" in css and "moa-r547-native-owner" in js
           assert "returnFromBackground=hadMountedOnPause" in java
           assert "nativeHost.setAlpha(\"1\".equals" not in java
-          assert "window.__moaR555NativeLost" in js
+          assert "window.__moaR551NativeLost" in js
           assert "window.__moaR507NativePending=true;" in js
           assert "if(r507Opened&&window.__moaR507NativePending)return;" in js
           assert "native gallery on a timer." in js
