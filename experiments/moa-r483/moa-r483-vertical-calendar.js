@@ -222,6 +222,7 @@ function r507StartInline(){
  // On unsupported Android/native bridge, restore original web photo UI gracefully.
  r519EntryTimer=setTimeout(()=>{if(generation===r507Generation&&view&&!view.classList.contains('moa-r507-native-mounted'))notify('네이티브 갤러리 연결 확인 중');},3500);
  const waitUntil=Date.now()+8000;
+ let r576OpenFailures=0;
  const tryOpen=()=>{
   if(generation!==r507Generation||!ui.open||ui.page!=='day'||view?.hidden)return;
   if(!window.__moaR507BridgeReady || typeof window.MoaLocalAudio?.openNativeGallery!=='function'){
@@ -232,25 +233,17 @@ function r507StartInline(){
   if(!ids.length||ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id)))return;
   if(!view?.querySelector('.moa-r469-stage')?.isConnected)return;
   const state=getState(),selected=ids[ui.idx];
-  // Details already show newly captured moments from 'curated'. But R60's
-  // MediaStore index can still lack that exact photo; opening the original
-  // Gallery right now returns a black unprepared center ImageView.
+  // R576: R574 deadlocked all newly saved Quick Record dates by treating
+  // cached byId as a permission to open. R60 persists curated photoIds BEFORE
+  // the asynchronous MediaStore scan; absence from byId is NOT evidence that
+  // the ORIGINAL native Gallery cannot open the content:// image. Never gate.
   if(selected && !state?.byId?.has(String(selected))){
    const now=Date.now();
-   if(now-r574IndexAttemptAt>5200 && r574IndexAttemptCount<4 && !state?.load){
-    r574IndexAttemptAt=now;r574IndexAttemptCount++;
-    try{window.FamilyJourneyDiary?.loadIndex?.(false)}catch(_){/* original index path */}
+   if(now-r574IndexAttemptAt>7000 && !state?.load){
+    r574IndexAttemptAt=now;
+    try{window.FamilyJourneyDiary?.loadIndex?.(false)}catch(_){/* optional background rescan */}
    }
-   if(now-r574MissingNoticeAt>9000){
-    r574MissingNoticeAt=now;
-    // Keep Web photo/thumbnail while original MediaStore row is syncing.
-    // Do not register a fake native success or clear other diary records.
-    notify('새로 촬영한 사진 원본을 확인하는 중입니다.');
-   }
-   r507Timer=setTimeout(tryOpen,260);
-   return;
   }
-  r574IndexAttemptCount=0;
   view?.classList.remove('moa-r574-index-wait');
   window.__moaR511InlineArm=true;
   if(!window.__moaR511NativeArmed){
@@ -266,14 +259,25 @@ function r507StartInline(){
   if(!ok){
    window.__moaR507NativePending=false;
    window.__moaR511InlineArm=false;
-   // The original MediaStore Gallery can reject a just-persisted record while
-   // its index is still catching up. Leave the Web image visible and retry;
-   // never tear down an already OPEN/owned original host.
-   if(Date.now()-r574IndexAttemptAt>1800)r574IndexAttemptCount=0;
-   r507Timer=setTimeout(tryOpen,480);
+   // R576: bounded retry of the ORIGINAL opener only. Never spin forever
+   // or suppress the photo-day content for every subsequent visit.
+   if(++r576OpenFailures<=3 && Date.now()<waitUntil){
+    r507Timer=setTimeout(tryOpen,600);return;
+   }
+   clearTimeout(r519EntryTimer);r519EntryTimer=0;
+   view?.classList.remove('moa-r519-native-entering','moa-r547-native-owner','moa-r574-index-wait');
+   // Expose a single photo-only retry; do not touch the user's photo IDs/DB.
+   const stage=view?.querySelector('.moa-r469-stage');
+   if(stage&&!stage.querySelector('.moa-r576-native-retry')){
+    const retry=elem('button','moa-r576-native-retry','사진 갤러리 다시 열기');
+    retry.type='button';retry.onclick=()=>{retry.remove();r507StartInline()};
+    stage.append(retry);
+   }
+   notify('사진 원본 갤러리 연결 실패 · 다시 열기를 눌러 재시도할 수 있습니다.');
    return;
   }
   r507Opened=true;
+  view?.querySelector('.moa-r576-native-retry')?.remove();
   // R551: the old 2700ms timer called r507StopInline() (which invokes
   // Gallery.close()) merely because the asynchronous native mounted signal
   // had not reached JS yet. On a detail↔photo or NAVER return this DESTROYED
