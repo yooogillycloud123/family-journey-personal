@@ -67,7 +67,7 @@ jobs:
           assert 'r572FinishEntry' in java and 'r572SyncFastSetting' in java
           assert 'r570ApplyOrder' in java and 'fast.performClick()' in java
           assert 'moa.r572.photo.fast' in java and 'setRailExpanded(a,railExpanded)' in java
-          assert 'moa-r572-video-active' in js and 'background:#000!important' in css
+          assert 'moa-r572-video-active' in js and 'background:#38343a!important' in css
           assert 'moa-r572-toast-leave' in fav and 'toastTimer=setTimeout' in fav
           assert 'r570OpenFavorite' in java and 'updateVideoAmbient' in java
           assert 'r574PhotoRefreshAttempts' in java and 'deck.setBackgroundColor(Color.TRANSPARENT)' in java
