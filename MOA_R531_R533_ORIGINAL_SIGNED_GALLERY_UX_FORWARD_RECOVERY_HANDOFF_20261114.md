@@ -38,3 +38,6 @@ R529→R533: **only** `AndroidManifest.xml` code529→533 changed; all **139 oth
 
 ## Exact public QA source
 ZIP carries `QA/verify_moa_r531_release.py` (only certificate/public-key verification, no signer private material) and `QA/MOA_R531_R533_INDEPENDENT_RELEASE_QA.json`. For new conversation first read `MOA_READ_FIRST_NEW_CHAT.md`, R463 Golden lock, WIP current and this file before any rebuild. Do not re-analyze original assets when verified R531 source/DEX and signed APK are already present.
+
+## PRIVATE_LIBRARY_RELEASE_UPLOADED
+Exact signed source+APK+rescue+QA combined ZIP uploaded successfully to private Library `/모아_프로젝트_근거_20261103/R531_R533_SIGNED_GALLERY_UX_20261114/MOA_R531_R533_MODIFIED_SIGNED_APK_RECOVERY_SOURCE_QA_20261114.zip` (user's protected Library, not public GitHub). File ID `libfile_24330ecda6cc8191a4cbd17ddf4b2839`. SHA256 as above. No private keystore material included.
