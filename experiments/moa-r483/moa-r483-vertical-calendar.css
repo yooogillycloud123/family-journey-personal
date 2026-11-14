@@ -913,3 +913,14 @@ html #moa-r469-root[data-page="day"] .moa-r469-more,
 html #moa-r469-root[data-page="day"] .moa-r469-tools{
  visibility:hidden!important;pointer-events:none!important;
 }
+
+/* R570: entrance stability. Do not use a second blurred Web poster while the
+   unchanged R463 native video texture is mounting. This only changes visual
+   standby decoration, not the original Gallery media/playback lifecycle. */
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r531-video-slide::before{
+  filter:none!important;background-image:none!important;opacity:0!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r570-save-status{
+  margin:3px 0 0;font:500 11px/1.3 system-ui,sans-serif;color:#746978;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;
+}
