@@ -130,6 +130,15 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private Object prePausedRetainedGallery;
   private Activity prePausedOwnerActivity;
   private long prePauseRetainAt=0L;
+  // R567: the host may be physically detached by ORIGINAL Gallery.close() while
+  // a saved returnFromBackground gate still says true. A user Back after resume
+  // must not be lost behind a polling/guard window.
+  private boolean lifecyclePauseInProgress=false;
+  private FrameLayout monitoredHost;
+  private View.OnAttachStateChangeListener monitoredHostListener;
+  private long lastResumeAt=0L;
+  private boolean controlledRebuildInProgress=false;
+  private String ownerDayAtPause="";
   private int fullNativeLastIndex=-1;
   private String fullNativeLastId="";
 
@@ -321,11 +330,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         // Gallery and left gray/legacy states after the user's first Back.
         if(resumed && foreground==owner && owner.hasWindowFocus() &&
             galleryRef==oldGallery && !galleryOpen(gallery)){
-          suppressArmUntil=now+1000L;
-          clearCardMark();dropDayBack();
-          web.evaluateJavascript("window.__moaR563ForegroundNativeClosed&&"+
-              "window.__moaR563ForegroundNativeClosed("+
-              JSONObject.quote("null".equals(nativeDay)?"":nativeDay)+");",null);
+          exitForegroundClosedGallery(owner,web,oldGallery,
+              "null".equals(nativeDay)?"":nativeDay);
         }
         return;
       }
@@ -463,7 +469,57 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private static void invokeClose(Object gallery){
     try{gallery.getClass().getMethod("close").invoke(gallery);}catch(Throwable ignored){}
   }
+  // R567: original Gallery.close() sets open=false BEFORE removing its host.
+  // Listen to that actual detach, not a 155ms polling tick. This also handles
+  // the original R463 system-Back callback winning over our day Back callback.
+  // The callback NEVER treats Activity.onPause as a user Back.
+  private void stopMonitoringNativeHost(){
+    if(monitoredHost!=null&&monitoredHostListener!=null)try{
+      monitoredHost.removeOnAttachStateChangeListener(monitoredHostListener);
+    }catch(Throwable ignored){}
+    monitoredHost=null;monitoredHostListener=null;
+  }
+  private void monitorNativeHost(Activity a,WebView web,Object gallery,FrameLayout host){
+    if(monitoredHost==host&&monitoredHostListener!=null)return;
+    stopMonitoringNativeHost();
+    monitoredHost=host;
+    final String day=String.valueOf(readField(gallery,"currentDay"));
+    monitoredHostListener=new View.OnAttachStateChangeListener(){
+      @Override public void onViewAttachedToWindow(View v){}
+      @Override public void onViewDetachedFromWindow(View v){
+        if(monitoredHost!=v||galleryOpen(gallery)||lifecyclePauseInProgress||controlledRebuildInProgress)return;
+        main.post(()->{
+          if(!resumed||foreground!=a||!a.hasWindowFocus()||
+             lifecyclePauseInProgress||controlledRebuildInProgress||fullNativeOpen||galleryOpen(gallery)||
+             galleryRef!=gallery||nativeOwnerActivity!=a)return;
+          android.util.Log.i("MOA_R567","ORIGINAL_GALLERY_HOST_DETACHED_FOREGROUND_BACK");
+          exitForegroundClosedGallery(a,web,gallery,"null".equals(day)?"":day);
+        });
+      }
+    };
+    host.addOnAttachStateChangeListener(monitoredHostListener);
+  }
+  private void exitForegroundClosedGallery(Activity a,WebView web,Object gallery,String day){
+    if(!resumed||a!=foreground||!a.hasWindowFocus()||
+       lifecyclePauseInProgress||controlledRebuildInProgress||fullNativeOpen||galleryOpen(gallery)||
+       galleryRef!=gallery||nativeOwnerActivity!=a)return;
+    // A foreground close means one user Back -> calendar. Do NOT auto-reopen.
+    web.evaluateJavascript("window.__moaR563ForegroundNativeClosed&&"+
+      "window.__moaR563ForegroundNativeClosed("+JSONObject.quote(day)+");",answer->{
+      if(galleryRef!=gallery||nativeOwnerActivity!=a)return;
+      final boolean exit="\"exit\"".equals(String.valueOf(answer))||
+          "\"not-open\"".equals(String.valueOf(answer));
+      // Even an intentional JS-triggered close releases the OLD host, but
+      // must never exit the photo day or kill its replacement Gallery.
+      closePositionPort();clearCardMark();
+      if(exit){returnFromBackground=false;hadMountedOnPause=false;
+        returnCloseGuardUntil=0L;dropDayBack();}
+      else android.util.Log.i("MOA_R567","NATIVE_CLOSE_INTENTIONAL_OR_NEW_DATE");
+      suppressArmUntil=android.os.SystemClock.uptimeMillis()+190L;
+    });
+  }
   private void clearCardMark(){
+    stopMonitoringNativeHost();
     disarm();
     if(advancedButton!=null && advancedButton.getParent() instanceof ViewGroup)
       ((ViewGroup)advancedButton.getParent()).removeView(advancedButton);
@@ -527,6 +583,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       GradientDrawable round=new GradientDrawable();round.setColor(Color.BLACK);round.setCornerRadius(dp(a,23));
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
       installInlineBack(a,web);
+      monitorNativeHost(a,web,gallery,host);
       web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
     }
     // Preserve TextureView dimensions during video/controls updates. The prior
@@ -987,14 +1044,33 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // R559: the Gallery is attached and OPEN. Reassert actual Z ordering on
       // resume (external overlays can be inserted above it while MOA is paused).
       // Do not close/reopen a healthy original Gallery, ever.
-      returnFromBackground=false;hadMountedOnPause=false;nativeCloseDetectedAt=0L;
-      returnCloseGuardUntil=android.os.SystemClock.uptimeMillis()+1100L;
-      nativeHost.setAlpha(1f);
-      nativeHost.bringToFront();
-      nativeHost.requestLayout();nativeHost.invalidate();
-      refreshOriginalMediaIfBlank(gallery);
-      web.evaluateJavascript("(function(){try{window.__moaR559RepositionNative&&window.__moaR559RepositionNative()}catch(e){}})()",null);
-      android.util.Log.i("MOA_R555","RETURN_GALLERY_HEALTHY preserved="+(prePauseRetainAt>0));
+      // The WebView can already be trusted while its photo-day JS has not
+      // restored yet. DO NOT clear returnFromBackground until JS ACKs that
+      // the same date/session is actually mounted; otherwise one early check
+      // repeats the exact R563 permanent gray-card deadlock.
+      final String date=String.valueOf(readField(gallery,"currentDay"));
+      web.evaluateJavascript("(function(){try{var ok=window.__moaR567RestoreLiveCard&&"+
+          "window.__moaR567RestoreLiveCard("+JSONObject.quote(date)+");"+
+          "return ok?(window.__moaR527DayToken||0):0}catch(e){return 0}})()",answer->{
+        if(!resumed||foreground!=a||epoch!=foregroundEpoch||!returnFromBackground||
+           galleryRef!=gallery||nativeHost==null||!galleryOpen(gallery))return;
+        int token=0;
+        try{token=Integer.parseInt(String.valueOf(answer).replace("\"",""));}catch(Throwable ignored){}
+        if(token<=0){android.util.Log.i("MOA_R567","RETURN_JS_NOT_READY_RETRY");return;}
+        ownedDayToken=token;
+        returnFromBackground=false;hadMountedOnPause=false;nativeCloseDetectedAt=0L;
+        returnCloseGuardUntil=android.os.SystemClock.uptimeMillis()+320L;
+        nativeHost.setAlpha(1f);
+        nativeHost.setVisibility(View.VISIBLE);
+        nativeHost.bringToFront();
+        nativeHost.requestLayout();nativeHost.invalidate();
+        installInlineBack(a,web);monitorNativeHost(a,web,gallery,nativeHost);
+        ensurePositionChannel(web);
+        refreshOriginalMediaIfBlank(gallery);
+        web.evaluateJavascript("window.__moaR559RepositionNative&&"+
+            "window.__moaR559RepositionNative();",null);
+        android.util.Log.i("MOA_R567","RETURN_ORIGINAL_NATIVE_RETAINED_VISIBLE token="+token);
+      });
       return;
     }
     final long now=android.os.SystemClock.uptimeMillis();
@@ -1003,7 +1079,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // the SAME active photo day and session. Never do this on NAVER's WebView.
     final String check="(function(){try{var d=window.MoaR469SimpleDiary,"+
       "s=d&&d.readOnlyStatus&&d.readOnlyStatus();return JSON.stringify({day:!!("+
-      "s&&s.active&&s.page==='day'&&window.__moaR507NativePending),"+
+      "s&&s.active&&s.page==='day'),date:String(s&&s.date||''),"+
       "token:window.__moaR527DayToken||0,full:!!("+
       "window.__moaR539AdvancedActive&&window.__moaR539AdvancedActive())});"+
       "}catch(e){return '{}'}})()";
@@ -1015,25 +1091,44 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         JSONObject st=new JSONObject((String)parsed);
         if(!st.optBoolean("day")||st.optBoolean("full"))return;
         int token=st.optInt("token",0);
-        if(token<=0||token!=ownedDayToken)return;
+        // The WebView can start a newer token while the SAME DAY original
+        // Gallery still exists; old R563 equality check permanently deadlocked.
+        String day=st.optString("date","");
+        String originalDay=String.valueOf(readField(galleryRef,"currentDay"));
+        if("null".equals(originalDay)||originalDay.isEmpty())originalDay=ownerDayAtPause;
+        if(token<=0||day.isEmpty()||!day.equals(originalDay))return;
         // A healthy host can recover while the async WebView check is running.
         Object live=readField(a,"unifiedGallery");
         FrameLayout rr=a.findViewById(android.R.id.content);
         if(galleryOpen(live)&&live==galleryRef&&nativeHost!=null&&
            readField(live,"host")==nativeHost&&nativeHost.getParent()==rr){
-          returnFromBackground=false;nativeHost.setAlpha(1f);
-          nativeHost.bringToFront();nativeHost.invalidate();
-          refreshOriginalMediaIfBlank(live);return;}
-        returnFromBackground=false;hadMountedOnPause=false;
-        lastRebindAt=android.os.SystemClock.uptimeMillis();
-        returnCloseGuardUntil=lastRebindAt+1900L;
-        suppressArmUntil=lastRebindAt+240L;
-        closePositionPort();
-        // ONLY the unusable host is closed, never the working R463 host.
-        clearCardMark();
-        if(live!=null && galleryOpen(live))invokeClose(live);
-        web.evaluateJavascript("window.__moaR547RebuildDamagedHost&&"+
-          "window.__moaR547RebuildDamagedHost("+token+");",null);
+          // A healthy original host raced our async status check: perform the
+          // SAME JS-acknowledged rebind as the primary healthy path, never close.
+          rebindAfterReturn(a,epoch);return;}
+        // Do not destroy the old host until the restored WebView actively
+        // ACKs that the same-day Gallery can be reopened. An early rejected
+        // JS request must leave returnFromBackground alive for later retries.
+        controlledRebuildInProgress=true;
+        web.evaluateJavascript("window.__moaR567ReopenLostCard&&"+
+          "window.__moaR567ReopenLostCard("+JSONObject.quote(day)+");",ack->{
+          if(!resumed||foreground!=a||epoch!=foregroundEpoch||!returnFromBackground){
+            controlledRebuildInProgress=false;return;}
+          if(!"true".equals(String.valueOf(ack))){
+            controlledRebuildInProgress=false;
+            android.util.Log.i("MOA_R567","RETURN_REOPEN_JS_NOT_READY_RETRY");return;
+          }
+          returnFromBackground=false;hadMountedOnPause=false;
+          lastRebindAt=android.os.SystemClock.uptimeMillis();
+          returnCloseGuardUntil=lastRebindAt+320L;
+          suppressArmUntil=lastRebindAt+190L;
+          closePositionPort();
+          // This branch is ONLY for a confirmed unusable Gallery, never a
+          // still-open attached healthy host.
+          clearCardMark();
+          if(live!=null && galleryOpen(live))invokeClose(live);
+          controlledRebuildInProgress=false;
+          android.util.Log.i("MOA_R567","RETURN_LOST_NATIVE_REOPEN_SAME_DAY");
+        });
       }catch(Throwable ignored){}
     });}catch(Throwable ignored){}
   }
@@ -1042,6 +1137,14 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // existing native Gallery unless r227ExternalMapPending is already true.
   // Unlike previous R535-R551 callbacks, this runs early enough to retain it.
   @Override public void onActivityPrePaused(Activity a){
+    if(a==nativeOwnerActivity && ownsGallery){
+      lifecyclePauseInProgress=true;
+      hadMountedOnPause=nativeHost!=null&&galleryRef!=null;
+      returnFromBackground=hadMountedOnPause;
+      String day=String.valueOf(readField(galleryRef,"currentDay"));
+      ownerDayAtPause="null".equals(day)?"":day;
+      backgroundStartedAt=android.os.SystemClock.uptimeMillis();
+    }
     // Covers card, detailed Diary, and original fullscreen Gallery. They all
     // share the same original R227 onPause->Gallery.close host invariant.
     if(a==null||a!=foreground||a.isFinishing()||a.isDestroyed()||
@@ -1100,9 +1203,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     foreground=a;resumed=true;final int epoch=++foregroundEpoch;
     // Other activities (NAVER, share sheet, etc.) are not the Gallery owner.
     // Keep the owner's pending health check until THAT Activity resumes.
+    if(a==nativeOwnerActivity)lifecyclePauseInProgress=false;
     if(returnFromBackground && hadMountedOnPause && a==nativeOwnerActivity){
-      returnCloseGuardUntil=android.os.SystemClock.uptimeMillis()+1900L;
-      main.postDelayed(()->rebindAfterReturn(a,epoch),580L);
+      lastResumeAt=android.os.SystemClock.uptimeMillis();
+      returnCloseGuardUntil=lastResumeAt+1250L;
+      // R563 performed ONE check at 580ms. If WebView was not yet trusted/ready,
+      // returnFromBackground stayed true FOREVER and both Back and re-entry froze.
+      // Repeat only READ/repair checks until valid, never reopen a live Gallery.
+      for(long delay:new long[]{150L,480L,950L,1700L,2750L,3950L}){
+        main.postDelayed(()->rebindAfterReturn(a,epoch),delay);
+      }
+      android.util.Log.i("MOA_R567","RETURN_RECHECK_SCHEDULED");
     }
   }
   @Override public void onActivityPaused(Activity a){
@@ -1121,6 +1232,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       prePausedOwnerActivity=null;
       closePositionPort();clearCardMark();fullscreenOwnerActivity=null;
       returnFromBackground=false;hadMountedOnPause=false;
+      lifecyclePauseInProgress=false;controlledRebuildInProgress=false;ownerDayAtPause="";
     }
   }
   @Override public void onActivityCreated(Activity a,Bundle b){}
