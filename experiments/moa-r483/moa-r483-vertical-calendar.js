@@ -396,69 +396,113 @@ async function mergeDiaryBody(day,body,table){if(!['curated','entries'].includes
  });}finally{d.close();}}
 
 function dayEntry(day){return getState()?.curatedEntries?.get(day)||null;}
+// R580: BOTH detail diary and photo-card must resolve the same saved IDs.
+// R73 detailed diary already accepts committed moment.photoIds before a full
+// MediaStore scan. The photo-card must not silently throw those records away.
+function r580SavedIds(entry){
+ const removed=new Set((entry?.removedMediaIds||[]).map(String));
+ const result=[],seen=new Set();
+ const add=id=>{id=String(id);if(safeMedia(id)&&!removed.has(id)&&!seen.has(id)){seen.add(id);result.push(id);}};
+ for(const id of (Array.isArray(entry?.photoIds)?entry.photoIds:[]))add(id);
+ for(const moment of (Array.isArray(entry?.moments)?entry.moments:[]))
+  for(const id of (Array.isArray(moment?.photoIds)?moment.photoIds:[]))add(id);
+ return result;
+}
 function mediaFor(day){const s=getState();if(!s)return [];
  const entry=s.curatedEntries?.get(day),hidden=new Set((entry?.removedMediaIds||[]).map(String));
- const curated=Array.isArray(entry?.photoIds)?entry.photoIds.map(String).filter(id=>safeMedia(id)&&!hidden.has(id)):[];
  const all=[...(s.byDay?.get(day)||[]),...(s.byVideoDay?.get(day)||[])];
- const byId=new Map(all.map(p=>[String(p.id),p]));
- const selected=curated.map(id=>s.byId?.get(id)||byId.get(id)||({id,t:Date.parse(day+'T12:00:00'),video:id.startsWith('v'),approx:true}));
- return (ui.source==='automatic'?all.filter(p=>!hidden.has(String(p.id))):selected)
-   .filter(p=>safeMedia(p.id)).sort((a,b)=>(Number(a.t)||0)-(Number(b.t)||0));
+ const known=new Map(all.map(p=>[String(p.id),p]));
+ const selected=r580SavedIds(entry).map(id=>{
+  const m=(entry?.moments||[]).find(x=>Array.isArray(x.photoIds)&&x.photoIds.map(String).includes(id));
+  return s.byId?.get(id)||known.get(id)||({id,
+    t:Number(m?.at)||Date.parse(day+'T12:00:00'),video:id.startsWith('v'),approx:true});
+ });
+ // Automatic mode also needs JUST-SAVED provisional photos until MediaStore
+ // finishes indexing. This does not turn ordinary MediaStore records curated.
+ const combined=ui.source==='automatic'?[...all,...selected]:selected;
+ const unique=new Map();for(const m of combined)if(safeMedia(m.id)&&!hidden.has(String(m.id))){
+  const id=String(m.id),old=unique.get(id);
+  if(!old||old.approx&&!m.approx)unique.set(id,m);
+ }
+ return [...unique.values()].sort((a,b)=>(Number(a.t)||0)-(Number(b.t)||0));
 }
 // R578: a native Quick Record is ACKed to IndexedDB, but the separate Web
 // photo calendar may already have cached that day. Directly re-read the SAME
 // existing `curated` store; never write a second record or create a new DB.
 let r578SyncDayAt=0,r578SyncDayRunning=false,r578RefreshSeq=0;
+let r580MonthSyncAt=0,r580MonthRunning=false,r580MonthSeq=0;
 function r578DayKey(s,day){
  const e=s?.curatedEntries?.get(day);
- const photo=Array.isArray(e?.photoIds)?e.photoIds.map(String).join(','):'';
- const moments=Array.isArray(e?.moments)?e.moments.length:0;
- return String(e?.updatedAt||0)+'|'+photo+'|'+moments;
+ return [String(e?.updatedAt||0),r580SavedIds(e).join(','),
+    JSON.stringify((e?.moments||[]).map(m=>[m.uid,m.at,m.photoIds]))].join('|');
 }
 function r578CalendarKey(s){
  if(!s)return '';
  const month=ui.month.getFullYear()+'-'+String(ui.month.getMonth()+1).padStart(2,'0');
  const rows=[];
- if(s.curatedEntries?.forEach)s.curatedEntries.forEach((e,d)=>{
-   if(String(d).startsWith(month))rows.push(String(d)+'='+String(e?.updatedAt||0)+'/'+
-     (Array.isArray(e?.photoIds)?e.photoIds.map(String).join(','):'')+'/'+
-     (Array.isArray(e?.moments)?e.moments.length:0));
- });
- rows.sort();
- return [s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,
-  s.byVideoDay?.size||0,s.byId?.size||0,rows.join(';')].join(':');
+ s.curatedEntries?.forEach?.((e,d)=>{if(String(d).startsWith(month))
+  rows.push(String(d)+'='+r578DayKey(s,d));});
+ rows.sort();return [s.curatedEntries?.size||0,s.byId?.size||0,
+   s.byDay?.size||0,s.byVideoDay?.size||0,rows.join(';')].join(':');
 }
-async function r578HydrateSelectedDay(){
+async function r580HydrateCalendarMonth(force=false){
+ if(!ui.open||ui.page!=='calendar'||view?.hidden||r580MonthRunning)return false;
+ const now=Date.now();if(!force&&now-r580MonthSyncAt<1500)return false;
+ r580MonthSyncAt=now;r580MonthRunning=true;
+ const month=ui.month.getFullYear()+'-'+String(ui.month.getMonth()+1).padStart(2,'0');
+ const seq=++r580MonthSeq;
+ try{
+  const database=await db();let items=[];
+  try{items=await new Promise((resolve,reject)=>{
+   const req=database.transaction('curated','readonly').objectStore('curated')
+       .getAll(IDBKeyRange.bound(month+'-01',month+'-31'));
+   req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);
+  });}finally{database.close()}
+  if(seq!==r580MonthSeq||!ui.open||ui.page!=='calendar'||view?.hidden)return false;
+  if(month!==ui.month.getFullYear()+'-'+String(ui.month.getMonth()+1).padStart(2,'0'))return false;
+  const s=getState();if(!s?.curatedEntries)return false;
+  let changed=false;
+  for(const item of items){const day=String(item?.day||'');if(!valid(day)||!day.startsWith(month))continue;
+   const old=s.curatedEntries.get(day),older=Number(old?.updatedAt||0)>Number(item.updatedAt||0);
+   if(older)continue;
+   const oldKey=r578DayKey(s,day);
+   s.curatedEntries.set(day,item);
+   if(oldKey!==r578DayKey(s,day))changed=true;
+  }
+  if(changed&&ui.open&&ui.page==='calendar'){
+   r475LastDataKey=r578CalendarKey(s);render();
+  }
+  return changed;
+ }catch(err){console.warn('R580 curated month read-only sync',err);return false}
+ finally{r580MonthRunning=false}
+}
+async function r578HydrateSelectedDay(force=false){
  if(!ui.open||ui.page!=='day'||view?.hidden||r578SyncDayRunning)return false;
- const day=ui.date,now=Date.now();
- if(now-r578SyncDayAt<1000)return false;
+ const day=ui.date,now=Date.now();if(!force&&now-r578SyncDayAt<1350)return false;
  r578SyncDayAt=now;r578SyncDayRunning=true;
  const seq=++r578RefreshSeq;
  try{
-  const database=await db();
-  let item=null;
+  const database=await db();let item=null;
   try{item=await new Promise((resolve,reject)=>{
-   const tx=database.transaction('curated','readonly');
-   const q=tx.objectStore('curated').get(day);
+   const q=database.transaction('curated','readonly').objectStore('curated').get(day);
    q.onsuccess=()=>resolve(q.result||null);q.onerror=()=>reject(q.error);
   });}finally{database.close()}
-  if(seq!==r578RefreshSeq||!ui.open||ui.page!=='day'||ui.date!==day)return false;
-  const state=getState();if(!state?.curatedEntries||!item)return false;
-  const previous=state.curatedEntries.get(day),oldKey=r578DayKey(state,day);
-  if(!previous||Number(item.updatedAt||0)>=Number(previous.updatedAt||0))
-   state.curatedEntries.set(day,item);
-  const nextKey=r578DayKey(state,day);
-  if(oldKey!==nextKey){
-   // Rebuild only dormant Web posters; never close/restart a healthy R567 host.
-   if(!r507Opened&&!window.__moaR507NativePending){
-    const latest=mediaFor(day);
-    ui.media=latest;ui.idx=Math.min(Math.max(0,ui.idx),Math.max(0,latest.length-1));
-    renderMedia();
-    if(latest.length){r576BlockedSignature='';r507StartInline();}
-   }
+  if(seq!==r578RefreshSeq||!ui.open||ui.page!=='day'||ui.date!==day||view?.hidden)return false;
+  const s=getState();if(!s?.curatedEntries)return false;
+  const oldKey=r578DayKey(s,day),previous=s.curatedEntries.get(day);
+  if(item&&(!previous||Number(item.updatedAt||0)>=Number(previous.updatedAt||0)))s.curatedEntries.set(day,item);
+  const latest=mediaFor(day), ids=latest.map(m=>String(m.id)).join(',');
+  const priorIds=ui.media.map(m=>String(m.id)).join(',');
+  const updated=oldKey!==r578DayKey(s,day)||ids!==priorIds;
+  if(updated&&!r507Opened&&!window.__moaR507NativePending){
+   const chosen=String(ui.media[ui.idx]?.id||'');ui.media=latest;
+   ui.idx=Math.max(0,latest.findIndex(m=>String(m.id)===chosen));
+   renderMedia();if(latest.length){r576BlockedSignature='';r507StartInline();}
   }
-  return oldKey!==nextKey;
- }catch(_){return false}
+  // Do not close a healthy R567 native Gallery during an in-day DB refresh.
+  // Its next day entry reopens with the updated source of truth.
+  return updated;
+ }catch(err){console.warn('R580 selected day read-only sync',err);return false}
  finally{r578SyncDayRunning=false}
 }
 function mainCover(day,media){const s=getState();const preferred=String(s?.covers?.[ui.source]?.[day]||'');return media.find(x=>String(x.id)===preferred)||media[0]||null;}
@@ -604,7 +648,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout
 
 function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('scroll',()=>r527SyncGeometry(),{passive:true});n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
 function open(page='calendar',day){const s=getState();if(!s?.open)return false;r527BeginDay();mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
- try{localStorage.setItem(KEY,'simple')}catch(e){}r495SyncLegacyRoot();r495InstallBackHandlers();render();r475LastDataKey=r578CalendarKey(s);installBack();setTimeout(r475RefreshFamily,100);return true;}
+ try{localStorage.setItem(KEY,'simple')}catch(e){}r495SyncLegacyRoot();r495InstallBackHandlers();render();r475LastDataKey=r578CalendarKey(s);installBack();setTimeout(r475RefreshFamily,100);
+ setTimeout(()=>ui.open?(ui.page==='calendar'?r580HydrateCalendarMonth(true):r578HydrateSelectedDay(true)):null,60);return true;}
 function close(){r507StopInline();view?.classList.remove('moa-r547-native-owner');r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.open=false;ui.requestGeneration++;if(view)view.hidden=true;r495SyncLegacyRoot();try{localStorage.removeItem(KEY)}catch(e){}return true;}
 function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!confirm('작성 중인 내용이 있습니다. 저장하지 않고 돌아갈까요?'))return true;
   // Mark intentional exit BEFORE closing Gallery: native callbacks cannot
@@ -769,7 +814,8 @@ function addMode(){
    }
  }
 
- if(ui.open&&ui.page==='day'&&!r523DayExiting&&(!ui.media.length||ui.media.some(m=>m.approx)))r578HydrateSelectedDay();
+ if(ui.open&&ui.page==='day'&&!r523DayExiting)r578HydrateSelectedDay();
+ if(ui.open&&ui.page==='calendar')r580HydrateCalendarMonth();
  if(!s?.open||!root||root.hidden){r475ExitUntilHidden=false;return;}
  if(ui.open&&ui.page==='calendar'&&!s.load){
   const key=r578CalendarKey(s);
@@ -1005,7 +1051,8 @@ function renderMonth(){
 }
 function changeMonth(k){ui.month=new Date(ui.month.getFullYear(),ui.month.getMonth()+k,1);render();}
 function dayMedia(index){const m=ui.media[index];return m&&safeMedia(m.id)?m:null;}
-function setDay(day){if(!valid(day))return;ui.date=day;ui.selected=day;ui.page='day';ui.fast=false;ui.idx=0;ui.dirty=false;r527BeginDay();render();}
+function setDay(day){if(!valid(day))return;ui.date=day;ui.selected=day;ui.page='day';ui.fast=false;ui.idx=0;ui.dirty=false;r527BeginDay();render();
+ setTimeout(()=>r578HydrateSelectedDay(true),70);}
 function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui.date,s=getState();if(!valid(d)||!s)return;ui.media=mediaFor(d);const chosen=mainCover(d,ui.media);const ri=ui.media.findIndex(x=>String(x.id)===String(chosen?.id));ui.idx=Math.min(ui.media.length-1,Math.max(0,ui.idx||ri));if(ui.idx===0&&ri>0)ui.idx=ri;
  const current=s.curatedEntries?.get(d)||s.entries?.get(d),wrap=elem('div','moa-r469-day');
  wrap.append(r539DayChrome('photo',d,()=>{},()=>r475OpenDetail(d),r539PhotoSettings));
@@ -1062,7 +1109,7 @@ function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui
  if(ui.media.length)view.classList.add('moa-r519-native-entering','moa-r547-native-owner');
  renderMedia();refreshVoices();if(ui.media.length)r507StartInline();else view.classList.remove('moa-r519-native-entering');r527SyncGeometry(true);
   // The original Quick Record writer may finish while photo-day is first mounted.
-  setTimeout(r578HydrateSelectedDay,100);setTimeout(r578HydrateSelectedDay,1250);}
+  setTimeout(()=>r578HydrateSelectedDay(true),100);setTimeout(()=>r578HydrateSelectedDay(true),1250);}
 function r472MediaSelected(index){
  if(!Number.isFinite(index)||!ui.media.length)return;
  const next=Math.max(0,Math.min(ui.media.length-1,index));
