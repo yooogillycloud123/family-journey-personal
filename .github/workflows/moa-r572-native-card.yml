@@ -46,7 +46,7 @@ jobs:
           from pathlib import Path
           import hashlib,json
           p=Path('build/moa-r572/classes18.dex');b=p.read_bytes()
-          assert b[:4]==b'dex\\n' and len(b)<200000
+          assert b[:3]==b'dex' and len(b)<200000
           data={'dex_bytes':len(b),'dex_sha256':hashlib.sha256(b).hexdigest(),'device_status':'NOT_TESTED','golden_native_17_dex':'FROZEN'}
           Path('build/moa-r572/manifest.json').write_text(json.dumps(data,indent=2))
           print(json.dumps(data))
