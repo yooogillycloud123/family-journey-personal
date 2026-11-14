@@ -853,3 +853,24 @@ html #moa-r469-root.moa-r539-scroll-proxy.moa-r507-native-mounted[data-page="day
 html #fj-diary-root[data-page="day"] .moa-r539-day-chrome{
  margin-left:2px!important;margin-right:2px!important;
 }
+
+/* R543 physical Galaxy correction: visual icon must match oval switch track,
+   not a disproportionate 34x34 bordered square. Hit target remains 34px. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings{
+ position:relative!important;display:grid!important;place-items:center!important;
+ flex:0 0 34px!important;width:34px!important;min-width:34px!important;
+ height:34px!important;min-height:34px!important;max-height:34px!important;
+ border:0!important;background:transparent!important;box-shadow:none!important;
+ padding:0!important;line-height:1!important;font-size:12px!important;letter-spacing:0!important;
+ color:var(--moa-r491-muted,#776b73)!important;border-radius:12px!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings::before,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings::before{
+ content:"";position:absolute;pointer-events:none;width:25px;height:19px;
+ border:1px solid var(--moa-r491-track-border,#d4c8ce);box-sizing:border-box;
+ border-radius:10px;background:var(--moa-r491-track,#f3eef1);z-index:0;
+}
+/* Make native scroll the sole rendering owner, not a Web proxy that can
+   indefinitely leave native alpha zero after port loss. */
+html #moa-r469-root.moa-r539-scroll-proxy .moa-r469-stage-media{visibility:hidden!important}
