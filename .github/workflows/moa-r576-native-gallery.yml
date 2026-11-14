@@ -1,0 +1,83 @@
+name: MOA R576 Quick Record provisional media native gallery + measured rail gate
+on:
+  push:
+    branches: ['feature/moa-r576-provisional-capture-gallery-first-frame-rail-gap-20261115']
+    paths:
+      - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
+      - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
+      - 'experiments/moa-r483/moa-r483-vertical-calendar.css'
+      - 'experiments/moa-r576/**'
+      - '.github/workflows/moa-r576-native-gallery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native_android_and_contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install SDK and D8
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile native in-card Java and isolate DEX
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa576/classes /tmp/moa576/dex build/moa-r576
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d /tmp/moa576/classes \
+            experiments/moa-r507/MoaR507InlineGalleryProvider.java
+          find /tmp/moa576/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | \
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 \
+            --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
+            --output /tmp/moa576/dex
+          cp /tmp/moa576/dex/classes.dex build/moa-r576/classes18.dex
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          p=Path('build/moa-r576/classes18.dex');b=p.read_bytes()
+          assert b.startswith(b'dex') and len(b)<200000
+          o={'dex_bytes':len(b),'dex_sha256':hashlib.sha256(b).hexdigest(),'android_physical':'NOT_TESTED'}
+          Path('build/moa-r576/ci_manifest.json').write_text(json.dumps(o,indent=2))
+          print(o)
+          PY
+      - name: Syntax and media ID regression guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r483/moa-r483-vertical-calendar.js
+          node --check experiments/moa-r570/apk_assets/web/moa-r570-photo-favorites.js
+          node experiments/moa-r572/QA/bridge_regression_r572.js
+          python3 - <<'PY'
+          from pathlib import Path
+          js=Path('experiments/moa-r483/moa-r483-vertical-calendar.js').read_text()
+          j=Path('experiments/moa-r507/MoaR507InlineGalleryProvider.java').read_text()
+          css=Path('experiments/moa-r483/moa-r483-vertical-calendar.css').read_text()
+          p=js.index('const state=getState(),selected=ids[ui.idx];')
+          q=js.index('window.__moaR511InlineArm=true;',p)
+          route=js[p:q]
+          assert 'R73/Quick Record uses provisional' in route
+          assert 'state?.byId?.has(String(selected))' in route
+          assert 'r507Timer=setTimeout(tryOpen,260);' not in route
+          assert 'r576TightenMeasuredRail' in j and 'lower.setTranslationY(want)' in j
+          assert 'parent.addView(poster,0,' in j
+          assert 'opaque black poster above TextureView' in j
+          assert 'background:#000!important;' not in css[css.index('/* R572: photograph/video'):]
+          assert 'moa-r572-toast-leave' in Path('experiments/moa-r570/apk_assets/web/moa-r570-photo-favorites.js').read_text()
+          print('R576 anti-index-deadlock, no black over-player curtain, measured rail and R572 validated contracts PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R576-native-card-DEX-and-QA
+          path: build/moa-r576/
+          if-no-files-found: warn
