@@ -920,7 +920,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     help.setTextSize(12);help.setTextColor(0xff69717a);body.addView(help);
     EditText alias=new EditText(a);alias.setSingleLine(true);alias.setHint("장소 별명 (선택)");alias.setMaxLines(1);
     EditText memo=new EditText(a);memo.setHint("네이버 즐겨찾기 메모 (선택)");memo.setMinLines(2);memo.setMaxLines(3);
-    EditText list=new EditText(a);list.setSingleLine(true);list.setHint("저장할 리스트 이름");list.setText("내 장소");
+    EditText list=new EditText(a);list.setSingleLine(true);list.setHint("저장할 리스트 이름");
+    list.setText(a.getSharedPreferences("moa.r570.photo.actions",0).getString("last_save_list","내 장소"));
     body.addView(alias);body.addView(memo);body.addView(list);
     AlertDialog dialog=new AlertDialog.Builder(a).setTitle("네이버 즐겨찾기 저장")
       .setView(body).setPositiveButton("비점유 저장",(d,w)->r570DispatchSave(a,web,gallery,id,alias,memo,list,"web"))
@@ -935,6 +936,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }
     // Native Dialog is input-only. The existing first-party JS GPS/Naver writer
     // stays the sole saving authority, including confirmation / auth / outbox.
+    // Only the destination list is remembered; never leak another photo's
+    // alias/memo into the current media record.
+    a.getSharedPreferences("moa.r570.photo.actions",0).edit()
+      .putString("last_save_list",list.getText().toString().trim()).apply();
     String script="(function(){return window.MoaR570PhotoFavorites&&"+
        "window.MoaR570PhotoFavorites.save("+JSONObject.quote(id)+","+
         JSONObject.quote(alias.getText().toString())+","+
