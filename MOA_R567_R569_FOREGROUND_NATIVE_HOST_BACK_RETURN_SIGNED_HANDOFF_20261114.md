@@ -1,3 +1,5 @@
+> **LATEST 2026-11-14 CORRECTION — USER CONFIRMED R567 PHYSICAL GALAXY SUCCESS AND APPROVED GOLDEN.** This document below was written **before** the user's explicit confirmation. Do **not** use its obsolete phrases "R567 physical PASS not established", "DEVICE PASS PENDING" or "R463 current Golden" as current facts. Current authoritative status = **R567 USER_REPORTED_GALAXY_PASS + USER_APPROVED_CURRENT_GOLDEN**. Read [current approved lock](MOA_R567_USER_APPROVED_GOLDEN_LOCK_READ_FIRST_20261114.md) and [current new-chat prompt](MOA_NEW_CHAT_RESUME_PROMPT_R567_USER_DEVICE_PASS_20261114.md). The original R567 APK/source/QA bytes remain unchanged, and R463 is preserved as previous Golden.
+
 # MOA R567 original-signer native Gallery foreground return and first-Back stability, R569 forward R463 recovery
 
 **Date:** 2026-11-14 KST. **Release:** Same-original-signer test APK + same-signer higher-version emergency restore. **Physical Samsung R567 NOT YET TESTED. R463 remains the ONLY user-approved Golden.**
