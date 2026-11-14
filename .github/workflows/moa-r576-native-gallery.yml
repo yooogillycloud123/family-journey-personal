@@ -1,0 +1,87 @@
+name: MOA R576 R567-Golden-safe native photo card smoke and DEX
+on:
+  push:
+    branches: ['feature/moa-r576-r572-quickrecord-gallery-lifecycle-rail-20261115']
+    paths:
+      - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
+      - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
+      - 'experiments/moa-r483/moa-r483-vertical-calendar.css'
+      - 'experiments/moa-r570/apk_assets/web/moa-r570-photo-favorites.js'
+      - 'experiments/moa-r576/**'
+      - '.github/workflows/moa-r576-native-gallery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile_and_contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK35 and D8
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile only additive R576 in-card provider DEX
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa576/classes /tmp/moa576/dex build/moa-r576
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d /tmp/moa576/classes \
+            experiments/moa-r507/MoaR507InlineGalleryProvider.java
+          find /tmp/moa576/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | \
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 \
+            --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
+            --output /tmp/moa576/dex
+          cp /tmp/moa576/dex/classes.dex build/moa-r576/classes18.dex
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('build/moa-r576/classes18.dex');b=p.read_bytes()
+          assert b[:3]==b'dex' and len(b)<200000
+          data={'dex_bytes':len(b),'dex_sha256':hashlib.sha256(b).hexdigest(),'device_status':'NOT_TESTED','golden_native_17_dex':'FROZEN'}
+          Path('build/moa-r576/manifest.json').write_text(json.dumps(data,indent=2))
+          print(json.dumps(data))
+          PY
+      - name: JS and source regression contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r483/moa-r483-vertical-calendar.js
+          node --check experiments/moa-r570/apk_assets/web/moa-r570-photo-favorites.js
+          node experiments/moa-r572/QA/bridge_regression_r572.js
+          python3 - <<'PY'
+          from pathlib import Path
+          java=Path('experiments/moa-r507/MoaR507InlineGalleryProvider.java').read_text()
+          js=Path('experiments/moa-r483/moa-r483-vertical-calendar.js').read_text()
+          css=Path('experiments/moa-r483/moa-r483-vertical-calendar.css').read_text()
+          fav=Path('experiments/moa-r570/apk_assets/web/moa-r570-photo-favorites.js').read_text()
+          assert 'r572FinishEntry' in java and 'r572SyncFastSetting' in java
+          assert 'r570ApplyOrder' in java and 'fast.performClick()' in java
+          assert 'moa.r572.photo.fast' in java and 'setRailExpanded(a,railExpanded)' in java
+          assert 'moa-r572-video-active' in js and 'background:#000!important' in css
+          assert 'moa-r572-toast-leave' in fav and 'toastTimer=setTimeout' in fav
+          assert 'Color.BLACK' in java and 'r570OpenFavorite' in java
+          assert 'r574PhotoRefreshAttempts' in java and 'deck.setBackgroundColor(Color.TRANSPARENT)' in java
+          assert 'r574IndexAttemptCount' in js and '__moaR576PhotoStillLoading' in js
+          assert 'r574-index-wait' in css
+          assert 'int h=dp(a,expanded?(video?126:100):82)' in java
+          assert 'r576OpenFailures' in js and 'r507Timer=setTimeout(tryOpen,260)' not in js
+          assert 'parent.addView(poster' not in java and 'texture.setOpaque(true)' in java
+          assert 'r572FirstPhotoPending=false' in java and 'nativeLower.setTranslationY(expanded?dp(a,video?12:15):0f)' in java
+          print('R576 removal of hard index gate, no black curtain, real lower-controls shift and existing photo features PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R576-classes18-DEX-and-QA
+          path: build/moa-r576/
+          if-no-files-found: warn
