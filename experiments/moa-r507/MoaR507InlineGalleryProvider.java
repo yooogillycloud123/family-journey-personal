@@ -69,6 +69,13 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private FrameLayout nativeHost;
   private TextView coverStar;
   private TextView railToggle;
+  private TextView advancedButton;
+  private boolean initialCardChromeHidden=false;
+  private boolean fullNativeOpen=false,fullNativeSeenOpen=false;
+  private long fullNativeStartedAt=0L;
+  private ImageView ambientPoster;
+  private ViewGroup ambientParent;
+  private String ambientMediaId="";
   private View railView;
   private boolean railExpanded=true;
   private boolean railToggleInstalled;
@@ -243,6 +250,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(!resumed||a==null||a.isFinishing()||a.isDestroyed())return;
     WebView web=findWeb(a);if(web==null)return;
     Object gallery=readField(a,"unifiedGallery");
+    // R531: intentionally opened ORIGINAL fullscreen Gallery is NOT an in-card
+    // renderer. Return to the same photo-day only after native Gallery closes.
+    if(fullNativeOpen){
+      final long now=android.os.SystemClock.uptimeMillis();
+      if(galleryOpen(gallery))fullNativeSeenOpen=true;
+      else if(fullNativeSeenOpen||now-fullNativeStartedAt>2900L){
+        fullNativeOpen=false;fullNativeSeenOpen=false;
+        web.evaluateJavascript("window.__moaR531AdvancedClosed&&window.__moaR531AdvancedClosed();",null);
+      }
+      return;
+    }
     if(!galleryOpen(gallery)){
       ensurePositionChannel(web);
       if(ownsGallery) {
@@ -379,6 +397,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   }
   private void clearCardMark(){
     disarm();
+    if(advancedButton!=null && advancedButton.getParent() instanceof ViewGroup)
+      ((ViewGroup)advancedButton.getParent()).removeView(advancedButton);
+    if(ambientPoster!=null&&ambientPoster.getParent() instanceof ViewGroup)
+      ((ViewGroup)ambientPoster.getParent()).removeView(ambientPoster);
+    if(galleryRef!=null){Object tx=readField(galleryRef,"texture");if(tx instanceof TextureView)try{((TextureView)tx).setOpaque(true);}catch(Throwable ignored){}}
     if(railToggle!=null && railToggle.getParent() instanceof ViewGroup)
       ((ViewGroup)railToggle.getParent()).removeView(railToggle);
     if(coverStar!=null && coverStar.getParent() instanceof ViewGroup)
@@ -388,7 +411,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }catch(Throwable ignored){}
     inlineBack=null;backOwner=null;
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
-    coverStar=null;railToggle=null;railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;
+    coverStar=null;railToggle=null;advancedButton=null;railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;ambientPoster=null;ambientParent=null;ambientMediaId="";initialCardChromeHidden=false;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
     exitInFlight=false;ownedDayToken=0;nativeCloseDetectedAt=0L;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
     lastX=lastY=Integer.MIN_VALUE;
@@ -451,6 +474,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
     else host.setVisibility(View.VISIBLE);
     compactNativeCard(a,web,host,gallery);
+    syncAdvancedButton(gallery);
     final String mediaId=currentId(gallery);
     final long now=android.os.SystemClock.uptimeMillis();
     // Large Matrix/MediaPlayer queries belong to media changes, not every
@@ -464,7 +488,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // Try once immediately and at most twice while MediaPlayer is preparing;
     // then leave the playback pipeline's transforms alone until media changes.
     if(fillPrepareAttempts<3 && now-lastFillAt>700L){
-      fillNativeMediaCard(gallery);lastFillAt=now;fillPrepareAttempts++;
+      fillNativeMediaCard(a,gallery);lastFillAt=now;fillPrepareAttempts++;
     }
     syncIndex(web,gallery,s.optString("cover",""));
   }
@@ -604,7 +628,43 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       installRailToggle(a,capsule);
       setRailExpanded(a,railExpanded);
     }
+    // Hide the original R463 chrome ONCE per deliberate photo-day entry.
+    // The native Gallery's existing tap gesture still toggles chromeVisible;
+    // do not install a competing touch listener on its stage.
+    if(!initialCardChromeHidden){
+      initialCardChromeHidden=true;
+      try{Field f=field(gallery.getClass(),"chromeVisible");if(f!=null)f.setBoolean(gallery,false);}catch(Throwable ignored){}
+      if(nativeLower!=null)nativeLower.setVisibility(View.GONE);
+      deck.setVisibility(View.GONE);
+    }
+    if(advancedButton==null){
+      TextView advanced=new TextView(a);advanced.setText("⤢");advanced.setTextSize(20f);
+      advanced.setTextColor(Color.WHITE);advanced.setGravity(Gravity.CENTER);
+      advanced.setContentDescription("원래 고급 갤러리 전체 화면으로 열기");
+      advanced.setTag("moa.gallery.card.advanced.r531");advanced.setClickable(true);advanced.setFocusable(true);
+      GradientDrawable circle=new GradientDrawable();circle.setShape(GradientDrawable.OVAL);circle.setColor(0x88232229);
+      advanced.setBackground(circle);
+      FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(dp(a,36),dp(a,36),Gravity.TOP|Gravity.RIGHT);
+      p.rightMargin=dp(a,12);p.topMargin=dp(a,12);host.addView(advanced,p);
+      advanced.setVisibility(View.GONE);
+      advanced.setOnClickListener(v->enterOriginalFullscreen(web,gallery));
+      advancedButton=advanced;
+    }
     compactDone=true;
+  }
+  private void syncAdvancedButton(Object gallery){
+    if(advancedButton==null)return;
+    boolean chrome=Boolean.TRUE.equals(readField(gallery,"chromeVisible"));
+    advancedButton.setVisibility(chrome?View.VISIBLE:View.GONE);
+  }
+  private void enterOriginalFullscreen(WebView web,Object gallery){
+    if(!ownsGallery||fullNativeOpen||gallery!=galleryRef||!isTrustedWeb(web))return;
+    fullNativeOpen=true;fullNativeSeenOpen=false;
+    fullNativeStartedAt=android.os.SystemClock.uptimeMillis();
+    // Close and detach ONLY our in-card host. A NEW original Gallery.open()
+    // below is then standalone and cannot be reparented by this provider.
+    clearCardMark();invokeClose(gallery);
+    web.evaluateJavascript("window.__moaR531ShowAdvanced&&window.__moaR531ShowAdvanced();",null);
   }
   // R515 keeps the original rail/OverScroller intact. Only the visibility and
   // viewer-scoped LinearLayout heights are changed; original fullscreen Gallery
@@ -614,7 +674,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // In-card ONLY: sixth icon in the existing native action deck.
     // Do not create another free-floating button covering video controls.
     TextView control=new TextView(a);
-    control.setText("⌄");control.setTextSize(15f);control.setTextColor(Color.WHITE);
+    control.setText("▦");control.setTextSize(16f);control.setTextColor(Color.WHITE);
     control.setGravity(Gravity.CENTER);control.setClickable(true);control.setFocusable(true);
     control.setContentDescription("사진 목록 접기");
     control.setTag("moa.gallery.inline.rail.toggle.r519");
@@ -634,7 +694,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       lp.height=dp(a,expanded?137:82);nativeLower.setLayoutParams(lp);
     }
     if(railToggle!=null){
-      railToggle.setText(expanded?"⌄":"⌃");
+      railToggle.setText("▦");
       railToggle.setContentDescription(expanded?"사진 목록 접기":"사진 목록 펼치기");
       railToggle.setSelected(!expanded);
     }
@@ -642,25 +702,54 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // Only the in-card Gallery opts into center-crop. Never upscale the bitmap
   // beyond what the original image decoder provides and never change fullscreen.
   // Full bleed necessarily trims edges when image/video and stage ratios differ.
-  private void fillNativeMediaCard(Object gallery){
+  private void fillNativeMediaCard(Activity a,Object gallery){
     Object pictures=readField(gallery,"images");
     if(pictures instanceof ImageView[]){
       for(ImageView im:(ImageView[])pictures)if(im!=null && im.getScaleType()!=ImageView.ScaleType.CENTER_CROP)
         im.setScaleType(ImageView.ScaleType.CENTER_CROP);
     }
-    Object rawTexture=readField(gallery,"texture"),rawPlayer=readField(gallery,"media");
-    if(!(rawTexture instanceof TextureView)||!(rawPlayer instanceof MediaPlayer))return;
-    TextureView t=(TextureView)rawTexture;MediaPlayer player=(MediaPlayer)rawPlayer;
-    int vw,vh;try{vw=player.getVideoWidth();vh=player.getVideoHeight();}catch(Throwable e){return;}
-    if(vw<=0||vh<=0||t.getWidth()<30||t.getHeight()<30)return;
-    final float width=t.getWidth(),height=t.getHeight();
-    // Android R463 original FIT uses min. R515 owned card alone uses max.
-    float cover=Math.max(width/vw,height/vh);
-    Matrix expected=new Matrix();expected.setScale(vw*cover/width,vh*cover/height,width/2f,height/2f);
-    Matrix before=new Matrix();t.getTransform(before);
-    float[] x=new float[9],y=new float[9];before.getValues(x);expected.getValues(y);
-    if(Math.abs(x[0]-y[0])>.003f||Math.abs(x[4]-y[4])>.003f||Math.abs(x[2]-y[2])>1f||Math.abs(x[5]-y[5])>1f)
-      t.setTransform(expected);
+    // R531: photos retain cover; VIDEO must preserve EVERY edge of the frame.
+    // Leave the original R463 TextureView FIT transform untouched. Its old
+    // in-card max-scale replacement cut away content and caused geometry fights.
+    Object rawTexture=readField(gallery,"texture");
+    if(rawTexture instanceof TextureView){
+      TextureView texture=(TextureView)rawTexture;
+      String id=currentId(gallery);
+      updateVideoAmbient(a,texture,id);
+    }
+  }
+  private void updateVideoAmbient(Activity a,TextureView texture,String id){
+    if(!id.startsWith("v")||!id.substring(1).matches("[0-9]{1,18}")){
+      if(ambientPoster!=null)ambientPoster.setVisibility(View.GONE);
+      texture.setOpaque(true);return;
+    }
+    ViewGroup parent=texture.getParent() instanceof ViewGroup?(ViewGroup)texture.getParent():null;
+    if(!(parent instanceof FrameLayout))return;
+    if(ambientPoster==null||ambientParent!=parent){
+      if(ambientPoster!=null&&ambientPoster.getParent() instanceof ViewGroup)
+        ((ViewGroup)ambientPoster.getParent()).removeView(ambientPoster);
+      ImageView poster=new ImageView(a);poster.setScaleType(ImageView.ScaleType.CENTER_CROP);
+      poster.setBackgroundColor(0xff38343a);poster.setAlpha(.77f);
+      if(Build.VERSION.SDK_INT>=31)poster.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(22f,22f,android.graphics.Shader.TileMode.CLAMP));
+      parent.addView(poster,Math.max(0,parent.indexOfChild(texture)),new FrameLayout.LayoutParams(-1,-1));
+      ambientPoster=poster;ambientParent=parent;ambientMediaId="";
+    }
+    ambientPoster.setVisibility(View.VISIBLE);texture.setOpaque(false);
+    if(id.equals(ambientMediaId))return;
+    ambientMediaId=id;ambientPoster.setImageDrawable(null);
+    final ImageView target=ambientPoster;final String requested=id;
+    // A small MediaStore poster is decoded off the UI thread only when the
+    // media changes, not every video frame or Web/native scroll update.
+    new Thread(()->{
+      android.graphics.Bitmap thumb=null;
+      try{
+        android.net.Uri uri=android.net.Uri.parse("content://media/external/video/media/"+requested.substring(1));
+        thumb=a.getContentResolver().loadThumbnail(uri,new android.util.Size(180,240),null);
+      }catch(Throwable ignored){}
+      final android.graphics.Bitmap ready=thumb;
+      main.post(()->{if(ready!=null&&ownsGallery&&ambientPoster==target&&requested.equals(ambientMediaId))
+        target.setImageBitmap(ready);else if(ready!=null)ready.recycle();});
+    },"moa-r531-video-poster").start();
   }
   private static String currentId(Object gallery){
     try {
