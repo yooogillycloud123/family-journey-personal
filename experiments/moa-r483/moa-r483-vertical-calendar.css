@@ -973,3 +973,12 @@ html #moa-r469-root[data-page="day"] .moa-r531-video-slide{
 html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r531-video-slide::before{
  opacity:0!important;filter:none!important;background-image:none!important;
 }
+
+/* R584: compact user-initiated photo-gallery repair, independent of filmstrip geometry. */
+html #moa-r469-root .moa-r584-recover{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:30px;min-width:30px;height:32px;padding:0;border:0;
+  background:transparent;color:inherit;font-size:23px;line-height:1;
+  cursor:pointer;touch-action:manipulation;
+}
+html #moa-r469-root .moa-r584-recover:active{opacity:.55}
