@@ -2,7 +2,7 @@ name: MOA R527 native Gallery in-card isolated DEX compile
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/moa-r527-native-card.yml']
+    paths: ['.github/workflows/moa-r527-native-geometry.yml']
   workflow_dispatch:
 permissions:
   contents: write
