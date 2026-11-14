@@ -1,8 +1,8 @@
-name: MOA R531 Native Photo Card LAB compile and syntax QA
+name: MOA R535 Native Photo Card LAB compile and syntax QA
 on:
   push:
     branches:
-      - feature/moa-r531-card-gallery-ux-experiment-20261114
+      - feature/moa-r535-resume-photo-ambient-toolbar-20261114
     paths:
       - experiments/moa-r483/moa-r483-vertical-calendar.js
       - experiments/moa-r483/moa-r483-vertical-calendar.css
@@ -36,12 +36,15 @@ jobs:
           java=Path("experiments/moa-r507/MoaR507InlineGalleryProvider.java").read_text()
           css=Path("experiments/moa-r483/moa-r483-vertical-calendar.css").read_text()
           assert "window.__moaR531ShowAdvanced" in js
+          assert "window.__moaR535ResumeInline" in js
+          assert "rebindAfterReturn" in java and "updateAmbientForSelection" in java
+          assert "UnifiedGlyph" in java and "advancedButton=advanced" in java
           assert "window.__moaR531AdvancedClosed" in js
           assert "fullNativeOpen=true" in java and "initialCardChromeHidden=true" in java
           assert "updateVideoAmbient" in java and "object-fit:contain!important" in css
           assert "window.__moaR527DayToken" in js
           assert "setRailExpanded" in java
-          print("R531 SOURCE SAFETY CHECKS=PASS")
+          print("R535 SOURCE SAFETY CHECKS=PASS")
           PY
       - name: Compile additive R531 DEX
         run: |
@@ -56,7 +59,7 @@ jobs:
           assert b"MoaR507InlineGalleryProvider" in b
           pathlib.Path("build/moa-r531/native-dex-sha256.json").write_text(json.dumps({"sha256":hashlib.sha256(b).hexdigest(),"size":len(b)},indent=2))
           pathlib.Path("build/moa-r531/classes18.dex").write_bytes(b)
-          print("MOA_R531_NATIVE_DEX_SHA256",hashlib.sha256(b).hexdigest())
+          print("MOA_R535_NATIVE_DEX_SHA256",hashlib.sha256(b).hexdigest())
           PY
       - name: Collect exact modified source bundle
         run: |
@@ -68,6 +71,6 @@ jobs:
           sha256sum build/moa-r531/classes18.dex build/moa-r531/moa-r483-vertical-calendar.js build/moa-r531/moa-r483-vertical-calendar.css build/moa-r531/MoaR507InlineGalleryProvider.java > build/moa-r531/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: MOA-R531-ADDITIVE-DEX-LAB
+          name: MOA-R535-ADDITIVE-DEX-LAB
           path: build/moa-r531/
           if-no-files-found: error
