@@ -564,6 +564,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // Keep our single-Back handler until an explicit day exit/fullscreen handoff
     // or until the trusted JS page is verified to have switched away.
 
+    // R576: photo-only vertical correction must NOT leak into the original
+    // fullscreen/detail Gallery on reuse or navigation.
+    if(nativeLower!=null)nativeLower.setTranslationY(0f);
+    if(railView!=null)railView.setTranslationY(0f);
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
     if(r570SaveDialog!=null&&r570SaveDialog.isShowing())r570SaveDialog.dismiss();
     if(r570OrderDialog!=null&&r570OrderDialog.isShowing())r570OrderDialog.dismiss();
@@ -616,8 +620,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       clearCardMark();nativeHost=host;galleryRef=gallery;nativeOwnerActivity=a;ownsGallery=true;ownedDayToken=newToken;lastPositionMessageAt=0;
       GradientDrawable round=new GradientDrawable();round.setColor(Color.BLACK);round.setCornerRadius(dp(a,23));
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
-      r572FirstPhotoPending=!currentId(gallery).startsWith("v");
-      r572FirstPhotoDeadline=android.os.SystemClock.uptimeMillis()+950L;
+      // R576: do not block the original R463 host behind R572/R574 black
+      // placeholder gates. Use the user-validated R567 immediate native owner.
+      r572FirstPhotoPending=false;r572FirstPhotoDeadline=0L;
       r574PhotoWaitNotified=false;r574PhotoRefreshAttempts=0;r574VideoCurtainAt=0L;
       r572NativeMountAck=false;r572FastRestorePending=true;r572FastRestoreDone=false;
       r572FastSeen=false;r572LastVideoRail=null;
@@ -646,7 +651,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       lastGeometrySnapshotY=y;
     }
     lastX=x;lastY=y;lastW=w;lastH=h;
-    if(r572FirstPhotoPending||y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
+    // R576: R574 kept the entire native host INVISIBLE forever when a newly
+    // captured MediaStore photo had not reached its first drawable. Revert to
+    // R567's physical-Golden visibility contract; never hold a working video.
+    if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
     else host.setVisibility(View.VISIBLE);
     compactNativeCard(a,web,host,gallery);
     syncAdvancedButton(gallery);
@@ -669,41 +677,13 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     r572FinishEntry(a,web,gallery);
     r572SyncFastSetting(a);
   }
-  // Keep the existing Web poster visible until the ORIGINAL native center photo
-  // has a non-null drawable. Never gate video TextureView availability (doing
-  // so could deadlock its SurfaceTexture). 950ms fail-open prevents stuck gray.
+  // R576: R572/R574 display gates and black VIDEO curtain regressed the
+  // original R567 (user-approved) first-frame contract. This acknowledges the
+  // REAL open native owner immediately, leaving original media preparation
+  // and TextureView Surface timing to the original Gallery. No artificial
+  // 950ms/2200ms black wall, no alpha-zero or recurring close/reopen.
   private void r572FinishEntry(Activity a,WebView web,Object gallery){
     if(!ownsGallery||gallery!=galleryRef||nativeHost==null||!galleryOpen(gallery))return;
-    if(r572FirstPhotoPending){
-      // R572 forcibly revealed an empty native Gallery after 950ms even if
-      // its center ImageView had NO drawable. Newly captured Quick Record
-      // MediaStore rows can still be indexing: black card looked like success.
-      if(!actualMediaReady(gallery)){
-        final long now=android.os.SystemClock.uptimeMillis();
-        if(now>r572FirstPhotoDeadline && r574PhotoRefreshAttempts<4 &&
-            now-lastMediaRefreshAt>1800L){
-          r574PhotoRefreshAttempts++;
-          refreshOriginalMediaIfBlank(gallery); // ORIGINAL refreshPages; no close/reopen
-        }
-        if(!r574PhotoWaitNotified&&now-r572FirstPhotoDeadline>4700L){
-          r574PhotoWaitNotified=true;
-          web.evaluateJavascript("window.__moaR574PhotoStillLoading&&"+
-            "window.__moaR574PhotoStillLoading();",null);
-        }
-        return; // preserve the Web photo poster; NEVER expose a black empty host
-      }
-      r572FirstPhotoPending=false;
-    }
-    // VIDEO: the original TextureView stays VISIBLE and prepares behind an
-    // inert black poster, avoiding intermediate gray/scaled first frames.
-    final String playing=currentId(gallery);
-    if(playing.startsWith("v")&&ambientPoster!=null&&
-       playing.equals(ambientMediaId)&&ambientPoster.getVisibility()==View.VISIBLE){
-      long elapsed=android.os.SystemClock.uptimeMillis()-r574VideoCurtainAt;
-      if((actualMediaReady(gallery)&&elapsed>=360L)||elapsed>=2200L){
-        ambientPoster.setVisibility(View.GONE);
-      }
-    }
     if(!r572NativeMountAck){
       r572NativeMountAck=true;
       web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
@@ -1144,7 +1124,13 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // outer media frame or video seek/play event owners.
       int h=dp(a,expanded?(video?126:100):82);
       if(lp.height!=h){lp.height=h;nativeLower.setLayoutParams(lp);}
-      if(railView!=null)railView.setTranslationY(expanded?dp(a,video?9:7):0f);
+      // R576: R391 continuously re-applies a 50dp bottom margin for the
+      // action capsule. Only changing lowerControls HEIGHT never reduced the
+      // user-marked gap. Translate the ORIGINAL lowerControls view toward the
+      // capsule by 12/15dp, without changing any child listener or margin
+      // managed by R391; keep touch targets outside the oval.
+      nativeLower.setTranslationY(expanded?dp(a,video?12:15):0f);
+      if(railView!=null)railView.setTranslationY(expanded?dp(a,video?3:5):0f);
     }
     if(railToggle!=null){
       railToggle.invalidate();
@@ -1175,40 +1161,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }
   }
   private void updateVideoAmbient(Activity a,TextureView texture,String id){
-    if(!id.startsWith("v")||!id.substring(1).matches("[0-9]{1,18}")){
-      if(ambientPoster!=null)ambientPoster.setVisibility(View.GONE);
-      texture.setOpaque(true);return;
-    }
-    ViewGroup parent=texture.getParent() instanceof ViewGroup?(ViewGroup)texture.getParent():null;
-    if(!(parent instanceof FrameLayout))return;
-    if(ambientPoster==null||ambientParent!=parent){
-      if(ambientPoster!=null&&ambientPoster.getParent() instanceof ViewGroup)
+    // R576: BLACK overlay added in R574 covered the real TextureView and
+    // deliberately showed a black rectangle for up to 2.2s on every new
+    // video. Remove it completely. The original R463 player/Surface owns
+    // playback, while the native container remains stable.
+    if(ambientPoster!=null){
+      if(ambientPoster.getParent() instanceof ViewGroup)
         ((ViewGroup)ambientPoster.getParent()).removeView(ambientPoster);
-      ImageView poster=new ImageView(a);poster.setScaleType(ImageView.ScaleType.CENTER_CROP);
-      poster.setBackgroundColor(Color.BLACK);poster.setAlpha(1f);
-      // Absolute bottom of the native stage. Photos must ALWAYS paint above
-      // video ambient, even in the brief interval before selection callbacks.
-      poster.setClickable(false);poster.setFocusable(false);
-      poster.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-      // Put this one-time opaque black curtain ABOVE video output, never
-      // above the original host-level rail/seek/action controls.
-      parent.addView(poster,new FrameLayout.LayoutParams(-1,-1));
-      ambientPoster=poster;ambientParent=parent;ambientMediaId="";
+      ambientPoster=null;ambientParent=null;
     }
-    texture.setOpaque(true);
-    // Do not re-show the curtain on every 155ms Gallery tick after the first
-    // native video frame has become visible: that caused repeated flashing.
-    if(id.equals(ambientMediaId))return;
     ambientMediaId=id;
-    r574VideoCurtainAt=android.os.SystemClock.uptimeMillis();
-    ambientPoster.setVisibility(View.VISIBLE);
-    ambientPoster.bringToFront();
-    ambientPoster.setImageDrawable(null);
-    final ImageView target=ambientPoster;
-    // R570: fixed neutral backdrop for in-card VIDEO only. The historical
-    // asynchronous blurred poster flashed/recomposited behind each TextureView
-    // mount. No MediaPlayer, TextureView transform or R463 callback is changed.
-    target.setImageDrawable(null);
+    texture.setOpaque(true);
   }
   private static String currentId(Object gallery){
     try {
