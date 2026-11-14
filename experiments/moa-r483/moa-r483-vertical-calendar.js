@@ -36,22 +36,38 @@ let r527LastRect='';
 // compositor), hide only native-host PIXELS (alpha), keeping native touch owner
 // and MediaPlayer alive. Restore real native pixels after final geometry flush.
 let r539ProxyActive=false,r539ProxyTimer=0,r539LastWake=0,r539HiddenAt=0;
+let r539ProxyClosing=false,r539ProxyAckTimer=0;
 const R539_STABLE_SCROLL_KEY='moa.r539.scroll.web.proxy.v1';
 function r539StableScroll(){try{return localStorage.getItem(R539_STABLE_SCROLL_KEY)!=='off'}catch(_){return true}}
 function r539ProxyMessage(enabled){
  if(!r527GeometryPort)return;
  try{r527GeometryPort.postMessage('s,'+window.__moaR527DayToken+','+(enabled?'1':'0'))}catch(_){r527GeometryPort=null}
 }
+function r539FinishProxy(){
+ clearTimeout(r539ProxyAckTimer);r539ProxyAckTimer=0;
+ r539ProxyClosing=false;r539ProxyActive=false;
+ view?.classList.remove('moa-r539-scroll-proxy');
+}
 function r539EndProxy(){
  clearTimeout(r539ProxyTimer);r539ProxyTimer=0;
- if(!r539ProxyActive)return;
+ if(!r539ProxyActive||r539ProxyClosing)return;
+ // Request the last actual DOM position FIRST; wait for Android's alpha=1
+ // acknowledgment BEFORE withdrawing the synchronized WebView poster.
+ r539ProxyClosing=true;
  r527SyncGeometry(true);
  r539ProxyMessage(false);
- r539ProxyActive=false;view?.classList.remove('moa-r539-scroll-proxy');
+ r539ProxyAckTimer=setTimeout(r539FinishProxy,320);
 }
+window.__moaR539NativeScrollSettled=function(token){
+ if(Number(token)===window.__moaR527DayToken&&r539ProxyClosing)r539FinishProxy();
+};
 function r539OnDayScroll(){
  if(!r539StableScroll()||!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced||
      !window.__moaR507NativePending||!view?.classList.contains('moa-r507-native-mounted'))return;
+ if(r539ProxyClosing){
+  clearTimeout(r539ProxyAckTimer);r539ProxyAckTimer=0;r539ProxyClosing=false;
+  r539ProxyMessage(true);
+ }
  if(!r539ProxyActive){
   r539ProxyActive=true;
   view.classList.add('moa-r539-scroll-proxy');
