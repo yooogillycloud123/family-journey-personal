@@ -454,21 +454,13 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       host.animate().cancel();host.setTranslationX(0f);host.setTranslationY(0f);
       host.setLayoutParams(lp);baseX=x;baseY=y;
     }else if(x!=lastX||y!=lastY){
-      // R519: no lagging animator on a WebView-scrolling native sibling.
-      // Move by GPU translation to the ACTUAL observed card position, without
-      // 56ms easing that made Gallery feel dragged up/down behind the finger.
-      // A small bounded prediction reduces the perceived WebView/native
-      // bridge latency during a fling. Never animate the TextureView itself.
-      long stamp=android.os.SystemClock.uptimeMillis();
-      float lead=0f;
-      if(lastGeometrySnapshotAt>0 && stamp>lastGeometrySnapshotAt){
-        long dt=stamp-lastGeometrySnapshotAt;
-        float speed=(float)(y-lastGeometrySnapshotY)/Math.max(12L,dt);
-        if(dt<130 && Math.abs(speed)>.30f)
-          lead=Math.max(-dp(a,18),Math.min(dp(a,18),speed*13f));
-      }
-      host.setTranslationX(x-baseX);host.setTranslationY(y-baseY+lead);
-      lastGeometrySnapshotAt=stamp;lastGeometrySnapshotY=y;
+      // R531: never intentionally overshoot the real WebView card position.
+      // The 18dp velocity lead made opposite-direction corrections visible
+      // when the WebMessagePort stream resumed after a fallback snapshot.
+      // Both paths now use the same integer-pixel target, with no animation.
+      host.setTranslationX(x-baseX);host.setTranslationY(y-baseY);
+      lastGeometrySnapshotAt=android.os.SystemClock.uptimeMillis();
+      lastGeometrySnapshotY=y;
     }
     lastX=x;lastY=y;lastW=w;lastH=h;
     if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
