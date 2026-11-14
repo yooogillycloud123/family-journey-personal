@@ -55,6 +55,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     implements Application.ActivityLifecycleCallbacks {
   private final Handler main = new Handler(Looper.getMainLooper());
   private Activity foreground;
+  // R547: the native R463 host belongs to its ORIGINAL Activity. An external NAVER
+  // Activity must never be mistaken for the Gallery owner by the global ticker.
+  private Activity nativeOwnerActivity;
+  private Activity fullscreenOwnerActivity;
+  private long returnCloseGuardUntil=0L;
   private boolean resumed;
   private boolean ownsGallery;
   private boolean processing;
@@ -258,6 +263,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private void tick(){
     Activity a=foreground;
     if(!resumed||a==null||a.isFinishing()||a.isDestroyed())return;
+    // R547: ActivityLifecycleCallbacks observe ALL activities, not just MOA's
+    // Activity. Reading `unifiedGallery` on NAVER/Share produces null, which
+    // R543 mistakenly classified as a genuine Gallery Back/close. Never do it.
+    if(ownsGallery && nativeOwnerActivity!=null && a!=nativeOwnerActivity)return;
+    if(fullNativeOpen && fullscreenOwnerActivity!=null && a!=fullscreenOwnerActivity)return;
     WebView web=findWeb(a);if(web==null)return;
     Object gallery=readField(a,"unifiedGallery");
     // R531: intentionally opened ORIGINAL fullscreen Gallery is NOT an in-card
@@ -272,7 +282,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       }else if(fullNativeSeenOpen||now-fullNativeStartedAt>2900L){
         final int index=fullNativeLastIndex;
         final String id=JSONObject.quote(fullNativeLastId);
-        fullNativeOpen=false;fullNativeSeenOpen=false;
+        fullNativeOpen=false;fullNativeSeenOpen=false;fullscreenOwnerActivity=null;
         fullNativeLastIndex=-1;fullNativeLastId="";
         // Do not let native Gallery.close() reset the selection to the old image.
         web.evaluateJavascript("window.__moaR539AdvancedSelection&&window.__moaR539AdvancedSelection("+
@@ -284,7 +294,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // On activity return the original renderer can lose its SurfaceTexture
       // without a user Back. Let the guarded resume transaction restore it;
       // do not interpret this lifecycle gap as intentional day exit.
-      if(returnFromBackground && ownsGallery && !fullNativeOpen)return;
+      if(ownsGallery && !fullNativeOpen &&
+          (returnFromBackground || android.os.SystemClock.uptimeMillis()<returnCloseGuardUntil))return;
       ensurePositionChannel(web);
       if(ownsGallery) {
         // A media transition can briefly clear the original open flag. Do not
@@ -446,6 +457,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }catch(Throwable ignored){}
     inlineBack=null;backOwner=null;
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
+    nativeOwnerActivity=null;
     coverStar=null;railToggle=null;advancedButton=null;railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;ambientPoster=null;ambientParent=null;ambientMediaId="";initialCardChromeHidden=false;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
     exitInFlight=false;ownedDayToken=0;nativeCloseDetectedAt=0L;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
@@ -472,7 +484,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(w>root.getWidth()+3||h>root.getHeight()+3)return;
     if(host!=nativeHost){
       final int newToken=s.optInt("token",ownedDayToken);
-      clearCardMark();nativeHost=host;galleryRef=gallery;ownsGallery=true;ownedDayToken=newToken;lastPositionMessageAt=0;
+      clearCardMark();nativeHost=host;galleryRef=gallery;nativeOwnerActivity=a;ownsGallery=true;ownedDayToken=newToken;lastPositionMessageAt=0;
       GradientDrawable round=new GradientDrawable();round.setColor(Color.BLACK);round.setCornerRadius(dp(a,23));
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
       installInlineBack(a,web);
@@ -685,7 +697,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   }
   private void enterOriginalFullscreen(WebView web,Object gallery){
     if(!ownsGallery||fullNativeOpen||gallery!=galleryRef||!isTrustedWeb(web))return;
-    fullNativeOpen=true;fullNativeSeenOpen=false;
+    fullNativeOpen=true;fullNativeSeenOpen=false;fullscreenOwnerActivity=foreground;
     fullNativeLastIndex=lastIndex;fullNativeLastId=currentId(gallery);
     fullNativeStartedAt=android.os.SystemClock.uptimeMillis();
     // Close and detach ONLY our in-card host. A NEW original Gallery.open()
@@ -843,64 +855,91 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   }
   private static int dp(Activity a,float n){return (int)(n*a.getResources().getDisplayMetrics().density+.5f);}
 
-  // R543: do not rebind on first mount or unrelated Activity transitions.
-  // The exact R535 native renderer stays responsible for all initial openings.
-  // Rebuild ONLY a Gallery that was already successfully mounted BEFORE pause.
-  // This avoids R539's startup race (closing a still-opening native Gallery).
+  // R547: React to a confirmed LOST native host, not merely an Activity pause.
+  // R543 indiscriminately invoked Gallery.close() on every NAVER return even if
+  // isOpen==true and its host was attached. That closed working media and
+  // triggered the R543 JS timeout -> legacy Web fallback -> repeated rebuild.
   private void rebindAfterReturn(Activity a,int epoch){
     if(!resumed||a==null||foreground!=a||epoch!=foregroundEpoch||
-       !returnFromBackground||fullNativeOpen||a.isFinishing()||a.isDestroyed())return;
-    final long now=android.os.SystemClock.uptimeMillis();
-    if(now-lastRebindAt<2800L)return;
-    final WebView web=findWeb(a);
-    if(web==null||!isTrustedWeb(web))return;
-    final Object previouslyOwned=galleryRef;
+       !returnFromBackground||fullNativeOpen||a.isFinishing()||a.isDestroyed()||
+       nativeOwnerActivity!=a)return;
+    final WebView web=findWeb(a);if(web==null||!isTrustedWeb(web))return;
     final Object gallery=readField(a,"unifiedGallery");
+    final FrameLayout root=a.findViewById(android.R.id.content);
+    final Object rawHost=readField(gallery,"host");
+    final boolean healthy=galleryOpen(gallery)&&gallery==galleryRef&&
+        rawHost==nativeHost&&nativeHost!=null&&
+        nativeHost.getParent()==root&&nativeHost.getAlpha()>.95f;
+    if(healthy){
+      // PRESERVE the running R463 Gallery, current media, rail and all listeners.
+      // A pause/resume is not Back and does not invalidate ImageView pixels.
+      returnFromBackground=false;hadMountedOnPause=false;nativeCloseDetectedAt=0L;
+      returnCloseGuardUntil=android.os.SystemClock.uptimeMillis()+1100L;
+      nativeHost.invalidate();
+      return;
+    }
+    final long now=android.os.SystemClock.uptimeMillis();
+    if(now-lastRebindAt<2600L)return;
+    // A genuinely closed or detached host may be rebuilt, after validating
+    // the SAME active photo day and session. Never do this on NAVER's WebView.
     final String check="(function(){try{var d=window.MoaR469SimpleDiary,"+
-        "s=d&&d.readOnlyStatus&&d.readOnlyStatus();return JSON.stringify({day:!!("+
-        "s&&s.active&&s.page==='day'&&window.__moaR507NativePending),"+
-        "token:window.__moaR527DayToken||0,full:!!("+
-        "window.__moaR539AdvancedActive&&window.__moaR539AdvancedActive())});"+
-        "}catch(e){return '{}'}})()";
+      "s=d&&d.readOnlyStatus&&d.readOnlyStatus();return JSON.stringify({day:!!("+
+      "s&&s.active&&s.page==='day'&&window.__moaR507NativePending),"+
+      "token:window.__moaR527DayToken||0,full:!!("+
+      "window.__moaR539AdvancedActive&&window.__moaR539AdvancedActive())});"+
+      "}catch(e){return '{}'}})()";
     try{web.evaluateJavascript(check,result->{
-      if(!resumed||foreground!=a||epoch!=foregroundEpoch||fullNativeOpen)return;
+      if(!resumed||foreground!=a||epoch!=foregroundEpoch||fullNativeOpen||nativeOwnerActivity!=a)return;
       try{
         Object parsed=new JSONTokener(result).nextValue();
         if(!(parsed instanceof String))return;
         JSONObject st=new JSONObject((String)parsed);
         if(!st.optBoolean("day")||st.optBoolean("full"))return;
         int token=st.optInt("token",0);
-        if(token<=0)return;
-        returnFromBackground=false;
+        if(token<=0||token!=ownedDayToken)return;
+        // A healthy host can recover while the async WebView check is running.
+        Object live=readField(a,"unifiedGallery");
+        FrameLayout rr=a.findViewById(android.R.id.content);
+        if(galleryOpen(live)&&live==galleryRef&&nativeHost!=null&&
+           readField(live,"host")==nativeHost&&nativeHost.getParent()==rr&&
+           nativeHost.getAlpha()>.95f){returnFromBackground=false;return;}
+        returnFromBackground=false;hadMountedOnPause=false;
         lastRebindAt=android.os.SystemClock.uptimeMillis();
-        suppressArmUntil=lastRebindAt+170L;
+        returnCloseGuardUntil=lastRebindAt+1900L;
+        suppressArmUntil=lastRebindAt+240L;
         closePositionPort();
-        // Clear owner BEFORE close: a lifecycle repair is not native Back.
+        // ONLY the unusable host is closed, never the working R463 host.
         clearCardMark();
-        if(previouslyOwned!=null && galleryOpen(previouslyOwned))invokeClose(previouslyOwned);
-        else if(galleryOpen(gallery))invokeClose(gallery);
-        web.evaluateJavascript("window.__moaR543RebuildInline&&"+
-            "window.__moaR543RebuildInline("+token+");",null);
+        if(live!=null && galleryOpen(live))invokeClose(live);
+        web.evaluateJavascript("window.__moaR547RebuildDamagedHost&&"+
+          "window.__moaR547RebuildDamagedHost("+token+");",null);
       }catch(Throwable ignored){}
     });}catch(Throwable ignored){}
   }
   @Override public void onActivityResumed(Activity a){
     foreground=a;resumed=true;final int epoch=++foregroundEpoch;
-    // R539 re-bound even galleries never mounted. Preserve R535 first-open path.
-    if(returnFromBackground && hadMountedOnPause &&
-        android.os.SystemClock.uptimeMillis()-backgroundStartedAt>=250L)
-      main.postDelayed(()->rebindAfterReturn(a,epoch),440L);
-    else returnFromBackground=false;
+    // Other activities (NAVER, share sheet, etc.) are not the Gallery owner.
+    // Keep the owner's pending health check until THAT Activity resumes.
+    if(returnFromBackground && hadMountedOnPause && a==nativeOwnerActivity){
+      returnCloseGuardUntil=android.os.SystemClock.uptimeMillis()+1900L;
+      main.postDelayed(()->rebindAfterReturn(a,epoch),580L);
+    }
   }
   @Override public void onActivityPaused(Activity a){
-    if(foreground==a){
-      resumed=false;++foregroundEpoch;
-      hadMountedOnPause=ownsGallery&&nativeHost!=null&&galleryRef!=null;
-      returnFromBackground=hadMountedOnPause&&!fullNativeOpen;
+    if(foreground==a){resumed=false;++foregroundEpoch;}
+    if(a==nativeOwnerActivity && ownsGallery && !fullNativeOpen){
+      hadMountedOnPause=nativeHost!=null&&galleryRef!=null;
+      returnFromBackground=hadMountedOnPause;
       backgroundStartedAt=android.os.SystemClock.uptimeMillis();
     }
   }
-  @Override public void onActivityDestroyed(Activity a){if(foreground==a){closePositionPort();foreground=null;resumed=false;clearCardMark();}}
+  @Override public void onActivityDestroyed(Activity a){
+    if(foreground==a){foreground=null;resumed=false;}
+    if(nativeOwnerActivity==a||fullscreenOwnerActivity==a){
+      closePositionPort();clearCardMark();fullscreenOwnerActivity=null;
+      returnFromBackground=false;hadMountedOnPause=false;
+    }
+  }
   @Override public void onActivityCreated(Activity a,Bundle b){}
   @Override public void onActivityStarted(Activity a){}
   @Override public void onActivityStopped(Activity a){}
