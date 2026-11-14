@@ -84,7 +84,7 @@ jobs:
           assert 'parent.addView(poster' in java and 'texture.setOpaque(false)' in java
           assert 'R578: undo R570/R572 blanket video background removal' in css
           assert 'r570OpenFavorite' in java and 'r572SyncFastSetting' in java
-          assert 'r572FirstPhotoPending=false' in java and 'r576TightenMeasuredRail' in java
+          assert 'r572FirstPhotoPending=false' in java and 'r576TightenMeasuredRail' not in java
           # R580 user-device FAIL: waiting on original images[1].drawable hid the
           # ENTIRE native host (filmstrip + eight controls), and withheld JS ACK.
           attach=java.split('private void attachCard(',1)[1].split('private void r572FinishEntry(',1)[0]
