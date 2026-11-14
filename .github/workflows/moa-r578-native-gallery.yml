@@ -1,13 +1,14 @@
-name: MOA R582 P0 restore native Gallery mount and controls
+name: MOA R584 R567 Golden rail reset + QuickRecord photo rebind
 on:
   push:
-    branches: ['feature/moa-r582-r580-native-gallery-mount-regression-repair-20261115']
+    branches: ['feature/moa-r584-r582-r567-rail-quickrecord-rebind-20261115']
     paths:
       - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
       - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
       - 'experiments/moa-r483/moa-r483-vertical-calendar.css'
       - 'experiments/moa-r570/apk_assets/web/moa-r570-photo-favorites.js'
       - 'experiments/moa-r578/**'
+      - 'experiments/moa-r584/**'
       - '.github/workflows/moa-r578-native-gallery.yml'
   workflow_dispatch:
 permissions:
@@ -32,23 +33,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p /tmp/moa578/classes /tmp/moa578/dex build/moa-r578
+          mkdir -p /tmp/moa584/classes /tmp/moa584/dex build/moa-r584
           javac -encoding UTF-8 -source 17 -target 17 \
             -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
-            -d /tmp/moa578/classes \
+            -d /tmp/moa584/classes \
             experiments/moa-r507/MoaR507InlineGalleryProvider.java
-          find /tmp/moa578/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | \
+          find /tmp/moa584/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | \
             xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 \
             --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
-            --output /tmp/moa578/dex
-          cp /tmp/moa578/dex/classes.dex build/moa-r578/classes18.dex
+            --output /tmp/moa584/dex
+          cp /tmp/moa584/dex/classes.dex build/moa-r584/classes18.dex
           python3 - <<'PY'
           from pathlib import Path
           import hashlib,json
-          p=Path('build/moa-r578/classes18.dex');b=p.read_bytes()
+          p=Path('build/moa-r584/classes18.dex');b=p.read_bytes()
           assert b[:3]==b'dex' and len(b)<200000
           data={'dex_bytes':len(b),'dex_sha256':hashlib.sha256(b).hexdigest(),'device_status':'NOT_TESTED','golden_native_17_dex':'FROZEN'}
-          Path('build/moa-r578/manifest.json').write_text(json.dumps(data,indent=2))
+          Path('build/moa-r584/manifest.json').write_text(json.dumps(data,indent=2))
           print(json.dumps(data))
           PY
       - name: JS and source regression contract
@@ -74,7 +75,12 @@ jobs:
           assert 'r578HydrateSelectedDay' in js and 'r580HydrateCalendarMonth' in js and 'r580SavedIds' in js
           assert 'r578RestoreGoldenPhotoCrop' in java and 'ImageView.ScaleType.CENTER_CROP' in java
           assert 'r578MissingPhotoId' in java and 'refreshOriginalMediaIfBlank(gallery)' in java
-          assert 'R580: the R578 film-only translation' in java and 'lower.setTranslationY(desired)' in java
+          assert 'r576TightenMeasuredRail' not in java
+          assert 'lp.height=dp(a,expanded?137:82)' in java
+          assert 'p.height=dp(a,137);lower.setLayoutParams(p)' in java
+          assert 'lower.setTranslationY(desired)' not in java
+          assert 'function r584RecoverGallery' in js and 'function r584RebindNative' in js
+          assert "window.MoaR469SimpleDiary={recoverGallery:" in js
           assert 'parent.addView(poster' in java and 'texture.setOpaque(false)' in java
           assert 'R578: undo R570/R572 blanket video background removal' in css
           assert 'r570OpenFavorite' in java and 'r572SyncFastSetting' in java
@@ -92,11 +98,18 @@ jobs:
           assert 'r572NativeMountAck=true;' in finish
           assert 'nativeHost.setVisibility(View.INVISIBLE);' not in finish
           assert 'IDBKeyRange.bound' in js and 'setTimeout(()=>r578HydrateSelectedDay(true)' in js
-          print('R582 native host/ACK P0 gate removed; original refresh, saved IDs, rail and actions preserved PASS')
+          print('R584 R567 original filmstrip geometry restored; saved capture gallery rebind/manual repair and original mount ACK PASS')
           PY
+      - name: Run original photo-card gallery recovery contract regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp experiments/moa-r507/MoaR507InlineGalleryProvider.java build/moa-r584/MoaR507InlineGalleryProvider.java
+          cp experiments/moa-r483/moa-r483-vertical-calendar.js build/moa-r584/moa-r483-vertical-calendar.js
+          MOA_R584_ROOT="$PWD/build/moa-r584" node experiments/moa-r584/test_r584_contracts.js
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MOA-R582-classes18-DEX-and-QA
-          path: build/moa-r578/
+          name: MOA-R584-classes18-DEX-and-QA
+          path: build/moa-r584/
           if-no-files-found: warn
