@@ -998,3 +998,62 @@ function r503OpenNaverLocation(media){
    finished=true;observer.disconnect();return true;
   }
   return false;
+ };
+ const observer=new MutationObserver(findNativeMap);observer.observe(pane,{childList:true,subtree:true});
+ try{window.FamilyJourneyDiaryGeo.attach(pane,mediaId);}catch(e){observer.disconnect();pane.textContent='GPS 위치 확인 중 오류가 발생했습니다.';return;}
+ findNativeMap();setTimeout(()=>{if(!finished){finished=true;observer.disconnect();}},6000);
+}
+async function saveCover(id){const s=getState();if(!s?.covers)return;const covers=s.covers;const source=ui.source;const old=covers[source]?.[ui.date];if(!covers[source])covers[source]={};covers[source][ui.date]=String(id);
+ try{await persist('meta',coverKey,covers);window.__moaR507CoverId=String(id);notify('대표 사진이 달력 표지로 저장됐습니다.');r472UpdatePager();}catch(e){if(old===undefined)delete covers[source][ui.date];else covers[source][ui.date]=old;notify('대표 사진 저장 실패: '+String(e))}}
+async function saveStory(){const s=getState();if(!s)return;const textarea=$('.moa-r469-text',view);if(!textarea)return;const text=textarea.value.trim(),day=ui.date;
+ try{const table=s.curatedEntries?.has(day)?'curated':s.entries?.has(day)?'entries':'curated';const updated=await mergeDiaryBody(day,text,table);(table==='curated'?s.curatedEntries:s.entries).set(day,updated);ui.dirty=false;notify('기존 일기 저장소에 저장했습니다. 바로기록·시간대별 기록은 보존됩니다.');}
+ catch(e){notify('저장 실패: '+String(e))}
+}
+
+function r499OpenOriginalGallery(media){
+ if(!media)return;
+ if(isVideo(media)){if(!nativePost('diaryPlayVideo',{id:String(media.id)}))playInlineVideo(media);return;}
+ const list=ui.media.filter(p=>!isVideo(p)&&safeMedia(p.id));
+ const index=list.findIndex(p=>String(p.id)===String(media.id));
+ const owner=window.FamilyJourneyNaver?.openFullGallery;
+ if(typeof owner==='function'&&index>=0){owner(list.map(p=>String(p.id)),index,dateLabel(ui.date));return}
+ notify('사진 확대를 열 수 없습니다. 원본 사진 갤러리에서 확인해 주세요.');
+}
+function parseVoices(){let list=[];try{list=JSON.parse(window.MoaLocalAudio?.list?.(ui.date)||'[]')}catch(e){}
+ return (Array.isArray(list)?list:[]).filter(x=>/^[A-Za-z0-9_-]{8,90}\.m4a$/.test(String(x?.id||''))).sort((a,b)=>(Number(a.time)||0)-(Number(b.time)||0));}
+function refreshVoices(){ui.clips=parseVoices();ui.clip=Math.max(0,Math.min(ui.clips.length-1,ui.clip));const count=$('.moa-r469-voice-head span',view);if(count)count.textContent=`음성 기록 · ${ui.clips.length}개`;
+ const play=$('.moa-r469-voice-play',view),detail=$('.moa-r469-voice-detail span',view),select=$('.moa-r469-voice-select',view);const current=ui.clips[ui.clip];
+ if(play){play.disabled=!current;play.textContent=ui.audioPlaying?'Ⅱ':'▷';}if(detail)detail.textContent=current?window.MoaVoicePlaybackUI?.metaFor?.(ui.date,current.id)?.title||`녹음 ${ui.clip+1} · ${new Date(current.time).toLocaleTimeString('ko-KR',{hour:'numeric',minute:'2-digit'})}`:'저장된 음성이 없습니다.';
+ if(select)select.textContent=ui.clips.length?`${ui.clip+1}/${ui.clips.length}⌄`:'0/0';}
+function voiceListToggle(){const list=$('.moa-r469-voice-list',view);if(!list)return;list.hidden=!list.hidden;if(list.hidden)return;list.replaceChildren();ui.clips.forEach((x,i)=>{const b=btn(`녹음 ${i+1} · ${new Date(x.time).toLocaleTimeString('ko-KR',{hour:'numeric',minute:'2-digit'})}`,()=>{window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.clip=i;list.hidden=true;refreshVoices()},'moa-r469-voice-choice');list.append(b)})}
+function playVoice(){const clip=ui.clips[ui.clip],button=$('.moa-r469-voice-play',view);if(!clip||!button)return;try{window.MoaVoicePlaybackUI?.play?.(ui.date,clip.id,button);ui.audioPlaying=!ui.audioPlaying;button.textContent=ui.audioPlaying?'Ⅱ':'▷';}catch(e){notify('음성을 재생할 수 없습니다: '+String(e))}}
+function openNativeRecorder(){const s=getState();if(!s)return;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;
+ // Existing voice host accepts only S.page==='day'; call the *original* day navigation
+ // so all original record-save side-effects, UID and data ownership remain intact.
+ if(s.page!=='day'||s.date!==ui.date){s.mode='curated';window.FamilyJourneyDiary?.selectDay?.(ui.date)}
+ const result=window.MoaVoiceDiaryNative?.open?.();if(!result){notify('기존 녹음 화면 연결이 준비되지 않았습니다.');return}
+ const check=()=>{if(!ui.open)return;if(document.getElementById('moa-r149-voice-modal')){setTimeout(check,1200);return;}refreshVoices()};setTimeout(check,1300);
+}
+function playInlineVideo(media){
+ const slide=$(`.moa-r472-slide[data-idx="${ui.idx}"]`,view);if(!slide||!isVideo(media))return;
+ const old=slide.querySelector('video');if(old){old.paused?old.play().catch(()=>{}):old.pause();return;}
+ window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;
+ const video=elem('video','moa-r469-inline-video');video.controls=true;video.playsInline=true;video.preload='metadata';
+ video.poster=slide.querySelector('img')?.src||'';
+ // Android WebView must be allowed to read the MediaStore URI. On devices that reject it,
+ // original native playback stays a user-visible explicit fallback, not a false success.
+ video.src=`content://media/external/video/media/${String(media.id).slice(1)}`;
+ video.onerror=()=>{
+  video.pause();video.removeAttribute('src');video.load();video.remove();
+  notify('이 기기에서 화면 내 영상 열기가 제한되어 있습니다. 원본 재생기를 사용할 수 있습니다.');
+  if(!slide.querySelector('.moa-r469-native-fallback'))slide.append(btn('원본 재생기로 보기',()=>nativePost('diaryPlayVideo',{id:media.id}),'moa-r469-native-fallback'));
+ };
+ slide.querySelector('.moa-r469-video-play')?.remove();slide.append(video);
+ video.addEventListener('play',()=>{const b=slide.querySelector('.moa-r499-video-play');if(b)b.textContent='Ⅱ'});video.addEventListener('pause',()=>{const b=slide.querySelector('.moa-r499-video-play');if(b)b.textContent='▶'});video.play().catch(()=>{video.controls=true});
+}
+
+const originalAudioEvent=window.__moaNativeAudioEvent;
+if(typeof originalAudioEvent==='function'){window.__moaNativeAudioEvent=function(evt){originalAudioEvent.apply(this,arguments);if(!ui.open||ui.page!=='day')return;const event=String(evt?.event||'');if(event==='play_started'||event==='play_resumed'){ui.audioPlaying=true;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='Ⅱ';}else if(['play_paused','play_finished','play_error'].includes(event)){ui.audioPlaying=false;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='▷';}if(['record_saved','delete'].includes(event))setTimeout(refreshVoices,250);};}
+window.MoaR469SimpleDiary={openAdvancedGallery:()=>window.__moaR531ShowAdvanced?.(),openCalendar:()=>open('calendar'),openDay:d=>open('day',d),setCoverNative:id=>{if(ui.open&&ui.page==='day'&&ui.media.some(m=>String(m.id)===String(id)))saveCover(id)},home:()=>ui.open?(ui.page==='day'?goBack():true):false,close,readOnlyStatus:()=>({active:ui.open,page:ui.page,date:ui.date,mediaCount:ui.media.length,voiceCount:ui.clips.length})};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
