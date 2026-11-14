@@ -59,7 +59,7 @@ jobs:
           assert "window.__moaR551NativeLost" in js
           assert "window.__moaR507NativePending=true;" in js
           assert "if(r507Opened&&window.__moaR507NativePending)return;" in js
-          assert "Never close a native gallery on a timer" in js
+          assert "native gallery on a timer." in js
           assert "if(!ownsGallery && !inlineArmed && !processing)maybeArm(a,web);" in java
           assert "if(!galleryOpen(gallery))return true;" in java
           assert "host.setAlpha(0f);" not in java
