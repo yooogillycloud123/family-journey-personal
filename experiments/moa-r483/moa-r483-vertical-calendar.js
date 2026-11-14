@@ -31,12 +31,59 @@ let r527DayToken=0;
 window.__moaR527DayToken=0;
 let r527GeometryPort=null, r527FrameQueued=false, r527LastSentAt=0;
 let r527LastRect='';
+// R539: two independently composited surfaces cannot move in exact phase.
+// While the diary scrolls, show the existing SAME-media WebView poster (one
+// compositor), hide only native-host PIXELS (alpha), keeping native touch owner
+// and MediaPlayer alive. Restore real native pixels after final geometry flush.
+let r539ProxyActive=false,r539ProxyTimer=0,r539LastWake=0,r539HiddenAt=0;
+const R539_STABLE_SCROLL_KEY='moa.r539.scroll.web.proxy.v1';
+function r539StableScroll(){try{return localStorage.getItem(R539_STABLE_SCROLL_KEY)!=='off'}catch(_){return true}}
+function r539ProxyMessage(enabled){
+ if(!r527GeometryPort)return;
+ try{r527GeometryPort.postMessage('s,'+window.__moaR527DayToken+','+(enabled?'1':'0'))}catch(_){r527GeometryPort=null}
+}
+function r539EndProxy(){
+ clearTimeout(r539ProxyTimer);r539ProxyTimer=0;
+ if(!r539ProxyActive)return;
+ r527SyncGeometry(true);
+ r539ProxyMessage(false);
+ r539ProxyActive=false;view?.classList.remove('moa-r539-scroll-proxy');
+}
+function r539OnDayScroll(){
+ if(!r539StableScroll()||!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced||
+     !window.__moaR507NativePending||!view?.classList.contains('moa-r507-native-mounted'))return;
+ if(!r539ProxyActive){
+  r539ProxyActive=true;
+  view.classList.add('moa-r539-scroll-proxy');
+  r539ProxyMessage(true);
+ }
+ clearTimeout(r539ProxyTimer);
+ r539ProxyTimer=setTimeout(()=>requestAnimationFrame(r539EndProxy),160);
+}
+// Both Android resumed and document visibility can signal a return; duplicate
+// hints are debounced. A native handshake, not the JS renderer, owns the close.
+function r539WakeNative(){
+ if(!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced)return false;
+ const now=Date.now();if(now-r539LastWake<750)return false;r539LastWake=now;
+ if(r527GeometryPort){
+  try{r527GeometryPort.postMessage('r,'+window.__moaR527DayToken)}catch(_){r527GeometryPort=null}
+ }
+ return true;
+}
+window.__moaR539AppVisible=r539WakeNative;
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden){r539HiddenAt=Date.now();return;}
+ if(r539HiddenAt){const elapsed=Date.now()-r539HiddenAt;r539HiddenAt=0;
+  if(elapsed>=150)setTimeout(r539WakeNative,180);
+ }
+},{passive:true});
 const r527TrustedOrigin=()=>location.origin==='https://familyjourney.local';
 function r527BeginDay(){
  r523DayExiting=false;r515RecoveryAttempts=0;
  window.__moaR527DayToken=++r527DayToken;
- r527LastRect='';
+ r527LastRect='';r539EndProxy();
 }
+
 function r527SyncGeometry(force=false){
  if(!ui.open||ui.page!=='day'||r523DayExiting||!window.__moaR507NativePending||!r527GeometryPort)return;
  if(r527FrameQueued&&!force)return;
@@ -60,7 +107,7 @@ function r527SyncGeometry(force=false){
 window.addEventListener('message',ev=>{
  if(!r527TrustedOrigin()||ev.data!=='MOA_R527_POSITION_CHANNEL'||!ev.ports?.length)return;
  try{r527GeometryPort?.close()}catch(_){}
- r527GeometryPort=ev.ports[0];r527LastRect='';r527SyncGeometry(true);
+ r527GeometryPort=ev.ports[0];r527LastRect='';r527SyncGeometry(true);if(r539ProxyActive)r539ProxyMessage(true);
 },false);
 window.__moaR527BridgeListenReady=true;
 window.addEventListener('resize',()=>r527SyncGeometry(true),{passive:true});
@@ -92,6 +139,7 @@ window.__moaR507NativeSelected=function(index){
 };
 // R531: the original R463 Gallery remains the only fullscreen media owner.
 let r531Advanced=false;
+window.__moaR539AdvancedActive=()=>r531Advanced;
 window.__moaR531ShowAdvanced=function(){
  if(!ui.open||ui.page!=='day'||!ui.media.length)return false;
  const ids=ui.media.map(m=>String(m.id));
@@ -104,6 +152,19 @@ window.__moaR531ShowAdvanced=function(){
  if(!ok){r531Advanced=false;setTimeout(()=>{if(ui.open&&ui.page==='day')r507StartInline()},100);}
  return ok;
 };
+// R539: selected index/MediaStore ID from the ORIGINAL fullscreen Gallery is
+// the single source of truth when it closes, not the index at expansion time.
+window.__moaR539AdvancedSelection=function(index,id){
+ if(!r531Advanced||!ui.open||ui.page!=='day')return false;
+ const wanted=String(id||'');let next=ui.media.findIndex(m=>String(m.id)===wanted);
+ if(next<0){const i=Number(index);if(Number.isSafeInteger(i)&&i>=0&&i<ui.media.length)next=i;}
+ if(next<0)return false;
+ ui.idx=next;
+ const track=view?.querySelector('.moa-r472-track');
+ if(track&&track.clientWidth)track.scrollLeft=next*track.clientWidth;
+ r472UpdatePager();r472LazyPhotos();
+ return true;
+};
 window.__moaR531AdvancedClosed=function(){
  if(!r531Advanced)return false;
  r531Advanced=false;
@@ -114,13 +175,23 @@ window.__moaR531AdvancedClosed=function(){
 // while Gallery.isOpen remains true. Restart ONLY the inline renderer, never
 // reset the page/diary or fire a native day-exit/back handler.
 window.__moaR535ResumeInline=function(token){
+ return window.__moaR539RecoverAfterReturn(token);
+};
+// Native verified the live day before closing an orphaned SurfaceTexture.
+// Reopening is one generation; never render a fresh diary day or reset index.
+window.__moaR539RecoverAfterReturn=function(token){
  if(Number(token)!==window.__moaR527DayToken||!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced)return false;
- r507StopInline();r515RecoveryAttempts=0;r527BeginDay();
+ r539EndProxy();r507StopInline();r515RecoveryAttempts=0;
+ r527BeginDay();
  if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
- setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting&&!r531Advanced)r507StartInline()},220);
+ clearTimeout(r507Timer);
+ r507Timer=setTimeout(()=>{
+  if(ui.open&&ui.page==='day'&&!r523DayExiting&&!r531Advanced)r507StartInline();
+ },150);
  return true;
 };
 function r507StopInline(){
+ r539EndProxy();
  ++r507Generation;clearTimeout(r507Timer);r507Timer=0;
  const opened=r507Opened;
  r507Opened=false;window.__moaR507NativePending=false;window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
@@ -410,7 +481,7 @@ function r472RefreshVisibleThumbs(){if(!ui.open||!view||view.hidden)return;
 window.addEventListener('pageshow',()=>{setTimeout(r472RefreshVisibleThumbs,200)},{passive:true});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(r472RefreshVisibleThumbs,300)},{passive:true});
 
-function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('scroll',()=>r527SyncGeometry(),{passive:true});n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
+function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('scroll',()=>{r539OnDayScroll();r527SyncGeometry();},{passive:true});n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
 function open(page='calendar',day){const s=getState();if(!s?.open)return false;r527BeginDay();mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
  try{localStorage.setItem(KEY,'simple')}catch(e){}r495SyncLegacyRoot();r495InstallBackHandlers();render();r475LastDataKey=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');installBack();setTimeout(r475RefreshFamily,100);return true;}
 function close(){r507StopInline();r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.open=false;ui.requestGeneration++;if(view)view.hidden=true;r495SyncLegacyRoot();try{localStorage.removeItem(KEY)}catch(e){}return true;}
@@ -449,9 +520,34 @@ function r475ModeToggle(active,onPhoto,onDetail){
  const wrap=r483Pill(active,[{key:'photo',label:'사진형'},{key:'detail',label:'상세형'}],mode=>{if(mode==='photo')onPhoto();else onDetail()},'moa-r483-day-mode');
  wrap.classList.add('moa-r475-view-toggle');return wrap;
 }
+// R539: both modes build precisely one shared day header from the SAME factory.
+// The original R463 detailed ⋯ settings trigger remains attached and callable;
+// we hide only its old visible chrome, never delete or override the menu owner.
+function r539DayChrome(mode,day,onPhoto,onDetail,onSettings){
+ const frame=elem('div','moa-r539-day-chrome');
+ const title=elem('header','moa-r539-day-head');title.append(elem('strong','',dateLabel(day)));
+ const controls=elem('div','moa-r539-day-controls');
+ const switcher=r475ModeToggle(mode,onPhoto,onDetail);
+ switcher.classList.add(mode==='photo'?'moa-r475-photo-switch':'moa-r475-detail-switch');
+ const settings=btn('···',onSettings,'moa-r539-day-settings');
+ settings.setAttribute('aria-label','일기 보기 설정 및 관리');settings.title='일기 보기 설정';
+ controls.append(switcher,settings);frame.append(title,controls);return frame;
+}
+function r539PhotoSettings(){
+ const open=view?.querySelector('.moa-r539-photo-settings');if(open){open.remove();return}
+ const controls=view?.querySelector('.moa-r539-day-controls');if(!controls)return;
+ const panel=elem('div','moa-r539-photo-settings');panel.setAttribute('role','group');panel.setAttribute('aria-label','사진형 보기 설정');
+ const option=elem('label','moa-r539-stable-option');const check=elem('input');check.type='checkbox';check.checked=r539StableScroll();
+ check.addEventListener('change',()=>{try{localStorage.setItem(R539_STABLE_SCROLL_KEY,check.checked?'on':'off')}catch(_){}if(!check.checked)r539EndProxy();});
+ option.append(check,elem('span','','스크롤 중 화면 고정'));panel.append(option);
+ const details=btn('상세형 보기 설정',()=>{panel.remove();r475OpenDetail(ui.date);setTimeout(()=>{diaryRoot()?.querySelector('.moa-r191-day-menu-trigger')?.click();},120)},'moa-r539-settings-detail');
+ panel.append(details);
+ const retry=btn('현재 사진 다시 표시',()=>{panel.remove();r539WakeNative()},'moa-r539-settings-detail');
+ panel.append(retry);controls.append(panel);
+}
 function r475OpenDetail(day){if(ui.dirty){notify('작성 중인 글을 먼저 저장한 뒤 상세형으로 전환해 주세요.');return;}
  // Render the ORIGINAL detailed editor first while covered by current Photo View.
- // No duplicate diary form/records; the original owner remains intact.
+ // No duplicate diary form/records; original settings/timeline/data are owned there.
  const s=getState();if(!s)return;
  s.mode=ui.source;
  window.FamilyJourneyDiary?.selectDay?.(day);
@@ -459,14 +555,15 @@ function r475OpenDetail(day){if(ui.dirty){notify('작성 중인 글을 먼저 �
 }
 function r475DecorateDetail(){
  const s=getState(),root=diaryRoot();if(!s?.open||s.page!=='day'||!root||root.hidden||ui.open)return;
- if(root.querySelector('.moa-r475-detail-switch'))return;
+ if(root.querySelector('.moa-r539-day-chrome'))return;
  const top=root.querySelector('.fd23-top');if(!top)return;
- const bar=r475ModeToggle('detail',()=>{
+ const day=s.date||ui.date;
+ const chrome=r539DayChrome('detail',day,()=>{
   const state=getState();if(state?.dirty&&state?.editing&&!confirm('저장하지 않은 변경사항이 있습니다. 사진형으로 이동할까요?'))return;
   if(state?.mode==='automatic'||state?.mode==='curated')ui.source=state.mode;
-  open('day',state?.date||s.date);
- },()=>{});
- bar.classList.add('moa-r475-detail-switch');top.insertAdjacentElement('afterend',bar);
+  open('day',state?.date||day);
+ },()=>{},()=>root.querySelector('.moa-r191-day-menu-trigger')?.click());
+ top.insertAdjacentElement('afterend',chrome);
 }
 function addMode(){
  const s=getState(),root=diaryRoot();r495SyncLegacyRoot();r495InstallBackHandlers();r495InstallScrollSetting();
@@ -708,9 +805,7 @@ function dayMedia(index){const m=ui.media[index];return m&&safeMedia(m.id)?m:nul
 function setDay(day){if(!valid(day))return;ui.date=day;ui.selected=day;ui.page='day';ui.fast=false;ui.idx=0;ui.dirty=false;r527BeginDay();render();}
 function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui.date,s=getState();if(!valid(d)||!s)return;ui.media=mediaFor(d);const chosen=mainCover(d,ui.media);const ri=ui.media.findIndex(x=>String(x.id)===String(chosen?.id));ui.idx=Math.min(ui.media.length-1,Math.max(0,ui.idx||ri));if(ui.idx===0&&ri>0)ui.idx=ri;
  const current=s.curatedEntries?.get(d)||s.entries?.get(d),wrap=elem('div','moa-r469-day');
- wrap.append(header(dateLabel(d),goBack));
- const views=r475ModeToggle('photo',()=>{},()=>r475OpenDetail(d));
- views.classList.add('moa-r475-photo-switch');wrap.append(views);
+ wrap.append(r539DayChrome('photo',d,()=>{},()=>r475OpenDetail(d),r539PhotoSettings));
  const stage=elem('div','moa-r469-stage');stage.dataset.moaStage='yes';stage.tabIndex=0;stage.setAttribute('aria-label','사진 영상 좌우로 이동');stage.append(elem('div','moa-r469-stage-media'));
  const coverStar=btn('☆',()=>{const media=dayMedia(ui.idx);if(media)saveCover(media.id)},'moa-r503-cover-star');
  coverStar.setAttribute('aria-label','현재 사진을 달력 대표 사진으로 지정');coverStar.title='달력 대표 사진으로 지정';stage.append(coverStar);
@@ -903,62 +998,3 @@ function r503OpenNaverLocation(media){
    finished=true;observer.disconnect();return true;
   }
   return false;
- };
- const observer=new MutationObserver(findNativeMap);observer.observe(pane,{childList:true,subtree:true});
- try{window.FamilyJourneyDiaryGeo.attach(pane,mediaId);}catch(e){observer.disconnect();pane.textContent='GPS 위치 확인 중 오류가 발생했습니다.';return;}
- findNativeMap();setTimeout(()=>{if(!finished){finished=true;observer.disconnect();}},6000);
-}
-async function saveCover(id){const s=getState();if(!s?.covers)return;const covers=s.covers;const source=ui.source;const old=covers[source]?.[ui.date];if(!covers[source])covers[source]={};covers[source][ui.date]=String(id);
- try{await persist('meta',coverKey,covers);window.__moaR507CoverId=String(id);notify('대표 사진이 달력 표지로 저장됐습니다.');r472UpdatePager();}catch(e){if(old===undefined)delete covers[source][ui.date];else covers[source][ui.date]=old;notify('대표 사진 저장 실패: '+String(e))}}
-async function saveStory(){const s=getState();if(!s)return;const textarea=$('.moa-r469-text',view);if(!textarea)return;const text=textarea.value.trim(),day=ui.date;
- try{const table=s.curatedEntries?.has(day)?'curated':s.entries?.has(day)?'entries':'curated';const updated=await mergeDiaryBody(day,text,table);(table==='curated'?s.curatedEntries:s.entries).set(day,updated);ui.dirty=false;notify('기존 일기 저장소에 저장했습니다. 바로기록·시간대별 기록은 보존됩니다.');}
- catch(e){notify('저장 실패: '+String(e))}
-}
-
-function r499OpenOriginalGallery(media){
- if(!media)return;
- if(isVideo(media)){if(!nativePost('diaryPlayVideo',{id:String(media.id)}))playInlineVideo(media);return;}
- const list=ui.media.filter(p=>!isVideo(p)&&safeMedia(p.id));
- const index=list.findIndex(p=>String(p.id)===String(media.id));
- const owner=window.FamilyJourneyNaver?.openFullGallery;
- if(typeof owner==='function'&&index>=0){owner(list.map(p=>String(p.id)),index,dateLabel(ui.date));return}
- notify('사진 확대를 열 수 없습니다. 원본 사진 갤러리에서 확인해 주세요.');
-}
-function parseVoices(){let list=[];try{list=JSON.parse(window.MoaLocalAudio?.list?.(ui.date)||'[]')}catch(e){}
- return (Array.isArray(list)?list:[]).filter(x=>/^[A-Za-z0-9_-]{8,90}\.m4a$/.test(String(x?.id||''))).sort((a,b)=>(Number(a.time)||0)-(Number(b.time)||0));}
-function refreshVoices(){ui.clips=parseVoices();ui.clip=Math.max(0,Math.min(ui.clips.length-1,ui.clip));const count=$('.moa-r469-voice-head span',view);if(count)count.textContent=`음성 기록 · ${ui.clips.length}개`;
- const play=$('.moa-r469-voice-play',view),detail=$('.moa-r469-voice-detail span',view),select=$('.moa-r469-voice-select',view);const current=ui.clips[ui.clip];
- if(play){play.disabled=!current;play.textContent=ui.audioPlaying?'Ⅱ':'▷';}if(detail)detail.textContent=current?window.MoaVoicePlaybackUI?.metaFor?.(ui.date,current.id)?.title||`녹음 ${ui.clip+1} · ${new Date(current.time).toLocaleTimeString('ko-KR',{hour:'numeric',minute:'2-digit'})}`:'저장된 음성이 없습니다.';
- if(select)select.textContent=ui.clips.length?`${ui.clip+1}/${ui.clips.length}⌄`:'0/0';}
-function voiceListToggle(){const list=$('.moa-r469-voice-list',view);if(!list)return;list.hidden=!list.hidden;if(list.hidden)return;list.replaceChildren();ui.clips.forEach((x,i)=>{const b=btn(`녹음 ${i+1} · ${new Date(x.time).toLocaleTimeString('ko-KR',{hour:'numeric',minute:'2-digit'})}`,()=>{window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.clip=i;list.hidden=true;refreshVoices()},'moa-r469-voice-choice');list.append(b)})}
-function playVoice(){const clip=ui.clips[ui.clip],button=$('.moa-r469-voice-play',view);if(!clip||!button)return;try{window.MoaVoicePlaybackUI?.play?.(ui.date,clip.id,button);ui.audioPlaying=!ui.audioPlaying;button.textContent=ui.audioPlaying?'Ⅱ':'▷';}catch(e){notify('음성을 재생할 수 없습니다: '+String(e))}}
-function openNativeRecorder(){const s=getState();if(!s)return;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;
- // Existing voice host accepts only S.page==='day'; call the *original* day navigation
- // so all original record-save side-effects, UID and data ownership remain intact.
- if(s.page!=='day'||s.date!==ui.date){s.mode='curated';window.FamilyJourneyDiary?.selectDay?.(ui.date)}
- const result=window.MoaVoiceDiaryNative?.open?.();if(!result){notify('기존 녹음 화면 연결이 준비되지 않았습니다.');return}
- const check=()=>{if(!ui.open)return;if(document.getElementById('moa-r149-voice-modal')){setTimeout(check,1200);return;}refreshVoices()};setTimeout(check,1300);
-}
-function playInlineVideo(media){
- const slide=$(`.moa-r472-slide[data-idx="${ui.idx}"]`,view);if(!slide||!isVideo(media))return;
- const old=slide.querySelector('video');if(old){old.paused?old.play().catch(()=>{}):old.pause();return;}
- window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;
- const video=elem('video','moa-r469-inline-video');video.controls=true;video.playsInline=true;video.preload='metadata';
- video.poster=slide.querySelector('img')?.src||'';
- // Android WebView must be allowed to read the MediaStore URI. On devices that reject it,
- // original native playback stays a user-visible explicit fallback, not a false success.
- video.src=`content://media/external/video/media/${String(media.id).slice(1)}`;
- video.onerror=()=>{
-  video.pause();video.removeAttribute('src');video.load();video.remove();
-  notify('이 기기에서 화면 내 영상 열기가 제한되어 있습니다. 원본 재생기를 사용할 수 있습니다.');
-  if(!slide.querySelector('.moa-r469-native-fallback'))slide.append(btn('원본 재생기로 보기',()=>nativePost('diaryPlayVideo',{id:media.id}),'moa-r469-native-fallback'));
- };
- slide.querySelector('.moa-r469-video-play')?.remove();slide.append(video);
- video.addEventListener('play',()=>{const b=slide.querySelector('.moa-r499-video-play');if(b)b.textContent='Ⅱ'});video.addEventListener('pause',()=>{const b=slide.querySelector('.moa-r499-video-play');if(b)b.textContent='▶'});video.play().catch(()=>{video.controls=true});
-}
-
-const originalAudioEvent=window.__moaNativeAudioEvent;
-if(typeof originalAudioEvent==='function'){window.__moaNativeAudioEvent=function(evt){originalAudioEvent.apply(this,arguments);if(!ui.open||ui.page!=='day')return;const event=String(evt?.event||'');if(event==='play_started'||event==='play_resumed'){ui.audioPlaying=true;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='Ⅱ';}else if(['play_paused','play_finished','play_error'].includes(event)){ui.audioPlaying=false;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='▷';}if(['record_saved','delete'].includes(event))setTimeout(refreshVoices,250);};}
-window.MoaR469SimpleDiary={openAdvancedGallery:()=>window.__moaR531ShowAdvanced?.(),openCalendar:()=>open('calendar'),openDay:d=>open('day',d),setCoverNative:id=>{if(ui.open&&ui.page==='day'&&ui.media.some(m=>String(m.id)===String(id)))saveCover(id)},home:()=>ui.open?(ui.page==='day'?goBack():true):false,close,readOnlyStatus:()=>({active:ui.open,page:ui.page,date:ui.date,mediaCount:ui.media.length,voiceCount:ui.clips.length})};
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
-})();
