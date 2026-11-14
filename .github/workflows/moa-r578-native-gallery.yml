@@ -1,7 +1,7 @@
-name: MOA R580 R567-Golden-safe native card source+DEX regression
+name: MOA R582 P0 restore native Gallery mount and controls
 on:
   push:
-    branches: ['feature/moa-r580-r578-photo-day-consistency-smooth-reveal-rail-20261115']
+    branches: ['feature/moa-r582-r580-native-gallery-mount-regression-repair-20261115']
     paths:
       - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
       - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
@@ -79,13 +79,24 @@ jobs:
           assert 'R578: undo R570/R572 blanket video background removal' in css
           assert 'r570OpenFavorite' in java and 'r572SyncFastSetting' in java
           assert 'r572FirstPhotoPending=false' in java and 'r576TightenMeasuredRail' in java
-          assert 'r580PhotoPending' in java and 'r580AwaitPhotoId' in java
+          # R580 user-device FAIL: waiting on original images[1].drawable hid the
+          # ENTIRE native host (filmstrip + eight controls), and withheld JS ACK.
+          attach=java.split('private void attachCard(',1)[1].split('private void r572FinishEntry(',1)[0]
+          finish=java.split('private void r572FinishEntry(',1)[1].split('private void r572SyncFastSetting(',1)[0]
+          assert 'r580PhotoPending' not in java and 'r580AwaitPhotoId' not in java
+          assert 'actualMediaReady(gallery)' not in attach
+          assert 'actualMediaReady(gallery)' not in finish
+          assert 'if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);' in attach
+          assert 'else host.setVisibility(View.VISIBLE);' in attach
+          assert 'window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true)' in finish
+          assert 'r572NativeMountAck=true;' in finish
+          assert 'nativeHost.setVisibility(View.INVISIBLE);' not in finish
           assert 'IDBKeyRange.bound' in js and 'setTimeout(()=>r578HydrateSelectedDay(true)' in js
-          print('R580 photo drawable gate, canonical saved-IDs, calendar+day IDB refresh, measured native lower rail contracts PASS')
+          print('R582 native host/ACK P0 gate removed; original refresh, saved IDs, rail and actions preserved PASS')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MOA-R580-classes18-DEX-and-QA
+          name: MOA-R582-classes18-DEX-and-QA
           path: build/moa-r578/
           if-no-files-found: warn
