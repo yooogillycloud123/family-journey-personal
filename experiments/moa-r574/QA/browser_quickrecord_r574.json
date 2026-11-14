@@ -1,0 +1,38 @@
+[
+  {
+    "case": "new capture before MediaStore index",
+    "result": "PASS",
+    "state": {
+      "n": 0,
+      "scan": 1,
+      "media": 1,
+      "stage": true
+    }
+  },
+  {
+    "case": "original Gallery opens only AFTER index",
+    "result": "PASS",
+    "state": {
+      "ids": [
+        "987650001"
+      ],
+      "index": 0,
+      "day": "2026-11-14"
+    }
+  },
+  {
+    "case": "old indexed photo direct route unaffected",
+    "result": "PASS",
+    "state": {
+      "ids": [
+        "987650002"
+      ],
+      "index": 0,
+      "day": "2026-11-14"
+    }
+  },
+  {
+    "case": "active empty photo-day sees asynchronous Quick Record attachment",
+    "result": "PASS"
+  }
+]
