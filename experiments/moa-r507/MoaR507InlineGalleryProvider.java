@@ -773,10 +773,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       p.height=dp(a,34);p.width=Math.min(Math.max(dp(a,260),host.getWidth()-dp(a,18)),dp(a,306));
       p.bottomMargin=dp(a,1);capsule.setLayoutParams(p);
     }
-    // R572: native footer visually SEPARATE from media. It remains inside the
-    // trusted nativeHost hit bounds (no negative margins / lost touch events).
-    GradientDrawable footer=new GradientDrawable();footer.setColor(0xf61c1d23);
-    footer.setStroke(dp(a,.45f),0x775c5d66);deck.setBackground(footer);
+    // R588: keep the oval eight-action capsule, remove ONLY R572's extra
+    // full-width charcoal footer/stroke outside it (R574 verified visual fix).
+    deck.setBackgroundColor(Color.TRANSPARENT);
     GradientDrawable bg=new GradientDrawable();bg.setColor(0x90212229);bg.setCornerRadius(dp(a,19));
     bg.setStroke(dp(a,.5f),0x447d828c);capsule.setBackground(bg);
     for(int i=0;i<capsule.getChildCount();i++){
