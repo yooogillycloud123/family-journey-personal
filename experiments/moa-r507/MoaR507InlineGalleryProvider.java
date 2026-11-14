@@ -124,6 +124,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private int foregroundEpoch=0;
   private boolean hadMountedOnPause=false;
   private long lastRebindAt=0L;
+  private long lastMediaRefreshAt=0L;
   // R555: native original R227 onPause closes Gallery when its retention flag
   // is absent. A regular onActivityPaused callback runs TOO LATE to prevent it.
   private Object prePausedRetainedGallery;
@@ -300,50 +301,36 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       return;
     }
     if(!galleryOpen(gallery)){
-      // On activity return the original renderer can lose its SurfaceTexture
-      // without a user Back. Let the guarded resume transaction restore it;
-      // do not interpret this lifecycle gap as intentional day exit.
+      // R563 restores the R535 physically successful rule: in the SAME
+      // foreground MOA photo-day, original R463 Gallery.close() means a Back.
+      // A real background/resume is handled independently; do not exit day
+      // when Activity was paused or is within the SurfaceTexture return guard.
+      final long now=android.os.SystemClock.uptimeMillis();
       if(ownsGallery && !fullNativeOpen &&
-          (returnFromBackground || android.os.SystemClock.uptimeMillis()<returnCloseGuardUntil))return;
+          (returnFromBackground || now<returnCloseGuardUntil ||
+           nativeOwnerActivity!=a || !a.hasWindowFocus()))return;
       ensurePositionChannel(web);
       if(!ownsGallery)retireDayBackIfInactive(a,web);
-      if(ownsGallery) {
-        // R551: an isOpen=false observation may be a media transition, external
-        // Activity return, or an old host being retired. It is NOT evidence of
-        // the user's Back gesture. The overlay Back callback explicitly exits.
-        long now=android.os.SystemClock.uptimeMillis();
+      if(ownsGallery){
         if(nativeCloseDetectedAt==0L){nativeCloseDetectedAt=now;return;}
-        if(now-nativeCloseDetectedAt<380L)return;
-        final int closedToken=ownedDayToken;
+        if(now-nativeCloseDetectedAt<180L)return;
         final Activity owner=a;
         final Object oldGallery=galleryRef;
-        nativeCloseDetectedAt=now;
-        web.evaluateJavascript("(function(){try{var d=window.MoaR469SimpleDiary,"+
-          "s=d&&d.readOnlyStatus&&d.readOnlyStatus();return JSON.stringify({day:!!("+
-          "s&&s.active&&s.page==='day'),pending:!!window.__moaR507NativePending,"+
-          "token:window.__moaR527DayToken||0,full:!!(window.__moaR539AdvancedActive&&"+
-          "window.__moaR539AdvancedActive())});}catch(e){return '{}'}})()",raw->{
-            if(!resumed||foreground!=owner||!ownsGallery||galleryRef!=oldGallery||
-                galleryOpen(readField(owner,"unifiedGallery")))return;
-            try{
-              Object data=new JSONTokener(raw).nextValue();
-              if(!(data instanceof String))return;
-              JSONObject state=new JSONObject((String)data);
-              boolean sameDay=state.optBoolean("day")&&state.optBoolean("pending")&&
-                  state.optInt("token",0)==closedToken&&!state.optBoolean("full");
-              clearCardMark();
-              if(sameDay){
-                // A lost native renderer is repaired as a NATIVE renderer only.
-                // It must never invoke the old Web Gallery or exit the day.
-                web.evaluateJavascript("window.__moaR551NativeLost&&"+
-                  "window.__moaR551NativeLost("+closedToken+");",null);
-              }
-            }catch(Throwable ignored){}
-          });
+        final String nativeDay=String.valueOf(readField(gallery,"currentDay"));
+        // Never call R551 NativeLost() here: it reopened a deliberately closed
+        // Gallery and left gray/legacy states after the user's first Back.
+        if(resumed && foreground==owner && owner.hasWindowFocus() &&
+            galleryRef==oldGallery && !galleryOpen(gallery)){
+          suppressArmUntil=now+1000L;
+          clearCardMark();dropDayBack();
+          web.evaluateJavascript("window.__moaR563ForegroundNativeClosed&&"+
+              "window.__moaR563ForegroundNativeClosed("+
+              JSONObject.quote("null".equals(nativeDay)?"":nativeDay)+");",null);
+        }
         return;
       }
-      if(android.os.SystemClock.uptimeMillis()-lastHello>1000){
-        lastHello=android.os.SystemClock.uptimeMillis();
+      if(now-lastHello>1000){
+        lastHello=now;
         web.evaluateJavascript("window.__moaR507BridgeReady=true;",null);
       }
       maybeArm(a,web);
@@ -915,6 +902,40 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // R543 indiscriminately invoked Gallery.close() on every NAVER return even if
   // isOpen==true and its host was attached. That closed working media and
   // triggered the R543 JS timeout -> legacy Web fallback -> repeated rebuild.
+  // R563: isOpen + host parent is NOT a proof that photos/video have been
+  // rendered after Android temporarily suspends the activity. The R463
+  // Gallery has its own refreshPages() routine; prefer that without closing
+  // its host, changing current index or swapping players to a web fallback.
+  private boolean actualMediaReady(Object gallery){
+    if(!galleryOpen(gallery))return false;
+    final String id=currentId(gallery);
+    if(id.isEmpty())return false;
+    if(id.startsWith("v")){
+      Object raw=readField(gallery,"texture");
+      return raw instanceof TextureView && ((TextureView)raw).isAvailable() &&
+          Boolean.TRUE.equals(readField(gallery,"prepared")) &&
+          readField(gallery,"media") instanceof MediaPlayer;
+    }
+    Object arr=readField(gallery,"images");
+    if(arr instanceof ImageView[]){
+      ImageView[] imgs=(ImageView[])arr;
+      return imgs.length>1 && imgs[1]!=null && imgs[1].getDrawable()!=null;
+    }
+    return false;
+  }
+  private void refreshOriginalMediaIfBlank(Object gallery){
+    if(!galleryOpen(gallery)||actualMediaReady(gallery))return;
+    final long now=android.os.SystemClock.uptimeMillis();
+    if(now-lastMediaRefreshAt<1800L)return;
+    lastMediaRefreshAt=now;
+    try{
+      Method m=gallery.getClass().getDeclaredMethod("refreshPages");
+      m.setAccessible(true);m.invoke(gallery);
+      android.util.Log.i("MOA_R563","ORIGINAL_MEDIA_PAGE_REFRESH index="+readField(gallery,"index"));
+    }catch(Throwable ex){
+      android.util.Log.w("MOA_R563","ORIGINAL_MEDIA_PAGE_REFRESH_FAILED_"+ex.getClass().getSimpleName());
+    }
+  }
   private void rebindAfterReturn(Activity a,int epoch){
     if(!resumed||a==null||foreground!=a||epoch!=foregroundEpoch||
        !returnFromBackground||fullNativeOpen||a.isFinishing()||a.isDestroyed()||
@@ -934,6 +955,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       nativeHost.setAlpha(1f);
       nativeHost.bringToFront();
       nativeHost.requestLayout();nativeHost.invalidate();
+      refreshOriginalMediaIfBlank(gallery);
       web.evaluateJavascript("(function(){try{window.__moaR559RepositionNative&&window.__moaR559RepositionNative()}catch(e){}})()",null);
       android.util.Log.i("MOA_R555","RETURN_GALLERY_HEALTHY preserved="+(prePauseRetainAt>0));
       return;
@@ -963,7 +985,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         if(galleryOpen(live)&&live==galleryRef&&nativeHost!=null&&
            readField(live,"host")==nativeHost&&nativeHost.getParent()==rr){
           returnFromBackground=false;nativeHost.setAlpha(1f);
-          nativeHost.bringToFront();nativeHost.invalidate();return;}
+          nativeHost.bringToFront();nativeHost.invalidate();
+          refreshOriginalMediaIfBlank(live);return;}
         returnFromBackground=false;hadMountedOnPause=false;
         lastRebindAt=android.os.SystemClock.uptimeMillis();
         returnCloseGuardUntil=lastRebindAt+1900L;
