@@ -71,13 +71,13 @@ jobs:
           assert 'moa-r572-toast-leave' in fav and 'toastTimer=setTimeout' in fav
           assert 'Color.BLACK' in java and 'r570OpenFavorite' in java
           assert 'r574PhotoRefreshAttempts' in java and 'deck.setBackgroundColor(Color.TRANSPARENT)' in java
-          assert 'r574IndexAttemptCount' in js and '__moaR576PhotoStillLoading' in js
-          assert 'r574-index-wait' in css
+          assert 'r576Opening' in js and 'r576BlockedSignature' in js
+          assert 'moa-r576-native-retry' in css
           assert 'int h=dp(a,expanded?(video?126:100):82)' in java
-          assert 'r576OpenFailures' in js and 'r507Timer=setTimeout(tryOpen,260)' not in js
+          assert 'let failures=0' in js and 'r507Timer=setTimeout(tryOpen,260)' not in js
           assert 'parent.addView(poster' not in java and 'texture.setOpaque(true)' in java
-          assert 'r572FirstPhotoPending=false' in java and 'nativeLower.setTranslationY(expanded?dp(a,video?12:15):0f)' in java
-          print('R576 removal of hard index gate, no black curtain, real lower-controls shift and existing photo features PASS')
+          assert 'r572FirstPhotoPending=false' in java and 'r576TightenMeasuredRail' in java
+          print('R576 original native-open, bounded retries, immediate R567 mount, no new curtain, measured rail and old save contracts PASS')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
