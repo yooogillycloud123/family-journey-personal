@@ -298,7 +298,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // R535 original single geometry owner: exact integer target, no overshoot.
       nativeHost.setTranslationX(ix-baseX);
       nativeHost.setTranslationY(iy-baseY);
-      nativeHost.setVisibility(r572FirstPhotoPending||iy+ih<0||iy>root.getHeight()?View.INVISIBLE:View.VISIBLE);
+      nativeHost.setVisibility(iy+ih<0||iy>root.getHeight()?View.INVISIBLE:View.VISIBLE);
       lastPositionMessageAt=android.os.SystemClock.uptimeMillis();
       lastX=ix;lastY=iy;
     }catch(Throwable ignored){}
@@ -564,8 +564,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // Keep our single-Back handler until an explicit day exit/fullscreen handoff
     // or until the trusted JS page is verified to have switched away.
 
-    // R576: photo-only vertical correction must NOT leak into the original
-    // fullscreen/detail Gallery on reuse or navigation.
+    // Restore additive in-card rail placement on original Gallery disposal.
     if(nativeLower!=null)nativeLower.setTranslationY(0f);
     if(railView!=null)railView.setTranslationY(0f);
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
@@ -618,11 +617,15 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(host!=nativeHost){
       final int newToken=s.optInt("token",ownedDayToken);
       clearCardMark();nativeHost=host;galleryRef=gallery;nativeOwnerActivity=a;ownsGallery=true;ownedDayToken=newToken;lastPositionMessageAt=0;
-      GradientDrawable round=new GradientDrawable();round.setColor(Color.BLACK);round.setCornerRadius(dp(a,23));
+      GradientDrawable round=new GradientDrawable();
+      // R576: a transparent native card while the first photo is decoding
+      // allows the already displayed WebView still to remain underneath.
+      round.setColor(Color.TRANSPARENT);round.setCornerRadius(dp(a,23));
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
-      // R576: do not block the original R463 host behind R572/R574 black
-      // placeholder gates. Use the user-validated R567 immediate native owner.
-      r572FirstPhotoPending=false;r572FirstPhotoDeadline=0L;
+      // R576: the R572/R574 first-photo-gate kept entire native host invisible
+      // when Quick Record IDs were provisional; revert to proven R567 mounting.
+      r572FirstPhotoPending=false;
+      r572FirstPhotoDeadline=0L;
       r574PhotoWaitNotified=false;r574PhotoRefreshAttempts=0;r574VideoCurtainAt=0L;
       r572NativeMountAck=false;r572FastRestorePending=true;r572FastRestoreDone=false;
       r572FastSeen=false;r572LastVideoRail=null;
@@ -651,9 +654,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       lastGeometrySnapshotY=y;
     }
     lastX=x;lastY=y;lastW=w;lastH=h;
-    // R576: R574 kept the entire native host INVISIBLE forever when a newly
-    // captured MediaStore photo had not reached its first drawable. Revert to
-    // R567's physical-Golden visibility contract; never hold a working video.
+    // R576: preserve the original Gallery's own first-frame and refresh path.
+    // Do not hide a live host behind a synthetic black/transparent curtain.
     if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
     else host.setVisibility(View.VISIBLE);
     compactNativeCard(a,web,host,gallery);
@@ -676,20 +678,19 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     syncIndex(web,gallery,s.optString("cover",""));
     r572FinishEntry(a,web,gallery);
     r572SyncFastSetting(a);
+    if(railExpanded)r576TightenMeasuredRail(a);
   }
-  // R576: R572/R574 display gates and black VIDEO curtain regressed the
-  // original R567 (user-approved) first-frame contract. This acknowledges the
-  // REAL open native owner immediately, leaving original media preparation
-  // and TextureView Surface timing to the original Gallery. No artificial
-  // 950ms/2200ms black wall, no alpha-zero or recurring close/reopen.
+  // R576: R567 USER-PROVEN immediate mount ACK. R572/R574 photo decode
+  // gating could never finish for provisional Quick Record IDs, blocking the
+  // entire native host even after reopening the app. No synthetic fade.
   private void r572FinishEntry(Activity a,WebView web,Object gallery){
     if(!ownsGallery||gallery!=galleryRef||nativeHost==null||!galleryOpen(gallery))return;
     if(!r572NativeMountAck){
       r572NativeMountAck=true;
       web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
     }
-    if(nativeHost.getVisibility()!=View.VISIBLE && lastY!=Integer.MIN_VALUE &&
-        lastY+lastH>0 && lastY<a.findViewById(android.R.id.content).getHeight())
+    if(nativeHost.getVisibility()!=View.VISIBLE&&lastY!=Integer.MIN_VALUE&&
+        lastY+lastH>0&&lastY<a.findViewById(android.R.id.content).getHeight())
       nativeHost.setVisibility(View.VISIBLE);
   }
   private void r572SyncFastSetting(Activity a){
@@ -1124,19 +1125,47 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // outer media frame or video seek/play event owners.
       int h=dp(a,expanded?(video?126:100):82);
       if(lp.height!=h){lp.height=h;nativeLower.setLayoutParams(lp);}
-      // R576: R391 continuously re-applies a 50dp bottom margin for the
-      // action capsule. Only changing lowerControls HEIGHT never reduced the
-      // user-marked gap. Translate the ORIGINAL lowerControls view toward the
-      // capsule by 12/15dp, without changing any child listener or margin
-      // managed by R391; keep touch targets outside the oval.
-      nativeLower.setTranslationY(expanded?dp(a,video?12:15):0f);
-      if(railView!=null)railView.setTranslationY(expanded?dp(a,video?3:5):0f);
+      if(railView!=null)railView.setTranslationY(expanded?dp(a,video?9:7):0f);
     }
+    if(!expanded&&nativeLower!=null)nativeLower.setTranslationY(0f);
+    if(expanded)r576TightenMeasuredRail(a);
     if(railToggle!=null){
       railToggle.invalidate();
       railToggle.setContentDescription(expanded?"사진 목록 접기":"사진 목록 펼치기");
       railToggle.setSelected(!expanded);
     }
+  }
+  // R576: compact the real, measured vertical gap between the LAST visible
+  // original gallery lower-row child and the existing eight-action capsule.
+  // This moves the whole original nativeLower, including gestures and video
+  // buttons, so touch coordinates/selected thumbnail never become detached.
+  // It is card-local, idempotent, bounded, and not used by fullscreen Gallery.
+  private void r576TightenMeasuredRail(Activity a){
+    if(!ownsGallery||nativeLower==null||actionDeck==null||!railExpanded||
+       nativeLower.getParent()==null||actionDeck.getParent()==null)return;
+    final LinearLayout lower=nativeLower;final FrameLayout deck=actionDeck;
+    lower.post(()->{
+      if(!ownsGallery||nativeLower!=lower||actionDeck!=deck||!railExpanded||
+         lower.getParent()==null||deck.getParent()==null)return;
+      try{
+        int[] dock=new int[2];deck.getLocationInWindow(dock);
+        float old=lower.getTranslationY();
+        float maxBottom=Float.NEGATIVE_INFINITY;
+        for(int k=0;k<lower.getChildCount();k++){
+          View item=lower.getChildAt(k);
+          if(item==null||item.getVisibility()!=View.VISIBLE||item.getHeight()<=0)continue;
+          int[] p=new int[2];item.getLocationInWindow(p);
+          float actualBottom=p[1]+item.getHeight()*(.5f+.5f*item.getScaleY());
+          maxBottom=Math.max(maxBottom,actualBottom);
+        }
+        if(!Float.isFinite(maxBottom))return;
+        float visualGap=dock[1]-maxBottom;
+        // Convert measured gap back to the unshifted baseline, then request
+        // 7dp of breathing space. Never overlap the capsule or move >38dp.
+        float want=Math.max(0f,Math.min(dp(a,38),old+visualGap-dp(a,7)));
+        if(Math.abs(want-old)>dp(a,1))lower.setTranslationY(want);
+      }catch(Throwable ignored){}
+    });
   }
   // Only the in-card Gallery opts into center-crop. Never upscale the bitmap
   // beyond what the original image decoder provides and never change fullscreen.
@@ -1161,10 +1190,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }
   }
   private void updateVideoAmbient(Activity a,TextureView texture,String id){
-    // R576: BLACK overlay added in R574 covered the real TextureView and
-    // deliberately showed a black rectangle for up to 2.2s on every new
-    // video. Remove it completely. The original R463 player/Surface owns
-    // playback, while the native container remains stable.
+    // R576: R570–R574 built an extra gray/black poster and repeatedly
+    // changed TextureView opacity. The original R463 Gallery already owns
+    // its video surface. Restore one opaque original renderer with NO
+    // synthetic full-frame overlay or gray/black transition layer.
     if(ambientPoster!=null){
       if(ambientPoster.getParent() instanceof ViewGroup)
         ((ViewGroup)ambientPoster.getParent()).removeView(ambientPoster);
