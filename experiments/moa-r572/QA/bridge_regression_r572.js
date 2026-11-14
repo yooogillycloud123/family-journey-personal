@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('fs'),vm=require('vm'),path=require('path'),assert=require('assert');
-const src=fs.readFileSync(path.join(__dirname,'../assets/web/moa-r570-photo-favorites.js'),'utf8');
+const src=fs.readFileSync([path.join(__dirname,'../assets/web/moa-r570-photo-favorites.js'),path.join(__dirname,'../../moa-r570/apk_assets/web/moa-r570-photo-favorites.js')].find(p=>fs.existsSync(p)),'utf8');
 function boot(){
  let now=0,tn=0,selected='12345',active=true,removed=0;
  const timers=new Map(), calls=[], posts=[],labels=[];
@@ -54,5 +54,4 @@ const gps={hasGps:true,id:'12345',lat:35.8795,lon:127.1353};
  x.win.__fjDiaryMediaLocationResult(x.posts[0].value.request,gps);
  assert(x.calls[0][5].mode==='native');
 }
-console.log('R572 photo-only notice lifecycle, first-party modes, GPS, stale selection: PASS');
 console.log('R572 photo-only notice lifecycle, first-party modes, GPS, stale selection: PASS');
