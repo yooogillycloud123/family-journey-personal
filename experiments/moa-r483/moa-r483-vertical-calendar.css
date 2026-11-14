@@ -945,3 +945,10 @@ html #moa-r469-root[data-page="day"] .moa-r570-save-status.moa-r572-toast-leave{
 html #moa-r469-root.moa-r574-index-wait[data-page="day"] .moa-r469-stage{background:#eceaec!important;}
 html #moa-r469-root.moa-r574-index-wait[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
 html #moa-r469-root[data-page="day"] .moa-r472-slide:not(.moa-r531-video-slide) img{transition:none!important;}
+
+/* R576: native bridge retry appears ONLY when the original opener rejects a day. */
+html #moa-r469-root[data-page="day"] .moa-r576-native-retry{
+ position:absolute;z-index:12;left:50%;bottom:64px;transform:translateX(-50%);
+ border:1px solid #ffffff77;border-radius:14px;padding:9px 13px;
+ background:#24232adf;color:white;font:600 12px system-ui,sans-serif;white-space:nowrap;
+}
