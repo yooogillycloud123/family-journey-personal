@@ -1,0 +1,27 @@
+{
+  "status": "STATIC_COMPILE_SIGNED_PASS__REAL_SAMSUNG_DEVICE_UNVERIFIED",
+  "release": "R563_R565",
+  "underlying_legacy_golden": "R463 approved, unmodified",
+  "baseline_install_version": 559,
+  "install_version": 563,
+  "emergency_recovery_version": 565,
+  "git_ci": "https://github.com/yooogillycloud123/family-journey-personal/actions/runs/43584859491",
+  "physical_device_test": false,
+  "source_root_cause": [
+    "R535 tick closed original Gallery -> photo day exit; R559 tick closed Gallery -> __moaR551NativeLost() native restart; restored R535-style foreground exit.",
+    "R559 resume only inspected Gallery.isOpen and host parent, ignoring Photo drawable / Video SurfaceTexture and MediaPlayer readiness; first rehydrate via original refreshPages().",
+    "R535 and R559 DOM/native geometry mathematics were already identical in main position code; no new scroll math introduced."
+  ],
+  "tests": [
+    "Native Android javac/D8 + Node JS syntax PASS",
+    "3-theme 3x photo/detail + foreground NativeClosed JS tests PASS",
+    "Original certificate v2 signed-content integrity PASS",
+    "140 protected contents byte-identical +17 original dex PASS",
+    "R565 Golden-function forward recovery 139 protected entries PASS"
+  ],
+  "known_limits": [
+    "No physical Galaxy proof of Back dispatcher priority ordering",
+    "Actual MediaPlayer / TextureView render readiness on S26 not directly tested",
+    "Subpixel WebView/native compositor jitter may remain; no guarantee of 0 oscillation"
+  ]
+}
