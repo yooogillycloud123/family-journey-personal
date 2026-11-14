@@ -124,6 +124,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private int foregroundEpoch=0;
   private boolean hadMountedOnPause=false;
   private long lastRebindAt=0L;
+  // R555: native original R227 onPause closes Gallery when its retention flag
+  // is absent. A regular onActivityPaused callback runs TOO LATE to prevent it.
+  private Object prePausedRetainedGallery;
+  private long prePauseRetainAt=0L;
   private int fullNativeLastIndex=-1;
   private String fullNativeLastId="";
 
@@ -249,14 +253,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       web.getLocationInWindow(wpos);root.getLocationInWindow(rpos);
       double sx=(double)web.getWidth()/vw,sy=(double)web.getHeight()/vh;
       if(sx<.2||sx>10||sy<.2||sy>10)return;
-      int ix=rounded(wpos[0]-rpos[0]+dx*sx),iy=rounded(wpos[1]-rpos[1]+dy*sy);
+      double exactX=wpos[0]-rpos[0]+dx*sx,exactY=wpos[1]-rpos[1]+dy*sy;
+      int ix=rounded(exactX),iy=rounded(exactY);
       int iw=rounded(dw*sx),ih=rounded(dh*sy);
       // Do not trigger MediaPlayer/TextureView re-layout in a position frame.
       if(lastW<0||Math.abs(iw-lastW)>dp(foreground,8)||
           Math.abs(ih-lastH)>dp(foreground,8))return;
-      nativeHost.setTranslationX(ix-baseX);
-      nativeHost.setTranslationY(iy-baseY);
-      nativeHost.setVisibility(iy+ih<0||iy>root.getHeight()?View.INVISIBLE:View.VISIBLE);
+      // Float translations preserve CSS fractional scroll positions; the old
+      // rounded integer displacement visibly toggled between adjacent pixels.
+      nativeHost.setTranslationX((float)(exactX-baseX));
+      nativeHost.setTranslationY((float)(exactY-baseY));
+      nativeHost.setVisibility(exactY+ih<0||exactY>root.getHeight()?View.INVISIBLE:View.VISIBLE);
       lastPositionMessageAt=android.os.SystemClock.uptimeMillis();
       lastX=ix;lastY=iy;
     }catch(Throwable ignored){}
@@ -502,8 +509,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(sx<.2||sx>10||sy<.2||sy>10)return;
     int[] webPos=new int[2],rootPos=new int[2];
     web.getLocationInWindow(webPos);root.getLocationInWindow(rootPos);
-    int x=rounded(webPos[0]-rootPos[0]+s.optDouble("x")*sx);
-    int y=rounded(webPos[1]-rootPos[1]+s.optDouble("y")*sy);
+    double exactX=webPos[0]-rootPos[0]+s.optDouble("x")*sx;
+    double exactY=webPos[1]-rootPos[1]+s.optDouble("y")*sy;
+    int x=rounded(exactX),y=rounded(exactY);
     int w=rounded(s.optDouble("w")*sx),h=rounded(s.optDouble("h")*sy);
     if(w<150||h<180)return;
     if(w>root.getWidth()+3||h>root.getHeight()+3)return;
@@ -530,7 +538,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // The 18dp velocity lead made opposite-direction corrections visible
       // when the WebMessagePort stream resumed after a fallback snapshot.
       // Both paths now use the same integer-pixel target, with no animation.
-      host.setTranslationX(x-baseX);host.setTranslationY(y-baseY);
+      host.setTranslationX((float)(exactX-baseX));
+      host.setTranslationY((float)(exactY-baseY));
       lastGeometrySnapshotAt=android.os.SystemClock.uptimeMillis();
       lastGeometrySnapshotY=y;
     }
@@ -901,6 +910,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       returnFromBackground=false;hadMountedOnPause=false;nativeCloseDetectedAt=0L;
       returnCloseGuardUntil=android.os.SystemClock.uptimeMillis()+1100L;
       nativeHost.invalidate();
+      android.util.Log.i("MOA_R555","RETURN_GALLERY_HEALTHY preserved="+(prePauseRetainAt>0));
       return;
     }
     final long now=android.os.SystemClock.uptimeMillis();
@@ -941,6 +951,60 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       }catch(Throwable ignored){}
     });}catch(Throwable ignored){}
   }
+  // R555: fires BEFORE the original Activity.onPause (API29+, app minSdk29).
+  // R227 host checks r227RetainForExternalMap() during onPause and CLOSES the
+  // existing native Gallery unless r227ExternalMapPending is already true.
+  // Unlike previous R535-R551 callbacks, this runs early enough to retain it.
+  @Override public void onActivityPrePaused(Activity a){
+    if(a!=nativeOwnerActivity||!ownsGallery||fullNativeOpen||
+       a.isFinishing()||a.isDestroyed())return;
+    Object g=readField(a,"unifiedGallery");
+    if(g==null||g!=galleryRef||!galleryOpen(g))return;
+    try{
+      Field pending=field(g.getClass(),"r227ExternalMapPending");
+      Field wasPlaying=field(g.getClass(),"r227VideoWasPlaying");
+      if(pending==null||wasPlaying==null)return;
+      boolean already=pending.getBoolean(g);
+      if(!already){
+        boolean playing=false;
+        Object mp=readField(g,"media");
+        if(Boolean.TRUE.equals(readField(g,"prepared"))&&mp instanceof MediaPlayer){
+          try{playing=((MediaPlayer)mp).isPlaying();
+            if(playing)((MediaPlayer)mp).pause();}catch(Throwable ignored){}
+        }
+        wasPlaying.setBoolean(g,playing);
+        pending.setBoolean(g,true);
+      }
+      Method retain=g.getClass().getMethod("r227RetainForExternalMap");
+      boolean ok=Boolean.TRUE.equals(retain.invoke(g));
+      if(ok){
+        prePausedRetainedGallery=g;
+        prePauseRetainAt=android.os.SystemClock.uptimeMillis();
+        android.util.Log.i("MOA_R555","PRE_PAUSE_RETAIN_PASS");
+      }else if(!already){
+        pending.setBoolean(g,false);
+        wasPlaying.setBoolean(g,false);
+        android.util.Log.w("MOA_R555","PRE_PAUSE_RETAIN_UNAVAILABLE");
+      }
+    }catch(Throwable error){
+      android.util.Log.w("MOA_R555","PRE_PAUSE_RETAIN_FAILED_"+error.getClass().getSimpleName());
+    }
+  }
+  // R227 original Activity.onResume normally invokes this itself. Only run
+  // its idempotent completion if the original host still has a pending flag.
+  @Override public void onActivityPostResumed(Activity a){
+    if(a!=nativeOwnerActivity||prePausedRetainedGallery==null)return;
+    final Object g=prePausedRetainedGallery;
+    prePausedRetainedGallery=null;
+    if(g!=readField(a,"unifiedGallery")||!galleryOpen(g))return;
+    try{
+      if(Boolean.TRUE.equals(readField(g,"r227ExternalMapPending"))){
+        g.getClass().getMethod("r227ResumeFromExternalMap").invoke(g);
+      }
+    }catch(Throwable error){
+      android.util.Log.w("MOA_R555","POST_RESUME_RETAIN_FAILED_"+error.getClass().getSimpleName());
+    }
+  }
   @Override public void onActivityResumed(Activity a){
     foreground=a;resumed=true;final int epoch=++foregroundEpoch;
     // Other activities (NAVER, share sheet, etc.) are not the Gallery owner.
@@ -961,6 +1025,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   @Override public void onActivityDestroyed(Activity a){
     if(foreground==a){foreground=null;resumed=false;}
     if(nativeOwnerActivity==a||fullscreenOwnerActivity==a){
+      prePausedRetainedGallery=null;
       closePositionPort();clearCardMark();fullscreenOwnerActivity=null;
       returnFromBackground=false;hadMountedOnPause=false;
     }
