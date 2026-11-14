@@ -110,6 +110,16 @@ window.__moaR531AdvancedClosed=function(){
  if(ui.open&&ui.page==='day'&&!r523DayExiting){r527BeginDay();setTimeout(()=>{if(ui.open&&ui.page==='day')r507StartInline()},100);}
  return true;
 };
+// R535: native Activity resume can leave the prior R463 TextureView blank/gray
+// while Gallery.isOpen remains true. Restart ONLY the inline renderer, never
+// reset the page/diary or fire a native day-exit/back handler.
+window.__moaR535ResumeInline=function(token){
+ if(Number(token)!==window.__moaR527DayToken||!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced)return false;
+ r507StopInline();r515RecoveryAttempts=0;r527BeginDay();
+ if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
+ setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting&&!r531Advanced)r507StartInline()},220);
+ return true;
+};
 function r507StopInline(){
  ++r507Generation;clearTimeout(r507Timer);r507Timer=0;
  const opened=r507Opened;
