@@ -80,6 +80,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private String r578MissingPhotoId="";
   private long r578MissingPhotoSince=0L;
   private int r578PhotoRefreshCount=0;
+  // R580: do not display a blank native photo before its actual drawable.
+  // The already-rendered Web photo remains visible until the same native ID is ready.
+  private String r580AwaitPhotoId="";
   private int lastIndex = -1;
   private int lastX = Integer.MIN_VALUE, lastY = Integer.MIN_VALUE;
   private int lastW = -1, lastH = -1;
@@ -389,7 +392,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // yet delivered a drawable. Wait for its own async decoder, then invoke
       // only ORIGINAL refreshPages; never Gallery.close/reopen, never fake PASS.
       if(!selected.startsWith("v")&&!selected.isEmpty()&&
-         nativeHost!=null&&nativeHost.getVisibility()==View.VISIBLE){
+         nativeHost!=null){
         long tick=android.os.SystemClock.uptimeMillis();
         if(!selected.equals(r578MissingPhotoId)){
           r578MissingPhotoId=selected;r578MissingPhotoSince=tick;r578PhotoRefreshCount=0;
@@ -587,6 +590,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
 
     // Restore additive in-card rail placement on original Gallery disposal.
     if(nativeLower!=null)nativeLower.setTranslationY(0f);
+    r580AwaitPhotoId="";
     if(railView!=null)railView.setTranslationY(0f);
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
     if(r570SaveDialog!=null&&r570SaveDialog.isShowing())r570SaveDialog.dismiss();
@@ -682,7 +686,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     lastX=x;lastY=y;lastW=w;lastH=h;
     // R576: preserve the original Gallery's own first-frame and refresh path.
     // Do not hide a live host behind a synthetic black/transparent curtain.
-    if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
+    // R580 photo reveal: unlike R572/R574, no MediaStore index/timeout gate;
+    // only the ORIGINAL live image drawable determines native visibility.
+    // Invisible host does not block its async original decoder or the Web poster.
+    boolean r580PhotoPending=!currentId(gallery).startsWith("v") && !actualMediaReady(gallery);
+    if(y+h<0||y>root.getHeight()||r580PhotoPending)host.setVisibility(View.INVISIBLE);
     else host.setVisibility(View.VISIBLE);
     compactNativeCard(a,web,host,gallery);
     syncAdvancedButton(gallery);
@@ -711,6 +719,15 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // entire native host even after reopening the app. No synthetic fade.
   private void r572FinishEntry(Activity a,WebView web,Object gallery){
     if(!ownsGallery||gallery!=galleryRef||nativeHost==null||!galleryOpen(gallery))return;
+    final String r580Id=currentId(gallery);
+    if(!r580Id.startsWith("v")&&!actualMediaReady(gallery)){
+      // No synthetic dark/gray curtain and no successful-mount ACK on a blank frame.
+      // The original Gallery stays OPEN and retries its own decoder below.
+      r580AwaitPhotoId=r580Id;
+      nativeHost.setVisibility(View.INVISIBLE);
+      return;
+    }
+    r580AwaitPhotoId="";
     if(!r572NativeMountAck){
       r572NativeMountAck=true;
       web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
@@ -1151,9 +1168,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // outer media frame or video seek/play event owners.
       int h=dp(a,expanded?(video?126:100):82);
       if(lp.height!=h){lp.height=h;nativeLower.setLayoutParams(lp);}
-      if(railView!=null)railView.setTranslationY(expanded?dp(a,video?9:7):0f);
+      if(railView!=null)railView.setTranslationY(0f);
     }
-    if(!expanded&&nativeLower!=null)nativeLower.setTranslationY(0f);
+    if(nativeLower!=null)nativeLower.setTranslationY(0f);
     if(expanded)r576TightenMeasuredRail(a);
     if(railToggle!=null){
       railToggle.invalidate();
@@ -1161,32 +1178,35 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       railToggle.setSelected(!expanded);
     }
   }
-  // R578: measure the actual FILMSTRIP, not all children of lowerControls.
-  // R576 measured video controls too; those can sit lower than the thumbnail,
-  // so the algorithm falsely concluded the user-marked gap was already small.
-  // Translate only the original rail View (including its real click target).
-  // The 8 original action View/listeners and original player controls stay put.
+  // R580: the R578 film-only translation escapes the parent's hit-test
+  // rectangle and is repeatedly reset on a video/photo type change. Move the
+  // original lower-controls parent, with its ORIGINAL filmstrip touch/scroll,
+  // toward the independently positioned 8-action dock. Never move the dock.
   private void r576TightenMeasuredRail(Activity a){
     if(!ownsGallery||nativeLower==null||railView==null||actionDeck==null||!railExpanded||
        nativeLower.getParent()==null||railView.getParent()==null||actionDeck.getParent()==null)return;
-    final View film=railView;final FrameLayout dock=actionDeck;
+    final View film=railView;final LinearLayout lower=nativeLower;
+    final FrameLayout dock=actionDeck;final FrameLayout owner=nativeHost;
     film.post(()->{
-      if(!ownsGallery||!railExpanded||film!=railView||dock!=actionDeck||
-         film.getParent()==null||dock.getParent()==null||!film.isShown()||
+      if(!ownsGallery||!railExpanded||film!=railView||lower!=nativeLower||
+         dock!=actionDeck||owner!=nativeHost||!film.isShown()||
          film.getHeight()<=0||dock.getHeight()<=0)return;
       try{
-        // Previous R576 modified the entire lowerControls row including video
-        // seek/mute, making the actual visual gap calculation inconsistent.
-        if(nativeLower.getTranslationY()!=0f)nativeLower.setTranslationY(0f);
-        int[] rp=new int[2],dpPos=new int[2];
-        film.getLocationInWindow(rp);dock.getLocationInWindow(dpPos);
-        // ScaleY=.79 preserves current thumbnail art. View position already
-        // includes its translation. The drawn bottom sits above its layout edge.
-        float drawnBottom=rp[1]+film.getHeight()*(.5f+.5f*film.getScaleY());
-        float gap=dpPos[1]-drawnBottom;
-        float old=film.getTranslationY();
-        float desired=Math.max(0f,Math.min(dp(a,68),old+gap-dp(a,5)));
-        if(Math.abs(desired-old)>dp(a,1))film.setTranslationY(desired);
+        int[] f=new int[2],d=new int[2],o=new int[2];
+        film.getLocationInWindow(f);dock.getLocationInWindow(d);
+        owner.getLocationInWindow(o);
+        // The scaled artwork is smaller than the actual 64dp touch target.
+        float drawnBottom=f[1]+film.getHeight()*(.5f+.5f*film.getScaleY());
+        float gap=d[1]-drawnBottom;
+        float original=lower.getTranslationY();
+        // Lower native content cannot slide beyond the card's bottom edge;
+        // the action dock stays independently clickable above the lower stack.
+        float cap=Math.max(0f,Math.min(dp(a,112),
+           o[1]+owner.getHeight()-lower.getHeight()/3f-(lower.getTop()+o[1])));
+        float desired=Math.max(0f,Math.min(cap,original+gap-dp(a,6)));
+        if(Math.abs(desired-original)>dp(a,1))lower.setTranslationY(desired);
+        // R578's old film translation is no longer an alternate geometry owner.
+        if(Math.abs(film.getTranslationY())>dp(a,1))film.setTranslationY(0f);
       }catch(Throwable ignored){}
     });
   }
@@ -1234,7 +1254,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       if(ambientPoster!=null&&ambientPoster.getParent() instanceof ViewGroup)
         ((ViewGroup)ambientPoster.getParent()).removeView(ambientPoster);
       ImageView poster=new ImageView(a);poster.setScaleType(ImageView.ScaleType.CENTER_CROP);
-      poster.setBackgroundColor(0xff38343a);poster.setAlpha(.77f);
+      poster.setBackgroundColor(0xff38343a);poster.setAlpha(0f);
       if(Build.VERSION.SDK_INT>=31)poster.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(22f,22f,android.graphics.Shader.TileMode.CLAMP));
       // Absolute bottom of the native stage. Photos must ALWAYS paint above
       // video ambient, even in the brief interval before selection callbacks.
@@ -1243,7 +1263,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }
     ambientPoster.setVisibility(View.VISIBLE);texture.setOpaque(false);
     if(id.equals(ambientMediaId))return;
-    ambientMediaId=id; // Retain prior blurred thumbnail while next thumb decodes: no gray reflash.
+    ambientMediaId=id; // Do not present the PREVIOUS video poster as the next video.
+    ambientPoster.animate().cancel();ambientPoster.setAlpha(0f);
     final ImageView target=ambientPoster;final String requested=id;
     // A small MediaStore poster is decoded off the UI thread only when the
     // media changes, not every video frame or Web/native scroll update.
@@ -1255,7 +1276,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       }catch(Throwable ignored){}
       final android.graphics.Bitmap ready=thumb;
       main.post(()->{if(ready!=null&&ownsGallery&&ambientPoster==target&&requested.equals(ambientMediaId))
-        target.setImageBitmap(ready);else if(ready!=null)ready.recycle();});
+        {target.setImageBitmap(ready);target.animate().alpha(.77f).setDuration(170L).start();}
+        else if(ready!=null)ready.recycle();});
     },"moa-r531-video-poster").start();
   }
   private static String currentId(Object gallery){
