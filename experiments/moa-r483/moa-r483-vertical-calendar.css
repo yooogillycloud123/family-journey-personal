@@ -931,9 +931,9 @@ html #moa-r469-root[data-page="day"] .moa-r570-save-status{
 
 /* R572: photograph/video photo-card only. Original fullscreen/native media untouched.
    Black is the underlying VIDEO compositor color, not animated blur or gray. */
-html #moa-r469-root[data-page="day"] .moa-r531-video-slide{background:#000!important;}
-html #moa-r469-root[data-page="day"] .moa-r531-video-slide::before{display:none!important;content:none!important;background:none!important;filter:none!important;}
-html #moa-r469-root.moa-r572-video-active[data-page="day"] .moa-r469-stage{background:#000!important;}
+html #moa-r469-root[data-page="day"] .moa-r531-video-slide{background:var(--moa-r491-empty,#e6e0dd)!important;}
+html #moa-r469-root[data-page="day"] .moa-r531-video-slide::before{display:block!important;content:""!important;background-image:var(--moa-r531-poster,none)!important;filter:none!important;transition:none!important;}
+html #moa-r469-root.moa-r572-video-active[data-page="day"] .moa-r469-stage{background:var(--moa-r491-empty,#e6e0dd)!important;}
 /* The original Web photo stays painted as a static underlay until the original native drawable arrives. */
 html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
 /* R572 save notices fade automatically; they do NOT affect Gallery geometry. */
@@ -945,3 +945,162 @@ html #moa-r469-root[data-page="day"] .moa-r570-save-status.moa-r572-toast-leave{
 html #moa-r469-root.moa-r574-index-wait[data-page="day"] .moa-r469-stage{background:#eceaec!important;}
 html #moa-r469-root.moa-r574-index-wait[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
 html #moa-r469-root[data-page="day"] .moa-r472-slide:not(.moa-r531-video-slide) img{transition:none!important;}
+
+/* R576: on a provisional Quick Record ID keep the existing Web photo still
+   visible until the original native Gallery has a decoded first frame. Never
+   draw a blank black owner frame while R73's full index is lagging. */
+html #moa-r469-root.moa-r576-index-wait[data-page="day"] .moa-r469-stage{background:var(--moa-r491-empty,#e6e0dd)!important;}
+html #moa-r469-root.moa-r576-index-wait[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
+#moa-r469-root[data-page="day"] .moa-r539-day-chrome,
+#fj-diary-root[data-page="day"] .moa-r539-day-chrome{
+ position:relative;display:block;padding:0;margin:0 17px 4px;min-height:75px;
+ color:var(--moa-r491-ink,#302a32);font-family:system-ui,'Noto Sans KR',sans-serif;
+}
+#moa-r469-root .moa-r539-day-head,#fj-diary-root .moa-r539-day-head{
+ display:flex;align-items:center;justify-content:flex-end;min-height:41px;height:41px;padding:0!important;margin:0!important;
+}
+#moa-r469-root .moa-r539-day-head strong,#fj-diary-root .moa-r539-day-head strong{
+ color:var(--moa-r491-ink,#302a32)!important;font-size:14px!important;font-weight:650!important;text-align:right;
+}
+#moa-r469-root .moa-r539-day-controls,#fj-diary-root .moa-r539-day-controls{
+ position:relative;z-index:12;display:flex;align-items:center;justify-content:flex-end;gap:6px;height:34px;margin:0!important;padding:0!important;
+}
+html #moa-r469-root .moa-r539-day-controls .moa-r483-day-mode,
+html #fj-diary-root .moa-r539-day-controls .moa-r483-day-mode{
+ margin:0!important;max-width:68px!important;min-width:68px!important;width:68px!important;height:34px!important;min-height:34px!important;flex:0 0 68px!important;
+}
+html #moa-r469-root .moa-r539-day-controls .moa-r483-toggle-hit,
+html #fj-diary-root .moa-r539-day-controls .moa-r483-toggle-hit{height:34px!important;min-height:34px!important;max-height:34px!important;}
+html #moa-r469-root .moa-r539-day-settings,
+html #fj-diary-root .moa-r539-day-settings{
+ display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;min-height:34px;
+ border:1px solid color-mix(in srgb,var(--moa-r491-muted,#888) 17%,transparent);border-radius:11px;
+ background:var(--moa-r491-surface,#fff);color:var(--moa-r491-muted,#776b73);font-size:21px;
+ letter-spacing:0;line-height:1;padding:0;box-shadow:none;
+}
+html #moa-r469-root .moa-r539-photo-settings{
+ position:absolute;right:0;top:38px;z-index:70;width:min(230px,75vw);padding:11px;
+ background:var(--moa-r491-surface,#fff);color:var(--moa-r491-ink,#302a32);
+ border:1px solid var(--moa-r491-grid,#e7e1e6);border-radius:14px;box-shadow:0 8px 28px #0002;
+}
+html #moa-r469-root .moa-r539-stable-option{display:flex;align-items:center;gap:8px;font-size:12px;min-height:34px;}
+html #moa-r469-root .moa-r539-stable-option input{accent-color:var(--moa-r491-accent,#b45b8c);width:17px;height:17px;}
+html #moa-r469-root .moa-r539-settings-detail{border:0;border-radius:9px;background:var(--moa-r491-track,#f5eef3);color:var(--moa-r491-ink,#302a32);width:100%;padding:10px;margin-top:6px;font-size:12px;}
+/* Original detailed header and verbose introductory headings are replaced ONLY
+   visually. Its original settings/actions/listeners and data are preserved. */
+html #fj-diary-root[data-page="day"]>.fd23-top,
+html #fj-diary-root[data-page="day"]>.fd23-banner,
+html #fj-diary-root[data-page="day"]>.fd23-daystats,
+html #fj-diary-root[data-page="day"]>.fd23-shortcuts,
+html #fj-diary-root[data-page="day"]>.fd23-timeline>h3,
+html #fj-diary-root[data-page="day"]>.fd23-written>h2{display:none!important;}
+html #fj-diary-root[data-page="day"]>.fd23-written:not(:has(p,small)){display:none!important;}
+html #fj-diary-root[data-page="day"]>.fd23-timeline{margin-top:12px!important;}
+/* Temporarily render the same WebView slide under invisible native pixels so
+   the moving photo belongs to ONE compositor during vertical fling. */
+html #moa-r469-root.moa-r539-scroll-proxy.moa-r507-native-mounted[data-page="day"] .moa-r469-stage-media{
+ visibility:visible!important;pointer-events:none!important;
+}
+/* The original detailed editor has 15px ROOT side padding, while photo root
+   has none. Remove the duplicated 15px chrome indentation so both modes align. */
+html #fj-diary-root[data-page="day"] .moa-r539-day-chrome{
+ margin-left:2px!important;margin-right:2px!important;
+}
+
+/* R543 physical Galaxy correction: visual icon must match oval switch track,
+   not a disproportionate 34x34 bordered square. Hit target remains 34px. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings{
+ position:relative!important;display:grid!important;place-items:center!important;
+ flex:0 0 34px!important;width:34px!important;min-width:34px!important;
+ height:34px!important;min-height:34px!important;max-height:34px!important;
+ border:0!important;background:transparent!important;box-shadow:none!important;
+ padding:0!important;line-height:1!important;font-size:12px!important;letter-spacing:0!important;
+ color:var(--moa-r491-muted,#776b73)!important;border-radius:12px!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings::before,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings::before{
+ content:"";position:absolute;pointer-events:none;width:25px;height:19px;
+ border:1px solid var(--moa-r491-track-border,#d4c8ce);box-sizing:border-box;
+ border-radius:10px;background:var(--moa-r491-track,#f3eef1);z-index:0;
+}
+/* Make native scroll the sole rendering owner, not a Web proxy that can
+   indefinitely leave native alpha zero after port loss. */
+html #moa-r469-root.moa-r539-scroll-proxy .moa-r469-stage-media{visibility:hidden!important}
+/* The SVG-like dots are a pseudo-glyph so the oval background cannot cover
+   the button text in Samsung WebView painting order. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings{font-size:0!important;color:transparent!important;}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings::after,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings::after{
+ content:"···";position:absolute;inset:0;display:grid;place-items:center;
+ z-index:1;pointer-events:none;color:var(--moa-r491-muted,#776b73);
+ font-size:14px;letter-spacing:.5px;line-height:1;
+}
+
+/* R547 hard owner invariant: the earlier R503 Web controls must NEVER emerge
+   as a second gallery during an Android Back/NAVER/Activity resume transition.
+   The image itself is only an inert visual poster while R463 native mounts.
+   Header / shared photo-detail switch / diary controls stay interactive. */
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-more,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r503-cover-star,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-tools,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-pager,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-native-fallback,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r531-web-advanced{
+ visibility:hidden!important;pointer-events:none!important;
+}
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-stage-media{
+ pointer-events:none!important;
+}
+
+/* R551: never render interactive R503 fallback playback/gallery chrome in
+   photo-day, even before the native-mounted class or after a lifecycle race.
+   Native R463 owns the rail, playback, stage gestures and original actions. */
+html #moa-r469-root[data-page="day"] .moa-r469-pager,
+html #moa-r469-root[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root[data-page="day"] .moa-r499-video-play,
+html #moa-r469-root[data-page="day"] .moa-r531-web-advanced,
+html #moa-r469-root[data-page="day"] .moa-r469-more,
+html #moa-r469-root[data-page="day"] .moa-r469-tools{
+ visibility:hidden!important;pointer-events:none!important;
+}
+
+/* R570: entrance stability. Do not use a second blurred Web poster while the
+   unchanged R463 native video texture is mounting. This only changes visual
+   standby decoration, not the original Gallery media/playback lifecycle. */
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r531-video-slide::before{
+  filter:none!important;background-image:none!important;opacity:0!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r570-save-status{
+  position:fixed;z-index:1200;bottom:calc(82px + env(safe-area-inset-bottom));
+  left:9%;right:9%;padding:7px 12px;margin:0;
+  border:1px solid #dfd6dc;border-radius:15px;background:#ffffffef;
+  box-shadow:0 3px 12px #00000019;font:500 11px/1.35 system-ui,sans-serif;color:#6f586b;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  pointer-events:none;max-width:none;
+}
+
+/* R572: photograph/video photo-card only. Original fullscreen/native media untouched.
+   Black is the underlying VIDEO compositor color, not animated blur or gray. */
+html #moa-r469-root[data-page="day"] .moa-r531-video-slide{background:var(--moa-r491-empty,#e6e0dd)!important;}
+html #moa-r469-root[data-page="day"] .moa-r531-video-slide::before{display:block!important;content:""!important;background-image:var(--moa-r531-poster,none)!important;filter:none!important;transition:none!important;}
+html #moa-r469-root.moa-r572-video-active[data-page="day"] .moa-r469-stage{background:var(--moa-r491-empty,#e6e0dd)!important;}
+/* The original Web photo stays painted as a static underlay until the original native drawable arrives. */
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
+/* R572 save notices fade automatically; they do NOT affect Gallery geometry. */
+html #moa-r469-root[data-page="day"] .moa-r570-save-status.moa-r572-toast-leave{opacity:0!important;transition:opacity .18s ease!important;}
+
+/* R574: do not add another full-width gray division under the native oval.
+   Native Java owns that footer. On first entry, never repaint an unloaded
+   photo black while the saved IndexedDB moment is waiting for MediaStore. */
+html #moa-r469-root.moa-r574-index-wait[data-page="day"] .moa-r469-stage{background:#eceaec!important;}
+html #moa-r469-root.moa-r574-index-wait[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
+html #moa-r469-root[data-page="day"] .moa-r472-slide:not(.moa-r531-video-slide) img{transition:none!important;}
+
+/* R576: on a provisional Quick Record ID keep the existing Web photo still
+   visible until the original native Gallery has a decoded first frame. Never
+   draw a blank black owner frame while R73's full index is lagging. */
+html #moa-r469-root.moa-r576-index-wait[data-page="day"] .moa-r469-stage{background:var(--moa-r491-empty,#e6e0dd)!important;}
+html #moa-r469-root.moa-r576-index-wait[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
