@@ -682,9 +682,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     lastX=x;lastY=y;lastW=w;lastH=h;
     // R576: preserve the original Gallery's own first-frame and refresh path.
     // Do not hide a live host behind a synthetic black/transparent curtain.
-    // R582: media readiness is not a native-host visibility gate. A blank
-    // images[1] slot must not hide the entire Gallery controls and rail.
-    // Preserve proven R567/R578 native mount behavior and original refresh.
+    // R582 P0 recovery: NEVER gate the ENTIRE original native host on the
+    // existence of images[1].drawable.  QuickRecord/legacy/native Gallery may
+    // create the visible photo asynchronously or use a different image slot;
+    // an INVISIBLE host also hides the original filmstrip and action deck.
+    // Restore R567/R578 physical mounting behavior; readiness may inform
+    // narrowly scoped image refresh only, never host visibility or mount ACK.
     if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
     else host.setVisibility(View.VISIBLE);
     compactNativeCard(a,web,host,gallery);
@@ -707,15 +710,16 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     syncIndex(web,gallery,s.optString("cover",""));
     r572FinishEntry(a,web,gallery);
     r572SyncFastSetting(a);
-    if(railExpanded)r576TightenMeasuredRail(a);
+    // R584: exact R567 rail geometry; no measured rail translation.
   }
   // R576: R567 USER-PROVEN immediate mount ACK. R572/R574 photo decode
   // gating could never finish for provisional Quick Record IDs, blocking the
   // entire native host even after reopening the app. No synthetic fade.
   private void r572FinishEntry(Activity a,WebView web,Object gallery){
     if(!ownsGallery||gallery!=galleryRef||nativeHost==null||!galleryOpen(gallery))return;
-    // R582: restore confirmed native-mount ACK independent of ImageView
-    // drawable availability, as in Golden R567 and R578.
+    // R582: original R567/R578 successful mount contract; preserve Java native
+    // Gallery owner even while its selected image drawable is being decoded.
+    // NEVER turn media readiness into a host-level or ACK prerequisite.
     if(!r572NativeMountAck){
       r572NativeMountAck=true;
       web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
@@ -857,7 +861,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       LinearLayout lower=(LinearLayout)lowerObject;nativeLower=lower;
       if(lower.getLayoutParams() instanceof FrameLayout.LayoutParams){
         FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)lower.getLayoutParams();
-        p.height=dp(a,currentId(gallery).startsWith("v")?126:100);lower.setLayoutParams(p);
+        p.height=dp(a,137);lower.setLayoutParams(p);
       }
       Object rail=readField(gallery,"rail");
       if(rail instanceof View && ((View)rail).getLayoutParams() instanceof LinearLayout.LayoutParams){
@@ -1142,61 +1146,21 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     });
     railToggle=control;railToggleInstalled=true;
   }
+  // R584: restore R567 Golden filmstrip layout, unmodified scroll/touch geometry.
+  // No auto-translation of nativeLower, railView or the eight-action deck.
   private void setRailExpanded(Activity a,boolean expanded){
     railExpanded=expanded;
-    if(railView!=null)railView.setVisibility(expanded?View.VISIBLE:View.GONE);
+    if(railView!=null){railView.setVisibility(expanded?View.VISIBLE:View.GONE);railView.setTranslationY(0f);}
     if(nativeLower!=null && nativeLower.getLayoutParams() instanceof FrameLayout.LayoutParams){
-      nativeLower.setClipChildren(false);nativeLower.setClipToPadding(false);
+      nativeLower.setTranslationY(0f);
       FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)nativeLower.getLayoutParams();
-      // Original photo lower stack reserved the *video* 137dp even on photos,
-      // leaving a tall blank gulf between thumbnails and icons. Only reduce
-      // in-card photo chrome; video controls/seek retain their old reservation.
-      boolean video=galleryRef!=null && currentId(galleryRef).startsWith("v");
-      // R574: lower the real rail relative to the oval; do NOT shift the
-      // outer media frame or video seek/play event owners.
-      int h=dp(a,expanded?(video?126:100):82);
-      if(lp.height!=h){lp.height=h;nativeLower.setLayoutParams(lp);}
-      if(railView!=null)railView.setTranslationY(0f);
+      lp.height=dp(a,expanded?137:82);nativeLower.setLayoutParams(lp);
     }
-    if(nativeLower!=null)nativeLower.setTranslationY(0f);
-    if(expanded)r576TightenMeasuredRail(a);
     if(railToggle!=null){
       railToggle.invalidate();
       railToggle.setContentDescription(expanded?"사진 목록 접기":"사진 목록 펼치기");
       railToggle.setSelected(!expanded);
     }
-  }
-  // R580: the R578 film-only translation escapes the parent's hit-test
-  // rectangle and is repeatedly reset on a video/photo type change. Move the
-  // original lower-controls parent, with its ORIGINAL filmstrip touch/scroll,
-  // toward the independently positioned 8-action dock. Never move the dock.
-  private void r576TightenMeasuredRail(Activity a){
-    if(!ownsGallery||nativeLower==null||railView==null||actionDeck==null||!railExpanded||
-       nativeLower.getParent()==null||railView.getParent()==null||actionDeck.getParent()==null)return;
-    final View film=railView;final LinearLayout lower=nativeLower;
-    final FrameLayout dock=actionDeck;final FrameLayout owner=nativeHost;
-    film.post(()->{
-      if(!ownsGallery||!railExpanded||film!=railView||lower!=nativeLower||
-         dock!=actionDeck||owner!=nativeHost||!film.isShown()||
-         film.getHeight()<=0||dock.getHeight()<=0)return;
-      try{
-        int[] f=new int[2],d=new int[2],o=new int[2];
-        film.getLocationInWindow(f);dock.getLocationInWindow(d);
-        owner.getLocationInWindow(o);
-        // The scaled artwork is smaller than the actual 64dp touch target.
-        float drawnBottom=f[1]+film.getHeight()*(.5f+.5f*film.getScaleY());
-        float gap=d[1]-drawnBottom;
-        float original=lower.getTranslationY();
-        // Lower native content cannot slide beyond the card's bottom edge;
-        // the action dock stays independently clickable above the lower stack.
-        float cap=Math.max(0f,Math.min(dp(a,112),
-           o[1]+owner.getHeight()-lower.getHeight()/3f-(lower.getTop()+o[1])));
-        float desired=Math.max(0f,Math.min(cap,original+gap-dp(a,6)));
-        if(Math.abs(desired-original)>dp(a,1))lower.setTranslationY(desired);
-        // R578's old film translation is no longer an alternate geometry owner.
-        if(Math.abs(film.getTranslationY())>dp(a,1))film.setTranslationY(0f);
-      }catch(Throwable ignored){}
-    });
   }
   // Only the in-card Gallery opts into center-crop. Never upscale the bitmap
   // beyond what the original image decoder provides and never change fullscreen.
