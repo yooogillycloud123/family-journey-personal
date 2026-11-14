@@ -57,6 +57,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private boolean processing;
   private long lastHello;
   private long lastPosition;
+  // R519 avoids reapplying image/video transforms every native layout tick.
+  private long lastFillAt;
+  private String lastFillId="";
   private int lastIndex = -1;
   private int lastX = Integer.MIN_VALUE, lastY = Integer.MIN_VALUE;
   private int lastW = -1, lastH = -1;
@@ -114,7 +117,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       try {tick();} catch(Throwable ignored) {
         // No change to the working R463 native Gallery on unexpected reflection failure.
         clearCardMark();
-      } finally {main.postDelayed(this, ownsGallery?55:resumed?160:850);}
+      } finally {main.postDelayed(this, ownsGallery?32:resumed?160:850);}
     }
   };
   private static Field field(Class<?> cls,String name){
@@ -255,8 +258,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         disarm();
         host.postDelayed(()->{
           if(host==nativeHost&&galleryOpen(gallery)&&ownsGallery)
-            host.animate().alpha(1f).setDuration(135).start();
-        },45);
+            host.animate().alpha(1f).setDuration(75).start();
+        },16);
         return true;
       }
     };
@@ -278,7 +281,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     inlineBack=null;backOwner=null;
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
     coverStar=null;railToggle=null;railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;
-    compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;
+    compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
     lastX=lastY=Integer.MIN_VALUE;
   }
   private static int rounded(double x){return (int)Math.round(x);}
@@ -314,18 +317,24 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       host.animate().cancel();host.setTranslationX(0f);host.setTranslationY(0f);
       host.setLayoutParams(lp);baseX=x;baseY=y;
     }else if(x!=lastX||y!=lastY){
-      // Hardware-accelerated translation instead of repeatedly applying LayoutParams:
-      // 55ms frame interpolation tracks a moving WebView card without staccato relayout.
+      // R519: no lagging animator on a WebView-scrolling native sibling.
+      // Move by GPU translation to the ACTUAL observed card position, without
+      // 56ms easing that made Gallery feel dragged up/down behind the finger.
       float tx=x-baseX,ty=y-baseY;
-      if(Math.abs(y-lastY)>240||Math.abs(x-lastX)>240){host.animate().cancel();host.setTranslationX(tx);host.setTranslationY(ty);}
-      else host.animate().translationX(tx).translationY(ty).setDuration(56)
-       .setInterpolator(new LinearInterpolator()).start();
+      host.animate().cancel();
+      host.setTranslationX(tx);host.setTranslationY(ty);
     }
     lastX=x;lastY=y;lastW=w;lastH=h;
     if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
     else host.setVisibility(View.VISIBLE);
     compactNativeCard(a,web,host,gallery);
-    fillNativeMediaCard(gallery);
+    final String mediaId=currentId(gallery);
+    final long now=android.os.SystemClock.uptimeMillis();
+    // Large Matrix/MediaPlayer queries belong to media changes, not every
+    // scroll poll. Throttled retry covers a newly prepared video stream.
+    if(!mediaId.equals(lastFillId)||now-lastFillAt>420L){
+      fillNativeMediaCard(gallery);lastFillAt=now;lastFillId=mediaId;
+    }
     syncIndex(web,gallery,s.optString("cover",""));
   }
   private void installInlineBack(Activity a,WebView web){
@@ -333,8 +342,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     try{
       // Overlay priority only during this photo-card session. Unrelated original
       // R463 fullscreen Gallery retains its own Android Back callback and behavior.
-      inlineBack=()->web.evaluateJavascript("window.MoaR469SimpleDiary&&window.MoaR469SimpleDiary.home&&window.MoaR469SimpleDiary.home();",null);
-      a.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_OVERLAY,inlineBack);
+      inlineBack=()->{
+        // Native Back must exit the PHOTO DAY, not merely Gallery.close() which
+        // exposes the abandoned legacy web photo editor underneath.
+        web.evaluateJavascript("if(window.__moaR519NativeBack)window.__moaR519NativeBack();else window.MoaR469SimpleDiary&&window.MoaR469SimpleDiary.home&&window.MoaR469SimpleDiary.home();",null);
+      };
+      a.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_OVERLAY+50,inlineBack);
       backOwner=a;
     }catch(Throwable e){inlineBack=null;backOwner=null;}
   }
@@ -349,24 +362,24 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     actionDeck=deck;actionCapsule=capsule;
     if(deck.getLayoutParams() instanceof FrameLayout.LayoutParams){
       FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)deck.getLayoutParams();
-      p.height=dp(a,44);deck.setLayoutParams(p);
+      p.height=dp(a,40);deck.setLayoutParams(p);
     }
     if(capsule.getLayoutParams() instanceof FrameLayout.LayoutParams){
       FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)capsule.getLayoutParams();
-      p.height=dp(a,37);p.width=Math.min(Math.max(dp(a,215),host.getWidth()-dp(a,20)),dp(a,258));
-      p.bottomMargin=dp(a,2);capsule.setLayoutParams(p);
+      p.height=dp(a,34);p.width=Math.min(Math.max(dp(a,215),host.getWidth()-dp(a,18)),dp(a,280));
+      p.bottomMargin=dp(a,1);capsule.setLayoutParams(p);
     }
     GradientDrawable bg=new GradientDrawable();bg.setColor(0xe5212229);bg.setCornerRadius(dp(a,19));
     bg.setStroke(dp(a,.5f),0x447d828c);capsule.setBackground(bg);
     for(int i=0;i<capsule.getChildCount();i++){
-      View action=capsule.getChildAt(i);action.setMinimumHeight(dp(a,36));
+      View action=capsule.getChildAt(i);action.setMinimumHeight(dp(a,34));
       if(action.getLayoutParams() instanceof LinearLayout.LayoutParams){
         LinearLayout.LayoutParams p=(LinearLayout.LayoutParams)action.getLayoutParams();
-        p.height=dp(a,36);action.setLayoutParams(p);
+        p.height=dp(a,34);action.setLayoutParams(p);
       }
       if(action instanceof ViewGroup){ViewGroup group=(ViewGroup)action;
         for(int k=0;k<group.getChildCount();k++){
-          View glyph=group.getChildAt(k);glyph.setScaleX(.82f);glyph.setScaleY(.82f);
+          View glyph=group.getChildAt(k);glyph.setScaleX(.74f);glyph.setScaleY(.74f);
         }
       }
     }
@@ -379,7 +392,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       web.evaluateJavascript("window.MoaR469SimpleDiary&&window.MoaR469SimpleDiary.setCoverNative&&window.MoaR469SimpleDiary.setCoverNative("+JSONObject.quote(id)+");",null);
       star.setText("★");
     });
-    capsule.addView(star,0,new LinearLayout.LayoutParams(0,dp(a,36),1f));
+    capsule.addView(star,0,new LinearLayout.LayoutParams(0,dp(a,34),1f));
     coverStar=star;
     // Adapt ONLY this owned in-card instance. Original Gallery next opens from
     // fresh host+controls and retains its exact R463 sizes and positions.
@@ -388,7 +401,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       LinearLayout lower=(LinearLayout)lowerObject;nativeLower=lower;
       if(lower.getLayoutParams() instanceof FrameLayout.LayoutParams){
         FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)lower.getLayoutParams();
-        p.height=dp(a,145);lower.setLayoutParams(p);
+        p.height=dp(a,137);lower.setLayoutParams(p);
       }
       Object rail=readField(gallery,"rail");
       if(rail instanceof View && ((View)rail).getLayoutParams() instanceof LinearLayout.LayoutParams){
@@ -403,17 +416,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       Object video=readField(gallery,"videoControls");
       if(video instanceof View && ((View)video).getLayoutParams() instanceof LinearLayout.LayoutParams){
         LinearLayout.LayoutParams p=(LinearLayout.LayoutParams)((View)video).getLayoutParams();
-        p.height=dp(a,38);((View)video).setLayoutParams(p);
+        p.height=dp(a,34);((View)video).setLayoutParams(p);
       }
       Object seek=readField(gallery,"seekRow");
       if(seek instanceof View && ((View)seek).getLayoutParams() instanceof LinearLayout.LayoutParams){
         LinearLayout.LayoutParams p=(LinearLayout.LayoutParams)((View)seek).getLayoutParams();
-        p.height=dp(a,30);((View)seek).setLayoutParams(p);
+        p.height=dp(a,27);((View)seek).setLayoutParams(p);
       }
     }
     if(railView!=null && !railToggleInstalled){
       railExpanded=a.getSharedPreferences("moa.r515.card_ui",0).getBoolean("rail_expanded",true);
-      installRailToggle(a,host);
+      installRailToggle(a,capsule);
       setRailExpanded(a,railExpanded);
     }
     compactDone=true;
@@ -421,17 +434,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // R515 keeps the original rail/OverScroller intact. Only the visibility and
   // viewer-scoped LinearLayout heights are changed; original fullscreen Gallery
   // is never entered through this code path.
-  private void installRailToggle(Activity a,FrameLayout host){
+  private void installRailToggle(Activity a,LinearLayout capsule){
     if(railToggleInstalled || railView==null)return;
+    // In-card ONLY: sixth icon in the existing native action deck.
+    // Do not create another free-floating button covering video controls.
     TextView control=new TextView(a);
     control.setText("⌄");control.setTextSize(15f);control.setTextColor(Color.WHITE);
     control.setGravity(Gravity.CENTER);control.setClickable(true);control.setFocusable(true);
     control.setContentDescription("사진 목록 접기");
-    GradientDrawable bg=new GradientDrawable();bg.setColor(0xbb24272e);bg.setCornerRadius(dp(a,12));
-    bg.setStroke(dp(a,.6f),0x668b8f99);control.setBackground(bg);
-    FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(a,32),dp(a,26),Gravity.RIGHT|Gravity.BOTTOM);
-    lp.rightMargin=dp(a,9);lp.bottomMargin=dp(a,112);
-    host.addView(control,lp);control.setElevation(dp(a,7));
+    control.setTag("moa.gallery.inline.rail.toggle.r519");
+    control.setBackgroundColor(Color.TRANSPARENT);
+    capsule.addView(control,new LinearLayout.LayoutParams(0,dp(a,34),1f));
     control.setOnClickListener(v->{
       setRailExpanded(a,!railExpanded);
       a.getSharedPreferences("moa.r515.card_ui",0).edit().putBoolean("rail_expanded",railExpanded).apply();
@@ -443,15 +456,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(railView!=null)railView.setVisibility(expanded?View.VISIBLE:View.GONE);
     if(nativeLower!=null && nativeLower.getLayoutParams() instanceof FrameLayout.LayoutParams){
       FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)nativeLower.getLayoutParams();
-      lp.height=dp(a,expanded?145:92);nativeLower.setLayoutParams(lp);
+      lp.height=dp(a,expanded?137:82);nativeLower.setLayoutParams(lp);
     }
     if(railToggle!=null){
       railToggle.setText(expanded?"⌄":"⌃");
       railToggle.setContentDescription(expanded?"사진 목록 접기":"사진 목록 펼치기");
-      if(railToggle.getLayoutParams() instanceof FrameLayout.LayoutParams){
-        FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)railToggle.getLayoutParams();
-        p.bottomMargin=dp(a,expanded?112:80);railToggle.setLayoutParams(p);
-      }
+      railToggle.setSelected(!expanded);
     }
   }
   // Only the in-card Gallery opts into center-crop. Never upscale the bitmap
