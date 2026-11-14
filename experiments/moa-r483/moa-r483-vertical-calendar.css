@@ -733,6 +733,25 @@ html #moa-r469-root[data-page="day"] .moa-r503-cover-star{display:none!important
 html #moa-r469-root[data-page="day"] .moa-r469-pager{height:12px!important}
 @media(max-width:370px){html #moa-r469-root[data-page="calendar"] .moa-r511-sticky-weekdays{margin-left:9px!important;margin-right:9px!important}}
 
+/* R519: no old Web Gallery toolbar during native Gallery handoff.
+   The underlying photo may remain as a noninteractive poster; if native fails,
+   controls return after bounded retry. Only the additive photo-day is scoped. */
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-more,
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r503-cover-star,
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-tools,
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-pager,
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-native-fallback{visibility:hidden!important;pointer-events:none!important}
+/* R519: look like a slender thumb-wide current-month anchor, not a large CTA. */
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-dock{
+ flex-basis:36px!important;min-height:36px!important;height:36px!important;
+ padding:3px 7px!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{
+ height:29px!important;min-height:29px!important;max-height:29px!important;
+ font-size:15px!important;font-weight:550!important;line-height:26px!important;
+ letter-spacing:0!important;border-radius:10px!important;
+}
 /* R515: thumb-reachable entire lower dock, without a narrow centered capsule. */
 html #moa-r469-root[data-page="calendar"] .moa-r487-today-dock{
  flex:0 0 40px!important;min-height:40px!important;height:40px!important;
@@ -750,3 +769,7 @@ html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{
 html #moa-r469-root.moa-r507-native-mounted[data-page="day"] .moa-r469-stage-media{
  visibility:hidden!important;pointer-events:none!important;
 }
+
+/* R519 final cascade override after R515 geometry; retain full-width hit surface. */
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-dock{height:36px!important;min-height:36px!important;flex-basis:36px!important;}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{height:29px!important;min-height:29px!important;max-height:29px!important;line-height:27px!important;font-size:15px!important;}
