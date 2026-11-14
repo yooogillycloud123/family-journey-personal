@@ -19,6 +19,8 @@ let r475ExitUntilHidden=false, r475AutostartScheduled=false, r475CalendarRefresh
 // On missing provider / unsupported activity / invalid MediaStore ID, retain the
 // full R503 web presentation and never launch an unexpected fullscreen viewer.
 let r507Generation=0,r507Timer=0,r507Opened=false;
+// JS close/reopen must never be misclassified as a user Back.
+window.__moaR567ProgrammaticCloseUntil=0;
 let r515RecoveryAttempts=0,r515LastNativeMount=0;
 let r551LostAttemptAt=0,r551LostAttempts=0;
 window.__moaR551NativeLost=function(token){
@@ -98,7 +100,7 @@ window.__moaR507NativeMounted=function(mounted){
  if(view){view.classList.toggle('moa-r507-native-mounted',!!mounted);
    if(mounted)view.classList.remove('moa-r519-native-entering');
    if(ui.open&&ui.page==='day'&&ui.media.length)view.classList.add('moa-r547-native-owner');}
- if(mounted){r515RecoveryAttempts=0;r551LostAttempts=0;r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
+ if(mounted){window.__moaR567ProgrammaticCloseUntil=0;r515RecoveryAttempts=0;r551LostAttempts=0;r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
  if(!mounted){window.__moaR507NativePending=false;r507Opened=false;}
 };
 // R515: a transient Activity/WebView update must not demote the in-card native Gallery.
@@ -186,6 +188,8 @@ window.__moaR543RepairInline=function(){
 };
 function r507StopInline(){
  r539EndProxy();
+ if(r507Opened||window.__moaR507NativePending)
+   window.__moaR567ProgrammaticCloseUntil=Date.now()+850;
  ++r507Generation;clearTimeout(r507Timer);r507Timer=0;
  const opened=r507Opened;
  r507Opened=false;window.__moaR507NativePending=false;window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
@@ -503,11 +507,15 @@ function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!con
   // be open after an asynchronous native-mount status reset.
   const nativeWasPending=window.__moaR507NativePending;
   const nativeWasOpened=r507Opened;
+  // R567: paint the CALENDAR under the original R463 native host FIRST.
+  // Closing the host before rendering exposed the empty gray WebView stage.
+  view?.classList.remove('moa-r547-native-owner');
+  window.MoaVoicePlaybackUI?.stop?.();render();
   r507StopInline();
   if(nativeWasPending && !nativeWasOpened){
-    try{window.MoaLocalAudio?.closeNativeGallery?.()}catch(e){console.warn('R563 day exit native close',e)}
+    try{window.MoaLocalAudio?.closeNativeGallery?.()}catch(e){console.warn('R567 day exit native close',e)}
   }
-  view?.classList.remove('moa-r547-native-owner');window.MoaVoicePlaybackUI?.stop?.();render();return true;}r475ExitUntilHidden=true;close();window.FamilyJourneyDiary?.close?.(false);return true;}
+  return true;}r475ExitUntilHidden=true;close();window.FamilyJourneyDiary?.close?.(false);return true;}
 // Android Gallery's original Back or the R523 overlay Back must both EXIT day.
 window.__moaR523NativeClosed=function(token){
  if(token!==undefined&&Number(token)!==window.__moaR527DayToken)return false;
@@ -549,10 +557,33 @@ window.__moaR559ForegroundDayBack=function(){
 // supplementary in-card callback and close the native host first. A foreground
 // close is a user-day EXIT (R535 behavior), never a native-loss auto-reopen.
 window.__moaR563ForegroundNativeClosed=function(day){
+ if(Date.now()<window.__moaR567ProgrammaticCloseUntil)return 'intentional-close';
  if(r523DayExiting||!ui.open||ui.page!=='day'||r531Advanced)return 'not-open';
  // A delayed old-host callback must not exit an unrelated new diary date.
  if(day && day!==ui.date)return 'stale-day';
  return window.__moaR559ForegroundDayBack();
+};
+// R567: a live native host can survive Home/Recents but its WebView-mounted
+// acknowledgment/position MessagePort can be lost. This restores ownership
+// WITHOUT reopening/closing the original R463 Gallery or resetting index.
+window.__moaR567RestoreLiveCard=function(day){
+ if(!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced||ui.date!==day)return false;
+ r507Opened=true;window.__moaR507NativePending=true;
+ window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
+ clearTimeout(r507Timer);r507Timer=0;
+ if(view&&ui.media.length)view.classList.add('moa-r547-native-owner');
+ window.__moaR507NativeMounted(true);
+ r527LastRect='';r527SyncGeometry(true);
+ return true;
+};
+// R567: only a Java-confirmed CLOSED/DETACHED original host can request
+// a same-day rebuild. No retry loop for a live Gallery, no old Web controls.
+window.__moaR567ReopenLostCard=function(day){
+ if(!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced||ui.date!==day)return false;
+ r507StopInline();r515RecoveryAttempts=0;r527BeginDay();
+ if(view&&ui.media.length)view.classList.add('moa-r519-native-entering','moa-r547-native-owner');
+ r507Timer=setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting)r507StartInline();},270);
+ return true;
 };
 window.__moaR559RepositionNative=function(){r527SyncGeometry(true);return true;};
 window.__moaR519NativeBack=window.__moaR523NativeBack;
@@ -673,7 +704,7 @@ function start(){mount();r495InstallBackHandlers();r495InstallScrollSetting();ob
   if(tab&&tab!=='moa-plus'){r475ExitUntilHidden=true;close();}
  },true);}
 
-function render(){if(!ui.open||!view)return;if(r507Opened)r507StopInline();ui.requestGeneration++;view.replaceChildren();view.dataset.page=ui.page;view.dataset.monthScroll=r495ScrollMode();r495SyncLegacyRoot();
+function render(){if(!ui.open||!view)return;if(r507Opened && !(r523DayExiting && ui.page==='calendar'))r507StopInline();ui.requestGeneration++;view.replaceChildren();view.dataset.page=ui.page;view.dataset.monthScroll=r495ScrollMode();r495SyncLegacyRoot();
  ui.page==='day'?renderDay():renderMonth();view.append(elem('div','moa-r469-status',''));view.scrollTop=0;r472Nav();setTimeout(r472RefreshVisibleThumbs,600);}
 function header(title,back){const h=elem('header','moa-r469-head');h.append(btn('‹',back,'moa-r469-back'),elem('strong','',title));return h;}
 function r483MonthKey(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`}
