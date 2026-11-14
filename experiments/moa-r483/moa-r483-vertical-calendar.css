@@ -924,3 +924,17 @@ html #moa-r469-root[data-page="day"] .moa-r570-save-status{
   position:fixed;z-index:1200;bottom:calc(82px + env(safe-area-inset-bottom));
   left:9%;right:9%;padding:7px 12px;margin:0;
   border:1px solid #dfd6dc;border-radius:15px;background:#ffffffef;
+  box-shadow:0 3px 12px #00000019;font:500 11px/1.35 system-ui,sans-serif;color:#6f586b;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  pointer-events:none;max-width:none;
+}
+
+/* R572: photograph/video photo-card only. Original fullscreen/native media untouched.
+   Black is the underlying VIDEO compositor color, not animated blur or gray. */
+html #moa-r469-root[data-page="day"] .moa-r531-video-slide{background:#000!important;}
+html #moa-r469-root[data-page="day"] .moa-r531-video-slide::before{display:none!important;content:none!important;background:none!important;filter:none!important;}
+html #moa-r469-root.moa-r572-video-active[data-page="day"] .moa-r469-stage{background:#000!important;}
+/* The original Web photo stays painted as a static underlay until the original native drawable arrives. */
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
+/* R572 save notices fade automatically; they do NOT affect Gallery geometry. */
+html #moa-r469-root[data-page="day"] .moa-r570-save-status.moa-r572-toast-leave{opacity:0!important;transition:opacity .18s ease!important;}
