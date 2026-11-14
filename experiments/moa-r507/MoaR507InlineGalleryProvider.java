@@ -28,6 +28,8 @@ import android.widget.LinearLayout;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
 import android.webkit.WebView;
+import android.webkit.WebMessage;
+import android.webkit.WebMessagePort;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import org.json.JSONObject;
@@ -94,6 +96,15 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private long lastGeometrySnapshotAt;
   private int lastGeometrySnapshotY;
   private Activity backOwner;
+  // R527: origin-scoped HTML5 WebMessageChannel, one-way geometry PUSH from
+  // the actual DOM scroll animation; avoid evaluateJavascript round trip per
+  // Native View frame. Only numeric coordinates, no user data/URI.
+  private WebView positionWeb;
+  private WebMessagePort positionPort;
+  private long lastPositionMessageAt, lastPortInitAttempt;
+  private int ownedDayToken;
+  private boolean positionPortSettingUp;
+  private long suppressArmUntil;
 
   private static final String SNAPSHOT =
       "(function(){try{" +
@@ -101,7 +112,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       "var e=document.querySelector('#moa-r469-root .moa-r469-stage');"+
       "if(!s||!s.active||s.page!=='day'||window.__moaR507NativePending!==true||!e) return JSON.stringify({active:false});"+
       "var r=e.getBoundingClientRect();"+
-      "return JSON.stringify({active:true,x:r.left,y:r.top,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,cover:(window.__moaR507CoverId||'')});"+
+      "return JSON.stringify({active:true,x:r.left,y:r.top,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,cover:(window.__moaR507CoverId||''),token:(window.__moaR527DayToken||0)});"+
       "}catch(e){return JSON.stringify({active:false});}})()";
 
   private static final String ARM_SNAPSHOT =
@@ -110,7 +121,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       "var e=document.querySelector('#moa-r469-root .moa-r469-stage');"+
       "if(!window.__moaR511InlineArm||!s||!s.active||s.page!=='day'||!e)return JSON.stringify({active:false});"+
       "var r=e.getBoundingClientRect();"+
-      "return JSON.stringify({active:true,x:r.left,y:r.top,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,cover:(window.__moaR507CoverId||'')});"+
+      "return JSON.stringify({active:true,x:r.left,y:r.top,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,cover:(window.__moaR507CoverId||''),token:(window.__moaR527DayToken||0)});"+
       "}catch(e){return JSON.stringify({active:false});}})()";
 
   @Override public boolean onCreate() {
@@ -126,7 +137,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       try {tick();} catch(Throwable ignored) {
         // No change to the working R463 native Gallery on unexpected reflection failure.
         clearCardMark();
-      } finally {main.postDelayed(this, ownsGallery?48:resumed?160:850);}
+      } finally {main.postDelayed(this, ownsGallery?155:resumed?160:850);}
     }
   };
   private static Field field(Class<?> cls,String name){
@@ -159,12 +170,81 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }
     return null;
   }
+  private static boolean isTrustedWeb(WebView web){
+    if(web==null)return false;
+    String url=web.getUrl();
+    return url!=null && (url.startsWith("https://familyjourney.local/web/")||
+      url.startsWith("https://familyjourney.local/"));
+  }
+  private void closePositionPort(){
+    try{if(positionPort!=null)positionPort.close();}catch(Throwable ignored){}
+    positionPort=null;positionWeb=null;positionPortSettingUp=false;lastPositionMessageAt=0;
+  }
+  private void ensurePositionChannel(WebView web){
+    if(Build.VERSION.SDK_INT<23||!isTrustedWeb(web))return;
+    if(positionWeb!=null&&positionWeb!=web)closePositionPort();
+    if(positionPort!=null||positionPortSettingUp)return;
+    long now=android.os.SystemClock.uptimeMillis();
+    if(now-lastPortInitAttempt<1200L)return;
+    lastPortInitAttempt=now;positionPortSettingUp=true;
+    try{web.evaluateJavascript("window.__moaR527BridgeListenReady===true",result->{
+      positionPortSettingUp=false;
+      if(foreground==null||web!=findWeb(foreground)||!isTrustedWeb(web)||!"true".equals(result))return;
+      try{
+        WebMessagePort[] pair=web.createWebMessageChannel();
+        if(pair==null||pair.length!=2)return;
+        WebMessagePort receive=pair[0];
+        receive.setWebMessageCallback(new WebMessagePort.WebMessageCallback(){
+          @Override public void onMessage(WebMessagePort p,WebMessage m){
+            // Callback is already on the Android UI thread.
+            if(positionPort!=p||positionWeb!=web||!isTrustedWeb(web)||
+                !ownsGallery||nativeHost==null||!galleryOpen(galleryRef))return;
+            onPositionMessage(web,m.getData());
+          }
+        });
+        positionPort=receive;positionWeb=web;
+        web.postWebMessage(new WebMessage("MOA_R527_POSITION_CHANNEL",
+          new WebMessagePort[]{pair[1]}),Uri.parse("https://familyjourney.local"));
+      }catch(Throwable ignored){closePositionPort();}
+    });}catch(Throwable ignored){positionPortSettingUp=false;}
+  }
+  private void onPositionMessage(WebView web,String data){
+    if(data==null||data.length()>180)return;
+    try{
+      String[] x=data.split(",",-1);if(x.length!=7)return;
+      int token=(int)Double.parseDouble(x[0]);
+      if(token!=ownedDayToken||token<=0)return;
+      double dx=Double.parseDouble(x[1]),dy=Double.parseDouble(x[2]);
+      double dw=Double.parseDouble(x[3]),dh=Double.parseDouble(x[4]);
+      double vw=Double.parseDouble(x[5]),vh=Double.parseDouble(x[6]);
+      if(!Double.isFinite(dx)||!Double.isFinite(dy)||!Double.isFinite(dw)||
+          !Double.isFinite(dh)||!Double.isFinite(vw)||!Double.isFinite(vh)||
+          vw<100||vh<100||dw<100||dh<100||Math.abs(dy)>20000)return;
+      FrameLayout root=foreground.findViewById(android.R.id.content);
+      if(root==null||nativeHost.getParent()!=root)return;
+      int[] wpos=new int[2],rpos=new int[2];
+      web.getLocationInWindow(wpos);root.getLocationInWindow(rpos);
+      double sx=(double)web.getWidth()/vw,sy=(double)web.getHeight()/vh;
+      if(sx<.2||sx>10||sy<.2||sy>10)return;
+      int ix=rounded(wpos[0]-rpos[0]+dx*sx),iy=rounded(wpos[1]-rpos[1]+dy*sy);
+      int iw=rounded(dw*sx),ih=rounded(dh*sy);
+      // Do not trigger MediaPlayer/TextureView re-layout in a position frame.
+      if(lastW<0||Math.abs(iw-lastW)>dp(foreground,8)||
+          Math.abs(ih-lastH)>dp(foreground,8))return;
+      nativeHost.setTranslationX(ix-baseX);
+      nativeHost.setTranslationY(iy-baseY);
+      nativeHost.setVisibility(iy+ih<0||iy>root.getHeight()?View.INVISIBLE:View.VISIBLE);
+      lastPositionMessageAt=android.os.SystemClock.uptimeMillis();
+      lastX=ix;lastY=iy;
+    }catch(Throwable ignored){}
+  }
   private void tick(){
     Activity a=foreground;
     if(!resumed||a==null||a.isFinishing()||a.isDestroyed())return;
     WebView web=findWeb(a);if(web==null)return;
     Object gallery=readField(a,"unifiedGallery");
     if(!galleryOpen(gallery)){
+      ensurePositionChannel(web);
       if(ownsGallery) {
         // A media transition can briefly clear the original open flag. Do not
         // leave the diary on a single transient observation. Confirm closure.
@@ -175,8 +255,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         // gallery Back had closed it. The reopen was mistaken for a failed Back,
         // leaving the user trapped for repeated gestures. An owned Gallery close
         // (even if delivered by R463's own dispatcher) is an EXIT, never a retry.
+        final int closedToken=ownedDayToken;
+        suppressArmUntil=android.os.SystemClock.uptimeMillis()+850L;
         clearCardMark();
-        web.evaluateJavascript("window.__moaR523NativeClosed&&window.__moaR523NativeClosed();",null);
+        web.evaluateJavascript("window.__moaR523NativeClosed&&window.__moaR523NativeClosed("+closedToken+");",null);
       }
       if(android.os.SystemClock.uptimeMillis()-lastHello>1000){
         lastHello=android.os.SystemClock.uptimeMillis();
@@ -186,6 +268,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       return;
     }
     nativeCloseDetectedAt=0L;
+    ensurePositionChannel(web);
+    // The DOM compositor pushes exact card positions during scrolling. Do NOT
+    // fight its order with another delayed evaluateJavascript snapshot/Matrix.
+    if(positionWeb==web && positionPort!=null && ownsGallery &&
+        android.os.SystemClock.uptimeMillis()-lastPositionMessageAt<550L)return;
     if(processing)return;
     processing=true;
     final Activity target=a;
@@ -231,7 +318,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     });}catch(Throwable e){processing=false;}
   }
   private void maybeArm(Activity a,WebView web){
-    if(ownsGallery||inlineArmed||processing)return;
+    if(ownsGallery||inlineArmed||processing||
+        android.os.SystemClock.uptimeMillis()<suppressArmUntil)return;
     processing=true;
     web.evaluateJavascript(ARM_SNAPSHOT,raw->{
       processing=false;
@@ -243,7 +331,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         if(!state.optBoolean("active")||state.optDouble("w")<150||state.optDouble("h")<180)return;
         FrameLayout root=a.findViewById(android.R.id.content);
         if(root==null)return;
-        armRoot=root;armedState=state;inlineArmed=true;
+        armRoot=root;armedState=state;ownedDayToken=state.optInt("token",0);inlineArmed=true;
         armDeadline=android.os.SystemClock.uptimeMillis()+5000;
         installPreDrawGuard(a,web,root);
         web.evaluateJavascript("window.__moaR511NativeArmed=true;",null);
@@ -302,7 +390,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
     coverStar=null;railToggle=null;railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
-    exitInFlight=false;nativeCloseDetectedAt=0L;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
+    exitInFlight=false;ownedDayToken=0;nativeCloseDetectedAt=0L;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
     lastX=lastY=Integer.MIN_VALUE;
   }
   private static int rounded(double x){return (int)Math.round(x);}
@@ -325,7 +413,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(w<150||h<180)return;
     if(w>root.getWidth()+3||h>root.getHeight()+3)return;
     if(host!=nativeHost){
-      clearCardMark();nativeHost=host;galleryRef=gallery;ownsGallery=true;
+      final int newToken=s.optInt("token",ownedDayToken);
+      clearCardMark();nativeHost=host;galleryRef=gallery;ownsGallery=true;ownedDayToken=newToken;lastPositionMessageAt=0;
       GradientDrawable round=new GradientDrawable();round.setColor(Color.BLACK);round.setCornerRadius(dp(a,23));
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
       installInlineBack(a,web);
@@ -403,7 +492,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         // Native Back must exit the PHOTO DAY, not merely Gallery.close() which
         // exposes the abandoned legacy web photo editor underneath.
         exitInFlight=true;lastNativeBackAt=now;
-        web.evaluateJavascript("window.__moaR523NativeBack?window.__moaR523NativeBack():window.__moaR519NativeBack&&window.__moaR519NativeBack();",result->{
+        final int callbackToken=ownedDayToken;
+        web.evaluateJavascript("window.__moaR523NativeBack?window.__moaR523NativeBack("+callbackToken+"):window.__moaR519NativeBack&&window.__moaR519NativeBack();",result->{
           // A voice modal or cancelled dirty-editor confirmation does not
           // complete a day exit; next hardware Back must remain responsive.
           if(!"\"exit\"".equals(result))exitInFlight=false;
@@ -595,7 +685,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
 
   @Override public void onActivityResumed(Activity a){foreground=a;resumed=true;}
   @Override public void onActivityPaused(Activity a){if(foreground==a)resumed=false;}
-  @Override public void onActivityDestroyed(Activity a){if(foreground==a){foreground=null;resumed=false;clearCardMark();}}
+  @Override public void onActivityDestroyed(Activity a){if(foreground==a){closePositionPort();foreground=null;resumed=false;clearCardMark();}}
   @Override public void onActivityCreated(Activity a,Bundle b){}
   @Override public void onActivityStarted(Activity a){}
   @Override public void onActivityStopped(Activity a){}
