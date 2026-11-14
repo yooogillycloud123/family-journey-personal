@@ -1,0 +1,74 @@
+name: MOA R523 native Gallery in-card isolated DEX compile
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/moa-r523-native-card.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  compile_native_card:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/moa-r523-back-video-scroll-stability-20261114
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Ensure Android SDK platform and D8
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Isolated original-preserving Java to DEX
+        run: |
+          set -euo pipefail
+          mkdir -p build/moa-r523 /tmp/moa523/classes /tmp/moa523/dex
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d /tmp/moa523/classes \
+            experiments/moa-r507/MoaR507InlineGalleryProvider.java \
+            2>&1 | tee build/moa-r523/compile.log
+          find /tmp/moa523/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | \
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 \
+            --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
+            --output /tmp/moa523/dex 2>&1 | tee -a build/moa-r523/compile.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,zlib,base64,json
+          b=Path('/tmp/moa523/dex/classes.dex').read_bytes()
+          assert b.startswith(b'dex\n')
+          assert b'MoaR507InlineGalleryProvider' in b
+          assert b'MoaNativeGallery' not in b or b'MoaR507InlineGalleryProvider' in b
+          assert len(b)<200000
+          p=Path('build/moa-r523');p.mkdir(parents=True,exist_ok=True)
+          (p/'classes18.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+          (p/'manifest.json').write_text(json.dumps({'version':'R523','class':'MoaR507InlineGalleryProvider','dex_size':len(b),'dex_sha256':hashlib.sha256(b).hexdigest(),'source_sha256':hashlib.sha256(Path('experiments/moa-r507/MoaR507InlineGalleryProvider.java').read_bytes()).hexdigest(),'android_device':'NOT_TESTED'},indent=2))
+          print((p/'manifest.json').read_text())
+          PY
+      - name: Commit verified native DEX to feature branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f build/moa-r523/classes18.dex.z.b64 build/moa-r523/manifest.json build/moa-r523/compile.log
+          if ! git diff --cached --quiet; then
+            git commit -m "ci(moa-r523): compiled native photo-card bridge DEX"
+            git push origin HEAD:feature/moa-r523-back-video-scroll-stability-20261114
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R523-native-card-DEX
+          path: build/moa-r523/
+
+# R523 second reproducible DEX build: final rail-toggle anchor source commit 723f7cd5d13fdaaca7f00fd92e71381995309715
+
+# Recompile final native startup opacity fix from feature commit 25a79569110303d5e405acfcde158ffdbce5f1be
+
+# Final R523 in-card-only compact R463 controls repair from dd c22d397437a89c2f4f69179be4f5ed447cce83
+
+# Final native Back IME/voice guard commit 2fe422cb3d4de65f617027038e90e5a526b8a638
