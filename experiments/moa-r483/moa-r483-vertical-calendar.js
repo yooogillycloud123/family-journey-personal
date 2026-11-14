@@ -944,6 +944,8 @@ function r472MediaSelected(index){
  r472UpdatePager();r472LazyPhotos();
 }
 function r472UpdatePager(){
+ // Black video standby only. The original native player/stream is untouched.
+ view?.classList.toggle('moa-r572-video-active',!!ui.media[ui.idx]&&isVideo(ui.media[ui.idx]));
  const dots=$('.moa-r469-pager',view);if(!dots)return;
  dots.replaceChildren();const count=ui.media.length;if(!count)return;
  const range=count<=9?Array.from({length:count},(_,i)=>i):Array.from({length:7},(_,i)=>Math.max(0,Math.min(count-7,ui.idx-3))+i);
