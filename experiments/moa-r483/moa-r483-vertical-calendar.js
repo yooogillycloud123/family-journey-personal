@@ -52,7 +52,7 @@ function r527SyncGeometry(force=false){
   const values=[window.__moaR527DayToken,rect.left,rect.top,rect.width,rect.height,innerWidth,innerHeight];
   const key=values.map(n=>Math.round(n*10)/10).join(',');
   const now=performance.now();if(key===r527LastRect&&!force)return;
-  if(!force&&now-r527LastSentAt<13)return;
+  // At 120 Hz do not discard alternate animation frames. Same-rect packets are already deduplicated.
   r527LastSentAt=now;r527LastRect=key;
   try{r527GeometryPort.postMessage(key)}catch(_){r527GeometryPort=null}
  });
