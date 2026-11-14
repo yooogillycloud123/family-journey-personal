@@ -90,6 +90,26 @@ window.__moaR507NativeSelected=function(index){
  const at=Number(index);if(!Number.isSafeInteger(at)||at<0||at>=ui.media.length)return;
  if(ui.idx!==at){ui.idx=at;r472UpdatePager();}
 };
+// R531: the original R463 Gallery remains the only fullscreen media owner.
+let r531Advanced=false;
+window.__moaR531ShowAdvanced=function(){
+ if(!ui.open||ui.page!=='day'||!ui.media.length)return false;
+ const ids=ui.media.map(m=>String(m.id));
+ if(ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id)))return false;
+ ++r507Generation;clearTimeout(r507Timer);r507Timer=0;
+ r507Opened=false;window.__moaR507NativePending=false;window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
+ view?.classList.remove('moa-r507-native-mounted','moa-r519-native-entering');
+ r531Advanced=true;
+ let ok=false;try{ok=!!window.MoaLocalAudio?.openNativeGallery?.(JSON.stringify(ids),ui.idx,ui.date)}catch(e){console.warn('R531 original fullscreen gallery',e)}
+ if(!ok){r531Advanced=false;setTimeout(()=>{if(ui.open&&ui.page==='day')r507StartInline()},100);}
+ return ok;
+};
+window.__moaR531AdvancedClosed=function(){
+ if(!r531Advanced)return false;
+ r531Advanced=false;
+ if(ui.open&&ui.page==='day'&&!r523DayExiting){r527BeginDay();setTimeout(()=>{if(ui.open&&ui.page==='day')r507StartInline()},100);}
+ return true;
+};
 function r507StopInline(){
  ++r507Generation;clearTimeout(r507Timer);r507Timer=0;
  const opened=r507Opened;
@@ -99,7 +119,7 @@ function r507StopInline(){
  if(opened){try{window.MoaLocalAudio?.closeNativeGallery?.()}catch(e){console.warn('R507 inline close',e)}}
 }
 function r507StartInline(){
- if(r523DayExiting)return;
+ if(r523DayExiting||r531Advanced)return;
  const generation=++r507Generation;
  if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
  clearTimeout(r519EntryTimer);
@@ -311,7 +331,7 @@ function r472Store(id,size,data){if(typeof data!=='string'||!data.startsWith('da
  while(r472Cache.size>22)r472Cache.delete(r472Cache.keys().next().value);
 }
 function r472Paint(node,src){if(!node?.isConnected||!src?.startsWith('data:image/'))return;
- if(node.src!==src){node.onerror=()=>{node.classList.remove('moa-r472-image-ready');node.removeAttribute('src');r472ScheduleRetry()};node.src=src;node.classList.add('moa-r472-image-ready');}
+ if(node.src!==src){node.onerror=()=>{node.classList.remove('moa-r472-image-ready');node.removeAttribute('src');r472ScheduleRetry()};node.src=src;node.classList.add('moa-r472-image-ready');const slide=node.closest('.moa-r531-video-slide');if(slide)slide.style.setProperty('--moa-r531-poster',`url("${src}")`);}
 }
 function r472ScheduleRetry(){if(r472ThumbRetryTimer||!ui.open||document.hidden)return;
  r472ThumbRetryTimer=setTimeout(()=>{r472ThumbRetryTimer=0;
@@ -684,7 +704,8 @@ function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui
  const stage=elem('div','moa-r469-stage');stage.dataset.moaStage='yes';stage.tabIndex=0;stage.setAttribute('aria-label','사진 영상 좌우로 이동');stage.append(elem('div','moa-r469-stage-media'));
  const coverStar=btn('☆',()=>{const media=dayMedia(ui.idx);if(media)saveCover(media.id)},'moa-r503-cover-star');
  coverStar.setAttribute('aria-label','현재 사진을 달력 대표 사진으로 지정');coverStar.title='달력 대표 사진으로 지정';stage.append(coverStar);
- const more=btn('···',()=>{ui.tools=!ui.tools;toggleTools()},'moa-r469-more');more.setAttribute('aria-label','사진 기능');stage.append(more);wrap.append(stage);
+ const more=btn('···',()=>{ui.tools=!ui.tools;toggleTools()},'moa-r469-more');more.setAttribute('aria-label','사진 기능');stage.append(more);
+ const advanced=btn('⛶',()=>{if(!view?.classList.contains('moa-r507-native-mounted'))window.MoaLocalAudio?.openNativeGallery?.(JSON.stringify(ui.media.map(m=>String(m.id))),ui.idx,ui.date)},'moa-r531-web-advanced');advanced.setAttribute('aria-label','원래 고급 갤러리 전체 화면 열기');stage.append(advanced);wrap.append(stage);
  stage.addEventListener('keydown',e=>{
   if(e.key==='ArrowLeft'){changeMedia(ui.idx-1);e.preventDefault()}
   else if(e.key==='ArrowRight'){changeMedia(ui.idx+1);e.preventDefault()}
@@ -785,7 +806,7 @@ function renderMedia(){
   if(e.target.closest('.moa-r472-slide')){ui.tools=!ui.tools;toggleTools();}
  });
  medias.forEach((m,i)=>{
-  const slide=elem('div','moa-r472-slide');slide.dataset.idx=String(i);
+  const slide=elem('div','moa-r472-slide');slide.dataset.idx=String(i);if(isVideo(m))slide.classList.add('moa-r531-video-slide');
   const image=elem('img');image.alt='';image.dataset.id=String(m.id);image.loading='lazy';
   slide.append(image);
   if(isVideo(m)){
@@ -923,6 +944,6 @@ function playInlineVideo(media){
 
 const originalAudioEvent=window.__moaNativeAudioEvent;
 if(typeof originalAudioEvent==='function'){window.__moaNativeAudioEvent=function(evt){originalAudioEvent.apply(this,arguments);if(!ui.open||ui.page!=='day')return;const event=String(evt?.event||'');if(event==='play_started'||event==='play_resumed'){ui.audioPlaying=true;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='Ⅱ';}else if(['play_paused','play_finished','play_error'].includes(event)){ui.audioPlaying=false;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='▷';}if(['record_saved','delete'].includes(event))setTimeout(refreshVoices,250);};}
-window.MoaR469SimpleDiary={openCalendar:()=>open('calendar'),openDay:d=>open('day',d),setCoverNative:id=>{if(ui.open&&ui.page==='day'&&ui.media.some(m=>String(m.id)===String(id)))saveCover(id)},home:()=>ui.open?(ui.page==='day'?goBack():true):false,close,readOnlyStatus:()=>({active:ui.open,page:ui.page,date:ui.date,mediaCount:ui.media.length,voiceCount:ui.clips.length})};
+window.MoaR469SimpleDiary={openAdvancedGallery:()=>window.__moaR531ShowAdvanced?.(),openCalendar:()=>open('calendar'),openDay:d=>open('day',d),setCoverNative:id=>{if(ui.open&&ui.page==='day'&&ui.media.some(m=>String(m.id)===String(id)))saveCover(id)},home:()=>ui.open?(ui.page==='day'?goBack():true):false,close,readOnlyStatus:()=>({active:ui.open,page:ui.page,date:ui.date,mediaCount:ui.media.length,voiceCount:ui.clips.length})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
