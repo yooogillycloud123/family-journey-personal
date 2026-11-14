@@ -132,7 +132,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       "(function(){try{" +
       "var d=window.MoaR469SimpleDiary,s=d&&d.readOnlyStatus&&d.readOnlyStatus();"+
       "var e=document.querySelector('#moa-r469-root .moa-r469-stage');"+
-      "if(!s||!s.active||s.page!=='day'||window.__moaR507NativePending!==true||!e) return JSON.stringify({active:false});"+
+      "if(!s||!s.active||s.page!=='day'||!(window.__moaR507NativePending===true||window.__moaR511InlineArm===true)||!e) return JSON.stringify({active:false});"+
       "var r=e.getBoundingClientRect();"+
       "return JSON.stringify({active:true,x:r.left,y:r.top,w:r.width,h:r.height,vw:innerWidth,vh:innerHeight,cover:(window.__moaR507CoverId||''),token:(window.__moaR527DayToken||0)});"+
       "}catch(e){return JSON.stringify({active:false});}})()";
@@ -157,8 +157,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private final Runnable ticker=new Runnable(){
     @Override public void run(){
       try {tick();} catch(Throwable ignored) {
-        // No change to the working R463 native Gallery on unexpected reflection failure.
-        clearCardMark();
+        // R551: transient View/WebView reflection failures are not permission
+        // to discard a playing and already mounted original R463 Gallery.
+        // Next tick rechecks; the verified native owner stays intact.
       } finally {main.postDelayed(this, ownsGallery?155:resumed?160:850);}
     }
   };
@@ -298,19 +299,39 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
           (returnFromBackground || android.os.SystemClock.uptimeMillis()<returnCloseGuardUntil))return;
       ensurePositionChannel(web);
       if(ownsGallery) {
-        // A media transition can briefly clear the original open flag. Do not
-        // leave the diary on a single transient observation. Confirm closure.
+        // R551: an isOpen=false observation may be a media transition, external
+        // Activity return, or an old host being retired. It is NOT evidence of
+        // the user's Back gesture. The overlay Back callback explicitly exits.
         long now=android.os.SystemClock.uptimeMillis();
         if(nativeCloseDetectedAt==0L){nativeCloseDetectedAt=now;return;}
-        if(now-nativeCloseDetectedAt<180L)return;
-        // R523: R519 was re-opening the Gallery just after Android's ORIGINAL
-        // gallery Back had closed it. The reopen was mistaken for a failed Back,
-        // leaving the user trapped for repeated gestures. An owned Gallery close
-        // (even if delivered by R463's own dispatcher) is an EXIT, never a retry.
+        if(now-nativeCloseDetectedAt<380L)return;
         final int closedToken=ownedDayToken;
-        suppressArmUntil=android.os.SystemClock.uptimeMillis()+850L;
-        clearCardMark();
-        web.evaluateJavascript("window.__moaR523NativeClosed&&window.__moaR523NativeClosed("+closedToken+");",null);
+        final Activity owner=a;
+        final Object oldGallery=galleryRef;
+        nativeCloseDetectedAt=now;
+        web.evaluateJavascript("(function(){try{var d=window.MoaR469SimpleDiary,"+
+          "s=d&&d.readOnlyStatus&&d.readOnlyStatus();return JSON.stringify({day:!!("+
+          "s&&s.active&&s.page==='day'),pending:!!window.__moaR507NativePending,"+
+          "token:window.__moaR527DayToken||0,full:!!(window.__moaR539AdvancedActive&&"+
+          "window.__moaR539AdvancedActive())});}catch(e){return '{}'}})()",raw->{
+            if(!resumed||foreground!=owner||!ownsGallery||galleryRef!=oldGallery||
+                galleryOpen(readField(owner,"unifiedGallery")))return;
+            try{
+              Object data=new JSONTokener(raw).nextValue();
+              if(!(data instanceof String))return;
+              JSONObject state=new JSONObject((String)data);
+              boolean sameDay=state.optBoolean("day")&&state.optBoolean("pending")&&
+                  state.optInt("token",0)==closedToken&&!state.optBoolean("full");
+              clearCardMark();
+              if(sameDay){
+                // A lost native renderer is repaired as a NATIVE renderer only.
+                // It must never invoke the old Web Gallery or exit the day.
+                web.evaluateJavascript("window.__moaR551NativeLost&&"+
+                  "window.__moaR551NativeLost("+closedToken+");",null);
+              }
+            }catch(Throwable ignored){}
+          });
+        return;
       }
       if(android.os.SystemClock.uptimeMillis()-lastHello>1000){
         lastHello=android.os.SystemClock.uptimeMillis();
@@ -321,6 +342,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }
     nativeCloseDetectedAt=0L;
     ensurePositionChannel(web);
+    // R551: when the original Gallery exists but wasn't yet projected over the
+    // newly recreated photo-day card, arm even though isOpen()==true. Previous
+    // versions only called maybeArm in the !isOpen branch and could deadlock.
+    if(!ownsGallery && !inlineArmed && !processing)maybeArm(a,web);
     // R535: WebMessagePort's fast path bypasses attachCard. Even when geometry
     // keeps streaming, the old video ambient MUST be hidden immediately when
     // a different PHOTO is selected; do not leave a blurred video layer on top.
@@ -358,7 +383,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
           if(ownsGallery && now-inactiveAt>10000L){
             web.evaluateJavascript("(function(){var d=window.MoaR469SimpleDiary,s=d&&d.readOnlyStatus&&d.readOnlyStatus();return JSON.stringify({day:!!(s&&s.active&&s.page==='day'),pending:!!window.__moaR507NativePending});})()",verify->{
               try{Object x=new JSONTokener(verify).nextValue();if(!(x instanceof String))return;JSONObject st=new JSONObject((String)x);
-                if(!st.optBoolean("day")||!st.optBoolean("pending")){invokeClose(gallery);clearCardMark();}
+                if(!st.optBoolean("day")&&!galleryOpen(gallery))clearCardMark();
               }catch(Throwable ignored){}
             });
             inactiveAt=now-8000L;
@@ -417,19 +442,19 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         if(!(hostObject instanceof FrameLayout))return true;
         FrameLayout host=(FrameLayout)hostObject;
         if(host.getParent()!=root||armedState==null)return true;
-        // Hide the original fullscreen host before its FIRST draw, even if
-        // Gallery.open() has not reached its final open=true assignment.
-        host.setAlpha(0f);
+        // R551: attach BEFORE drawing; never leave an unmounted R463 host
+        // alpha=0. Earlier code hid it first and could disarm even if attach
+        // rejected a stale geometry snapshot, making it gray indefinitely.
         if(!galleryOpen(gallery))return true;
-        // UI thread before the first completed frame: resize in-card first.
         try{attachCard(a,web,gallery,armedState);}catch(Throwable ignored){}
-        disarm();
-        host.postDelayed(()->{
-          // Never leave a half-transparent TextureView when the user scrolls
-          // during an entrance fade (position translation does not own alpha).
-          if(host==nativeHost&&galleryOpen(gallery)&&ownsGallery)
-            host.setAlpha(1f);
-        },16);
+        if(nativeHost==host&&ownsGallery){
+          host.setAlpha(1f);
+          disarm();
+        }else{
+          host.setAlpha(1f);
+          // Keep the guard armed for a later valid layout; the tick's direct
+          // SNAPSHOT path can independently attach once geometry has settled.
+        }
         return true;
       }
     };
