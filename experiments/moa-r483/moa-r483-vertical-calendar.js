@@ -20,6 +20,24 @@ let r475ExitUntilHidden=false, r475AutostartScheduled=false, r475CalendarRefresh
 // full R503 web presentation and never launch an unexpected fullscreen viewer.
 let r507Generation=0,r507Timer=0,r507Opened=false;
 let r515RecoveryAttempts=0,r515LastNativeMount=0;
+let r551LostAttemptAt=0,r551LostAttempts=0;
+window.__moaR551NativeLost=function(token){
+ if(Number(token)!==window.__moaR527DayToken||!ui.open||ui.page!=='day'||
+    r523DayExiting||r531Advanced)return false;
+ const now=Date.now();
+ if(now-r551LostAttemptAt<1500)return false;
+ if(now-r551LostAttemptAt>15000)r551LostAttempts=0;
+ r551LostAttemptAt=now;
+ if(++r551LostAttempts>4){notify('갤러리 연결 상태 확인이 필요합니다. 상단 설정에서 다시 표시할 수 있습니다.');return false;}
+ // Native provider already confirmed isOpen=false. Do not close a second time.
+ ++r507Generation;clearTimeout(r507Timer);r507Timer=0;
+ r507Opened=false;window.__moaR507NativePending=false;
+ window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
+ view?.classList.remove('moa-r507-native-mounted');
+ view?.classList.add('moa-r519-native-entering','moa-r547-native-owner');
+ r507Timer=setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting)r507StartInline()},260);
+ return true;
+};
 // R519: native bridge takes ownership at day-entry; do not paint obsolete Web controls.
 let r519EntryTimer=0;
 // R523: distinguish deliberate day exit/native Back from media errors.
@@ -80,14 +98,14 @@ window.__moaR507NativeMounted=function(mounted){
  if(view){view.classList.toggle('moa-r507-native-mounted',!!mounted);
    if(mounted)view.classList.remove('moa-r519-native-entering');
    if(ui.open&&ui.page==='day'&&ui.media.length)view.classList.add('moa-r547-native-owner');}
- if(mounted){r515RecoveryAttempts=0;r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
+ if(mounted){r515RecoveryAttempts=0;r551LostAttempts=0;r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
  if(!mounted){window.__moaR507NativePending=false;r507Opened=false;}
 };
 // R515: a transient Activity/WebView update must not demote the in-card native Gallery.
 window.__moaR515RecoverInline=function(){
  // Never restart a native Gallery when Android Back has closed it.
  if(r523DayExiting||!ui.open||ui.page!=='day'||!window.__moaR507NativePending)return false;
- if(++r515RecoveryAttempts>2){r507StopInline();notify('네이티브 갤러리를 다시 연결하지 못했습니다. 사진 데이터는 유지됩니다.');return false;}
+ if(++r515RecoveryAttempts>2){notify('갤러리 연결 상태 확인 중 · 상단 설정에서 다시 표시할 수 있습니다.');return false;}
  r507Opened=false;window.__moaR507NativePending=false;window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
  view?.classList.remove('moa-r507-native-mounted');
  if(view)view.classList.add('moa-r519-native-entering');
@@ -179,6 +197,9 @@ function r507StopInline(){
 }
 function r507StartInline(){
  if(r523DayExiting||r531Advanced)return;
+ // R551: a second asynchronous entry request must not restart or close an
+ // original Gallery which the user is already viewing.
+ if(r507Opened&&window.__moaR507NativePending)return;
  const generation=++r507Generation;
  if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
  clearTimeout(r519EntryTimer);
@@ -207,17 +228,19 @@ function r507StartInline(){
   catch(e){console.warn('R507 original gallery unavailable',e)}
   if(!ok){window.__moaR507NativePending=false;return;}
   r507Opened=true;
-  // Fail CLOSED: if Android could not reparent the real native host over the
-  // card, immediately close it; never leave an undesired fullscreen Gallery.
+  // R551: the old 2700ms timer called r507StopInline() (which invokes
+  // Gallery.close()) merely because the asynchronous native mounted signal
+  // had not reached JS yet. On a detail↔photo or NAVER return this DESTROYED
+  // a valid R463 gallery, then exposed the old Web viewer. Never close a
+  // native gallery on a timer. The Java ticker retries attachment in-place.
   setTimeout(()=>{
-   if(generation!==r507Generation||!r507Opened)return;
+   if(generation!==r507Generation||!r507Opened||!ui.open||ui.page!=='day')return;
    if(!view?.classList.contains('moa-r507-native-mounted')){
-    const retry=++r515RecoveryAttempts<=2;
-    r507StopInline();
-    if(retry){
-      if(view)view.classList.add('moa-r519-native-entering','moa-r547-native-owner');
-      setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting&&!r531Advanced)r507StartInline()},400);
-    }else notify('네이티브 갤러리 연결 실패 · 상단 설정에서 다시 연결');
+     view?.classList.add('moa-r519-native-entering','moa-r547-native-owner');
+     // Preserve both pending and arm flags so the native SNAPSHOT path can
+     // attach an already-open host. No duplicate openNativeGallery() call.
+     window.__moaR507NativePending=true;
+     window.__moaR511InlineArm=true;
    }
   },2700);
  };
