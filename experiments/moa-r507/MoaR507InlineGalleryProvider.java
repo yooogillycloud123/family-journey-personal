@@ -229,19 +229,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private void onPositionMessage(WebView web,String data){
     if(data==null||data.length()>180)return;
     try{
-      // R539: a native sibling cannot be frame-locked to a scrolling WebView.
-      // Keep touch ownership, but temporarily paint the SAME picture in WebView.
-      if(data.startsWith("s,")){
-        String[] ctrl=data.split(",",-1);
-        if(ctrl.length!=3||Integer.parseInt(ctrl[1])!=ownedDayToken)return;
-        if(nativeHost!=null && ownsGallery && galleryOpen(galleryRef)){
-          nativeHost.setAlpha("1".equals(ctrl[2])?0f:1f);
-          if("0".equals(ctrl[2]))
-            web.evaluateJavascript("window.__moaR539NativeScrollSettled&&"+
-              "window.__moaR539NativeScrollSettled("+ownedDayToken+");",null);
-        }
-        return;
-      }
+      // R543: native in-card host remains opaque during ALL scroll frames.
+      // The old s,1 protocol hid it and lost its s,0 restore on port churn.
       if(data.startsWith("r,")){
         String[] ctrl=data.split(",",-1);
         if(ctrl.length!=2||Integer.parseInt(ctrl[1])!=ownedDayToken)return;
@@ -339,6 +328,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       return;
     }
     nativeCloseDetectedAt=0L;
+    // Fail open after R539: never allow an owned Gallery to remain alpha=0.
+    // During initial pre-draw arming the host is not yet ours, so no flash.
+    if(ownsGallery && nativeHost!=null && nativeHost.getAlpha()<0.98f)
+      nativeHost.setAlpha(1f);
     ensurePositionChannel(web);
     // R535: WebMessagePort's fast path bypasses attachCard. Even when geometry
     // keeps streaming, the old video ambient MUST be hidden immediately when
@@ -905,6 +898,23 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         if(liveToken<=0)return;
         lastRebindAt=android.os.SystemClock.uptimeMillis();
         returnFromBackground=false;
+        // If the original host is STILL properly attached and renders a photo,
+        // do not destroy it on every onResume. R539 destroyed healthy Galleries
+        // and could strand the JS behind the original fallback image.
+        final FrameLayout root=a.findViewById(android.R.id.content);
+        if(ownsGallery && galleryRef==gallery && galleryOpen(gallery) &&
+           nativeHost!=null && nativeHost.getParent()==root){
+          nativeHost.setAlpha(1f);
+          final Object tx=readField(gallery,"texture");
+          final boolean video=currentId(gallery).startsWith("v");
+          final boolean lostSurface=video && tx instanceof TextureView &&
+              !((TextureView)tx).isAvailable();
+          if(!lostSurface){
+            web.evaluateJavascript("window.__moaR507NativeMounted&&"+
+                "window.__moaR507NativeMounted(true);",null);
+            return;
+          }
+        }
         suppressArmUntil=lastRebindAt+300L;
         closePositionPort();
         if(ownsGallery){
