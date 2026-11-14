@@ -951,3 +951,17 @@ html #moa-r469-root[data-page="day"] .moa-r472-slide:not(.moa-r531-video-slide) 
    draw a blank black owner frame while R73's full index is lagging. */
 html #moa-r469-root.moa-r576-index-wait[data-page="day"] .moa-r469-stage{background:var(--moa-r491-empty,#e6e0dd)!important;}
 html #moa-r469-root.moa-r576-index-wait[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
+
+/* R578: undo R570/R572 blanket video background removal. The R567
+   full-width blurred poster covers the FIT video sides; no extra black strips.
+   Keep the native Gallery the only interactive media owner. */
+html #moa-r469-root[data-page="day"] .moa-r531-video-slide::before,
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r531-video-slide::before{
+ display:block!important;content:""!important;
+ background-image:var(--moa-r531-poster,none)!important;
+ filter:blur(19px) brightness(.72)!important;opacity:1!important;
+ transition:none!important;pointer-events:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r531-video-slide{
+ background:#38343a!important;
+}
