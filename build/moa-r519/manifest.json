@@ -1,8 +1,8 @@
 {
   "version": "R519",
   "class": "MoaR507InlineGalleryProvider",
-  "dex_size": 24676,
-  "dex_sha256": "b2fefec47036f4465f6f999744a00d7925cdebae82d60e201420a40022906d83",
-  "source_sha256": "d37136f049b102acbeb5c39e30189cb12bb7306fb47db8c813596c61a89dab50",
+  "dex_size": 24992,
+  "dex_sha256": "7de0ab255e87a65d8556261e8b3f7d5ca856b79d538186497aad83fe8af01418",
+  "source_sha256": "f2170e479779ab41df37b4d436ed7c74d607edafe1297a9c557be8000dc41af5",
   "android_device": "NOT_TESTED"
 }
