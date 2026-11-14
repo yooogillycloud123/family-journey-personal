@@ -72,8 +72,8 @@ jobs:
           assert "onActivityPostResumed(Activity a)" in java
           assert "setTranslationY((float)(exactY-baseY))" in java
           # R551 violated lifecycle ownership: selectDay first, then close.
-          assert "r523DayExiting=true;\\n close();\\n window.FamilyJourneyDiary?.selectDay?.(day);" in js
-          assert "window.FamilyJourneyDiary?.selectDay?.(day);\\n close();" not in js
+          detail=js.split("function r475OpenDetail(day)",1)[1].split("function r475DecorateDetail()",1)[0]
+          assert detail.index("r523DayExiting=true;") < detail.index("close();") < detail.index("window.FamilyJourneyDiary?.selectDay?.(day);")
           print("R555 SOURCE SAFETY CHECKS=PASS")
           PY
       - name: Compile additive R555 DEX
