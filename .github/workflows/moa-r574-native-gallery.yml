@@ -1,14 +1,14 @@
 name: MOA R574 R567-Golden-safe native photo card smoke and DEX
 on:
   push:
-    branches: ['feature/moa-r574-r570-compact-dock-rail-flash-fast-toast-20261114']
+    branches: ['feature/moa-r574-r572-quickrecord-gallery-lifecycle-rail-20261115']
     paths:
       - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
       - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
       - 'experiments/moa-r483/moa-r483-vertical-calendar.css'
       - 'experiments/moa-r570/apk_assets/web/moa-r570-photo-favorites.js'
       - 'experiments/moa-r574/**'
-      - '.github/workflows/moa-r574-native-card.yml'
+      - '.github/workflows/moa-r574-native-gallery.yml'
   workflow_dispatch:
 permissions:
   contents: read
