@@ -1,3 +1,5 @@
+> **LATEST 2026-11-14 CORRECTION — USER CONFIRMED R567 PHYSICAL GALAXY SUCCESS AND APPROVED GOLDEN.** This document below was written **before** the user's explicit confirmation. Do **not** use its obsolete phrases "R567 physical PASS not established", "DEVICE PASS PENDING" or "R463 current Golden" as current facts. Current authoritative status = **R567 USER_REPORTED_GALAXY_PASS + USER_APPROVED_CURRENT_GOLDEN**. Read [current approved lock](MOA_R567_USER_APPROVED_GOLDEN_LOCK_READ_FIRST_20261114.md) and [current new-chat prompt](MOA_NEW_CHAT_RESUME_PROMPT_R567_USER_DEVICE_PASS_20261114.md). The original R567 APK/source/QA bytes remain unchanged, and R463 is preserved as previous Golden.
+
 # MOA R567 USER-FROZEN GOLDEN — NEW CHAT RESUME 2026-11-14
 
 Continue MOA in `yooogillycloud123/family-journey-personal` FROM THE EXACT USER-SUPPLIED R567 frozen baseline. The previous conversation stopped responding, so do not restart the investigation or revert to older beta source.
