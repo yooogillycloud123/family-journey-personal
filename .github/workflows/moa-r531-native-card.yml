@@ -1,8 +1,8 @@
-name: MOA R551 Native Photo Card LAB compile and syntax QA
+name: MOA R555 Native Photo Card LAB compile and syntax QA
 on:
   push:
     branches:
-      - feature/moa-r551-native-late-mount-no-autoclose-20261114
+      - feature/moa-r555-prepause-retention-detail-gallery-order-subpixel-20261114
     paths:
       - experiments/moa-r483/moa-r483-vertical-calendar.js
       - experiments/moa-r483/moa-r483-vertical-calendar.css
@@ -56,7 +56,7 @@ jobs:
           assert "moa-r547-native-owner" in css and "moa-r547-native-owner" in js
           assert "returnFromBackground=hadMountedOnPause" in java
           assert "nativeHost.setAlpha(\"1\".equals" not in java
-          assert "window.__moaR551NativeLost" in js
+          assert "window.__moaR555NativeLost" in js
           assert "window.__moaR507NativePending=true;" in js
           assert "if(r507Opened&&window.__moaR507NativePending)return;" in js
           assert "native gallery on a timer." in js
@@ -64,9 +64,19 @@ jobs:
           assert "if(!galleryOpen(gallery))return true;" in java
           assert "host.setAlpha(0f);" not in java
           assert "MoaR507InlineGalleryProvider" in java
-          print("R551 SOURCE SAFETY CHECKS=PASS")
+          # R555: R227 original HostActivity checks retention DURING onPause.
+          # Only the pre-pause app callback can set this flag in time.
+          assert "onActivityPrePaused(Activity a)" in java
+          assert "r227ExternalMapPending" in java and "r227VideoWasPlaying" in java
+          assert "r227RetainForExternalMap" in java and "r227ResumeFromExternalMap" in java
+          assert "onActivityPostResumed(Activity a)" in java
+          assert "setTranslationY((float)(exactY-baseY))" in java
+          # R551 violated lifecycle ownership: selectDay first, then close.
+          assert "r523DayExiting=true;\\n close();\\n window.FamilyJourneyDiary?.selectDay?.(day);" in js
+          assert "window.FamilyJourneyDiary?.selectDay?.(day);\\n close();" not in js
+          print("R555 SOURCE SAFETY CHECKS=PASS")
           PY
-      - name: Compile additive R551 DEX
+      - name: Compile additive R555 DEX
         run: |
           set -euo pipefail
           mkdir -p /tmp/moa531/classes /tmp/moa531/dex build/moa-r531
@@ -79,7 +89,7 @@ jobs:
           assert b"MoaR507InlineGalleryProvider" in b
           pathlib.Path("build/moa-r531/native-dex-sha256.json").write_text(json.dumps({"sha256":hashlib.sha256(b).hexdigest(),"size":len(b)},indent=2))
           pathlib.Path("build/moa-r531/classes18.dex").write_bytes(b)
-          print("MOA_R551_NATIVE_DEX_SHA256",hashlib.sha256(b).hexdigest())
+          print("MOA_R555_NATIVE_DEX_SHA256",hashlib.sha256(b).hexdigest())
           PY
       - name: Collect exact modified source bundle
         run: |
@@ -91,6 +101,6 @@ jobs:
           sha256sum build/moa-r531/classes18.dex build/moa-r531/moa-r483-vertical-calendar.js build/moa-r531/moa-r483-vertical-calendar.css build/moa-r531/MoaR507InlineGalleryProvider.java > build/moa-r531/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: MOA-R551-ADDITIVE-DEX-LAB
+          name: MOA-R555-ADDITIVE-DEX-LAB
           path: build/moa-r531/
           if-no-files-found: error
