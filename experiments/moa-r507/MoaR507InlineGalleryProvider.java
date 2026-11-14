@@ -68,7 +68,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private int lastW = -1, lastH = -1;
   private FrameLayout nativeHost;
   private TextView coverStar;
-  private TextView railToggle;
+  private RailIcon railToggle;
   private TextView advancedButton;
   private boolean initialCardChromeHidden=false;
   private boolean fullNativeOpen=false,fullNativeSeenOpen=false;
@@ -661,13 +661,26 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // R515 keeps the original rail/OverScroller intact. Only the visibility and
   // viewer-scoped LinearLayout heights are changed; original fullscreen Gallery
   // is never entered through this code path.
+  // R531: consistent 1.6dp outlined filmstrip. No font-dependent up arrow.
+  private static final class RailIcon extends View{
+    private final android.graphics.Paint paint=new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+    RailIcon(Activity a){super(a);paint.setColor(Color.WHITE);paint.setStyle(android.graphics.Paint.Style.STROKE);
+      paint.setStrokeWidth(1.6f*a.getResources().getDisplayMetrics().density);}
+    @Override protected void onDraw(android.graphics.Canvas canvas){
+      super.onDraw(canvas);float d=getResources().getDisplayMetrics().density;
+      float cx=getWidth()/2f,cy=getHeight()/2f;
+      for(int i=0;i<3;i++){
+        float x=cx+((i-1)*6.2f)*d;
+        canvas.drawRoundRect(x-3.3f*d,cy-5.0f*d,x+3.3f*d,cy+5.0f*d,1.2f*d,1.2f*d,paint);
+      }
+    }
+  }
   private void installRailToggle(Activity a,LinearLayout capsule){
     if(railToggleInstalled || railView==null)return;
     // In-card ONLY: sixth icon in the existing native action deck.
     // Do not create another free-floating button covering video controls.
-    TextView control=new TextView(a);
-    control.setText("▦");control.setTextSize(16f);control.setTextColor(Color.WHITE);
-    control.setGravity(Gravity.CENTER);control.setClickable(true);control.setFocusable(true);
+    RailIcon control=new RailIcon(a);
+    control.setClickable(true);control.setFocusable(true);
     control.setContentDescription("사진 목록 접기");
     control.setTag("moa.gallery.inline.rail.toggle.r519");
     control.setBackgroundColor(Color.TRANSPARENT);
@@ -686,7 +699,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       lp.height=dp(a,expanded?137:82);nativeLower.setLayoutParams(lp);
     }
     if(railToggle!=null){
-      railToggle.setText("▦");
+      railToggle.invalidate();
       railToggle.setContentDescription(expanded?"사진 목록 접기":"사진 목록 펼치기");
       railToggle.setSelected(!expanded);
     }
