@@ -360,7 +360,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(deck.getChildCount()!=1||!(deck.getChildAt(0) instanceof LinearLayout))return;
     LinearLayout capsule=(LinearLayout)deck.getChildAt(0);
     if(capsule.getChildCount()<4)return;
-    if(compactDone&&deck==actionDeck)return;
+    if(compactDone&&deck==actionDeck){
+      // Original R463 Gallery.updateChromeLayout() legitimately restores 208dp
+      // when its own chrome toggles. Re-apply the SMALL card height only here;
+      // never patch or alter the standalone Gallery's code.
+      if(nativeLower!=null && nativeLower.getLayoutParams() instanceof FrameLayout.LayoutParams){
+        FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)nativeLower.getLayoutParams();
+        int expected=dp(a,railExpanded?137:82);
+        if(lp.height!=expected){lp.height=expected;nativeLower.setLayoutParams(lp);}
+      }
+      return;
+    }
     actionDeck=deck;actionCapsule=capsule;
     if(deck.getLayoutParams() instanceof FrameLayout.LayoutParams){
       FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)deck.getLayoutParams();
@@ -416,9 +426,28 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         railView=(View)rail;
       }
       Object video=readField(gallery,"videoControls");
-      if(video instanceof View && ((View)video).getLayoutParams() instanceof LinearLayout.LayoutParams){
+      if(video instanceof LinearLayout && ((View)video).getLayoutParams() instanceof LinearLayout.LayoutParams){
         LinearLayout.LayoutParams p=(LinearLayout.LayoutParams)((View)video).getLayoutParams();
         p.height=dp(a,34);((View)video).setLayoutParams(p);
+        // Keep the ORIGINAL pause/mute/capture listeners and 32dp hit regions.
+        // Only the in-card view geometry and icon artwork are compressed.
+        LinearLayout videoRow=(LinearLayout)video;
+        for(int i=0;i<videoRow.getChildCount();i++){
+          View slot=videoRow.getChildAt(i);
+          if(slot.getLayoutParams() instanceof LinearLayout.LayoutParams){
+            LinearLayout.LayoutParams sp=(LinearLayout.LayoutParams)slot.getLayoutParams();
+            sp.height=dp(a,i==1?31:33);slot.setLayoutParams(sp);
+          }
+          if(slot instanceof ViewGroup){
+            ViewGroup vg=(ViewGroup)slot;
+            for(int k=0;k<vg.getChildCount();k++){
+              View glyph=vg.getChildAt(k);
+              if(i!=1){glyph.setScaleX(.82f);glyph.setScaleY(.82f);}
+              else if(k==0){glyph.setScaleX(.83f);glyph.setScaleY(.83f);}
+              else if(glyph instanceof TextView)((TextView)glyph).setTextSize(10f);
+            }
+          }
+        }
       }
       Object seek=readField(gallery,"seekRow");
       if(seek instanceof View && ((View)seek).getLayoutParams() instanceof LinearLayout.LayoutParams){
