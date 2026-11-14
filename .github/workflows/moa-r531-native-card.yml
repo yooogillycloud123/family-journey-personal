@@ -52,7 +52,7 @@ jobs:
           python3 - <<'PY'
           import pathlib,hashlib,json
           b=pathlib.Path("/tmp/moa531/dex/classes.dex").read_bytes()
-          assert b.startswith(b"dex\\n")
+          assert b.startswith(b"dex\n")
           assert b"MoaR507InlineGalleryProvider" in b
           pathlib.Path("build/moa-r531/native-dex-sha256.json").write_text(json.dumps({"sha256":hashlib.sha256(b).hexdigest(),"size":len(b)},indent=2))
           pathlib.Path("build/moa-r531/classes18.dex").write_bytes(b)
