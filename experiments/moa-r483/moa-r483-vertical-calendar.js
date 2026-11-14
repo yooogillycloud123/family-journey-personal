@@ -498,7 +498,16 @@ function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!con
   // Hide the dormant original screen BEFORE closing the native renderer.
   // R515 closed Gallery first, exposing the old web day underneath for one frame.
   const oldRoot=diaryRoot();if(oldRoot&&!oldRoot.hidden)oldRoot.dataset.moaUnifiedPage='calendar';
-  ui.page='calendar';ui.dirty=false;r507StopInline();view?.classList.remove('moa-r547-native-owner');window.MoaVoicePlaybackUI?.stop?.();render();return true;}r475ExitUntilHidden=true;close();window.FamilyJourneyDiary?.close?.(false);return true;}
+  ui.page='calendar';ui.dirty=false;
+  // R563: explicit Back is a definitive exit. The Java Gallery host can still
+  // be open after an asynchronous native-mount status reset.
+  const nativeWasPending=window.__moaR507NativePending;
+  const nativeWasOpened=r507Opened;
+  r507StopInline();
+  if(nativeWasPending && !nativeWasOpened){
+    try{window.MoaLocalAudio?.closeNativeGallery?.()}catch(e){console.warn('R563 day exit native close',e)}
+  }
+  view?.classList.remove('moa-r547-native-owner');window.MoaVoicePlaybackUI?.stop?.();render();return true;}r475ExitUntilHidden=true;close();window.FamilyJourneyDiary?.close?.(false);return true;}
 // Android Gallery's original Back or the R523 overlay Back must both EXIT day.
 window.__moaR523NativeClosed=function(token){
  if(token!==undefined&&Number(token)!==window.__moaR527DayToken)return false;
@@ -535,6 +544,15 @@ window.__moaR559ForegroundDayBack=function(){
  if(shade){shade.remove();return 'picker';}
  goBack();
  return ui.page==='calendar'?'exit':'stay';
+};
+// R563: original R463 Gallery's own OnBackInvokedCallback can win over the
+// supplementary in-card callback and close the native host first. A foreground
+// close is a user-day EXIT (R535 behavior), never a native-loss auto-reopen.
+window.__moaR563ForegroundNativeClosed=function(day){
+ if(r523DayExiting||!ui.open||ui.page!=='day'||r531Advanced)return 'not-open';
+ // A delayed old-host callback must not exit an unrelated new diary date.
+ if(day && day!==ui.date)return 'stale-day';
+ return window.__moaR559ForegroundDayBack();
 };
 window.__moaR559RepositionNative=function(){r527SyncGeometry(true);return true;};
 window.__moaR519NativeBack=window.__moaR523NativeBack;
