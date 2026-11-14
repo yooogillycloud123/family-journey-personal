@@ -965,3 +965,11 @@ html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r531-video-sl
 html #moa-r469-root[data-page="day"] .moa-r531-video-slide{
  background:#38343a!important;
 }
+
+/* R580: the huge blurred Web poster appearing BEFORE the native video frame
+   is the visible "blur then zoom" jolt in the 22041 recording. Keep the actual
+   still video thumbnail in the Web standby; native R463 supplies permanent
+   blurred side fill AFTER its video TextureView prepares. */
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r531-video-slide::before{
+ opacity:0!important;filter:none!important;background-image:none!important;
+}
