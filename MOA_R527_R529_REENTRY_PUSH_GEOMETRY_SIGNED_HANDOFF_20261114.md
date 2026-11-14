@@ -1,0 +1,38 @@
+# MOA R527 + R529 — calendar tile re-entry regression and source-driven native gallery scroll IPC (2026-11-14)
+
+**Current status: R527 ORIGINAL SIGNER LAB; R463 alone is USER-APPROVED IMMUTABLE GOLDEN. Real Galaxy R527 NOT yet tested.**
+
+## Evidence and exact bug
+- User provided Galaxy physical video `21550.mp4` (36 seconds, 1080x2340) for R523. After Back from photo-mode native gallery into calendar and then tapping another calendar date, Gallery fails to mount. Vertical scroll of in-card Gallery visibly jitters and sometimes loses synchronization with the WebView story.
+- Actual R523 source `experiments/moa-r483/moa-r483-vertical-calendar.js` has `r523DayExiting=true` set on `goBack()`, and `r507StartInline()` immediately refuses to start while this flag is true. `open(page,day)` resets the flag but **direct onClick handler of `.moa-r469-date` and `setDay()` transition ui.page='day' without calling open()**. Previous tests used `openDay()` and consequently missed this real regression.
+- Root cause of scroll lag: supplementary Android View `MoaNativeGallery.host` is positioned as sibling OVER an independently composited HTML `section#moa-r469-root` scroll container. R523 48ms ticker calls `WebView.evaluateJavascript(getBoundingClientRect())` and translates Android host upon asynchronous result. **Chromium official documentation explicitly says Android views and web contents are rendered on different surfaces, updated at different times, and moving native View with `setTranslationY` may remain out of sync.** Reference: https://chromium.googlesource.com/chromium/src/+/main/docs/ui/android/browser_controls.md . This is not solvable by arbitrary 32/48ms guesses.
+
+## Actual R527 code delivered
+- Feature branch: `feature/moa-r527-push-geometry-session-fix-20261114`, based on R523, original R463 Golden frozen.
+- Calendar `.moa-r469-date` click, `setDay()` and `open()` now call `r527BeginDay()`, which resets intentional exit guard and increments session token. `__moaR523NativeClosed(token)` and `__moaR523NativeBack(token)` reject stale events from old native session. Provider ARM_SNAPSHOT records `ownedDayToken` and conveys it with close/Back callbacks; suppresses native re-arm for 850ms after actual native close (not after regular JS day entry).
+- New origin-scoped, **geometry-only** WebMessagePort bridge (Android `WebView.createWebMessageChannel`, `WebView.postWebMessage`, `WebMessagePort.setWebMessageCallback`). Trust URL `https://familyjourney.local/web/`, as explicitly configured in original `HostActivity.java`. No wildcard origin, no user photos/notes/position/GPS sent. JS `requestAnimationFrame` sends 7 numeric fields on `#moa-r469-root` scroll / resize to the native host on main UI thread. Native fast path validates token/finite bounds/host ownership and updates translation directly, without `evaluateJavascript` round trip or MediaPlayer/TextureView layout/Matrix work on scroll frames. Maintains slow safety polling for closure and unsupported bridge. New supplementary `classes18.dex` only; original 17 DEX untouched.
+- The browser-to-native message system reduces a known extra round-trip source of latency but is STILL two compositors. **60/120fps perfect lockstep is NOT established.** If R527 remains visibly janky, implement native-owned scrolling with Gallery and diary body under ONE scroll/compositor or a proper composited native texture (Chromium browser controls approach). Do not repeat timer tuning and claim smoothness.
+
+## Signed immutable deliverables
+- R527 original-signer LAB APK: `MOA_R527_NATIVE_DAY_SESSION_PUSH_SCROLL_ORIGINAL_SIGNER_LAB.apk`, versionCode **527**, **9,018,159 bytes**, SHA256 **`e1f457e9931741159165460ff40757582cad9d8b7139d77b8690d1da170ce02f`**.
+- R529 original-signer exact R463 functional rescue APK: `MOA_R529_EXACT_R463_GOLDEN_FUNCTION_RECOVERY.apk`, versionCode **529**, **8,951,160 bytes**, SHA256 **`03f77be7f51c5a33b3440612e3475a48ff8b3836e7628a7e5e5f5004ebbe6b90`**. Only AndroidManifest.xml code525→529 vs previous rescue, R463 functional contents unchanged.
+- Combined release ZIP: `MOA_R527_R529_PUSH_SCROLL_REENTRY_SIGNED_APK_SOURCE_QA_20261114.zip`, **13,035,510 bytes**, SHA256 **`554207d8b28b811d9ff36a6f61f37dc93a4b4e966c81b121cf7841e15eac1d10`**.
+- Original package `com.juhyeon.familyjournea`, original cert SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`. Never publish original private signing key/password.
+- GitHub Android SDK35 build run `43540753225` SUCCESS; new classes18.dex **30,724 bytes**, SHA256 **`3002e5453d9332a2c2bf77a629c828ebd83a439785e1d319f88cc5318c77ca9c`**; exact compiled Java source SHA256 **`7a28e61199d5d2602bb989dd454f3f094fa3628863c1882005a35c34b51e2ad0`**.
+- Diff R523→R527 **exactly three APK members**: AndroidManifest.xml versionCode, additive calendar JS, supplementary classes18.dex. Existing calendar CSS and **all 17 R463 original DEX** byte-identical. R525→R529 only AndroidManifest versionCode changed.
+- Independent APK v2 RSA PKCS#1 original certificate/signature/full content digest, ZIP CRC, data alignment, all DEX SHA1/Adler32 PASS. Synthetic Chromium 420x870: themes peach/pink/white/black **real tile click → Back → real tile click** PASS, stale previous native close ignored PASS, same-page MessageChannel geometry delivery PASS. Note: browser origin was mocked for test; Android trusted origin checked via source, physical WebMessagePort delivery NOT TESTED.
+- **Real Samsung Android physical** Gallery re-entry, display-frame synchronicity/FPS/jank, video, Naver GPS, Back/IME/voice, baseline standalone R463 Gallery remains NOT TESTED after R527. Do not call device PASS or Golden.
+- User private Library release `/모아_프로젝트_근거_20261103/R527_R529_PUSH_SCROLL_REENTRY_20261114/` has signed ZIP, both APKs, QA. WIP source `/모아_프로젝트_근거_20261103/R527_PUSH_GEOMETRY_WIP_20261114/` has exact Java/JS/CSS and browser QA.
+- Original R463 approved Golden APK SHA256 `9d2fd10d32a3bc35eb3132333e96edd8f565abd5daf3ce954b052f77083d8379` remains untouched, branch `golden/moa-r463-user-approved-20261113`. No app uninstall/data reset/NAVER cookies clearing; no AirPods changes.
+- Install R527 only if current installed code <527; emergency R529 only if serious regression, next candidate >529 if R529 is installed.
+- Historical mobile ChatGPT sandbox link `Library file not found` issue: latest links not yet user-confirmed opened. Do not confuse file verification, recipient download, installation, and runtime test.
+
+## External research
+- Chromium browser controls and composited UI separation: https://chromium.googlesource.com/chromium/src/+/main/docs/ui/android/browser_controls.md
+- Android official WebMessagePort API: https://developer.android.com/reference/android/webkit/WebMessagePort
+- Android official origin-scoped postWebMessage: https://developer.android.com/develop/ui/views/layout/webapps/native-api-access-jsbridge
+- Reddit Android developer symptom, separate GLSurfaceView layer one or two frames out of sync: https://www.reddit.com/r/androiddev/comments/xhkya9
+- Reddit web/native nested scroll fragility: https://www.reddit.com/r/androiddev/comments/kzqxft
+
+## Next session
+Read `MOA_READ_FIRST_NEW_CHAT.md`, `MOA_R463_GOLDEN_LOCK_READ_FIRST_20261113.md`, `MOA_WIP_CHECKPOINT_CURRENT.md`, this exact handoff and installed R527. Verify actual user device entry+scroll video before next change. If date re-entry still broken, inspect Android bridge `openNativeGallery` result, token and session logs (not only Web DOM state). If scroll jank remains, do **single compositor/layout architecture** instead of speculative poll tweaks.
