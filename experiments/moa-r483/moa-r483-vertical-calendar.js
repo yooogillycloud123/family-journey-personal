@@ -22,6 +22,7 @@ let r507Generation=0,r507Timer=0,r507Opened=false;
 // R574: original Quick Record commits IndexedDB before its MediaStore index
 // callback. Never launch a black native gallery for an as-yet-unindexed ID.
 let r574IndexAttemptAt=0,r574IndexAttemptCount=0,r574MissingNoticeAt=0;
+let r576Opening=false,r576BlockedSignature='';
 // JS close/reopen must never be misclassified as a user Back.
 window.__moaR567ProgrammaticCloseUntil=0;
 let r515RecoveryAttempts=0,r515LastNativeMount=0;
@@ -62,6 +63,7 @@ function r539WakeNative(){return window.__moaR543RepairInline?.()||false;}
 window.__moaR539AppVisible=()=>false; // no unsolicited close on visibilitychange
 const r527TrustedOrigin=()=>location.origin==='https://familyjourney.local';
 function r527BeginDay(){
+ r576Opening=false;r576BlockedSignature='';
  r523DayExiting=false;r515RecoveryAttempts=0;
  window.__moaR527DayToken=++r527DayToken;
  r527LastRect='';r539EndProxy();
@@ -102,8 +104,8 @@ window.__moaR574PhotoStillLoading=function(){
  if(!ui.open||ui.page!=='day'||view?.hidden)return false;
  // Do not dismiss a user-visible video or trigger a second gallery.
  if(ui.media.length && !view.classList.contains('moa-r507-native-mounted')){
-   view.classList.add('moa-r574-index-wait');
-   notify('사진 원본이 아직 준비되지 않았습니다. 갤러리를 계속 확인합니다.');
+   view.classList.add('moa-r576-index-wait');
+   notify('사진 원본을 다시 확인하고 있습니다. 기록 내용은 보존됩니다.');
  }
  return true;
 };
@@ -204,7 +206,7 @@ function r507StopInline(){
    window.__moaR567ProgrammaticCloseUntil=Date.now()+850;
  ++r507Generation;clearTimeout(r507Timer);r507Timer=0;
  const opened=r507Opened;
- r507Opened=false;window.__moaR507NativePending=false;window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
+ r507Opened=false;r576Opening=false;window.__moaR507NativePending=false;window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
  view?.classList.remove('moa-r507-native-mounted','moa-r519-native-entering');
  // The R547 native-owner latch stays on whenever we are still in photo-day.
  if(view&&ui.open&&ui.page==='day'&&ui.media.length)view.classList.add('moa-r547-native-owner');
@@ -213,84 +215,91 @@ function r507StopInline(){
 }
 function r507StartInline(){
  if(r523DayExiting||r531Advanced)return;
- // R551: a second asynchronous entry request must not restart or close an
- // original Gallery which the user is already viewing.
  if(r507Opened&&window.__moaR507NativePending)return;
+ const signature=ui.date+'|'+ui.source+'|'+ui.media.map(m=>String(m.id)).join(',');
+ // R576: addMode ticks every browser frame. A previously refused native opener
+ // must not be relaunched by the next tick, creating an unending black page.
+ if(r576Opening||r576BlockedSignature===signature)return;
+ r576Opening=true;
  const generation=++r507Generation;
  if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
  clearTimeout(r519EntryTimer);
- // On unsupported Android/native bridge, restore original web photo UI gracefully.
- r519EntryTimer=setTimeout(()=>{if(generation===r507Generation&&view&&!view.classList.contains('moa-r507-native-mounted'))notify('네이티브 갤러리 연결 확인 중');},3500);
+ r519EntryTimer=setTimeout(()=>{
+  if(generation===r507Generation&&view&&!view.classList.contains('moa-r507-native-mounted'))
+   notify('네이티브 갤러리 연결 확인 중');
+ },3500);
  const waitUntil=Date.now()+8000;
- let r576OpenFailures=0;
+ let failures=0;
+ function failed(reason){
+  if(generation!==r507Generation)return;
+  r576Opening=false;r576BlockedSignature=signature;
+  window.__moaR507NativePending=false;
+  window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
+  clearTimeout(r507Timer);r507Timer=0;
+  clearTimeout(r519EntryTimer);r519EntryTimer=0;
+  view?.classList.remove('moa-r519-native-entering','moa-r547-native-owner','moa-r574-index-wait');
+  const stage=view?.querySelector('.moa-r469-stage');
+  if(stage&&!stage.querySelector('.moa-r576-native-retry')){
+   const retry=elem('button','moa-r576-native-retry','사진 갤러리 다시 열기');
+   retry.type='button';
+   retry.onclick=()=>{retry.remove();r576BlockedSignature='';r507StartInline()};
+   stage.append(retry);
+  }
+  notify(reason||'사진 원본 갤러리를 열 수 없습니다. 다시 열기를 눌러 주세요.');
+ }
  const tryOpen=()=>{
-  if(generation!==r507Generation||!ui.open||ui.page!=='day'||view?.hidden)return;
-  if(!window.__moaR507BridgeReady || typeof window.MoaLocalAudio?.openNativeGallery!=='function'){
+  if(generation!==r507Generation||!ui.open||ui.page!=='day'||view?.hidden){r576Opening=false;return;}
+  if(!window.__moaR507BridgeReady||typeof window.MoaLocalAudio?.openNativeGallery!=='function'){
    if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,180);
+   else failed('원본 갤러리 연결이 준비되지 않았습니다.');
    return;
   }
   const ids=ui.media.map(x=>String(x.id));
-  if(!ids.length||ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id)))return;
-  if(!view?.querySelector('.moa-r469-stage')?.isConnected)return;
+  if(!ids.length||ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id))){failed('이 날짜의 원본 사진 목록을 확인할 수 없습니다.');return;}
+  if(!view?.querySelector('.moa-r469-stage')?.isConnected){
+   if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,100);
+   else failed('사진 표시 영역 준비가 지연되고 있습니다.');
+   return;
+  }
   const state=getState(),selected=ids[ui.idx];
-  // R576: R574 deadlocked all newly saved Quick Record dates by treating
-  // cached byId as a permission to open. R60 persists curated photoIds BEFORE
-  // the asynchronous MediaStore scan; absence from byId is NOT evidence that
-  // the ORIGINAL native Gallery cannot open the content:// image. Never gate.
-  if(selected && !state?.byId?.has(String(selected))){
+  // R576: missing in cached `byId` does NOT disprove a just-committed
+  // Quick Record photoId. Let the original R463 native Gallery try the ID;
+  // refresh original MediaStore index asynchronously without blocking open.
+  if(selected&&!state?.byId?.has(String(selected))){
    const now=Date.now();
-   if(now-r574IndexAttemptAt>7000 && !state?.load){
+   if(now-r574IndexAttemptAt>8000&&!state?.load){
     r574IndexAttemptAt=now;
-    try{window.FamilyJourneyDiary?.loadIndex?.(false)}catch(_){/* optional background rescan */}
+    try{window.FamilyJourneyDiary?.loadIndex?.(false)}catch(_){}
    }
   }
   view?.classList.remove('moa-r574-index-wait');
   window.__moaR511InlineArm=true;
   if(!window.__moaR511NativeArmed){
    if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,70);
-   else {window.__moaR511InlineArm=false;notify('네이티브 준비 지연 · 상단 설정에서 다시 연결할 수 있습니다.');}
+   else failed('원본 네이티브 갤러리 준비가 지연되고 있습니다.');
    return;
   }
   window.__moaR507NativePending=true;
-  // Real R463 MoaNativeGallery opens photo AND video in one native rail.
   let ok=false;
   try{ok=!!window.MoaLocalAudio.openNativeGallery(JSON.stringify(ids),ui.idx,ui.date)}
-  catch(e){console.warn('R507 original gallery unavailable',e)}
+  catch(e){console.warn('R576 original gallery open unavailable',e)}
   if(!ok){
    window.__moaR507NativePending=false;
    window.__moaR511InlineArm=false;
-   // R576: bounded retry of the ORIGINAL opener only. Never spin forever
-   // or suppress the photo-day content for every subsequent visit.
-   if(++r576OpenFailures<=3 && Date.now()<waitUntil){
-    r507Timer=setTimeout(tryOpen,600);return;
-   }
-   clearTimeout(r519EntryTimer);r519EntryTimer=0;
-   view?.classList.remove('moa-r519-native-entering','moa-r547-native-owner','moa-r574-index-wait');
-   // Expose a single photo-only retry; do not touch the user's photo IDs/DB.
-   const stage=view?.querySelector('.moa-r469-stage');
-   if(stage&&!stage.querySelector('.moa-r576-native-retry')){
-    const retry=elem('button','moa-r576-native-retry','사진 갤러리 다시 열기');
-    retry.type='button';retry.onclick=()=>{retry.remove();r507StartInline()};
-    stage.append(retry);
-   }
-   notify('사진 원본 갤러리 연결 실패 · 다시 열기를 눌러 재시도할 수 있습니다.');
+   window.__moaR511NativeArmed=false;
+   if(++failures<=3&&Date.now()<waitUntil){r507Timer=setTimeout(tryOpen,650);return;}
+   failed('원본 사진 갤러리가 연결 요청을 거부했습니다. 다시 열기를 눌러 주세요.');
    return;
   }
-  r507Opened=true;
+  r507Opened=true;r576Opening=false;r576BlockedSignature='';
   view?.querySelector('.moa-r576-native-retry')?.remove();
-  // R551: the old 2700ms timer called r507StopInline() (which invokes
-  // Gallery.close()) merely because the asynchronous native mounted signal
-  // had not reached JS yet. On a detail↔photo or NAVER return this DESTROYED
-  // a valid R463 gallery, then exposed the old Web viewer. Never close a
-  // native gallery on a timer. The Java ticker retries attachment in-place.
+  // R567: never close a LIVE original Gallery just because the Web mounted
+  // ACK is late. The native owner will bind it in place after attachCard().
   setTimeout(()=>{
    if(generation!==r507Generation||!r507Opened||!ui.open||ui.page!=='day')return;
    if(!view?.classList.contains('moa-r507-native-mounted')){
-     view?.classList.add('moa-r519-native-entering','moa-r547-native-owner');
-     // Preserve both pending and arm flags so the native SNAPSHOT path can
-     // attach an already-open host. No duplicate openNativeGallery() call.
-     window.__moaR507NativePending=true;
-     window.__moaR511InlineArm=true;
+    view?.classList.add('moa-r519-native-entering','moa-r547-native-owner');
+    window.__moaR507NativePending=true;window.__moaR511InlineArm=true;
    }
   },2700);
  };
