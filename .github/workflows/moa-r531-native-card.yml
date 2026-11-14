@@ -1,8 +1,8 @@
-name: MOA R563 Native Photo Card LAB compile and syntax QA
+name: MOA R567 Native Photo Card LAB compile and syntax QA
 on:
   push:
     branches:
-      - feature/moa-r563-r535-native-back-exit-and-blank-resume-20261114
+      - feature/moa-r567-pause-resume-native-owner-back-cards-20261114
     paths:
       - experiments/moa-r483/moa-r483-vertical-calendar.js
       - experiments/moa-r483/moa-r483-vertical-calendar.css
@@ -64,7 +64,7 @@ jobs:
           assert "if(!galleryOpen(gallery))return true;" in java
           assert "host.setAlpha(0f);" not in java
           assert "MoaR507InlineGalleryProvider" in java
-          # R563: R227 original HostActivity checks retention DURING onPause.
+          # R567: R227 original HostActivity checks retention DURING onPause.
           # Only the pre-pause app callback can set this flag in time.
           assert "onActivityPrePaused(Activity a)" in java
           assert "r227ExternalMapPending" in java and "r227VideoWasPlaying" in java
@@ -83,8 +83,8 @@ jobs:
           # R551 violated lifecycle ownership: selectDay first, then close.
           detail=js.split("function r475OpenDetail(day)",1)[1].split("function r475DecorateDetail()",1)[0]
           assert detail.index("r523DayExiting=true;") < detail.index("close();") < detail.index("window.FamilyJourneyDiary?.selectDay?.(day);")
-          assert "window.__moaR563ForegroundNativeClosed" in js
-          assert "window.__moaR563ForegroundNativeClosed(" in java
+          assert "window.__moaR567ForegroundNativeClosed" in js
+          assert "window.__moaR567ForegroundNativeClosed(" in java
           assert "window.__moaR551NativeLost" not in java
           assert "refreshOriginalMediaIfBlank(gallery);" in java
           assert "getDeclaredMethod(\"refreshPages\")" in java
@@ -93,9 +93,27 @@ jobs:
           assert "nativeHost.setTranslationY(iy-baseY);" in java
           assert "host.setTranslationX(x-baseX);host.setTranslationY(y-baseY);" in java
           assert "setTranslationY((float)(exactY-baseY))" not in java
-          print("R563 SOURCE SAFETY CHECKS=PASS")
+          assert "window.__moaR567RestoreLiveCard" in js
+          assert "window.__moaR567ReopenLostCard" in js
+          assert "window.__moaR567ProgrammaticCloseUntil" in js
+          assert "window.MoaVoicePlaybackUI?.stop?.();render();" in js
+          assert "if(r507Opened && !(r523DayExiting && ui.page==='calendar'))r507StopInline()" in js
+          assert "onViewDetachedFromWindow(View v)" in java
+          assert "lifecyclePauseInProgress" in java and "controlledRebuildInProgress" in java
+          assert "RETURN_ORIGINAL_NATIVE_RETAINED_VISIBLE" in java
+          assert "RETURN_JS_NOT_READY_RETRY" in java
+          assert "RETURN_REOPEN_JS_NOT_READY_RETRY" in java
+          assert "nativeHost.setVisibility(View.VISIBLE)" in java
+          assert "new long[]{150L,480L,950L,1700L,2750L,3950L}" in java
+          assert "monitorNativeHost(a,web,gallery,host)" in java
+          assert "window.__moaR563ForegroundNativeClosed" in java
+          assert "nativeHost.setTranslationX(ix-baseX);" in java
+          assert "nativeHost.setTranslationY(iy-baseY);" in java
+          assert "host.setTranslationX(x-baseX);host.setTranslationY(y-baseY);" in java
+          assert "setTranslationY((float)(exactY-baseY))" not in java
+          print("R567 SOURCE SAFETY CHECKS=PASS")
           PY
-      - name: Compile additive R563 DEX
+      - name: Compile additive R567 DEX
         run: |
           set -euo pipefail
           mkdir -p /tmp/moa531/classes /tmp/moa531/dex build/moa-r531
@@ -108,7 +126,7 @@ jobs:
           assert b"MoaR507InlineGalleryProvider" in b
           pathlib.Path("build/moa-r531/native-dex-sha256.json").write_text(json.dumps({"sha256":hashlib.sha256(b).hexdigest(),"size":len(b)},indent=2))
           pathlib.Path("build/moa-r531/classes18.dex").write_bytes(b)
-          print("MOA_R563_NATIVE_DEX_SHA256",hashlib.sha256(b).hexdigest())
+          print("MOA_R567_NATIVE_DEX_SHA256",hashlib.sha256(b).hexdigest())
           PY
       - name: Collect exact modified source bundle
         run: |
@@ -120,6 +138,6 @@ jobs:
           sha256sum build/moa-r531/classes18.dex build/moa-r531/moa-r483-vertical-calendar.js build/moa-r531/moa-r483-vertical-calendar.css build/moa-r531/MoaR507InlineGalleryProvider.java > build/moa-r531/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: MOA-R563-ADDITIVE-DEX-LAB
+          name: MOA-R567-ADDITIVE-DEX-LAB
           path: build/moa-r531/
           if-no-files-found: error
