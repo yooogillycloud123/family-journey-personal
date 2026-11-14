@@ -99,6 +99,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // R572: entry reveal, photo-only thumbnail geometry, stable native fast preference.
   private boolean r572FirstPhotoPending=false, r572NativeMountAck=false;
   private long r572FirstPhotoDeadline=0L;
+  // R574: never display an empty native photo host as a black success.
+  private boolean r574PhotoWaitNotified=false;
+  private int r574PhotoRefreshAttempts=0;
   private boolean r572FastRestorePending=false, r572FastRestoreDone=false;
   private boolean r572FastSeen=false, r572FastState=false;
   private Boolean r572LastVideoRail=null;
@@ -565,6 +568,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     nativeOwnerActivity=null;
     coverStar=null;railToggle=null;advancedButton=null;favoriteButton=null;r570Actions.clear();railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;ambientPoster=null;ambientParent=null;ambientMediaId="";initialCardChromeHidden=false;
     r572FirstPhotoPending=false;r572NativeMountAck=false;r572FirstPhotoDeadline=0L;
+    r574PhotoWaitNotified=false;r574PhotoRefreshAttempts=0;
     r572FastRestorePending=false;r572FastRestoreDone=false;r572FastSeen=false;
     r572LastVideoRail=null;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
@@ -611,6 +615,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
       r572FirstPhotoPending=!currentId(gallery).startsWith("v");
       r572FirstPhotoDeadline=android.os.SystemClock.uptimeMillis()+950L;
+      r574PhotoWaitNotified=false;r574PhotoRefreshAttempts=0;
       r572NativeMountAck=false;r572FastRestorePending=true;r572FastRestoreDone=false;
       r572FastSeen=false;r572LastVideoRail=null;
       installInlineBack(a,web);
@@ -667,8 +672,23 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private void r572FinishEntry(Activity a,WebView web,Object gallery){
     if(!ownsGallery||gallery!=galleryRef||nativeHost==null||!galleryOpen(gallery))return;
     if(r572FirstPhotoPending){
-      if(!actualMediaReady(gallery) &&
-          android.os.SystemClock.uptimeMillis()<r572FirstPhotoDeadline)return;
+      // R572 forcibly revealed an empty native Gallery after 950ms even if
+      // its center ImageView had NO drawable. Newly captured Quick Record
+      // MediaStore rows can still be indexing: black card looked like success.
+      if(!actualMediaReady(gallery)){
+        final long now=android.os.SystemClock.uptimeMillis();
+        if(now>r572FirstPhotoDeadline && r574PhotoRefreshAttempts<4 &&
+            now-lastMediaRefreshAt>1800L){
+          r574PhotoRefreshAttempts++;
+          refreshOriginalMediaIfBlank(gallery); // ORIGINAL refreshPages; no close/reopen
+        }
+        if(!r574PhotoWaitNotified&&now-r572FirstPhotoDeadline>4700L){
+          r574PhotoWaitNotified=true;
+          web.evaluateJavascript("window.__moaR574PhotoStillLoading&&"+
+            "window.__moaR574PhotoStillLoading();",null);
+        }
+        return; // preserve the Web photo poster; NEVER expose a black empty host
+      }
       r572FirstPhotoPending=false;
     }
     if(!r572NativeMountAck){
@@ -775,8 +795,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }
     // R572: native footer visually SEPARATE from media. It remains inside the
     // trusted nativeHost hit bounds (no negative margins / lost touch events).
-    GradientDrawable footer=new GradientDrawable();footer.setColor(0xf61c1d23);
-    footer.setStroke(dp(a,.45f),0x775c5d66);deck.setBackground(footer);
+    // R574: remove the R572 extra gray full-width block and its stroke.
+    // Keep the ORIGINAL oval capsule and its eight existing action View objects.
+    deck.setBackgroundColor(Color.TRANSPARENT);
     GradientDrawable bg=new GradientDrawable();bg.setColor(0x90212229);bg.setCornerRadius(dp(a,19));
     bg.setStroke(dp(a,.5f),0x447d828c);capsule.setBackground(bg);
     for(int i=0;i<capsule.getChildCount();i++){
@@ -811,7 +832,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       LinearLayout lower=(LinearLayout)lowerObject;nativeLower=lower;
       if(lower.getLayoutParams() instanceof FrameLayout.LayoutParams){
         FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)lower.getLayoutParams();
-        p.height=dp(a,currentId(gallery).startsWith("v")?137:112);lower.setLayoutParams(p);
+        p.height=dp(a,currentId(gallery).startsWith("v")?126:100);lower.setLayoutParams(p);
       }
       Object rail=readField(gallery,"rail");
       if(rail instanceof View && ((View)rail).getLayoutParams() instanceof LinearLayout.LayoutParams){
@@ -1100,13 +1121,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     railExpanded=expanded;
     if(railView!=null)railView.setVisibility(expanded?View.VISIBLE:View.GONE);
     if(nativeLower!=null && nativeLower.getLayoutParams() instanceof FrameLayout.LayoutParams){
+      nativeLower.setClipChildren(false);nativeLower.setClipToPadding(false);
       FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)nativeLower.getLayoutParams();
       // Original photo lower stack reserved the *video* 137dp even on photos,
       // leaving a tall blank gulf between thumbnails and icons. Only reduce
       // in-card photo chrome; video controls/seek retain their old reservation.
       boolean video=galleryRef!=null && currentId(galleryRef).startsWith("v");
-      int h=dp(a,expanded?(video?137:112):(video?82:82));
+      // R574: lower the real rail relative to the oval; do NOT shift the
+      // outer media frame or video seek/play event owners.
+      int h=dp(a,expanded?(video?126:100):82);
       if(lp.height!=h){lp.height=h;nativeLower.setLayoutParams(lp);}
+      if(railView!=null)railView.setTranslationY(expanded?dp(a,video?9:7):0f);
     }
     if(railToggle!=null){
       railToggle.invalidate();
@@ -1123,11 +1148,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     else if(ambientPoster!=null)ambientPoster.setVisibility(View.GONE);
   }
   private void fillNativeMediaCard(Activity a,Object gallery){
-    Object pictures=readField(gallery,"images");
-    if(pictures instanceof ImageView[]){
-      for(ImageView im:(ImageView[])pictures)if(im!=null && im.getScaleType()!=ImageView.ScaleType.CENTER_CROP)
-        im.setScaleType(ImageView.ScaleType.CENTER_CROP);
-    }
+    // R574: do not mutate original photo ScaleType AFTER the first frame.
+    // Keep the R463 Gallery photo layout stable and let its own decoder paint.
+    // The existing video ambient update below is intentionally preserved.
     // R531: photos retain cover; VIDEO must preserve EVERY edge of the frame.
     // Leave the original R463 TextureView FIT transform untouched. Its old
     // in-card max-scale replacement cut away content and caused geometry fights.
