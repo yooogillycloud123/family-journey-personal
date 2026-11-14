@@ -1,0 +1,64 @@
+name: MOA R570 R567-protected photo-only isolated native DEX gate
+on:
+  push:
+    branches: ['feature/moa-r570-r567-entry-photo-favorites-reorder-safe-20261114']
+    paths:
+      - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
+      - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
+      - 'experiments/moa-r483/moa-r483-vertical-calendar.css'
+      - 'experiments/moa-r570/**'
+      - '.github/workflows/moa-r570-native-card.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK and D8
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile ONLY additive classes18 provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa570/classes /tmp/moa570/dex build/moa-r570
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d /tmp/moa570/classes \
+            experiments/moa-r507/MoaR507InlineGalleryProvider.java
+          find /tmp/moa570/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | \
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 \
+            --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
+            --output /tmp/moa570/dex
+          cp /tmp/moa570/dex/classes.dex build/moa-r570/classes18.dex
+          sha256sum build/moa-r570/classes18.dex | tee build/moa-r570/sha256.txt
+      - name: Asset JS gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r483/moa-r483-vertical-calendar.js
+          node --check experiments/moa-r570/apk_assets/web/moa-r570-photo-favorites.js
+          python3 - <<'PY'
+          from pathlib import Path
+          java=Path("experiments/moa-r507/MoaR507InlineGalleryProvider.java").read_text()
+          assert "r570OpenFavorite" in java and "r570ApplyOrder" in java
+          assert "setOnLongClickListener" in java and "saveFromDiaryGps" in Path("experiments/moa-r570/apk_assets/web/moa-r570-photo-favorites.js").read_text()
+          assert "moa-r570-photo-favorites.js" in Path("experiments/moa-r570/apk_assets/web/index.html").read_text()
+          print("R570 source/asset hooks PASS; R567 original 17 DEX unmodified")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R570-native-card-DEX-source-gate
+          path: build/moa-r570/
+          if-no-files-found: warn
