@@ -1,0 +1,38 @@
+[
+  {
+    "case": "Quick Record provisional ID absent from byId: native opens, Web still remains until actual ACK",
+    "status": "PASS",
+    "evidence": {
+      "open": 1,
+      "ids": [
+        "987650001"
+      ],
+      "indexScan": 1,
+      "media": 1,
+      "hasWeb": true,
+      "nativeMounted": false
+    }
+  },
+  {
+    "case": "existing indexed photo opens without cache deadlock",
+    "status": "PASS"
+  },
+  {
+    "case": "restart cold-index provisional ID is not permanently gated",
+    "status": "PASS"
+  },
+  {
+    "case": "native opening rejected: never closes original diary or drops photo-day media",
+    "status": "PASS",
+    "evidence": {
+      "count": 1,
+      "media": 1,
+      "visible": true,
+      "page": "day"
+    }
+  },
+  {
+    "case": "native mounted ACK still retires duplicate Web media only after native callback",
+    "status": "PASS"
+  }
+]
