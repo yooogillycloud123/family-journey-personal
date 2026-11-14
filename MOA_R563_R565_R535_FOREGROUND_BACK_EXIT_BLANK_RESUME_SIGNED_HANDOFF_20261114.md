@@ -22,7 +22,7 @@ Date 2026-11-14 KST. Signed LAB: GitHub Java/D8 and JS CI PASS, APK v2 public cr
 - R559->R563 changed only Manifest, photo calendar JS, classes18.dex. All 140 other APK member contents IDENTICAL, original 17 R463 native DEX byte-identical and CSS unchanged. R561->R565 recovery changed Manifest only: 139 recovery payloads identical.
 
 ## Source and validation
-- Source branch feature/moa-r563-r535-native-back-exit-and-blank-resume-20261114, final head 61433dd6bae2e5fd1bf04128dc203b0baa805cff.
+- Source branch feature/moa-r563-r535-native-back-exit-and-blank-resume-20261114, CI-tested source commit 61433dd6bae2e5fd1bf04128dc203b0baa805cff; subsequent QA-only branch head 6262ff12796b64540d85a7e98eb3d7522e3fd4a5.
 - Exact GitHub Actions CI SUCCESS: https://github.com/yooogillycloud123/family-journey-personal/actions/runs/43584859491 ; shipped Java/JS/CSS and compiled classes18.dex match CI artifact.
 - Independent APKv2 RSA-SHA256 original signature + full signed content digest, ZIP CRC, aligned STORED records, DEX header checks and manifest version passed using included no-private-key QA/verify_release.py.
 - Synthetic Chromium Peach/Black/White native mock: photo/detail three roundtrips, original settings, delayed native-mounted no timeout close, current first Back to calendar and old-date callback ignored PASS. Not proof of real S26 physical Back/Surface rendering or 120 Hz scrolling.
@@ -36,3 +36,5 @@ Date 2026-11-14 KST. Signed LAB: GitHub Java/D8 and JS CI PASS, APK v2 public cr
 - Do not call device tests PASS until user physically verifies R563. If it still fails, capture correlated native Back, prePause, TextureView logs before more guessed changes.
 
 Storage note: Prior signed ZIP uploads to private Library repeatedly failed due user Library quota. Small sources staged; do not claim the full signed R563 ZIP persisted to Library without positive confirmation.
+## Post-release exact regression source retention
+GitHub experimental branch additionally stores experiments/moa-r563/QA/browser_regression_r563.py and R563_RELEASE_QA.json in two QA-only commits. CI compiled source at 61433dd6b; no production Java/JS/CSS changes after CI. Private Library staging R563_SOURCE_STAGING_20261114 was updated with exact Java and QA; no full-release ZIP upload claimed due prior quota.
