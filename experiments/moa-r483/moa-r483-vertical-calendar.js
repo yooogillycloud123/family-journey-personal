@@ -306,6 +306,58 @@ function r507StartInline(){
  r507Timer=setTimeout(tryOpen,0);
 }
 
+// R584: When original native Gallery is ALREADY mounted with an old photo ID
+// list, merely updating ui.media does not update Gallery's own playlist. Rebind
+// only after committed saved IDs actually change or the user explicitly taps
+// recovery. Never rewrite/delete any diary record, photo or NAVER data.
+let r584RepairBusy=false,r584AutoSignature='',r584RepairSeq=0;
+function r584RebindNative(day){
+ if(!ui.open||ui.page!=='day'||ui.date!==day||r523DayExiting||r531Advanced||!ui.media.length)return false;
+ const pending=!!window.__moaR507NativePending,opened=r507Opened;
+ r507StopInline();
+ // Explicitly stop an orphaned original host only when an opener was pending
+ // but JS never received its accepted-open response.
+ if(pending&&!opened){
+  window.__moaR567ProgrammaticCloseUntil=Date.now()+1200;
+  try{window.MoaLocalAudio?.closeNativeGallery?.()}catch(_){/* original bridge may be absent */}
+ }
+ r515RecoveryAttempts=0;r551LostAttempts=0;r576BlockedSignature='';r527BeginDay();
+ view?.querySelector('.moa-r576-native-retry')?.remove();
+ view?.classList.add('moa-r519-native-entering','moa-r547-native-owner');
+ r507Timer=setTimeout(()=>{if(ui.open&&ui.page==='day'&&ui.date===day&&!r523DayExiting)r507StartInline()},270);
+ return true;
+}
+async function r584RecoverGallery(){
+ if(r584RepairBusy||!ui.open||ui.page!=='day'||r523DayExiting)return false;
+ r584RepairBusy=true;const day=ui.date,seq=++r584RepairSeq;
+ notify('저장된 사진과 원본 갤러리를 다시 확인합니다.');
+ try{
+  const database=await db();let record;
+  try{record=await new Promise((resolve,reject)=>{
+   const req=database.transaction('curated','readonly').objectStore('curated').get(day);
+   req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);
+  });}finally{database.close()}
+  if(!ui.open||ui.page!=='day'||ui.date!==day||seq!==r584RepairSeq)return false;
+  const state=getState(),prev=state?.curatedEntries?.get(day);
+  if(record&&state?.curatedEntries&&(!prev||Number(record.updatedAt||0)>=Number(prev.updatedAt||0))){state.curatedEntries.set(day,record);}
+  const latest=mediaFor(day),lastId=String(ui.media[ui.idx]?.id||'');
+  const ids=latest.map(x=>String(x.id)).join(','),oldIds=ui.media.map(x=>String(x.id)).join(',');
+  if(ids!==oldIds){ui.media=latest;ui.idx=Math.max(0,latest.findIndex(x=>String(x.id)===lastId));renderMedia();}
+  if(!state?.load && latest.some(x=>!state?.byId?.has(String(x.id)))){
+   try{window.FamilyJourneyDiary?.loadIndex?.(true)}catch(_){/* force original index only */}
+  }
+  if(!latest.length){
+   notify('이 날짜의 저장 사진 ID가 아직 없습니다. 원본 사진 검색을 다시 요청했습니다.');
+   try{if(!state?.load)window.FamilyJourneyDiary?.loadIndex?.(true)}catch(_){}
+   return false;
+  }
+  const ok=r584RebindNative(day);
+  notify(ok?'사진 갤러리 다시 연결을 요청했습니다.':'사진형 화면 연결 상태를 확인해 주세요.');
+  return ok;
+ }catch(err){console.warn('R584 manual photo gallery repair',err);notify('사진 갤러리 복구 중 오류가 발생했습니다. 저장 기록은 그대로입니다.');return false}
+ finally{r584RepairBusy=false}
+}
+
 // R495: user preference is additive; it does not write to original diary/Gallery databases.
 const r495ScrollMode=()=>{try{return localStorage.getItem(R495_SCROLL_KEY)==='page'?'page':'flow'}catch(_){return 'flow'}};
 let r495BackBinding=false,r495ScrollGesture=null,r495WheelUntil=0;
@@ -494,13 +546,24 @@ async function r578HydrateSelectedDay(force=false){
   const latest=mediaFor(day), ids=latest.map(m=>String(m.id)).join(',');
   const priorIds=ui.media.map(m=>String(m.id)).join(',');
   const updated=oldKey!==r578DayKey(s,day)||ids!==priorIds;
-  if(updated&&!r507Opened&&!window.__moaR507NativePending){
-   const chosen=String(ui.media[ui.idx]?.id||'');ui.media=latest;
-   ui.idx=Math.max(0,latest.findIndex(m=>String(m.id)===chosen));
-   renderMedia();if(latest.length){r576BlockedSignature='';r507StartInline();}
+  if(updated){
+   const changedMedia=ids!==priorIds,wasLive=r507Opened||!!window.__moaR507NativePending;
+   if(changedMedia){
+    const chosen=String(ui.media[ui.idx]?.id||''),oldIds=new Set(ui.media.map(x=>String(x.id)));
+    ui.media=latest;ui.idx=Math.max(0,latest.findIndex(m=>String(m.id)===chosen));
+    renderMedia();
+    const added=latest.some(m=>!oldIds.has(String(m.id)));
+    const signature=day+'|'+ids;
+    // Only a newly committed photo ID triggers one automatic Gallery rebind.
+    // Text-only diary edits and unchanged IDs NEVER disturb a live player.
+    if(wasLive&&added&&signature!==r584AutoSignature&&!r584RepairBusy){
+     r584AutoSignature=signature;
+     setTimeout(()=>{if(ui.open&&ui.page==='day'&&ui.date===day&&!r523DayExiting)r584RebindNative(day)},220);
+    }else if(!wasLive&&latest.length){r576BlockedSignature='';r507StartInline();}
+   }
   }
-  // Do not close a healthy R567 native Gallery during an in-day DB refresh.
-  // Its next day entry reopens with the updated source of truth.
+  // The original Gallery's playlist remains immutable until explicit user
+  // recovery or one newly committed ID; no timer-driven destructive restarts.
   return updated;
  }catch(err){console.warn('R580 selected day read-only sync',err);return false}
  finally{r578SyncDayRunning=false}
@@ -759,7 +822,12 @@ function r539DayChrome(mode,day,onPhoto,onDetail,onSettings){
  switcher.classList.add(mode==='photo'?'moa-r475-photo-switch':'moa-r475-detail-switch');
  const settings=btn('···',onSettings,'moa-r539-day-settings');
  settings.setAttribute('aria-label','일기 보기 설정 및 관리');settings.title='일기 보기 설정';
- controls.append(switcher,settings);frame.append(title,controls);return frame;
+ if(mode==='photo'){
+  const repair=btn('↻',()=>{void r584RecoverGallery()},'moa-r584-recover');
+  repair.setAttribute('aria-label','사진형 갤러리 다시 연결');repair.title='사진형 갤러리 복구';
+  controls.append(switcher,repair,settings);
+ }else controls.append(switcher,settings);
+ frame.append(title,controls);return frame;
 }
 function r539PhotoSettings(){
  const open=view?.querySelector('.moa-r539-photo-settings');if(open){open.remove();return}
@@ -767,7 +835,7 @@ function r539PhotoSettings(){
  const panel=elem('div','moa-r539-photo-settings');panel.setAttribute('role','group');panel.setAttribute('aria-label','사진형 보기 설정');
  const details=btn('상세형 보기 설정',()=>{panel.remove();r475OpenDetail(ui.date);setTimeout(()=>{diaryRoot()?.querySelector('.moa-r191-day-menu-trigger')?.click();},120)},'moa-r539-settings-detail');
  panel.append(details);
- const retry=btn('갤러리 다시 표시',()=>{panel.remove();window.__moaR543RepairInline?.()},'moa-r539-settings-detail');
+ const retry=btn('갤러리 다시 표시',()=>{panel.remove();void r584RecoverGallery()},'moa-r539-settings-detail');
  panel.append(retry);controls.append(panel);
 }
 function r475OpenDetail(day){if(ui.dirty){notify('작성 중인 글을 먼저 저장한 뒤 상세형으로 전환해 주세요.');return;}
@@ -1107,7 +1175,16 @@ function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui
  // Do not show the web-gallery chrome for a second while the existing native
  // Gallery is mounting. The static media poster may remain underneath.
  if(ui.media.length)view.classList.add('moa-r519-native-entering','moa-r547-native-owner');
- renderMedia();refreshVoices();if(ui.media.length)r507StartInline();else view.classList.remove('moa-r519-native-entering');r527SyncGeometry(true);
+ renderMedia();refreshVoices();
+ // R584: the original Quick Record transaction may be committed already while
+ // the Web diary state/cache is older. Re-read same-day curated BEFORE mounting
+ // the original native Gallery with its immutable ID list.
+ Promise.resolve(r578HydrateSelectedDay(true)).finally(()=>{
+  if(ui.open&&ui.page==='day'&&ui.date===d&&!r507Opened&&!window.__moaR507NativePending&&!r576Opening){
+   if(ui.media.length)r507StartInline();else view?.classList.remove('moa-r519-native-entering');
+  }
+ });
+ r527SyncGeometry(true);
   // The original Quick Record writer may finish while photo-day is first mounted.
   setTimeout(()=>r578HydrateSelectedDay(true),100);setTimeout(()=>r578HydrateSelectedDay(true),1250);}
 function r472MediaSelected(index){
@@ -1310,6 +1387,6 @@ const originalAudioEvent=window.__moaNativeAudioEvent;
 if(typeof originalAudioEvent==='function'){window.__moaNativeAudioEvent=function(evt){originalAudioEvent.apply(this,arguments);if(!ui.open||ui.page!=='day')return;const event=String(evt?.event||'');if(event==='play_started'||event==='play_resumed'){ui.audioPlaying=true;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='Ⅱ';}else if(['play_paused','play_finished','play_error'].includes(event)){ui.audioPlaying=false;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='▷';}if(['record_saved','delete'].includes(event))setTimeout(refreshVoices,250);};}
 // Native R570 save gate: exact CURRENT photo id, not merely same day/GPS.
 window.__moaR570CurrentMediaId=()=>ui.open&&ui.page==='day'?String(dayMedia(ui.idx)?.id||''):'';
-window.MoaR469SimpleDiary={openAdvancedGallery:()=>window.__moaR531ShowAdvanced?.(),openCalendar:()=>open('calendar'),openDay:d=>open('day',d),setCoverNative:id=>{if(ui.open&&ui.page==='day'&&ui.media.some(m=>String(m.id)===String(id)))saveCover(id)},home:()=>ui.open?(ui.page==='day'?goBack():true):false,close,readOnlyStatus:()=>({active:ui.open,page:ui.page,date:ui.date,mediaCount:ui.media.length,voiceCount:ui.clips.length})};
+window.MoaR469SimpleDiary={recoverGallery:()=>r584RecoverGallery(),openAdvancedGallery:()=>window.__moaR531ShowAdvanced?.(),openCalendar:()=>open('calendar'),openDay:d=>open('day',d),setCoverNative:id=>{if(ui.open&&ui.page==='day'&&ui.media.some(m=>String(m.id)===String(id)))saveCover(id)},home:()=>ui.open?(ui.page==='day'?goBack():true):false,close,readOnlyStatus:()=>({active:ui.open,page:ui.page,date:ui.date,mediaCount:ui.media.length,voiceCount:ui.clips.length})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
