@@ -102,8 +102,8 @@ window.__moaR574PhotoStillLoading=function(){
  if(!ui.open||ui.page!=='day'||view?.hidden)return false;
  // Do not dismiss a user-visible video or trigger a second gallery.
  if(ui.media.length && !view.classList.contains('moa-r507-native-mounted')){
-   view.classList.add('moa-r574-index-wait');
-   notify('사진 원본이 아직 준비되지 않았습니다. 갤러리를 계속 확인합니다.');
+   view.classList.add('moa-r576-index-wait');
+   notify('사진 원본을 다시 확인하고 있습니다. 기록 내용은 보존됩니다.');
  }
  return true;
 };
@@ -232,25 +232,19 @@ function r507StartInline(){
   if(!ids.length||ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id)))return;
   if(!view?.querySelector('.moa-r469-stage')?.isConnected)return;
   const state=getState(),selected=ids[ui.idx];
-  // Details already show newly captured moments from 'curated'. But R60's
-  // MediaStore index can still lack that exact photo; opening the original
-  // Gallery right now returns a black unprepared center ImageView.
+  // R576: R73/Quick Record uses provisional native MediaStore IDs from a
+  // CONFIRMED IndexedDB capture before the full-library diaryIndex scan ends.
+  // `state.byId` is a cache, NOT an existence oracle; R574's blocking loop
+  // prevented the original Gallery from opening even after application restart.
+  // Give the original native Gallery the exact captured ID immediately.
+  // A bounded background index refresh is advisory only; never hold rendering.
   if(selected && !state?.byId?.has(String(selected))){
    const now=Date.now();
-   if(now-r574IndexAttemptAt>5200 && r574IndexAttemptCount<4 && !state?.load){
+   if(now-r574IndexAttemptAt>8000 && r574IndexAttemptCount<3 && !state?.load){
     r574IndexAttemptAt=now;r574IndexAttemptCount++;
     try{window.FamilyJourneyDiary?.loadIndex?.(false)}catch(_){/* original index path */}
    }
-   if(now-r574MissingNoticeAt>9000){
-    r574MissingNoticeAt=now;
-    // Keep Web photo/thumbnail while original MediaStore row is syncing.
-    // Do not register a fake native success or clear other diary records.
-    notify('새로 촬영한 사진 원본을 확인하는 중입니다.');
-   }
-   r507Timer=setTimeout(tryOpen,260);
-   return;
   }
-  r574IndexAttemptCount=0;
   view?.classList.remove('moa-r574-index-wait');
   window.__moaR511InlineArm=true;
   if(!window.__moaR511NativeArmed){
@@ -270,10 +264,12 @@ function r507StartInline(){
    // its index is still catching up. Leave the Web image visible and retry;
    // never tear down an already OPEN/owned original host.
    if(Date.now()-r574IndexAttemptAt>1800)r574IndexAttemptCount=0;
-   r507Timer=setTimeout(tryOpen,480);
+   r507Timer=setTimeout(tryOpen,1200);
    return;
   }
   r507Opened=true;
+  // R576: only native drawable/real player ACK can retire the Web poster;
+  // a provisional R73 ID is allowed through, never a false mounted ACK.
   // R551: the old 2700ms timer called r507StopInline() (which invokes
   // Gallery.close()) merely because the asynchronous native mounted signal
   // had not reached JS yet. On a detail↔photo or NAVER return this DESTROYED
@@ -802,6 +798,206 @@ function r479PeriodSheet(){
  });
 }
 function r479SetSource(source){
+ if(!['curated','automatic'].includes(source)||ui.source===source)return;
+ ui.source=source;ui.idx=0;render();
+}
+function r483Pill(active,items,onSelect,cls){
+ const wrap=elem('div','moa-r483-oval-switch '+cls);wrap.setAttribute('role','group');wrap.setAttribute('aria-label',cls==='moa-r483-photo-source'?'사진 범위 변경':'일기 보기 변경');wrap.dataset.source=active;
+ const thumb=elem('span','moa-r483-thumb');thumb.setAttribute('aria-hidden','true');wrap.append(thumb);
+ for(const item of items){
+  const button=btn('',()=>{if(Date.now()<r479SwipeBlockUntil)return;onSelect(item.key)},'moa-r483-toggle-hit');button.dataset.option=item.key;button.setAttribute('aria-label',item.label);button.setAttribute('aria-pressed',String(item.key===active));button.title=item.label;wrap.append(button)
+ }
+ let begin=null;
+ wrap.addEventListener('pointerdown',e=>{begin={id:e.pointerId,x:e.clientX,y:e.clientY}});
+ wrap.addEventListener('pointerup',e=>{
+  if(!begin||begin.id!==e.pointerId)return;const dx=e.clientX-begin.x,dy=e.clientY-begin.y;begin=null;
+  if(Math.abs(dx)>15&&Math.abs(dx)>Math.abs(dy)*1.1){r479SwipeBlockUntil=Date.now()+300;onSelect(dx>0?items[1].key:items[0].key)}
+ });
+ wrap.addEventListener('pointercancel',()=>{begin=null});return wrap;
+}
+function r479SourceControl(){
+ return r483Pill(ui.source,[{key:'curated',label:'내가 고른 사진'},{key:'automatic',label:'전체 사진'}],r479SetSource,'moa-r483-photo-source');
+}
+/* R483: Photos365-style VERTICAL calendar feed. No pointer-based horizontal month jumps. */
+let r483Feed=null,r483OnScroll=0,r483ExtendBusy=false,r483ImageObserver=null;
+function r483MonthSection(date){
+ const y=date.getFullYear(),m=date.getMonth(),days=new Date(y,m+1,0).getDate(),offset=new Date(y,m,1).getDay();
+ const section=elem('section','moa-r483-month');section.dataset.month=r483MonthKey(date);
+ section.style.setProperty('--moa-r487-week-rows',String(Math.ceil((offset+days)/7)));
+ section.setAttribute('aria-label',`${y}년 ${m+1}월 사진 달력`);
+ section.append(elem('h2','moa-r483-month-title',`${y}년 ${m+1}월`));
+ const grid=elem('div','moa-r469-month-grid');grid.setAttribute('aria-label',`${y}년 ${m+1}월 달력`);
+ // R511: weekdays are a single fixed header outside the month scroll feed.
+ for(let i=0;i<offset;i++)grid.append(elem('span','moa-r469-blank'));
+ const prefix=`${y}-${String(m+1).padStart(2,'0')}-`;
+ for(let n=1;n<=days;n++){
+  const d=prefix+String(n).padStart(2,'0'),photo=mainCover(d,mediaFor(d));
+  const tile=btn('',()=>{if(Date.now()<r479SwipeBlockUntil)return;ui.selected=d;ui.date=d;ui.month=new Date(y,m,1);ui.page='day';ui.idx=0;ui.fast=false;r527BeginDay();render()},'moa-r469-date');
+  tile.setAttribute('aria-label',`${d} 일기 및 가족 일정`);tile.dataset.day=d;
+  if(d===ui.selected)tile.classList.add('selected');if(d===dayOf(Date.now()))tile.classList.add('today');
+  if(photo){const img=elem('img');img.dataset.id=String(photo.id);img.alt='';img.draggable=false;tile.append(img);if(isVideo(photo))tile.append(elem('span','moa-r469-video-mark','▶'))}
+  tile.append(elem('span','moa-r469-day-number',n));
+  const lane=elem('span','moa-r483-event-lane');lane.setAttribute('aria-hidden','true');
+  if(r475Events(d).length){const mark=elem('span','moa-r475-event-mark');lane.append(mark)}
+  tile.append(lane);
+  if(getState()?.curatedEntries?.has(d)){const mark=elem('span','moa-r469-record-mark','•');tile.append(mark)}
+  grid.append(tile);
+ }
+ let after=(offset+days)%7;if(after)for(;after<7;after++)grid.append(elem('span','moa-r469-blank moa-r479-trailing-blank'));
+ section.append(grid);return section;
+}
+function r483FetchMonth(section){
+ if(!section||!section.isConnected)return;
+ const images=[...section.querySelectorAll('img[data-id]:not(.moa-r472-image-ready)')];
+ if(images.length)fillImages(images.slice(0,32));
+}
+function r483SyncToolbar(){
+ if(!r483Feed||!r483Feed.isConnected)return;
+ const sections=[...r483Feed.children];if(!sections.length)return;
+ let active=sections[0];const top=r483Feed.getBoundingClientRect().top;
+ for(const section of sections){if(section.getBoundingClientRect().top<=top+78)active=section;else break}
+ for(const section of sections)section.classList.toggle('moa-r511-active-month',section===active);
+ const displayed=r483MonthDate(active.dataset.month),title=$('.moa-r479-period strong',view);
+ if(title)title.textContent=`${displayed.getFullYear()}년 ${displayed.getMonth()+1}월`;
+ ui.month=displayed;
+}
+function r483EnqueueMonth(direction){
+ if(r483ExtendBusy||!r483Feed||!r483Feed.isConnected)return;
+ const feed=r483Feed,children=[...feed.querySelectorAll(':scope > .moa-r483-month')];
+ if(!children.length)return;
+ r483ExtendBusy=true;
+ const current=direction<0?children[0]:children[children.length-1],date=r483MonthDate(current.dataset.month);
+ const news=[];
+ for(let j=1;j<=2;j++){
+  const next=new Date(date.getFullYear(),date.getMonth()+direction*j,1);
+  if(next.getFullYear()<1900||next.getFullYear()>2100)break;
+  news.push(r483MonthSection(next));
+ }
+ if(direction<0){
+  const originalHeight=feed.scrollHeight;
+  for(const section of news)feed.prepend(section);
+  /* Browser preserves the visual anchor when earlier months are prepended. */
+ }else for(const section of news)feed.append(section);
+ // Keep a bounded render window while retaining the anchored scroll position.
+ const all=[...feed.querySelectorAll(':scope > .moa-r483-month')];
+ if(all.length>18){
+  const remove=all.slice(direction<0?18:0,direction<0?undefined:all.length-18);
+  const oldHeight=feed.scrollHeight;
+  for(const section of remove){r483ImageObserver?.unobserve(section);section.remove()}
+  /* Browser scroll anchoring keeps the current visible section after top-trim. */
+ }
+ for(const section of news)r483ImageObserver?.observe(section);
+ r483ExtendBusy=false;
+}
+function r483HandleScroll(){
+ if(!r483Feed)return;
+ const feed=r483Feed;
+ if(r495ScrollMode()==='page')return;
+ r483SyncToolbar();
+ if(feed.scrollTop+feed.clientHeight>feed.scrollHeight-360)r483EnqueueMonth(1);
+ if(feed.scrollTop<340)r483EnqueueMonth(-1);
+}
+function renderMonth(){
+ if(!getState())return;
+ r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;r483ExtendBusy=false;
+ const toolbar=elem('div','moa-r479-calendar-toolbar');
+ const period=btn('',r479PeriodSheet,'moa-r479-period');period.append(elem('strong','',`${ui.month.getFullYear()}년 ${ui.month.getMonth()+1}월`));period.setAttribute('aria-label','연도와 월 선택');period.title='연도·월 선택';toolbar.append(period);
+ const right=elem('div','moa-r479-right-stack');right.append(r479SourceControl());toolbar.append(right);view.append(toolbar);
+ const weekdayBar=elem('div','moa-r511-sticky-weekdays');weekdayBar.setAttribute('role','row');weekdayBar.setAttribute('aria-label','요일 고정 표시');
+ for(const day of ['일','월','화','수','목','금','토'])weekdayBar.append(elem('span','moa-r511-weekday',day));view.append(weekdayBar);
+ const feed=elem('div','moa-r483-month-feed');feed.setAttribute('role','region');feed.setAttribute('aria-label','요일 고정, 월별 날짜와 사진을 위아래로 스크롤');r483Feed=feed;
+ const selected=new Date(ui.month.getFullYear(),ui.month.getMonth(),1);
+ for(let offset=-1;offset<=2;offset++){
+  const section=r483MonthSection(new Date(selected.getFullYear(),selected.getMonth()+offset,1));feed.append(section)
+ }
+ view.append(feed);r495AttachMonthGestures(feed);
+ const todayDock=elem('div','moa-r487-today-dock');
+ const todayAction=btn('',()=>{
+  const today=new Date();ui.selected=dayOf(today);ui.month=new Date(today.getFullYear(),today.getMonth(),1);
+  // Recreate only the calendar presentation; original diary/gallery stores stay untouched.
+  render();
+ },'moa-r487-today-action');
+ todayAction.setAttribute('aria-label','오늘 날짜의 달력으로 이동');todayDock.append(todayAction);view.append(todayDock);
+ r483ImageObserver=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting)r483FetchMonth(entry.target)},{root:feed,rootMargin:'240px 0px'});
+ for(const section of feed.children)r483ImageObserver.observe(section);
+ feed.addEventListener('scroll',()=>{if(r483OnScroll)return;r483OnScroll=requestAnimationFrame(()=>{r483OnScroll=0;r483HandleScroll()})},{passive:true});
+ requestAnimationFrame(()=>{
+  if(!feed.isConnected)return;
+  const section=feed.querySelectorAll(':scope > .moa-r483-month')[1];
+  if(section)feed.scrollTop=section.offsetTop;
+  r483SyncToolbar();
+ });
+}
+function changeMonth(k){ui.month=new Date(ui.month.getFullYear(),ui.month.getMonth()+k,1);render();}
+function dayMedia(index){const m=ui.media[index];return m&&safeMedia(m.id)?m:null;}
+function setDay(day){if(!valid(day))return;ui.date=day;ui.selected=day;ui.page='day';ui.fast=false;ui.idx=0;ui.dirty=false;r527BeginDay();render();}
+function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui.date,s=getState();if(!valid(d)||!s)return;ui.media=mediaFor(d);const chosen=mainCover(d,ui.media);const ri=ui.media.findIndex(x=>String(x.id)===String(chosen?.id));ui.idx=Math.min(ui.media.length-1,Math.max(0,ui.idx||ri));if(ui.idx===0&&ri>0)ui.idx=ri;
+ const current=s.curatedEntries?.get(d)||s.entries?.get(d),wrap=elem('div','moa-r469-day');
+ wrap.append(r539DayChrome('photo',d,()=>{},()=>r475OpenDetail(d),r539PhotoSettings));
+ const stage=elem('div','moa-r469-stage');stage.dataset.moaStage='yes';stage.tabIndex=0;stage.setAttribute('aria-label','사진 영상 좌우로 이동');stage.append(elem('div','moa-r469-stage-media'));
+ const coverStar=btn('☆',()=>{const media=dayMedia(ui.idx);if(media)saveCover(media.id)},'moa-r503-cover-star');
+ coverStar.setAttribute('aria-label','현재 사진을 달력 대표 사진으로 지정');coverStar.title='달력 대표 사진으로 지정';stage.append(coverStar);
+ const more=btn('···',()=>{ui.tools=!ui.tools;toggleTools()},'moa-r469-more');more.setAttribute('aria-label','사진 기능');stage.append(more);
+ wrap.append(stage);
+ stage.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'){changeMedia(ui.idx-1);e.preventDefault()}
+  else if(e.key==='ArrowRight'){changeMedia(ui.idx+1);e.preventDefault()}
+ });
+ const dots=elem('div','moa-r469-pager');wrap.append(dots);
+ const tools=elem('section','moa-r469-tools');tools.hidden=!ui.tools;
+ const glyph={share:'<circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="M8 11l8-5M8 13l8 5"/>',
+  geo:'<path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1116 0z"/><circle cx="12" cy="10" r="2.5"/>',
+  info:'<path d="M3 6.5l6-3 6 3 6-3v14l-6 3-6-3-6 3zM9 3.5v14M15 6.5v14"/>',
+  fast:'<path d="m4 5 7 7-7 7m8-14 7 7-7 7"/>'};
+ const actions=elem('div','moa-r469-actions');
+ for(const [op,label] of [['share','공유'],['geo','네이버 지도'],['info','촬영 시간·주소'],['fast','빠른 스와이프 켜기/끄기']]){
+  const button=btn('',null,'moa-r499-action');button.dataset.op=op;button.setAttribute('aria-label',label);
+  button.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${glyph[op]}</svg>`;actions.append(button);
+ }
+ // Fallback Web controls obey the same bottom-row layout as the native R535 capsule.
+ const advanced=btn('',()=>{if(!view?.classList.contains('moa-r507-native-mounted'))window.MoaLocalAudio?.openNativeGallery?.(JSON.stringify(ui.media.map(m=>String(m.id))),ui.idx,ui.date)},'moa-r531-web-advanced');
+ advanced.setAttribute('aria-label','원래 고급 갤러리 전체 화면 열기');
+ advanced.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M4 15v5h5M20 15v5h-5"/></svg>';
+ actions.append(advanced);
+ const info=elem('div','moa-r469-info');info.hidden=true;
+ const railToggle=btn('',()=>{ui.rail=!ui.rail;toggleRail()},'moa-r469-rail-toggle');railToggle.setAttribute('aria-label','사진 썸네일 목록 펼치기');railToggle.setAttribute('aria-expanded','false');
+ const rail=elem('div','moa-r469-rail');rail.hidden=true;rail.setAttribute('aria-label','날짜별 사진과 영상');
+ tools.append(actions,info,railToggle,rail);
+ tools.querySelector('.moa-r469-actions').addEventListener('click',onAction);wrap.append(tools);
+ const story=elem('section','moa-r469-story');story.append(elem('strong','moa-r469-story-title','오늘의 이야기'));
+ const area=elem('textarea','moa-r469-text');area.placeholder='오늘의 소중한 순간을 기록해 보세요.';area.value=current?.body||'';area.oninput=()=>{ui.dirty=true;};story.append(area);
+ const momentNotes=(current?.moments||[]).filter(x=>String(x.note||'').trim());if(momentNotes.length){const details=elem('details','moa-r469-moments');details.append(elem('summary','',`바로기록 ${momentNotes.length}개`));for(const m of momentNotes){const p=elem('p','',m.note);details.append(p)}story.append(details);}
+ const voicehead=elem('div','moa-r469-voice-head');const recButton=btn('',()=>openNativeRecorder(),'moa-r469-record');recButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4M8.5 21h7"/></svg>';recButton.setAttribute('aria-label','기존 음성 녹음 기능');voicehead.append(elem('span','','음성 메모'),recButton);story.append(voicehead);
+ const voice=elem('div','moa-r469-voice-player');voice.innerHTML='<button class="moa-r469-voice-play" aria-label="녹음 듣기">▷</button><div class="moa-r469-voice-detail"><span></span><input type="range" min="0" max="100" value="0" aria-label="재생 시간 탐색" disabled></div><button class="moa-r469-voice-select" aria-label="녹음 선택">0/0⌄</button>';
+ voice.querySelector('.moa-r469-voice-play').onclick=()=>playVoice();voice.querySelector('.moa-r469-voice-select').onclick=()=>voiceListToggle();story.append(voice);
+ const chooser=elem('div','moa-r469-voice-list');chooser.hidden=true;story.append(chooser);
+ const foot=elem('div','moa-r469-story-footer');foot.append(elem('span','moa-r475-save-note','같은 날짜의 기록을 공유합니다'),btn('저장',()=>saveStory(),'moa-r469-save'));story.append(foot);wrap.append(story);
+ const family=elem('section','moa-r475-family');const dayEvents=r475Events(d);
+ const familyTop=elem('div','moa-r475-family-top');familyTop.append(elem('span','','가족 일정'+(dayEvents.length?' · '+dayEvents.length:'')));
+ familyTop.append(btn('＋ 일정',()=>r479ScheduleEditor(d,null),'moa-r475-family-manage'));
+ family.append(familyTop);
+ if(dayEvents.length){const list=elem('div','moa-r475-family-list');dayEvents.forEach(ev=>{
+  const entry=btn('',()=>r479ScheduleEditor(d,ev),'moa-r475-family-item');const time=String(ev?.allDay?'종일':ev?.start||'');
+  entry.append(elem('span','moa-r475-family-time',time),elem('span','',String(ev?.title||'일정')));list.append(entry);
+ });family.append(list)}
+ wrap.append(family);
+ const status=elem('div','moa-r469-status','');wrap.append(status);view.append(wrap);
+ // Do not show the web-gallery chrome for a second while the existing native
+ // Gallery is mounting. The static media poster may remain underneath.
+ if(ui.media.length)view.classList.add('moa-r519-native-entering','moa-r547-native-owner');
+ renderMedia();refreshVoices();if(ui.media.length)r507StartInline();else view.classList.remove('moa-r519-native-entering');r527SyncGeometry(true);}
+function r472MediaSelected(index){
+ if(!Number.isFinite(index)||!ui.media.length)return;
+ const next=Math.max(0,Math.min(ui.media.length-1,index));
+ if(next===ui.idx)return;
+ const oldSlide=$(`.moa-r472-slide[data-idx="${ui.idx}"]`,view);
+ const oldVideo=oldSlide?.querySelector('video');if(oldVideo){oldVideo.pause();oldVideo.removeAttribute('src');oldVideo.load();oldVideo.remove()}
+ window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;
+ ui.idx=next;ui.info=false;
+ const info=$('.moa-r469-info',view);if(info){info.hidden=true;info.replaceChildren()}
+ r472UpdatePager();r472LazyPhotos();
+}
+function r472UpdatePager(){
  if(!['curated','automatic'].includes(source)||ui.source===source)return;
  ui.source=source;ui.idx=0;render();
 }
