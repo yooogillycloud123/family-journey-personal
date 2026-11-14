@@ -928,12 +928,49 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     final long now=android.os.SystemClock.uptimeMillis();
     if(now-lastMediaRefreshAt<1800L)return;
     lastMediaRefreshAt=now;
+    final String id=currentId(gallery);
+    if(id.startsWith("v")){
+      // R227 refreshPages() only reloads ImageView posters. It does NOT
+      // recreate the TextureView/MediaPlayer after Android discards the video
+      // SurfaceTexture. The original R227 Gallery itself owns this pipeline.
+      // Validate again after a brief foreground settle to avoid interrupting
+      // a legitimate asynchronous prepare. Never restart a healthy video.
+      final int resumeDayToken=ownedDayToken;
+      final FrameLayout originalHost=nativeHost;
+      main.postDelayed(()->{
+        // Do not touch a newer detailed/fullscreen Gallery or another date.
+        if(!resumed||foreground!=nativeOwnerActivity||fullNativeOpen||
+           !ownsGallery||galleryRef!=gallery||originalHost==null||
+           originalHost!=nativeHost||readField(gallery,"host")!=originalHost||
+           ownedDayToken!=resumeDayToken||!galleryOpen(gallery)||
+           !id.equals(currentId(gallery))||actualMediaReady(gallery))return;
+        try{
+          Object texture=readField(gallery,"texture");
+          Object player=readField(gallery,"media");
+          boolean oldSurfaceValid=texture instanceof TextureView &&
+              ((TextureView)texture).isAvailable();
+          if(oldSurfaceValid && player instanceof MediaPlayer &&
+              Boolean.TRUE.equals(readField(gallery,"prepared")))return;
+          Method teardown=gallery.getClass().getDeclaredMethod("teardownPlayer");
+          Method refresh=gallery.getClass().getDeclaredMethod("refreshPages");
+          Method prepare=gallery.getClass().getDeclaredMethod("prepareCurrentVideo");
+          teardown.setAccessible(true);refresh.setAccessible(true);prepare.setAccessible(true);
+          // Use precisely the ORIGINAL Gallery video player, at same media ID.
+          teardown.invoke(gallery);refresh.invoke(gallery);prepare.invoke(gallery);
+          android.util.Log.i("MOA_R563","ORIGINAL_VIDEO_SURFACE_REPAIR id_preserved");
+        }catch(Throwable ex){
+          android.util.Log.w("MOA_R563","ORIGINAL_VIDEO_SURFACE_REPAIR_FAILED_"+
+              ex.getClass().getSimpleName());
+        }
+      },820L);
+      return;
+    }
     try{
       Method m=gallery.getClass().getDeclaredMethod("refreshPages");
       m.setAccessible(true);m.invoke(gallery);
-      android.util.Log.i("MOA_R563","ORIGINAL_MEDIA_PAGE_REFRESH index="+readField(gallery,"index"));
+      android.util.Log.i("MOA_R563","ORIGINAL_PHOTO_PAGE_REFRESH index="+readField(gallery,"index"));
     }catch(Throwable ex){
-      android.util.Log.w("MOA_R563","ORIGINAL_MEDIA_PAGE_REFRESH_FAILED_"+ex.getClass().getSimpleName());
+      android.util.Log.w("MOA_R563","ORIGINAL_PHOTO_PAGE_REFRESH_FAILED_"+ex.getClass().getSimpleName());
     }
   }
   private void rebindAfterReturn(Activity a,int epoch){
