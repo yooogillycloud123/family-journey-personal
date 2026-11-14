@@ -19,6 +19,9 @@ let r475ExitUntilHidden=false, r475AutostartScheduled=false, r475CalendarRefresh
 // On missing provider / unsupported activity / invalid MediaStore ID, retain the
 // full R503 web presentation and never launch an unexpected fullscreen viewer.
 let r507Generation=0,r507Timer=0,r507Opened=false;
+// R574: original Quick Record commits IndexedDB before its MediaStore index
+// callback. Never launch a black native gallery for an as-yet-unindexed ID.
+let r574IndexAttemptAt=0,r574IndexAttemptCount=0,r574MissingNoticeAt=0;
 // JS close/reopen must never be misclassified as a user Back.
 window.__moaR567ProgrammaticCloseUntil=0;
 let r515RecoveryAttempts=0,r515LastNativeMount=0;
@@ -95,12 +98,21 @@ window.visualViewport?.addEventListener('resize',()=>r527SyncGeometry(true),{pas
 // R511 pre-draw guard arm state; do not start native fullscreen before the provider is ready.
 window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
 window.__moaR507NativePending=false;
+window.__moaR574PhotoStillLoading=function(){
+ if(!ui.open||ui.page!=='day'||view?.hidden)return false;
+ // Do not dismiss a user-visible video or trigger a second gallery.
+ if(ui.media.length && !view.classList.contains('moa-r507-native-mounted')){
+   view.classList.add('moa-r574-index-wait');
+   notify('사진 원본이 아직 준비되지 않았습니다. 갤러리를 계속 확인합니다.');
+ }
+ return true;
+};
 window.__moaR507NativeMounted=function(mounted){
  if(!ui.open||ui.page!=='day')mounted=false;
  if(view){view.classList.toggle('moa-r507-native-mounted',!!mounted);
    if(mounted)view.classList.remove('moa-r519-native-entering');
    if(ui.open&&ui.page==='day'&&ui.media.length)view.classList.add('moa-r547-native-owner');}
- if(mounted){window.__moaR567ProgrammaticCloseUntil=0;r515RecoveryAttempts=0;r551LostAttempts=0;r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
+ if(mounted){view?.classList.remove('moa-r574-index-wait');window.__moaR567ProgrammaticCloseUntil=0;r515RecoveryAttempts=0;r551LostAttempts=0;r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
  if(!mounted){window.__moaR507NativePending=false;r507Opened=false;}
 };
 // R515: a transient Activity/WebView update must not demote the in-card native Gallery.
@@ -219,6 +231,27 @@ function r507StartInline(){
   const ids=ui.media.map(x=>String(x.id));
   if(!ids.length||ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id)))return;
   if(!view?.querySelector('.moa-r469-stage')?.isConnected)return;
+  const state=getState(),selected=ids[ui.idx];
+  // Details already show newly captured moments from 'curated'. But R60's
+  // MediaStore index can still lack that exact photo; opening the original
+  // Gallery right now returns a black unprepared center ImageView.
+  if(selected && !state?.byId?.has(String(selected))){
+   const now=Date.now();
+   if(now-r574IndexAttemptAt>5200 && r574IndexAttemptCount<4 && !state?.load){
+    r574IndexAttemptAt=now;r574IndexAttemptCount++;
+    try{window.FamilyJourneyDiary?.loadIndex?.(false)}catch(_){/* original index path */}
+   }
+   if(now-r574MissingNoticeAt>9000){
+    r574MissingNoticeAt=now;
+    // Keep Web photo/thumbnail while original MediaStore row is syncing.
+    // Do not register a fake native success or clear other diary records.
+    notify('새로 촬영한 사진 원본을 확인하는 중입니다.');
+   }
+   r507Timer=setTimeout(tryOpen,260);
+   return;
+  }
+  r574IndexAttemptCount=0;
+  view?.classList.remove('moa-r574-index-wait');
   window.__moaR511InlineArm=true;
   if(!window.__moaR511NativeArmed){
    if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,70);
@@ -230,7 +263,16 @@ function r507StartInline(){
   let ok=false;
   try{ok=!!window.MoaLocalAudio.openNativeGallery(JSON.stringify(ids),ui.idx,ui.date)}
   catch(e){console.warn('R507 original gallery unavailable',e)}
-  if(!ok){window.__moaR507NativePending=false;return;}
+  if(!ok){
+   window.__moaR507NativePending=false;
+   window.__moaR511InlineArm=false;
+   // The original MediaStore Gallery can reject a just-persisted record while
+   // its index is still catching up. Leave the Web image visible and retry;
+   // never tear down an already OPEN/owned original host.
+   if(Date.now()-r574IndexAttemptAt>1800)r574IndexAttemptCount=0;
+   r507Timer=setTimeout(tryOpen,480);
+   return;
+  }
   r507Opened=true;
   // R551: the old 2700ms timer called r507StopInline() (which invokes
   // Gallery.close()) merely because the asynchronous native mounted signal
@@ -641,6 +683,22 @@ function r475DecorateDetail(){
 }
 function addMode(){
  const s=getState(),root=diaryRoot();r495SyncLegacyRoot();r495InstallBackHandlers();r495InstallScrollSetting();
+ if(ui.open&&ui.page==='day'&&!r523DayExiting&&!r531Advanced&&
+    !r507Opened&&!window.__moaR507NativePending){
+   const latest=mediaFor(ui.date);
+   const was=ui.media.map(m=>String(m.id)).join(',');
+   const next=latest.map(m=>String(m.id)).join(',');
+   if(was!==next){
+     const chosen=String(ui.media[ui.idx]?.id||'');
+     ui.media=latest;
+     const pos=latest.findIndex(m=>String(m.id)===chosen);
+     ui.idx=Math.max(0,pos);
+     renderMedia();
+     clearTimeout(r507Timer);
+     if(ui.media.length)r507StartInline();
+   }
+ }
+
  if(!s?.open||!root||root.hidden){r475ExitUntilHidden=false;return;}
  if(ui.open&&ui.page==='calendar'&&!s.load){
   const key=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');
