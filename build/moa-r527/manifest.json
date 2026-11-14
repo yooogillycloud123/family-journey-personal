@@ -1,0 +1,8 @@
+{
+  "version": "R527",
+  "class": "MoaR507InlineGalleryProvider",
+  "dex_size": 30724,
+  "dex_sha256": "3002e5453d9332a2c2bf77a629c828ebd83a439785e1d319f88cc5318c77ca9c",
+  "source_sha256": "7a28e61199d5d2602bb989dd454f3f094fa3628863c1882005a35c34b51e2ad0",
+  "android_device": "NOT_TESTED"
+}
