@@ -901,3 +901,15 @@ html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r531-web-advance
 html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-stage-media{
  pointer-events:none!important;
 }
+
+/* R551: never render interactive R503 fallback playback/gallery chrome in
+   photo-day, even before the native-mounted class or after a lifecycle race.
+   Native R463 owns the rail, playback, stage gestures and original actions. */
+html #moa-r469-root[data-page="day"] .moa-r469-pager,
+html #moa-r469-root[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root[data-page="day"] .moa-r499-video-play,
+html #moa-r469-root[data-page="day"] .moa-r531-web-advanced,
+html #moa-r469-root[data-page="day"] .moa-r469-more,
+html #moa-r469-root[data-page="day"] .moa-r469-tools{
+ visibility:hidden!important;pointer-events:none!important;
+}
