@@ -1,0 +1,19 @@
+# MOA R567 USER-FROZEN GOLDEN — NEW CHAT RESUME 2026-11-14
+
+Continue MOA in `yooogillycloud123/family-journey-personal` FROM THE EXACT USER-SUPPLIED R567 frozen baseline. The previous conversation stopped responding, so do not restart the investigation or revert to older beta source.
+
+**Mandatory initial reading**: the ChatGPT project Canonical first, `yooogillycloud123/workexcel-devbridge/main/AA_AirPods_FINAL_READ_FIRST_v1.0_20261005.md`; then in MOA repo `MOA_READ_FIRST_NEW_CHAT.md`, `MOA_R567_USER_REQUESTED_FROZEN_GOLDEN_LOCK_20261114.md`, `MOA_R463_GOLDEN_LOCK_READ_FIRST_20261113.md`, `MOA_NEW_CHAT_RESUME_PROMPT_R463_GOLDEN_20261113.md`, `MOA_WIP_CHECKPOINT_CURRENT.md`, `MOA_R567_R569_FOREGROUND_NATIVE_HOST_BACK_RETURN_SIGNED_HANDOFF_20261114.md`. The separate AirPods/Android Auto app and daemon are OUT OF SCOPE and must not be edited.
+
+**Source**: `frozen/moa-r567-20261114-user-requested-device-qa-pending`, copied exactly from `feature/moa-r567-pause-resume-native-owner-back-cards-20261114`. Do not modify this branch. New work gets a separate feature branch.
+
+**Exact original user ZIP** `MOA_R567_R569_NATIVE_GALLERY_FOREGROUND_ONE_BACK_ORIGINAL_SIGNED_SOURCE_QA_20261114.zip` SHA256 `0610b55bea13ee8a8b4dc742ffef232ead068d6e4f7f2c58d18d443d50d7f21a`. R567 original-signer APK code567 SHA256 `f205afb72744391ce9f2594f898728699870be006f787c712599a1ee8492e93c`, package `com.juhyeon.familyjournea`, signing cert `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`. R567 `classes18.dex` SHA256 `a073bd5222aa77f8ca452408d64469c07a556158064f91cfd9b642840982025d`.
+
+User's "Golden" decision freezes **R567 as the development baseline**, but its actual Galaxy first-Back, Home/Recents return, video SurfaceTexture, and micro-scroll are **PENDING**, not claimed PASS. Original **R463 remains the last device-user-approved Golden** (SHA `9d2fd10d32a3bc35eb3132333e96edd8f565abd5daf3ce954b052f77083d8379`) and must never be modified. **R569** SHA `e3545a707402911eb9798d5e01007d066b776018d7e3d7faf96524bf9042fccd` only restores R463 functions, NOT R567 exact behavior.
+
+Preserve all original-native photo/video Gallery/rail/playback/volume/capture/zoom/pinch and selected-media state; bottom four compact buttons in order Share / NAVER GPS / folded-map date+address+default-show / full-stage continuous swipe toggle default OFF; first-party NAVER account session/offscreen saves, Diary, QuickRecord, voice M4A, transcripts, themes, data and draggable MOA home. Never revive old WebView gallery UI or add redundant top "정보".
+
+R563 Galaxy FAIL: gray 0.5–1s before calendar, Home/Recents/app switch makes native gallery invisible/gray, Back/re-entry can freeze. R567 source remedies: **render calendar before original Gallery.close**; native attach/detach and prePause separate real Back from background; bounded 150/480/950/1700/2750/3950ms trusted same-day JS ACK; restore healthy host via VISIBLE/alpha1/bringToFront/pending+geometry WITHOUT close; reopen a confirmed lost host once. Exact R535 integer WebMessagePort geometry + R567 CSS intact, no guessed fractional/proxy scroll rewrite. Do not mistake static/CI mock PASS for physical Samsung QA.
+
+Before coding check uploaded ZIP, private Library, GitHub branches/CI and any existing `_analysis*`/APK/DEX/build/test artifacts. Reuse exact original work. Only smallest source diff on a new branch. Next APK versionCode >= 570, same original cert, signed full APKv2 digest and all DEX/ZIP checks, a newly built higher-code **true-R567** functional recovery APK (or transparently label any R463-only safety restoration), source/diff/QA/SHA manifest. Never uninstall or clear data/cache/NAVER cookies, publish signing keys, alter AirPods, or rewrite native core merely to tidy code.
+
+Deliver tangible signed installable APK + correctly identified emergency recovery + source/QA bundle + GitHub handoff, and mark every device finding as PASS/FAIL/PENDING.
