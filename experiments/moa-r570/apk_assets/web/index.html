@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<script src="host-bootstrap.js"></script>
+<script src="owner-edition.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+<!--HEAD-->
+<title>모아</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="owner-controls.css">
+<link rel="stylesheet" href="family-diary.css">
+<link rel="stylesheet" href="moa-r32-brand.css">
+<link rel="stylesheet" href="moa-icon-theme-settings.css">
+<link rel="stylesheet" href="moa-r117-ui.css">
+<link rel="stylesheet" href="moa-r121-ui.css">
+<link rel="stylesheet" href="moa-r123-ui.css" />
+<link rel="stylesheet" href="moa-r125-calendar.css" />
+<link rel="stylesheet" href="moa-r127-fixes.css" />
+<link rel="stylesheet" href="moa-r131-diary-scroll.css" />
+<link rel="stylesheet" href="moa-r133-diary-unified.css" />
+<link rel="stylesheet" href="moa-r135-family-calendar.css" />
+<link rel="stylesheet" href="moa-r137-calendar-parity.css" />
+<link rel="stylesheet" href="moa-r139-calendar-unify.css" />
+<link rel="stylesheet" href="moa-r141-monthly-report.css" />
+<link rel="stylesheet" href="moa-r149-voice.css" />
+<link rel="stylesheet" href="moa-r483-vertical-calendar.css" />
+<style id="moa-r115-splash-critical">#moa-launch{overflow:hidden}#moa-launch .moa-lockup{width:180px;height:180px;flex:0 0 180px;overflow:hidden}#moa-launch .moa-lockup img{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain}</style>
+<!--/HEAD-->
+<style>button[data-tab="battle"],#set-account-sec{display:none!important}</style>
+<style>#set-demo,#empty-demo,#demo-banner,#set-ad-privacy,#set-account-sec,button[data-tab="battle"],li[data-href*="leehueeng.github.io"]{display:none!important}</style><style>button[data-tab="reco"],button[data-tab="battle"],section[data-page="reco"]{display:none!important}</style></head>
+<body><div id="moa-launch" aria-hidden="true"><div class="moa-lockup"><img id="moa-launch-theme-icon" src="moa-icon-themes/A_modern_bold_pink.png" alt="MOA" draggable="false"></div><div class="moa-title">모아</div><div class="moa-tagline">우리 가족의 모든 기억, 모아</div></div><script id="moa-icon-theme-splash-boot">(function(){
+try{
+var key='moa.icon.theme.applied';
+var id=localStorage.getItem(key)||'A_modern_bold_pink';
+if(!/^(A_modern_bold|B_slim_premium|Slim_minimal_glass)_(pink|black|white)$/.test(id))id='A_modern_bold_pink';
+var img=document.getElementById('moa-launch-theme-icon'),splash=document.getElementById('moa-launch');
+if(img)img.src='moa-icon-themes/'+id+'.png';
+if(splash)splash.setAttribute('data-icon-color',id.split('_').pop());
+}catch(err){}
+})();</script>
+<!--BODY-->
+<div id="app" data-theme="light">
+  <header id="top">
+    <button id="btn-back" class="top-btn" aria-label="뒤로" hidden>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div id="top-title"></div>
+    <div class="top-spacer"></div>
+    <button id="btn-premium" class="top-pill" hidden>프리미엄</button>
+    <div id="progress" class="progress"><i style="width:20%"></i></div>
+  </header>
+
+  <main id="pages">
+    <div id="demo-banner" class="banner" hidden><span><svg class="ico"><use href="#ic-flask"/></svg> 샘플 여행으로 체험하고 있어요</span><button type="button" id="btn-demo-exit">내 사진으로 만들기</button></div>
+    <!-- 0. 나의 지도(앱 홈) — 사진 카드형 -->
+    <section class="page home" data-page="0" hidden>
+      <h1 class="title" id="home-title">나의 지도</h1>
+      <p class="desc" id="home-desc"></p>
+      <div class="home-map">
+        <canvas id="home-canvas" width="900" height="1125"></canvas>
+        <div class="chips small home-region" id="home-region" hidden></div>
+        <button type="button" class="chip map-expand" id="home-map-expand"><svg class="ico"><use href="#ic-search"/></svg> 크게 보기</button>
+      </div>
+      <p class="caption" id="home-map-note">색이 칠해진 곳이 다녀온 시·군이에요. 지도를 누르면 확대하고, 장소를 누르면 그곳 사진이 나와요.</p>
+      <div class="section">
+        <div class="section-title">나의 고향</div>
+        <div class="ht-row" id="home-ht"></div>
+        <p class="caption" id="home-ht-note"></p>
+      </div>
+      <div class="section">
+        <div class="section-title">자주 간 곳</div>
+        <div class="place-grid" id="home-rank"></div>
+      </div>
+      <div class="section">
+        <div class="section-title" id="home-recent-title">최근 밝힌 곳</div>
+        <div class="hscroll" id="home-recent"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">밝힌 기록</div>
+        <div id="stats-home" class="stats"></div>
+        <ul class="rows">
+          <li class="row tap" id="home-log"><div class="row-body"><div class="row-title">전체 기록 보기</div><div class="row-desc">사진에서 찾은 목적지를 시간순으로 볼 수 있어요</div></div><span class="chev"></span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 추천 탭: 이달의 축제·행사(서버 /festivals) + 안 가본 여행지(data/destinations.js) -->
+    <section class="page" data-page="reco" hidden>
+      <div class="seg reco-seg" id="reco-seg"><button type="button" class="on" data-v="fest">추천 행사</button><button type="button" data-v="dest">여행지 추천</button><button type="button" data-v="wish">즐겨찾기</button></div>
+      <div class="section fest-section" id="reco-fest">
+        <div class="section-head"><div class="section-title big" id="reco-fest-title">이달의 축제·행사</div></div>
+        <div class="chips" id="reco-fest-filter"><button type="button" class="chip active" data-v="all">전체</button><button type="button" class="chip" data-v="on">진행 중</button><button type="button" class="chip" data-v="soon">예정</button><button type="button" class="chip" data-v="near">다녀온 곳 근처</button></div>
+        <div class="fest-vlist" id="reco-fest-list"></div>
+        <p class="caption" id="reco-fest-note"></p>
+      </div>
+      <div class="section" id="reco-dest-sec" hidden>
+        <div class="section-head"><div class="section-title big" id="reco-dest-title">안 가본 여행지</div></div>
+        <p class="caption tight">당겨서 새로고침하면 다른 추천이 나와요.</p>
+        <div class="chips" id="reco-mode"><button type="button" class="chip" data-v="all">전체</button><button type="button" class="chip" data-v="repeat">가본 곳 중 다시가기</button><button type="button" class="chip" data-v="new">안 가본 곳 가기</button></div>
+        <div class="chips" id="reco-scope"><button type="button" class="chip" data-v="domestic">국내</button><button type="button" class="chip" data-v="abroad">해외</button><button type="button" class="chip" data-v="all">전체</button></div>
+        <div class="reco-list" id="reco-list"></div>
+        <button type="button" class="btn weak" id="reco-shuffle">다른 곳 보기</button>
+      </div>
+      <div class="section" id="reco-wish-sec" hidden>
+        <div class="section-head"><div class="section-title big" id="reco-wish-title">가고 싶은 곳</div></div>
+        <div class="reco-list" id="reco-wish-list"></div>
+        <p class="caption" id="reco-wish-note">추천 카드의 별을 누르면 여기에 모여요. 지도에서도 별로 표시돼요.</p>
+      </div>
+    </section>
+
+    <!-- 기록 탭: 여권(다녀온 곳 도장) + 영상 만들기 -->
+    <section class="page" data-page="record" hidden>
+      <h1 class="title">기록</h1>
+      <div class="seg" id="record-seg"><button type="button" class="on" data-v="passport">여권</button><button type="button" data-v="video">영상 만들기</button></div>
+      <p class="desc">다녀온 곳마다 도장이 찍혀요. 옆으로 넘기면 연도별 페이지가 나오고, 인스타 스토리에 올릴 수 있어요.</p>
+      <div class="chips small" id="passport-years"></div>
+      <div class="passport-pages" id="passport-pages"></div>
+      <div class="passport-dots" id="passport-dots"></div>
+      <button type="button" class="btn primary" id="passport-share">인스타에 공유하기</button>
+      <p class="caption" id="passport-status"></p>
+    </section>
+
+    <!-- 대결 탭: 지도 대결 (account.js · server/) -->
+    <section class="page" data-page="battle" hidden>
+      <h1 class="title">지도 대결</h1>
+      <p class="desc">누가 더 많은 곳을 다녔을까요? 친구와 지도를 비교하고 랭킹을 확인해요.</p>
+      <p class="caption" id="battle-noserver" hidden>대결 서버가 아직 준비되지 않았어요. 다음 업데이트를 기다려 주세요.</p>
+      <div id="battle-out" hidden>
+        <div class="mock battle-intro"><ul><li>밝힌 국내 지역 · 해외 지역 · 나라 · 밝힌 곳 · 여행 수, 5개 항목으로 겨뤄요</li><li>링크 하나로 친구에게 대결을 신청하고, 결과를 지도에 겹쳐 봐요</li><li>전체 랭킹과 친구 랭킹에서 내 순위를 확인해요</li></ul></div>
+        <p class="caption">서버에는 밝힌 지역 코드·나라·여행 수 같은 통계만 올라가요. 사진은 올라가지 않아요.</p>
+        <div class="login-btns">
+          <button type="button" class="btn login apple" data-provider="apple"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8s2 .8 3.3.8c1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.8-1.1-2.8-4.1zM14 5.2c.7-.8 1.2-2 1-3.2-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1.1 3 1.1.1 2.3-.6 3-1.3z"/></svg><span>Apple로 계속하기</span></button>
+          <button type="button" class="btn login kakao" data-provider="kakao"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.5 3 2 6.5 2 10.8c0 2.7 1.8 5.1 4.5 6.5l-1 3.7c-.1.3.3.6.6.4l4.4-2.9c.5.1 1 .1 1.5.1 5.5 0 10-3.5 10-7.8S17.5 3 12 3z"/></svg><span>카카오로 계속하기</span></button>
+          <button type="button" class="btn login google" data-provider="google"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.7-2.4 3.6v3h3.8c2.3-2.1 3.6-5.2 3.6-8.8z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.8-3c-1.1.7-2.5 1.2-4.2 1.2-3.1 0-5.8-2.1-6.8-5H1.3v3.1C3.3 21.3 7.4 24 12 24z"/><path fill="#FBBC05" d="M5.2 14.3c-.5-1.5-.5-3.1 0-4.6V6.6H1.3c-1.7 3.4-1.7 7.4 0 10.8l3.9-3.1z"/><path fill="#EA4335" d="M12 4.7c1.7 0 3.3.6 4.5 1.8l3.4-3.4C17.9 1.2 15.1 0 12 0 7.4 0 3.3 2.7 1.3 6.6l3.9 3.1c1-2.9 3.7-5 6.8-5z"/></svg><span>Google로 계속하기</span></button>
+        </div>
+        <p class="caption" id="battle-login-msg" style="min-height:18px"></p>
+      </div>
+      <div id="battle-in" hidden>
+        <div class="battle-card">
+          <div class="battle-head"><div><div class="battle-name"><span id="battle-name"></span><button type="button" id="battle-name-edit">수정</button></div><div class="battle-rank" id="battle-rank"></div></div><div class="battle-score"><b id="battle-score"></b><span>점</span></div></div>
+          <div class="name-wrap" id="battle-name-wrap" hidden><input id="battle-name-input" maxlength="20" placeholder="대결에서 보일 이름"><button type="button" class="chip" id="battle-name-save">저장</button></div>
+          <div class="battle-cats" id="battle-cats"></div>
+          <p class="caption" style="margin-bottom:0">점수 = 국내 지역 1점 + 해외 지역 2점 + 나라 3점</p>
+        </div>
+        <button type="button" class="btn primary" id="battle-challenge">친구에게 대결 신청</button>
+        <button type="button" class="btn weak" id="battle-random" style="margin-top:8px">모르는 사람과 대결</button>
+        <div class="field code-field"><label>받은 대결 코드 입력</label><div class="code-row"><input id="battle-code" placeholder="예: AB7K2Q" autocapitalize="characters" autocomplete="off" maxlength="8"><button type="button" class="chip" id="battle-accept">수락</button></div></div>
+        <p class="caption" id="battle-msg" style="min-height:18px"></p>
+        <div class="section">
+          <div class="section-title">대결 기록</div>
+          <ul class="rows compact" id="battle-list"></ul>
+          <p class="caption" id="battle-list-empty">아직 대결이 없어요. 친구에게 링크를 보내 보세요.</p>
+        </div>
+        <div class="section">
+          <div class="section-title">랭킹</div>
+          <div class="chips small" id="board-scope"><button type="button" class="chip active" data-v="all">전체</button><button type="button" class="chip" data-v="friends">친구</button></div>
+          <ul class="rows compact" id="board-list"></ul>
+          <p class="caption" id="board-empty" hidden>아직 랭킹이 없어요.</p>
+          <button type="button" class="btn weak" id="battle-retry">다시 불러오기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 설정 탭 -->
+    <section class="page" data-page="settings" hidden>
+      <h1 class="title">설정</h1>
+      <ul class="rows">
+        <li class="row tap" id="set-premium" hidden><span class="row-ico" style="background:#FFF9E7;color:#B8860B"><svg class="ico"><use href="#ic-sparkles"/></svg></span><div class="row-body"><div class="row-title">지도 · 영상 고급 기능</div><div class="row-desc" id="set-premium-desc"></div></div><span class="chev"></span></li>
+        <li class="row tap" id="set-sources" hidden><span class="row-ico" style="background:#E8F3FF;color:#3182F6"><svg class="ico"><use href="#ic-cloud"/></svg></span><div class="row-body"><div class="row-title">사진 출처</div><div class="row-desc">Immich · PhotoPrism · Synology · Google Drive · OneDrive · Dropbox</div></div><span class="chev"></span></li>
+        <li class="row tap" id="set-rescan" hidden><span class="row-ico" style="background:#F0FAF6;color:#03B26C"><svg class="ico"><use href="#ic-refresh"/></svg></span><div class="row-body"><div class="row-title">사진 다시 읽기</div><div class="row-desc">새 사진을 찍었다면 다시 읽어 주세요. 새로 간 곳이 지도에 칠해져요.</div></div><span class="chev"></span></li>
+        <li class="row tap" id="set-demo" hidden><span class="row-ico" style="background:#FFF9E7;color:#B8860B"><svg class="ico"><use href="#ic-flask"/></svg></span><div class="row-body"><div class="row-title">샘플 여행으로 체험하기</div></div><span class="chev"></span></li>
+      </ul>
+      <div class="section" id="set-account-sec" hidden>
+        <div class="section-title">계정</div>
+        <ul class="rows">
+          <li class="row tap" id="set-account"><span class="row-ico" style="background:#EEF2FF;color:#3182F6"><svg class="ico"><use href="#ic-trophy"/></svg></span><div class="row-body"><div class="row-title">지도 대결 계정</div><div class="row-desc" id="set-account-desc"></div></div><span class="chev"></span></li>
+          <li class="row tap" id="set-logout" hidden><div class="row-body"><div class="row-title">로그아웃</div></div><span class="chev"></span></li>
+          <li class="row tap" id="set-delete" hidden><div class="row-body"><div class="row-title danger">회원 탈퇴</div><div class="row-desc">계정과 지도 통계, 대결 기록을 서버에서 지워요.</div></div><span class="chev"></span></li>
+        </ul>
+      </div>
+      <div class="section">
+        <div class="section-title">앱</div>
+        <ul class="rows">
+          <li class="row tap" id="set-lang" hidden><div class="row-body"><div class="row-title">언어</div><div class="row-desc">기기 설정의 앱 언어를 따라요</div></div><span class="chev"></span></li>
+          <li class="row tap" id="set-tutorial"><div class="row-body"><div class="row-title">사용법 다시 보기</div><div class="row-desc">처음 시작할 때 본 안내를 다시 볼 수 있어요</div></div><span class="chev"></span></li>
+          <li class="row tap" data-href="https://leehueeng.github.io/phototravelmap-site/privacy.html"><div class="row-body"><div class="row-title">개인정보처리방침</div></div><span class="chev"></span></li>
+          <li class="row tap" data-href="https://leehueeng.github.io/phototravelmap-site/"><div class="row-body"><div class="row-title">지원 · 문의</div></div><span class="chev"></span></li>
+          <li class="row tap" id="set-ad-privacy" hidden><div class="row-body"><div class="row-title">광고 개인정보 설정</div></div><span class="chev"></span></li>
+        </ul>
+      </div>
+      <p class="caption center">지도 Natural Earth · Esri · OpenStreetMap / 지명 Apple Photos · GeoNames</p>
+    </section>
+
+    <!-- 2. 여행 -->
+    <section class="page" data-page="2" hidden>
+      <h1 class="title">어떤 여행을 만들까요?</h1>
+      <p class="desc">전체 여정을 한 번에 보여주거나, 여행 하나만 골라 짧게 만들 수 있어요.</p>
+      <ul id="trip-list" class="rows select-rows"></ul>
+      <div class="section" id="range-block">
+        <div class="section-title">기간</div>
+        <div class="chips">
+          <button data-preset="all" class="chip">전체</button>
+          <button data-preset="1y" class="chip">최근 1년</button>
+          <button data-preset="ytd" class="chip">올해</button>
+          <button data-preset="custom" class="chip">직접 선택</button>
+        </div>
+        <div class="dates" id="dates" hidden>
+          <input type="date" id="date-from" aria-label="시작일"><span>~</span><input type="date" id="date-to" aria-label="종료일">
+        </div>
+        <label class="row switch-row">
+          <div class="row-body"><div class="row-title">짧은 나들이도 포함</div><div class="row-desc">당일치기나 사진이 적은 이동까지 넣어요</div></div>
+          <span class="switch"><input type="checkbox" id="include-short"><i></i></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- 3. 멘트 -->
+    <section class="page" data-page="3" hidden>
+      <h1 class="title">영상에 들어갈<br>문구를 적어주세요</h1>
+      <p class="desc">비워두면 기본 문구가 들어가요.</p>
+      <div class="field"><label for="inp-title">제목</label><input type="text" id="inp-title" placeholder="우리 가족의 발자국" maxlength="30"></div>
+      <div class="field"><label for="inp-subtitle">한 줄 멘트</label><input type="text" id="inp-subtitle" placeholder="예) 2026 우리 가족의 발자국" maxlength="40"></div>
+      <div class="field"><label for="inp-outro">마무리 멘트 <span class="caption" style="display:inline">(마지막 요약 카드 위에 작게)</span></label><input type="text" id="inp-outro" placeholder="예) 2026년 우리의 발자국" maxlength="40"></div>
+      <div class="section">
+        <div class="section-title">시작 카드 미리보기</div>
+        <div class="mock">
+          <div class="mock-card">
+            <div class="mock-title" id="mock-title">우리 가족의 발자국</div>
+            <div class="mock-sub" id="mock-sub"></div>
+            <div class="mock-meta" id="mock-meta"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 스타일 -->
+    <section class="page" data-page="4" hidden>
+      <h1 class="title">어떤 분위기로 만들까요?</h1>
+      <div class="slot" id="slot-style"></div>
+      <div class="section">
+        <div class="section-title">화면</div>
+        <div class="seg" id="seg-aspect" role="radiogroup" aria-label="화면 비율">
+          <button type="button" data-v="9:16">세로</button>
+          <button type="button" data-v="1:1">정사각</button>
+          <button type="button" data-v="16:9">가로</button>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">지도</div>
+        <ul class="rows">
+          <li class="row tap" data-sheet="theme"><div class="row-body"><div class="row-title">테마</div></div><span class="row-value" data-value="theme"></span><span class="chev"></span></li>
+          <li class="row tap" data-sheet="mapMode"><div class="row-body"><div class="row-title">지도 종류</div></div><span class="row-value" data-value="mapMode"></span><span class="chev"></span></li>
+          <li class="row tap" data-sheet="tiles"><div class="row-body"><div class="row-title">상세 지도</div><div class="row-desc" id="tiles-note">확대하면 도로·지명이 보여요. 지도 영역 좌표만 지도 서버로 가요.</div></div><span class="row-value" data-value="tiles"></span><span class="chev"></span></li>
+          <li class="row switch-row"><div class="row-body"><div class="row-title">사진 찍은 자리 표시</div></div><span class="switch"><input type="checkbox" id="chk-dots" checked><i></i></span></li>
+          <li class="row switch-row"><div class="row-body"><div class="row-title">비행기·자동차 아이콘</div></div><span class="switch"><input type="checkbox" id="chk-emoji" checked><i></i></span></li>
+          <li class="row switch-row"><div class="row-body"><div class="row-title">앱 홍보 문구 표시 <span class="lock" id="wm-lock">프리미엄</span></div><div class="row-desc" id="wm-desc">영상·이미지의 홍보 문구를 표시합니다.</div></div><span class="switch"><input type="checkbox" id="chk-wm" checked><i></i></span></li>
+        </ul>
+      </div>
+      <div class="section">
+        <div class="section-title">움직임</div>
+        <ul class="rows">
+          <li class="row tap" data-sheet="camera"><div class="row-body"><div class="row-title">카메라</div></div><span class="row-value" data-value="camera"></span><span class="chev"></span></li>
+          <li class="row tap" data-sheet="shortEdge"><div class="row-body"><div class="row-title">해상도</div></div><span class="row-value" data-value="shortEdge"></span><span class="chev"></span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 5. 영상 -->
+    <section class="page" data-page="5" hidden>
+      <h1 class="title">미리보고 저장해요</h1>
+      <div class="slot big" id="slot-video"></div>
+      <div class="section">
+        <div class="section-title">영상 길이 (종료 시간)</div>
+        <div class="chips" id="dur-chips">
+          <button class="chip" data-v="auto">자동</button>
+          <button class="chip" data-v="15">15초</button>
+          <button class="chip" data-v="30">30초</button>
+          <button class="chip" data-v="60">1분 · 스토리</button>
+          <button class="chip" data-v="90">90초 · 릴스</button>
+          <button class="chip" data-v="custom">직접</button>
+        </div>
+        <div id="dur-custom" class="slider-row" hidden><input type="range" id="dur-slider" min="10" max="180" step="5" value="60" aria-label="영상 길이(초)"><span id="dur-slider-val" class="time">1:00</span></div>
+        <div id="tempo-row" class="chips small" role="radiogroup" aria-label="배속"><span class="caption" style="align-self:center;margin:0 4px 0 0">배속</span><button class="chip" data-v="1">1×</button><button class="chip" data-v="1.5">1.5×</button><button class="chip" data-v="2">2×</button><button class="chip" data-v="3">3×</button><button class="chip" data-v="4">4×</button></div>
+        <p id="dur-info" class="caption"></p>
+        <div id="reco" class="reco"></div>
+      </div>
+      <div class="section">
+        <p id="rec-status" class="rec-status"></p>
+        <div class="btn-row" id="rec-actions" hidden>
+          <a id="btn-download" class="btn weak" download>영상 다운로드</a>
+          <button id="btn-share" class="btn weak" hidden>공유</button>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">전체 여정 이미지</div>
+        <p class="desc">영상 대신 한 장으로. 카톡 프로필 배경이나 인스타에 올릴 수 있어요.</p>
+        <ul class="rows">
+          <li class="row tap" data-sheet="posterStyle"><div class="row-body"><div class="row-title">스타일</div></div><span class="row-value" data-value="posterStyle"></span><span class="chev"></span></li>
+          <li class="row tap" data-sheet="posterAspect"><div class="row-body"><div class="row-title">비율</div></div><span class="row-value" data-value="posterAspect"></span><span class="chev"></span></li>
+        </ul>
+        <div class="poster-preview"><canvas id="poster-canvas" width="540" height="960"></canvas></div>
+        <p id="poster-note" class="caption"></p>
+        <div class="btn-row"><button id="btn-poster" class="btn weak">이미지 저장</button><a id="btn-poster-download" class="btn weak" download hidden>이미지 다운로드</a></div>
+        <p id="poster-status" class="caption"></p>
+      </div>
+      <div class="section">
+        <div class="section-title">이 영상의 요약</div>
+        <div id="stats" class="stats"></div>
+        <ul id="country-list" class="rows compact"></ul>
+      </div>
+    </section>
+  </main>
+
+  <div id="cta">
+    <button id="cta-secondary" class="btn secondary" hidden>이전</button>
+    <button id="cta-primary" class="btn primary">시작하기</button>
+  </div>
+  <!-- 하단 탭바: 두 번째 실행부터의 앱 뼈대. 영상 만들기 흐름(1~5단계)에서는 숨김 -->
+  <nav id="tabbar" hidden>
+    <button type="button" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span>나의 지도</span></button>
+    <button type="button" data-tab="reco"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 14l.8 2.2 2.2.8-2.2.8L19 20l-.8-2.2-2.2-.8 2.2-.8z"/></svg><span>추천</span></button>
+    <button type="button" data-tab="battle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0z"/><path d="M7 6H4v2a3 3 0 003 3M17 6h3v2a3 3 0 01-3 3"/></svg><span>대결</span></button>
+    <button type="button" data-tab="record"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><circle cx="12" cy="10" r="3.2"/><path d="M8 17h8"/></svg><span>기록</span></button>
+    <button type="button" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg><span>설정</span></button>
+  </nav>
+
+  <!-- 플레이어: 4·5단계 슬롯으로 이동 -->
+  <div id="player" hidden>
+    <div id="stage-box">
+      <canvas id="stage" width="1080" height="1920"></canvas>
+      <div id="rec-badge" hidden><span class="dot"></span><span id="rec-text">만드는 중</span> <span id="rec-time"></span></div>
+      <button id="btn-big-play" title="재생" aria-label="재생"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></button>
+    </div>
+    <div id="bar">
+      <button id="btn-play" class="ctl" aria-label="재생/일시정지"><svg id="ic-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg><svg id="ic-pause" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" hidden><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg></button>
+      <button id="btn-restart" class="ctl" aria-label="처음으로"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 0 3-6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M4 4v5h5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <input id="seek" type="range" min="0" max="10000" value="0" step="1" aria-label="진행">
+      <span id="time" class="time">0:00</span>
+    </div>
+  </div>
+
+  <!-- 확인 시트(WebView 는 confirm() 을 못 띄움) -->
+  <!-- 튜토리얼(첫 실행 안내): 스포트라이트 + 카드. 설정 '사용법 다시 보기'로 재실행 -->
+  <div id="tut-root" hidden>
+    <div class="tut-dim"></div>
+    <div class="tut-spot" id="tut-spot" hidden></div>
+    <div class="tut-card" id="tut-card">
+      <div class="tut-step" id="tut-step"></div>
+      <div class="tut-title" id="tut-title"></div>
+      <p class="tut-desc" id="tut-desc"></p>
+      <div class="tut-dots" id="tut-dots"></div>
+      <div class="btn-row"><button type="button" class="btn secondary" id="tut-skip">건너뛰기</button><button type="button" class="btn primary" id="tut-next">다음</button></div>
+    </div>
+  </div>
+  <div id="confirm-root" class="modal-root" hidden>
+    <div class="dim" id="confirm-dim"></div>
+    <div class="sheet" role="dialog" aria-modal="true">
+      <div class="handle"></div>
+      <div class="sheet-title" id="confirm-title"></div>
+      <p class="desc" id="confirm-desc"></p>
+      <button type="button" class="btn primary" id="confirm-ok">확인</button>
+      <button type="button" class="btn secondary" id="confirm-cancel" style="margin-top:8px">취소</button>
+    </div>
+  </div>
+  <!-- 대결 신청 링크·코드 시트 -->
+  <!-- 가입 직후 닉네임 정하기(비우면 기본 닉네임 그대로) -->
+  <div id="nick-root" class="modal-root" hidden>
+    <div class="dim" id="nick-dim"></div>
+    <div class="sheet" role="dialog" aria-modal="true">
+      <div class="handle"></div>
+      <div class="sheet-title">대결에서 보일 닉네임을 정해 주세요</div>
+      <p class="desc">친구들에게 이 이름으로 보여요. 나중에 대결 탭에서 바꿀 수 있어요.</p>
+      <div class="field"><input id="nick-input" maxlength="20" autocomplete="off" placeholder="닉네임"></div>
+      <p class="caption" id="nick-msg" style="min-height:18px"></p>
+      <button type="button" class="btn primary" id="nick-save">이 닉네임으로 시작</button>
+      <button type="button" class="btn secondary" id="nick-skip" style="margin-top:8px"></button>
+    </div>
+  </div>
+  <div id="bcode-root" class="modal-root" hidden>
+    <div class="dim" id="bcode-dim"></div>
+    <div class="sheet" role="dialog" aria-modal="true">
+      <div class="handle"></div>
+      <div class="sheet-title">대결 신청 링크가 준비됐어요</div>
+      <p class="desc">친구가 링크를 열거나 앱에서 코드를 입력하면 바로 결과가 나와요.</p>
+      <div class="bcode-box"><div class="bcode-label">대결 코드</div><div class="bcode-code" id="bcode-code"></div><div class="bcode-url" id="bcode-url"></div></div>
+      <p class="caption" id="bcode-msg" style="min-height:18px"></p>
+      <button type="button" class="btn primary" id="bcode-share">친구에게 보내기</button>
+      <div class="btn-row"><button type="button" class="btn secondary" id="bcode-copy">복사</button><button type="button" class="btn secondary" id="bcode-close">닫기</button></div>
+    </div>
+  </div>
+  <!-- 대결 결과 화면 -->
+  <div id="battle-result" hidden>
+    <header class="sd-top"><button type="button" class="top-btn" id="br-back" aria-label="뒤로"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="sd-top-title">대결 결과</span></header>
+    <div class="sd-body">
+      <div class="br-banner" id="br-banner"></div>
+      <div class="br-score" id="br-score"></div>
+      <p class="caption center" id="br-total"></p>
+      <div class="br-names"><span class="me" id="br-me">나</span><span class="other" id="br-other"></span></div>
+      <div id="br-cats"></div>
+      <div class="chips small br-region" id="br-region"></div>
+      <div class="br-map"><canvas id="battle-canvas" width="900" height="900"></canvas></div>
+      <div class="br-legend"><span><i style="background:#3182F6"></i>나만</span><span><i style="background:#FF8A3D"></i>상대만</span><span><i style="background:#9B6BFF"></i>둘 다</span></div>
+      <p class="caption">색칠된 곳이 각자 밝힌 시·군·구와 해외 지역이에요. 손가락으로 확대·이동할 수 있어요.</p>
+      <button type="button" class="btn primary" id="br-share">결과 공유</button>
+      <button type="button" class="btn weak" id="br-delete" style="margin-top:8px">기록 삭제</button>
+    </div>
+  </div>
+
+  <!-- 프리미엄 시트 -->
+  <div id="premium-root" hidden>
+    <div class="dim" id="premium-dim"></div>
+    <div class="sheet" role="dialog" aria-modal="true">
+      <div class="handle"></div>
+      <div class="sheet-title">지도 · 영상 고급 기능</div>
+      <p class="desc" style="margin:0 0 12px">이 가족여행 앱에서는 별도 구매 없이 영상·지도 옵션을 사용할 수 있습니다.</p>
+      <ul class="rows compact benefits">
+        <li class="row"><span class="row-ico"><svg class="ico"><use href="#ic-no-ads"/></svg></span><div class="row-body"><div class="row-title">광고 없이 바로 저장</div><div class="row-desc">영상 저장 전 30초 광고가 사라져요</div></div></li>
+        <li class="row"><span class="row-ico"><svg class="ico"><use href="#ic-moon"/></svg></span><div class="row-body"><div class="row-title">어두운 테마 · 지구본</div></div></li>
+        <li class="row"><span class="row-ico"><svg class="ico"><use href="#ic-satellite"/></svg></span><div class="row-body"><div class="row-title">위성사진 · OpenStreetMap 지도</div></div></li>
+        <li class="row"><span class="row-ico"><svg class="ico"><use href="#ic-film"/></svg></span><div class="row-body"><div class="row-title">클로즈업 · 전체 고정 카메라</div></div></li>
+        <li class="row"><span class="row-ico"><svg class="ico"><use href="#ic-ruler"/></svg></span><div class="row-body"><div class="row-title">720p · 1440p 해상도, 표시 옵션</div><div class="row-desc">1080p 는 무료로도 제한 없어요</div></div></li>
+        <li class="row"><span class="row-ico"><svg class="ico"><use href="#ic-sparkles"/></svg></span><div class="row-body"><div class="row-title">앱 홍보 문구 끄기</div><div class="row-desc">영상·이미지 우측 하단 문구를 뺄 수 있어요</div></div></li>
+      </ul>
+      <p id="premium-msg" class="caption" style="min-height:18px"></p>
+      <button class="btn primary" id="btn-buy">구매하기</button>
+      <div class="btn-row"><button class="btn secondary" id="btn-restore">구매 복원</button><button class="btn secondary" id="premium-close">닫기</button></div>
+      <p class="caption center">개인용 독립 앱 · 별도 결제 없음 · 기기 안에서 사진을 분석합니다.</p>
+    </div>
+  </div>
+
+  <!-- 전체화면 지도: 핀치 확대·이동, 장소를 누르면 사진 -->
+  <div id="map-root" hidden>
+    <canvas id="map-canvas"></canvas>
+    <div class="map-top"><button type="button" id="map-close" class="map-btn" aria-label="닫기"><svg class="ico"><use href="#ic-close"/></svg></button><div class="map-title">나의 지도</div><div class="map-hint">지역을 누르면 사진이 보여요</div></div>
+    <div class="chips small map-region" id="map-region"></div>
+    <div class="map-toggles" id="map-toggles"><button type="button" class="map-toggle" data-opt="thumbs"><svg class="ico"><use href="#ic-camera"/></svg> <span>사진</span></button><button type="button" class="map-toggle" data-opt="labels"><svg class="ico"><use href="#ic-tag"/></svg> <span>지명</span></button><button type="button" class="map-toggle" data-opt="dots"><svg class="ico"><use href="#ic-footprints"/></svg> <span>발자국</span></button></div>
+  </div>
+  <!-- 장소 시트: 방문 기록 + 사진 -->
+  <div id="place-root" hidden>
+    <div class="dim" id="place-dim"></div>
+    <div class="sheet place" role="dialog" aria-modal="true">
+      <div class="handle"></div>
+      <div class="place-head"><div><div class="sheet-title" id="place-title"></div><div class="place-meta" id="place-meta"></div></div><span class="badge" id="place-badge" hidden></span></div>
+      <div class="chips small" id="place-visits"></div>
+      <div class="photo-grid" id="place-photos"></div>
+      <p class="caption" id="place-note"></p>
+      <button type="button" class="btn weak" id="place-more" hidden>사진 더 보기</button>
+      <button type="button" class="btn secondary" id="place-close">닫기</button>
+    </div>
+  </div>
+  <!-- 사진 뷰어 -->
+  <div id="viewer-root" hidden>
+    <img id="viewer-img" alt="">
+    <button type="button" id="viewer-close" class="map-btn" aria-label="닫기"><svg class="ico"><use href="#ic-close"/></svg></button>
+    <button type="button" id="viewer-open" class="viewer-open" hidden>원본 열기</button>
+    <button type="button" id="viewer-prev" class="viewer-nav" aria-label="이전">‹</button>
+    <button type="button" id="viewer-next" class="viewer-nav" aria-label="다음">›</button>
+    <div id="viewer-cap"></div>
+  </div>
+
+  <!-- 사진 출처 시트: 기기 밖 사진(Immich · Google Drive · OneDrive) 연결 -->
+  <div id="source-root" hidden>
+    <div class="dim" id="source-dim"></div>
+    <div class="sheet" role="dialog" aria-modal="true">
+      <div class="handle"></div>
+      <div class="sheet-title">사진 출처</div>
+      <p class="desc" style="margin:0 0 12px">기기 밖에 있는 사진도 위치·시간만 읽어 지도에 더해요. 원본은 내려받지 않아요.</p>
+      <ul class="rows" id="source-list"></ul>
+      <p id="source-msg" class="caption" style="min-height:18px"></p>
+      <button class="btn secondary" id="source-close">닫기</button>
+    </div>
+  </div>
+  <!-- 사진 출처 상세: 출처 하나를 연결·관리하는 전용 화면(시트에서 한 단계 들어감) -->
+  <div id="source-detail" hidden>
+    <header class="sd-top"><button type="button" class="top-btn" id="source-back" aria-label="뒤로"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div id="sd-top-title" class="sd-top-title"></div></header>
+    <div class="sd-body">
+      <div class="illust" id="sd-icon"></div>
+      <h1 class="title" id="sd-title"></h1>
+      <p class="desc" id="sd-desc"></p>
+      <div id="sd-content"></div>
+      <p id="sd-msg" class="caption" style="min-height:18px"></p>
+    </div>
+    <div class="sd-cta"><button class="btn primary" id="sd-primary"></button></div>
+  </div>
+  <!-- 축제·행사 전체 목록 (추천 탭 › 전체 보기) -->
+  <div id="fest-list" hidden>
+    <header class="sd-top"><button type="button" class="top-btn" id="fest-list-back" aria-label="뒤로"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="sd-top-title" id="fest-list-title">축제·행사</div></header>
+    <div class="sd-body">
+      <div class="chips" id="fest-filter"><button type="button" class="chip active" data-v="all">전체</button><button type="button" class="chip" data-v="on">진행 중</button><button type="button" class="chip" data-v="soon">예정</button><button type="button" class="chip" data-v="near">다녀온 곳 근처</button></div>
+      <div id="fest-list-body"></div>
+      <p class="caption">한국관광공사 관광정보 · 일정은 변경될 수 있으니 방문 전에 확인해 주세요</p>
+    </div>
+  </div>
+  <!-- 장소 상세: 축제(서버 /festivals/{id}) 또는 여행지(destinations) 하나 — 사진 여러 장 · 안내 · 가볼 만한 곳 · 블로그 후기 -->
+  <div id="place-detail" hidden>
+    <header class="sd-top pd-top"><button type="button" class="top-btn" id="pd-back" aria-label="뒤로"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="sd-top-title" id="pd-top-title"></div><span class="top-spacer"></span><button type="button" class="top-btn" id="pd-star" aria-label="가고 싶어요" hidden></button></header>
+    <div class="pd-gallery" id="pd-gallery"></div>
+    <div class="sd-body pd-body">
+      <div class="pd-badges" id="pd-badges"></div>
+      <h1 class="title pd-title" id="pd-title"></h1>
+      <p class="pd-sub" id="pd-sub"></p>
+      <div class="pd-actions" id="pd-actions"></div>
+      <div class="pd-info" id="pd-info"></div>
+      <div class="section" id="pd-overview-sec" hidden><div class="section-title">소개</div><p class="pd-overview" id="pd-overview"></p><button type="button" class="pd-more" id="pd-overview-more">더 보기</button></div>
+      <div class="section" id="pd-spots-sec" hidden><div class="section-title">가볼 만한 곳</div><div class="hscroll spot-list" id="pd-spots"></div></div>
+      <div class="section" id="pd-fests-sec" hidden><div class="section-title">근처에서 열리는 축제</div><div id="pd-fests"></div></div>
+      <div class="section" id="pd-blogs-sec" hidden><div class="section-head"><div class="section-title">블로그 여행기</div><button type="button" class="section-more" id="pd-blogs-more">블로그에서 더 보기</button></div><div id="pd-blogs"></div></div>
+      <p class="caption" id="pd-source"></p>
+    </div>
+  </div>
+  <!-- 바텀시트 -->
+  <div id="sheet-root" hidden>
+    <div class="dim" id="sheet-dim"></div>
+    <div class="sheet" role="dialog" aria-modal="true">
+      <div class="handle"></div>
+      <div class="sheet-title" id="sheet-title"></div>
+      <ul class="rows select-rows" id="sheet-options"></ul>
+      <div id="sheet-log" class="log" hidden></div>
+      <button class="btn secondary" id="sheet-close">닫기</button>
+    </div>
+  </div>
+</div>
+<!-- 빈 상태(위치 사진 부족) — 앱에서만 사용 -->
+<div id="empty-root" hidden>
+  <div class="empty">
+    <div class="illust"><svg class="ico"><use href="#ic-compass"/></svg></div>
+    <h1 class="title">표시할 이동 기록이 없어요</h1>
+    <p class="desc">위치 정보가 있는 사진이 2장 이상, 서로 25km 넘게 떨어진 곳에서 찍혀야 여행을 찾을 수 있어요.</p>
+    <ul class="rows">
+      <li class="row"><span class="row-ico" style="background:#E8F3FF;color:#3182F6"><svg class="ico"><use href="#ic-camera"/></svg></span><div class="row-body"><div class="row-title">카메라 위치 태그 확인</div><div class="row-desc">설정 › 개인정보 보호 › 위치 서비스 › 카메라가 켜져 있어야 사진에 위치가 남아요.</div></div></li>
+      <li class="row"><span class="row-ico" style="background:#F0FAF6;color:#03B26C"><svg class="ico"><use href="#ic-image"/></svg></span><div class="row-body"><div class="row-title">'모든 사진' 접근 허용</div><div class="row-desc">일부 사진만 허용했다면 설정에서 '모든 사진'으로 바꿔 주세요.</div></div></li>
+    </ul>
+    <div class="empty-actions">
+      <button id="empty-demo" class="btn primary" hidden>샘플 여행으로 체험하기</button>
+      <button id="empty-perm" class="btn secondary" hidden>사진 접근 권한 바꾸기</button>
+      <button id="empty-rescan" class="btn secondary">사진 다시 읽기</button>
+    </div>
+    <p class="caption center">샘플 여행은 앱의 기능을 보여주기 위한 가상 데이터예요. 내 사진은 사용하지 않아요.</p>
+  </div>
+</div>
+<script src="vendor/d3.v7.min.js"></script>
+<script src="vendor/topojson-client.min.js"></script>
+<script src="vendor/mp4-muxer.js"></script>
+<script src="i18n.js"></script>
+<script src="icons.js"></script>
+<script src="cloud-config.js"></script>
+<script src="cloud.js"></script>
+<script src="account.js"></script>
+<script src="data/world.js"></script>
+<script src="data/kr-sigungu.js"></script>
+<script src="data/world-admin1.js"></script>
+<script src="data/destinations.js"></script>
+<script src="data/cities.js"></script>
+<script src="tripbuilder.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+<script src="geo-ko-fix.js"></script>
+<script src="owner-integrate.js"></script>
+<script src="owner-controls.js"></script>
+<script src="host-monitor.js"></script>
+
+<script src="family-addon.js"></script>
+<script src="fj-naver-favorites.js"></script>
+
+<script src="fj-owner-ui.js"></script>
+<script src="fj-r14-navigation.js"></script>
+<script src="native.js"></script>
+<script src="family-diary.js"></script>
+<script src="moa-r32-ui.js"></script>
+<!--/BODY-->
+<script src="moa-icon-theme-settings.js"></script>
+<script src="moa-r117-ui.js"></script>
+<script src="moa-r121-ui.js"></script>
+<script src="moa-r231-settings.js"></script>
+<script src="moa-r125-calendar.js"></script>
+<script src="moa-r127-fixes.js"></script>
+<script src="moa-r131-diary-scroll.js"></script>
+<script src="moa-r133-diary-unified.js"></script>
+<script src="moa-r135-family-calendar.js"></script>
+<script src="moa-r137-calendar-parity.js"></script>
+<script src="moa-r139-calendar-unify.js"></script>
+<script src="moa-r141-monthly-report.js"></script>
+<script src="moa-r149-voice.js"></script>
+<script src="moa-r483-vertical-calendar.js"></script>
+<script src="moa-r389-home-dot.js"></script>
+<script src="moa-r570-photo-favorites.js"></script></body>
+</html>
