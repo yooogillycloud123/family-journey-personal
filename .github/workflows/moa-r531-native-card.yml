@@ -58,6 +58,14 @@ jobs:
           pathlib.Path("build/moa-r531/classes18.dex").write_bytes(b)
           print("MOA_R531_NATIVE_DEX_SHA256",hashlib.sha256(b).hexdigest())
           PY
+      - name: Collect exact modified source bundle
+        run: |
+          set -euo pipefail
+          cp experiments/moa-r483/moa-r483-vertical-calendar.js build/moa-r531/
+          cp experiments/moa-r483/moa-r483-vertical-calendar.css build/moa-r531/
+          cp experiments/moa-r507/MoaR507InlineGalleryProvider.java build/moa-r531/
+          cp .github/workflows/moa-r531-native-card.yml build/moa-r531/
+          sha256sum build/moa-r531/classes18.dex build/moa-r531/moa-r483-vertical-calendar.js build/moa-r531/moa-r483-vertical-calendar.css build/moa-r531/MoaR507InlineGalleryProvider.java > build/moa-r531/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: MOA-R531-ADDITIVE-DEX-LAB
