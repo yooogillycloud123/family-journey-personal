@@ -31,68 +31,12 @@ let r527DayToken=0;
 window.__moaR527DayToken=0;
 let r527GeometryPort=null, r527FrameQueued=false, r527LastSentAt=0;
 let r527LastRect='';
-// R539: two independently composited surfaces cannot move in exact phase.
-// While the diary scrolls, show the existing SAME-media WebView poster (one
-// compositor), hide only native-host PIXELS (alpha), keeping native touch owner
-// and MediaPlayer alive. Restore real native pixels after final geometry flush.
-let r539ProxyActive=false,r539ProxyTimer=0,r539LastWake=0,r539HiddenAt=0;
-let r539ProxyClosing=false,r539ProxyAckTimer=0;
-const R539_STABLE_SCROLL_KEY='moa.r539.scroll.web.proxy.v1';
-function r539StableScroll(){try{return localStorage.getItem(R539_STABLE_SCROLL_KEY)!=='off'}catch(_){return true}}
-function r539ProxyMessage(enabled){
- if(!r527GeometryPort)return;
- try{r527GeometryPort.postMessage('s,'+window.__moaR527DayToken+','+(enabled?'1':'0'))}catch(_){r527GeometryPort=null}
-}
-function r539FinishProxy(){
- clearTimeout(r539ProxyAckTimer);r539ProxyAckTimer=0;
- r539ProxyClosing=false;r539ProxyActive=false;
- view?.classList.remove('moa-r539-scroll-proxy');
-}
-function r539EndProxy(){
- clearTimeout(r539ProxyTimer);r539ProxyTimer=0;
- if(!r539ProxyActive||r539ProxyClosing)return;
- // Request the last actual DOM position FIRST; wait for Android's alpha=1
- // acknowledgment BEFORE withdrawing the synchronized WebView poster.
- r539ProxyClosing=true;
- r527SyncGeometry(true);
- r539ProxyMessage(false);
- r539ProxyAckTimer=setTimeout(r539FinishProxy,320);
-}
-window.__moaR539NativeScrollSettled=function(token){
- if(Number(token)===window.__moaR527DayToken&&r539ProxyClosing)r539FinishProxy();
-};
-function r539OnDayScroll(){
- if(!r539StableScroll()||!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced||
-     !window.__moaR507NativePending||!view?.classList.contains('moa-r507-native-mounted'))return;
- if(r539ProxyClosing){
-  clearTimeout(r539ProxyAckTimer);r539ProxyAckTimer=0;r539ProxyClosing=false;
-  r539ProxyMessage(true);
- }
- if(!r539ProxyActive){
-  r539ProxyActive=true;
-  view.classList.add('moa-r539-scroll-proxy');
-  r539ProxyMessage(true);
- }
- clearTimeout(r539ProxyTimer);
- r539ProxyTimer=setTimeout(()=>requestAnimationFrame(r539EndProxy),160);
-}
-// Both Android resumed and document visibility can signal a return; duplicate
-// hints are debounced. A native handshake, not the JS renderer, owns the close.
-function r539WakeNative(){
- if(!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced)return false;
- const now=Date.now();if(now-r539LastWake<750)return false;r539LastWake=now;
- if(r527GeometryPort){
-  try{r527GeometryPort.postMessage('r,'+window.__moaR527DayToken)}catch(_){r527GeometryPort=null}
- }
- return true;
-}
-window.__moaR539AppVisible=r539WakeNative;
-document.addEventListener('visibilitychange',()=>{
- if(document.hidden){r539HiddenAt=Date.now();return;}
- if(r539HiddenAt){const elapsed=Date.now()-r539HiddenAt;r539HiddenAt=0;
-  if(elapsed>=150)setTimeout(r539WakeNative,180);
- }
-},{passive:true});
+// R543: R535's proven native card remains visible throughout scroll.
+// Do NOT set its alpha to zero or replace it with an unsynchronized proxy.
+function r539EndProxy(){view?.classList.remove('moa-r539-scroll-proxy');}
+function r539OnDayScroll(){} // normal R527 position push is the only scroll owner
+function r539WakeNative(){return window.__moaR543RepairInline?.()||false;}
+window.__moaR539AppVisible=()=>false; // no unsolicited close on visibilitychange
 const r527TrustedOrigin=()=>location.origin==='https://familyjourney.local';
 function r527BeginDay(){
  r523DayExiting=false;r515RecoveryAttempts=0;
@@ -123,7 +67,7 @@ function r527SyncGeometry(force=false){
 window.addEventListener('message',ev=>{
  if(!r527TrustedOrigin()||ev.data!=='MOA_R527_POSITION_CHANNEL'||!ev.ports?.length)return;
  try{r527GeometryPort?.close()}catch(_){}
- r527GeometryPort=ev.ports[0];r527LastRect='';r527SyncGeometry(true);if(r539ProxyActive)r539ProxyMessage(true);
+ r527GeometryPort=ev.ports[0];r527LastRect='';r527SyncGeometry(true);
 },false);
 window.__moaR527BridgeListenReady=true;
 window.addEventListener('resize',()=>r527SyncGeometry(true),{passive:true});
@@ -134,7 +78,7 @@ window.__moaR507NativePending=false;
 window.__moaR507NativeMounted=function(mounted){
  if(!ui.open||ui.page!=='day')mounted=false;
  if(view){view.classList.toggle('moa-r507-native-mounted',!!mounted);if(mounted)view.classList.remove('moa-r519-native-entering');}
- if(mounted){r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
+ if(mounted){r515RecoveryAttempts=0;r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
  if(!mounted){window.__moaR507NativePending=false;r507Opened=false;}
 };
 // R515: a transient Activity/WebView update must not demote the in-card native Gallery.
@@ -190,20 +134,23 @@ window.__moaR531AdvancedClosed=function(){
 // R535: native Activity resume can leave the prior R463 TextureView blank/gray
 // while Gallery.isOpen remains true. Restart ONLY the inline renderer, never
 // reset the page/diary or fire a native day-exit/back handler.
-window.__moaR535ResumeInline=function(token){
- return window.__moaR539RecoverAfterReturn(token);
-};
-// Native verified the live day before closing an orphaned SurfaceTexture.
-// Reopening is one generation; never render a fresh diary day or reset index.
-window.__moaR539RecoverAfterReturn=function(token){
+window.__moaR535ResumeInline=function(token){return window.__moaR543RebuildInline(token);};
+window.__moaR539RecoverAfterReturn=function(token){return window.__moaR543RebuildInline(token);};
+window.__moaR543RebuildInline=function(token){
  if(Number(token)!==window.__moaR527DayToken||!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced)return false;
- r539EndProxy();r507StopInline();r515RecoveryAttempts=0;
- r527BeginDay();
+ r507StopInline();r515RecoveryAttempts=0;r527BeginDay();
  if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
  clearTimeout(r507Timer);
- r507Timer=setTimeout(()=>{
-  if(ui.open&&ui.page==='day'&&!r523DayExiting&&!r531Advanced)r507StartInline();
- },150);
+ r507Timer=setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting&&!r531Advanced)r507StartInline()},240);
+ return true;
+};
+window.__moaR543RepairInline=function(){
+ // Manual user action is a safe escape hatch if Android native TextureView
+ // silently loses its surface (never auto-triggers during first mount).
+ if(!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced)return false;
+ r507StopInline();r515RecoveryAttempts=0;r527BeginDay();
+ if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
+ setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting)r507StartInline()},250);
  return true;
 };
 function r507StopInline(){
@@ -250,7 +197,12 @@ function r507StartInline(){
   setTimeout(()=>{
    if(generation!==r507Generation||!r507Opened)return;
    if(!view?.classList.contains('moa-r507-native-mounted')){
-    r507StopInline();notify('현재 기기에서 사진형 내장 갤러리를 연결할 수 없어 기존 사진형으로 전환했습니다.');
+    const retry=++r515RecoveryAttempts<=2;
+    r507StopInline();
+    if(retry){
+      if(view)view.classList.add('moa-r519-native-entering');
+      setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting&&!r531Advanced)r507StartInline()},400);
+    }else notify('기본 갤러리를 연결하지 못해 예비 사진 화면을 표시합니다. 설정에서 다시 표시할 수 있습니다.');
    }
   },2700);
  };
@@ -497,7 +449,7 @@ function r472RefreshVisibleThumbs(){if(!ui.open||!view||view.hidden)return;
 window.addEventListener('pageshow',()=>{setTimeout(r472RefreshVisibleThumbs,200)},{passive:true});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(r472RefreshVisibleThumbs,300)},{passive:true});
 
-function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('scroll',()=>{r539OnDayScroll();r527SyncGeometry();},{passive:true});n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
+function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('scroll',()=>r527SyncGeometry(),{passive:true});n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
 function open(page='calendar',day){const s=getState();if(!s?.open)return false;r527BeginDay();mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
  try{localStorage.setItem(KEY,'simple')}catch(e){}r495SyncLegacyRoot();r495InstallBackHandlers();render();r475LastDataKey=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');installBack();setTimeout(r475RefreshFamily,100);return true;}
 function close(){r507StopInline();r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.open=false;ui.requestGeneration++;if(view)view.hidden=true;r495SyncLegacyRoot();try{localStorage.removeItem(KEY)}catch(e){}return true;}
@@ -553,12 +505,9 @@ function r539PhotoSettings(){
  const open=view?.querySelector('.moa-r539-photo-settings');if(open){open.remove();return}
  const controls=view?.querySelector('.moa-r539-day-controls');if(!controls)return;
  const panel=elem('div','moa-r539-photo-settings');panel.setAttribute('role','group');panel.setAttribute('aria-label','사진형 보기 설정');
- const option=elem('label','moa-r539-stable-option');const check=elem('input');check.type='checkbox';check.checked=r539StableScroll();
- check.addEventListener('change',()=>{try{localStorage.setItem(R539_STABLE_SCROLL_KEY,check.checked?'on':'off')}catch(_){}if(!check.checked)r539EndProxy();});
- option.append(check,elem('span','','스크롤 중 화면 고정'));panel.append(option);
  const details=btn('상세형 보기 설정',()=>{panel.remove();r475OpenDetail(ui.date);setTimeout(()=>{diaryRoot()?.querySelector('.moa-r191-day-menu-trigger')?.click();},120)},'moa-r539-settings-detail');
  panel.append(details);
- const retry=btn('현재 사진 다시 표시',()=>{panel.remove();r539WakeNative()},'moa-r539-settings-detail');
+ const retry=btn('갤러리 다시 표시',()=>{panel.remove();window.__moaR543RepairInline?.()},'moa-r539-settings-detail');
  panel.append(retry);controls.append(panel);
 }
 function r475OpenDetail(day){if(ui.dirty){notify('작성 중인 글을 먼저 저장한 뒤 상세형으로 전환해 주세요.');return;}
