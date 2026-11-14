@@ -24,13 +24,54 @@ let r515RecoveryAttempts=0,r515LastNativeMount=0;
 let r519EntryTimer=0;
 // R523: distinguish deliberate day exit/native Back from media errors.
 let r523DayExiting=false;
+// R527: each *user-initiated* day entry owns a new native session. A Back exit
+// must not poison the next calendar tile open, and a stale close callback from
+// the prior native host must not exit the new day.
+let r527DayToken=0;
+window.__moaR527DayToken=0;
+let r527GeometryPort=null, r527FrameQueued=false, r527LastSentAt=0;
+let r527LastRect='';
+const r527TrustedOrigin=()=>location.origin==='https://familyjourney.local';
+function r527BeginDay(){
+ r523DayExiting=false;r515RecoveryAttempts=0;
+ window.__moaR527DayToken=++r527DayToken;
+ r527LastRect='';
+}
+function r527SyncGeometry(force=false){
+ if(!ui.open||ui.page!=='day'||r523DayExiting||!window.__moaR507NativePending||!r527GeometryPort)return;
+ if(r527FrameQueued&&!force)return;
+ r527FrameQueued=true;
+ requestAnimationFrame(()=>{
+  r527FrameQueued=false;
+  if(!ui.open||ui.page!=='day'||r523DayExiting||!window.__moaR507NativePending||!r527GeometryPort)return;
+  const stage=view?.querySelector('.moa-r469-stage');if(!stage||!stage.isConnected)return;
+  const rect=stage.getBoundingClientRect();
+  if(rect.width<100||rect.height<100)return;
+  // one-way browser scroll-frame -> native compositor position update: no
+  // evaluateJavascript round trip, no tracking-poll correction/lead prediction.
+  const values=[window.__moaR527DayToken,rect.left,rect.top,rect.width,rect.height,innerWidth,innerHeight];
+  const key=values.map(n=>Math.round(n*10)/10).join(',');
+  const now=performance.now();if(key===r527LastRect&&!force)return;
+  if(!force&&now-r527LastSentAt<13)return;
+  r527LastSentAt=now;r527LastRect=key;
+  try{r527GeometryPort.postMessage(key)}catch(_){r527GeometryPort=null}
+ });
+}
+window.addEventListener('message',ev=>{
+ if(!r527TrustedOrigin()||ev.data!=='MOA_R527_POSITION_CHANNEL'||!ev.ports?.length)return;
+ try{r527GeometryPort?.close()}catch(_){}
+ r527GeometryPort=ev.ports[0];r527LastRect='';r527SyncGeometry(true);
+},false);
+window.__moaR527BridgeListenReady=true;
+window.addEventListener('resize',()=>r527SyncGeometry(true),{passive:true});
+window.visualViewport?.addEventListener('resize',()=>r527SyncGeometry(true),{passive:true});
 // R511 pre-draw guard arm state; do not start native fullscreen before the provider is ready.
 window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
 window.__moaR507NativePending=false;
 window.__moaR507NativeMounted=function(mounted){
  if(!ui.open||ui.page!=='day')mounted=false;
  if(view){view.classList.toggle('moa-r507-native-mounted',!!mounted);if(mounted)view.classList.remove('moa-r519-native-entering');}
- if(mounted){r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;}
+ if(mounted){r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
  if(!mounted){window.__moaR507NativePending=false;r507Opened=false;}
 };
 // R515: a transient Activity/WebView update must not demote the in-card native Gallery.
@@ -339,8 +380,8 @@ function r472RefreshVisibleThumbs(){if(!ui.open||!view||view.hidden)return;
 window.addEventListener('pageshow',()=>{setTimeout(r472RefreshVisibleThumbs,200)},{passive:true});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(r472RefreshVisibleThumbs,300)},{passive:true});
 
-function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
-function open(page='calendar',day){const s=getState();if(!s?.open)return false;r523DayExiting=false;mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
+function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('scroll',()=>r527SyncGeometry(),{passive:true});n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
+function open(page='calendar',day){const s=getState();if(!s?.open)return false;r527BeginDay();mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
  try{localStorage.setItem(KEY,'simple')}catch(e){}r495SyncLegacyRoot();r495InstallBackHandlers();render();r475LastDataKey=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');installBack();setTimeout(r475RefreshFamily,100);return true;}
 function close(){r507StopInline();r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.open=false;ui.requestGeneration++;if(view)view.hidden=true;r495SyncLegacyRoot();try{localStorage.removeItem(KEY)}catch(e){}return true;}
 function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!confirm('작성 중인 내용이 있습니다. 저장하지 않고 돌아갈까요?'))return true;
@@ -352,13 +393,15 @@ function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!con
   const oldRoot=diaryRoot();if(oldRoot&&!oldRoot.hidden)oldRoot.dataset.moaUnifiedPage='calendar';
   ui.page='calendar';ui.dirty=false;r507StopInline();window.MoaVoicePlaybackUI?.stop?.();render();return true;}r475ExitUntilHidden=true;close();window.FamilyJourneyDiary?.close?.(false);return true;}
 // Android Gallery's original Back or the R523 overlay Back must both EXIT day.
-window.__moaR523NativeClosed=function(){
+window.__moaR523NativeClosed=function(token){
+ if(token!==undefined&&Number(token)!==window.__moaR527DayToken)return false;
  if(r523DayExiting||!ui.open||ui.page!=='day')return false;
  // If the native owner was already closed by the original R463 Back, the
  // only correct action is to leave photo diary, never launch it again.
  return goBack();
 };
-window.__moaR523NativeBack=function(){
+window.__moaR523NativeBack=function(token){
+ if(token!==undefined&&Number(token)!==window.__moaR527DayToken)return 'stale';
  if(!ui.open||ui.page!=='day')return 'not-open';
  // Voice/recording popups keep their original close priority.
  if(document.getElementById('moa-r149-voice-modal')){
@@ -534,7 +577,7 @@ function r483MonthSection(date){
  const prefix=`${y}-${String(m+1).padStart(2,'0')}-`;
  for(let n=1;n<=days;n++){
   const d=prefix+String(n).padStart(2,'0'),photo=mainCover(d,mediaFor(d));
-  const tile=btn('',()=>{if(Date.now()<r479SwipeBlockUntil)return;ui.selected=d;ui.date=d;ui.month=new Date(y,m,1);ui.page='day';ui.idx=0;ui.fast=false;render()},'moa-r469-date');
+  const tile=btn('',()=>{if(Date.now()<r479SwipeBlockUntil)return;ui.selected=d;ui.date=d;ui.month=new Date(y,m,1);ui.page='day';ui.idx=0;ui.fast=false;r527BeginDay();render()},'moa-r469-date');
   tile.setAttribute('aria-label',`${d} 일기 및 가족 일정`);tile.dataset.day=d;
   if(d===ui.selected)tile.classList.add('selected');if(d===dayOf(Date.now()))tile.classList.add('today');
   if(photo){const img=elem('img');img.dataset.id=String(photo.id);img.alt='';img.draggable=false;tile.append(img);if(isVideo(photo))tile.append(elem('span','moa-r469-video-mark','▶'))}
@@ -632,7 +675,7 @@ function renderMonth(){
 }
 function changeMonth(k){ui.month=new Date(ui.month.getFullYear(),ui.month.getMonth()+k,1);render();}
 function dayMedia(index){const m=ui.media[index];return m&&safeMedia(m.id)?m:null;}
-function setDay(day){if(!valid(day))return;ui.date=day;ui.selected=day;ui.page='day';ui.fast=false;ui.idx=0;ui.dirty=false;render();}
+function setDay(day){if(!valid(day))return;ui.date=day;ui.selected=day;ui.page='day';ui.fast=false;ui.idx=0;ui.dirty=false;r527BeginDay();render();}
 function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui.date,s=getState();if(!valid(d)||!s)return;ui.media=mediaFor(d);const chosen=mainCover(d,ui.media);const ri=ui.media.findIndex(x=>String(x.id)===String(chosen?.id));ui.idx=Math.min(ui.media.length-1,Math.max(0,ui.idx||ri));if(ui.idx===0&&ri>0)ui.idx=ri;
  const current=s.curatedEntries?.get(d)||s.entries?.get(d),wrap=elem('div','moa-r469-day');
  wrap.append(header(dateLabel(d),goBack));
@@ -683,7 +726,7 @@ function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui
  // Do not show the web-gallery chrome for a second while the existing native
  // Gallery is mounting. The static media poster may remain underneath.
  if(ui.media.length)view.classList.add('moa-r519-native-entering');
- renderMedia();refreshVoices();if(ui.media.length)r507StartInline();else view.classList.remove('moa-r519-native-entering');}
+ renderMedia();refreshVoices();if(ui.media.length)r507StartInline();else view.classList.remove('moa-r519-native-entering');r527SyncGeometry(true);}
 function r472MediaSelected(index){
  if(!Number.isFinite(index)||!ui.media.length)return;
  const next=Math.max(0,Math.min(ui.media.length-1,index));
