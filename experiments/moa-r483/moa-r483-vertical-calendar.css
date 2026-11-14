@@ -938,3 +938,10 @@ html #moa-r469-root.moa-r572-video-active[data-page="day"] .moa-r469-stage{backg
 html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
 /* R572 save notices fade automatically; they do NOT affect Gallery geometry. */
 html #moa-r469-root[data-page="day"] .moa-r570-save-status.moa-r572-toast-leave{opacity:0!important;transition:opacity .18s ease!important;}
+
+/* R574: do not add another full-width gray division under the native oval.
+   Native Java owns that footer. On first entry, never repaint an unloaded
+   photo black while the saved IndexedDB moment is waiting for MediaStore. */
+html #moa-r469-root.moa-r574-index-wait[data-page="day"] .moa-r469-stage{background:#eceaec!important;}
+html #moa-r469-root.moa-r574-index-wait[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
+html #moa-r469-root[data-page="day"] .moa-r472-slide:not(.moa-r531-video-slide) img{transition:none!important;}
