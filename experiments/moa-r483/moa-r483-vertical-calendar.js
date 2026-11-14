@@ -715,7 +715,7 @@ function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui
  const coverStar=btn('☆',()=>{const media=dayMedia(ui.idx);if(media)saveCover(media.id)},'moa-r503-cover-star');
  coverStar.setAttribute('aria-label','현재 사진을 달력 대표 사진으로 지정');coverStar.title='달력 대표 사진으로 지정';stage.append(coverStar);
  const more=btn('···',()=>{ui.tools=!ui.tools;toggleTools()},'moa-r469-more');more.setAttribute('aria-label','사진 기능');stage.append(more);
- const advanced=btn('⛶',()=>{if(!view?.classList.contains('moa-r507-native-mounted'))window.MoaLocalAudio?.openNativeGallery?.(JSON.stringify(ui.media.map(m=>String(m.id))),ui.idx,ui.date)},'moa-r531-web-advanced');advanced.setAttribute('aria-label','원래 고급 갤러리 전체 화면 열기');stage.append(advanced);wrap.append(stage);
+ wrap.append(stage);
  stage.addEventListener('keydown',e=>{
   if(e.key==='ArrowLeft'){changeMedia(ui.idx-1);e.preventDefault()}
   else if(e.key==='ArrowRight'){changeMedia(ui.idx+1);e.preventDefault()}
@@ -731,6 +731,11 @@ function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui
   const button=btn('',null,'moa-r499-action');button.dataset.op=op;button.setAttribute('aria-label',label);
   button.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${glyph[op]}</svg>`;actions.append(button);
  }
+ // Fallback Web controls obey the same bottom-row layout as the native R535 capsule.
+ const advanced=btn('',()=>{if(!view?.classList.contains('moa-r507-native-mounted'))window.MoaLocalAudio?.openNativeGallery?.(JSON.stringify(ui.media.map(m=>String(m.id))),ui.idx,ui.date)},'moa-r531-web-advanced');
+ advanced.setAttribute('aria-label','원래 고급 갤러리 전체 화면 열기');
+ advanced.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M4 15v5h5M20 15v5h-5"/></svg>';
+ actions.append(advanced);
  const info=elem('div','moa-r469-info');info.hidden=true;
  const railToggle=btn('',()=>{ui.rail=!ui.rail;toggleRail()},'moa-r469-rail-toggle');railToggle.setAttribute('aria-label','사진 썸네일 목록 펼치기');railToggle.setAttribute('aria-expanded','false');
  const rail=elem('div','moa-r469-rail');rail.hidden=true;rail.setAttribute('aria-label','날짜별 사진과 영상');
