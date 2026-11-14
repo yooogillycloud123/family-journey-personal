@@ -66,3 +66,5 @@ jobs:
           path: build/moa-r519/
 
 # R519 second reproducible DEX build: final rail-toggle anchor source commit 723f7cd5d13fdaaca7f00fd92e71381995309715
+
+# Recompile final native startup opacity fix from feature commit 25a79569110303d5e405acfcde158ffdbce5f1be
