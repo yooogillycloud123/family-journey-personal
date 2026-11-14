@@ -117,6 +117,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private boolean returnFromBackground=false;
   private long backgroundStartedAt=0L;
   private int foregroundEpoch=0;
+  // R539: fullscreen selection and robust foreground-surface reattachment.
+  private int fullNativeLastIndex=-1;
+  private String fullNativeLastId="";
+  private boolean rebindInProgress=false;
+  private long lastRebindAt=0L,lastWakeMessageAt=0L;
+
 
   private static final String SNAPSHOT =
       "(function(){try{" +
@@ -223,6 +229,26 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private void onPositionMessage(WebView web,String data){
     if(data==null||data.length()>180)return;
     try{
+      // R539: a native sibling cannot be frame-locked to a scrolling WebView.
+      // Keep touch ownership, but temporarily paint the SAME picture in WebView.
+      if(data.startsWith("s,")){
+        String[] ctrl=data.split(",",-1);
+        if(ctrl.length!=3||Integer.parseInt(ctrl[1])!=ownedDayToken)return;
+        if(nativeHost!=null && ownsGallery && galleryOpen(galleryRef))
+          nativeHost.setAlpha("1".equals(ctrl[2])?0f:1f);
+        return;
+      }
+      if(data.startsWith("r,")){
+        String[] ctrl=data.split(",",-1);
+        if(ctrl.length!=2||Integer.parseInt(ctrl[1])!=ownedDayToken)return;
+        long now=android.os.SystemClock.uptimeMillis();
+        if(!ownsGallery||fullNativeOpen||now-lastWakeMessageAt<1300L)return;
+        lastWakeMessageAt=now;
+        returnFromBackground=true;
+        final Activity a=foreground;final int e=foregroundEpoch;
+        main.postDelayed(()->rebindAfterReturn(a,e),160L);
+        return;
+      }
       String[] x=data.split(",",-1);if(x.length!=7)return;
       int token=(int)Double.parseDouble(x[0]);
       if(token!=ownedDayToken||token<=0)return;
@@ -243,8 +269,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // Do not trigger MediaPlayer/TextureView re-layout in a position frame.
       if(lastW<0||Math.abs(iw-lastW)>dp(foreground,8)||
           Math.abs(ih-lastH)>dp(foreground,8))return;
-      nativeHost.setTranslationX(ix-baseX);
-      nativeHost.setTranslationY(iy-baseY);
+      // Fractional GPU translation eliminates 1px round/truncate oscillation.
+      float preciseX=(float)(wpos[0]-rpos[0]+dx*sx-baseX);
+      float preciseY=(float)(wpos[1]-rpos[1]+dy*sy-baseY);
+      nativeHost.setTranslationX(preciseX);
+      nativeHost.setTranslationY(preciseY);
       nativeHost.setVisibility(iy+ih<0||iy>root.getHeight()?View.INVISIBLE:View.VISIBLE);
       lastPositionMessageAt=android.os.SystemClock.uptimeMillis();
       lastX=ix;lastY=iy;
@@ -259,10 +288,25 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // renderer. Return to the same photo-day only after native Gallery closes.
     if(fullNativeOpen){
       final long now=android.os.SystemClock.uptimeMillis();
-      if(galleryOpen(gallery))fullNativeSeenOpen=true;
-      else if(fullNativeSeenOpen||now-fullNativeStartedAt>2900L){
+      if(galleryOpen(gallery)){
+        fullNativeSeenOpen=true;
+        final Object ix=readField(gallery,"index");
+        if(ix instanceof Integer)fullNativeLastIndex=(Integer)ix;
+        String id=currentId(gallery);
+        if(!id.isEmpty())fullNativeLastId=id;
+      } else if(fullNativeSeenOpen||now-fullNativeStartedAt>2900L){
+        // Original native Gallery's current index survives the close in many
+        // versions; prefer it over the last sampled frame when still available.
+        final Object ix=readField(gallery,"index");
+        if(ix instanceof Integer)fullNativeLastIndex=(Integer)ix;
+        String id=currentId(gallery);
+        if(!id.isEmpty())fullNativeLastId=id;
+        final int selected=fullNativeLastIndex;
+        final String chosen=JSONObject.quote(fullNativeLastId);
         fullNativeOpen=false;fullNativeSeenOpen=false;
-        web.evaluateJavascript("window.__moaR531AdvancedClosed&&window.__moaR531AdvancedClosed();",null);
+        fullNativeLastIndex=-1;fullNativeLastId="";
+        web.evaluateJavascript("window.__moaR539AdvancedSelection&&window.__moaR539AdvancedSelection("+
+          selected+","+chosen+");window.__moaR531AdvancedClosed&&window.__moaR531AdvancedClosed();",null);
       }
       return;
     }
@@ -672,6 +716,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private void enterOriginalFullscreen(WebView web,Object gallery){
     if(!ownsGallery||fullNativeOpen||gallery!=galleryRef||!isTrustedWeb(web))return;
     fullNativeOpen=true;fullNativeSeenOpen=false;
+    fullNativeLastIndex=lastIndex;fullNativeLastId=currentId(gallery);
     fullNativeStartedAt=android.os.SystemClock.uptimeMillis();
     // Close and detach ONLY our in-card host. A NEW original Gallery.open()
     // below is then standalone and cannot be reparented by this provider.
@@ -828,41 +873,71 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   }
   private static int dp(Activity a,float n){return (int)(n*a.getResources().getDisplayMetrics().density+.5f);}
 
-  // R535: the original Gallery may keep an open=true flag despite a discarded
-  // TextureView compositor after Home/Recents/other apps. On return, rebuild
-  // only this in-card session once; retain the JS day/media state and never
-  // send the normal R523 native Back/day-exit callback.
+  // R539: resumed sessions must not be rejected simply because a former
+  // SurfaceTexture cleared JS pending/ownsGallery or a rebuilt Activity changed
+  // Gallery instance. The only gate is CURRENT trusted browser day + token and
+  // NOT an intentionally opened fullscreen Gallery. No unsolicited day exit.
   private void rebindAfterReturn(Activity a,int epoch){
     if(!resumed||foreground!=a||epoch!=foregroundEpoch||!returnFromBackground||
-       !ownsGallery||fullNativeOpen||a.isFinishing()||a.isDestroyed())return;
-    returnFromBackground=false;
+       fullNativeOpen||a==null||a.isFinishing()||a.isDestroyed()||rebindInProgress)return;
+    final long now=android.os.SystemClock.uptimeMillis();
+    if(now-lastRebindAt<1500L)return;
     final WebView web=findWeb(a);
-    final Object gallery=readField(a,"unifiedGallery");
+    if(web==null||!isTrustedWeb(web))return;
+    rebindInProgress=true;
     final int token=ownedDayToken;
-    if(web==null||!isTrustedWeb(web)||gallery!=galleryRef||token<=0)return;
-    // Verify that this is STILL the same photo-day, not a stale callback from
-    // a user navigating away while the app was offscreen.
-    web.evaluateJavascript("(function(){var d=window.MoaR469SimpleDiary,s=d&&d.readOnlyStatus&&d.readOnlyStatus();return !!(s&&s.active&&s.page==='day'&&window.__moaR507NativePending&&window.__moaR527DayToken==="+token+");})()",answer->{
-      if(!resumed||foreground!=a||epoch!=foregroundEpoch||!"true".equals(answer)||
-         !ownsGallery||gallery!=galleryRef)return;
-      suppressArmUntil=android.os.SystemClock.uptimeMillis()+450L;
-      clearCardMark();invokeClose(gallery);
-      // Own re-entry does NOT trigger user Back. Reuse existing JS session and
-      // selected index, generating a new position-channel token before reopen.
-      web.evaluateJavascript("window.__moaR535ResumeInline&&window.__moaR535ResumeInline("+token+");",null);
-    });
+    final Object gallery=readField(a,"unifiedGallery");
+    final String checker="(function(){var d=window.MoaR469SimpleDiary,"+
+       "s=d&&d.readOnlyStatus&&d.readOnlyStatus();return JSON.stringify({day:!!("+
+       "s&&s.active&&s.page==='day'),token:window.__moaR527DayToken||0,"+
+       "fullscreen:!!(window.__moaR539AdvancedActive&&window.__moaR539AdvancedActive())});})()";
+    try{web.evaluateJavascript(checker,answer->{
+      rebindInProgress=false;
+      if(!resumed||foreground!=a||epoch!=foregroundEpoch||fullNativeOpen)return;
+      try{
+        Object v=new JSONTokener(answer).nextValue();
+        if(!(v instanceof String))return;
+        JSONObject state=new JSONObject((String)v);
+        if(!state.optBoolean("day")||state.optBoolean("fullscreen")){
+          returnFromBackground=false;return;
+        }
+        int liveToken=state.optInt("token",0);
+        if(liveToken<=0)return;
+        lastRebindAt=android.os.SystemClock.uptimeMillis();
+        returnFromBackground=false;
+        suppressArmUntil=lastRebindAt+300L;
+        closePositionPort();
+        if(ownsGallery){
+          final Object oldGallery=galleryRef;
+          clearCardMark();
+          // Old host's close must never be interpreted as an Android Back.
+          if(oldGallery!=null)invokeClose(oldGallery);
+        } else if(galleryOpen(gallery)) {
+          // A lost provider owner can leave the original in-card gallery
+          // open=true with a blank surface. Only on a verified photo day.
+          invokeClose(gallery);
+        }
+        web.evaluateJavascript("window.__moaR539RecoverAfterReturn&&"+
+            "window.__moaR539RecoverAfterReturn("+liveToken+");",null);
+      }catch(Throwable ignored){}
+    });}catch(Throwable ignored){rebindInProgress=false;}
   }
   @Override public void onActivityResumed(Activity a){
-    foreground=a;resumed=true;final int epoch=++foregroundEpoch;
-    if(returnFromBackground && android.os.SystemClock.uptimeMillis()-backgroundStartedAt>=350L)
-      main.postDelayed(()->rebindAfterReturn(a,epoch),380L);
-    else returnFromBackground=false;
+    foreground=a;resumed=true;
+    final int epoch=++foregroundEpoch;
+    if(returnFromBackground){
+      main.postDelayed(()->rebindAfterReturn(a,epoch),500L);
+      // Web visibility can resume without a new Activity instance; both
+      // channels use the exact same token+day guarded transaction.
+    }
   }
   @Override public void onActivityPaused(Activity a){
     if(foreground==a){
       resumed=false;++foregroundEpoch;
-      returnFromBackground=ownsGallery&&!fullNativeOpen;
+      // Do not depend on ownsGallery (which Android may clear while paused).
+      returnFromBackground=!fullNativeOpen;
       backgroundStartedAt=android.os.SystemClock.uptimeMillis();
+      rebindInProgress=false;
     }
   }
   @Override public void onActivityDestroyed(Activity a){if(foreground==a){closePositionPort();foreground=null;resumed=false;clearCardMark();}}
