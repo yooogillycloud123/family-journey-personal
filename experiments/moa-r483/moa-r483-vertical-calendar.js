@@ -22,6 +22,8 @@ let r507Generation=0,r507Timer=0,r507Opened=false;
 let r515RecoveryAttempts=0,r515LastNativeMount=0;
 // R519: native bridge takes ownership at day-entry; do not paint obsolete Web controls.
 let r519EntryTimer=0;
+// R523: distinguish deliberate day exit/native Back from media errors.
+let r523DayExiting=false;
 // R511 pre-draw guard arm state; do not start native fullscreen before the provider is ready.
 window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
 window.__moaR507NativePending=false;
@@ -33,7 +35,8 @@ window.__moaR507NativeMounted=function(mounted){
 };
 // R515: a transient Activity/WebView update must not demote the in-card native Gallery.
 window.__moaR515RecoverInline=function(){
- if(!ui.open||ui.page!=='day'||!window.__moaR507NativePending)return false;
+ // Never restart a native Gallery when Android Back has closed it.
+ if(r523DayExiting||!ui.open||ui.page!=='day'||!window.__moaR507NativePending)return false;
  if(++r515RecoveryAttempts>2){r507StopInline();notify('네이티브 갤러리를 다시 연결하지 못했습니다. 사진 데이터는 유지됩니다.');return false;}
  r507Opened=false;window.__moaR507NativePending=false;window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
  view?.classList.remove('moa-r507-native-mounted');
@@ -55,6 +58,7 @@ function r507StopInline(){
  if(opened){try{window.MoaLocalAudio?.closeNativeGallery?.()}catch(e){console.warn('R507 inline close',e)}}
 }
 function r507StartInline(){
+ if(r523DayExiting)return;
  const generation=++r507Generation;
  if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
  clearTimeout(r519EntryTimer);
@@ -336,16 +340,25 @@ window.addEventListener('pageshow',()=>{setTimeout(r472RefreshVisibleThumbs,200)
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(r472RefreshVisibleThumbs,300)},{passive:true});
 
 function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
-function open(page='calendar',day){const s=getState();if(!s?.open)return false;mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
+function open(page='calendar',day){const s=getState();if(!s?.open)return false;r523DayExiting=false;mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
  try{localStorage.setItem(KEY,'simple')}catch(e){}r495SyncLegacyRoot();r495InstallBackHandlers();render();r475LastDataKey=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');installBack();setTimeout(r475RefreshFamily,100);return true;}
 function close(){r507StopInline();r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.open=false;ui.requestGeneration++;if(view)view.hidden=true;r495SyncLegacyRoot();try{localStorage.removeItem(KEY)}catch(e){}return true;}
 function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!confirm('작성 중인 내용이 있습니다. 저장하지 않고 돌아갈까요?'))return true;
+  // Mark intentional exit BEFORE closing Gallery: native callbacks cannot
+  // mistake the old closed player for a crash and auto-reopen it.
+  r523DayExiting=true;
   // Hide the dormant original screen BEFORE closing the native renderer.
   // R515 closed Gallery first, exposing the old web day underneath for one frame.
   const oldRoot=diaryRoot();if(oldRoot&&!oldRoot.hidden)oldRoot.dataset.moaUnifiedPage='calendar';
   ui.page='calendar';ui.dirty=false;r507StopInline();window.MoaVoicePlaybackUI?.stop?.();render();return true;}r475ExitUntilHidden=true;close();window.FamilyJourneyDiary?.close?.(false);return true;}
-// The R519 native overlay callback and Web host both lead to the same day→calendar route.
-window.__moaR519NativeBack=function(){
+// Android Gallery's original Back or the R523 overlay Back must both EXIT day.
+window.__moaR523NativeClosed=function(){
+ if(r523DayExiting||!ui.open||ui.page!=='day')return false;
+ // If the native owner was already closed by the original R463 Back, the
+ // only correct action is to leave photo diary, never launch it again.
+ return goBack();
+};
+window.__moaR523NativeBack=function(){
  if(!ui.open||ui.page!=='day')return false;
  // Voice/recording popups keep their original close priority.
  if(document.getElementById('moa-r149-voice-modal')){
@@ -355,6 +368,7 @@ window.__moaR519NativeBack=function(){
  }
  return r495TryBack();
 };
+window.__moaR519NativeBack=window.__moaR523NativeBack;
 function installBack(){if(backInstalled)return;backInstalled=true;r495InstallBackHandlers();}
 function r475ModeToggle(active,onPhoto,onDetail){
  const wrap=r483Pill(active,[{key:'photo',label:'사진형'},{key:'detail',label:'상세형'}],mode=>{if(mode==='photo')onPhoto();else onDetail()},'moa-r483-day-mode');
@@ -598,7 +612,7 @@ function renderMonth(){
  }
  view.append(feed);r495AttachMonthGestures(feed);
  const todayDock=elem('div','moa-r487-today-dock');
- const todayAction=btn('⌃',()=>{
+ const todayAction=btn('',()=>{
   const today=new Date();ui.selected=dayOf(today);ui.month=new Date(today.getFullYear(),today.getMonth(),1);
   // Recreate only the calendar presentation; original diary/gallery stores stay untouched.
   render();
