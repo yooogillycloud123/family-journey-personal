@@ -102,6 +102,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // R574: never display an empty native photo host as a black success.
   private boolean r574PhotoWaitNotified=false;
   private int r574PhotoRefreshAttempts=0;
+  // R574: keep VIDEO TextureView compositing alive behind one opaque black
+  // entry curtain until native player/geometry has settled; never show gray.
+  private long r574VideoCurtainAt=0L;
   private boolean r572FastRestorePending=false, r572FastRestoreDone=false;
   private boolean r572FastSeen=false, r572FastState=false;
   private Boolean r572LastVideoRail=null;
@@ -568,7 +571,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     nativeOwnerActivity=null;
     coverStar=null;railToggle=null;advancedButton=null;favoriteButton=null;r570Actions.clear();railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;ambientPoster=null;ambientParent=null;ambientMediaId="";initialCardChromeHidden=false;
     r572FirstPhotoPending=false;r572NativeMountAck=false;r572FirstPhotoDeadline=0L;
-    r574PhotoWaitNotified=false;r574PhotoRefreshAttempts=0;
+    r574PhotoWaitNotified=false;r574PhotoRefreshAttempts=0;r574VideoCurtainAt=0L;
     r572FastRestorePending=false;r572FastRestoreDone=false;r572FastSeen=false;
     r572LastVideoRail=null;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
@@ -615,7 +618,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
       r572FirstPhotoPending=!currentId(gallery).startsWith("v");
       r572FirstPhotoDeadline=android.os.SystemClock.uptimeMillis()+950L;
-      r574PhotoWaitNotified=false;r574PhotoRefreshAttempts=0;
+      r574PhotoWaitNotified=false;r574PhotoRefreshAttempts=0;r574VideoCurtainAt=0L;
       r572NativeMountAck=false;r572FastRestorePending=true;r572FastRestoreDone=false;
       r572FastSeen=false;r572LastVideoRail=null;
       installInlineBack(a,web);
@@ -690,6 +693,16 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         return; // preserve the Web photo poster; NEVER expose a black empty host
       }
       r572FirstPhotoPending=false;
+    }
+    // VIDEO: the original TextureView stays VISIBLE and prepares behind an
+    // inert black poster, avoiding intermediate gray/scaled first frames.
+    final String playing=currentId(gallery);
+    if(playing.startsWith("v")&&ambientPoster!=null&&
+       playing.equals(ambientMediaId)&&ambientPoster.getVisibility()==View.VISIBLE){
+      long elapsed=android.os.SystemClock.uptimeMillis()-r574VideoCurtainAt;
+      if((actualMediaReady(gallery)&&elapsed>=360L)||elapsed>=2200L){
+        ambientPoster.setVisibility(View.GONE);
+      }
     }
     if(!r572NativeMountAck){
       r572NativeMountAck=true;
@@ -1175,12 +1188,22 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       poster.setBackgroundColor(Color.BLACK);poster.setAlpha(1f);
       // Absolute bottom of the native stage. Photos must ALWAYS paint above
       // video ambient, even in the brief interval before selection callbacks.
-      parent.addView(poster,0,new FrameLayout.LayoutParams(-1,-1));
+      poster.setClickable(false);poster.setFocusable(false);
+      poster.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+      // Put this one-time opaque black curtain ABOVE video output, never
+      // above the original host-level rail/seek/action controls.
+      parent.addView(poster,new FrameLayout.LayoutParams(-1,-1));
       ambientPoster=poster;ambientParent=parent;ambientMediaId="";
     }
-    ambientPoster.setVisibility(View.VISIBLE);texture.setOpaque(true);
+    texture.setOpaque(true);
+    // Do not re-show the curtain on every 155ms Gallery tick after the first
+    // native video frame has become visible: that caused repeated flashing.
     if(id.equals(ambientMediaId))return;
-    ambientMediaId=id;ambientPoster.setImageDrawable(null);
+    ambientMediaId=id;
+    r574VideoCurtainAt=android.os.SystemClock.uptimeMillis();
+    ambientPoster.setVisibility(View.VISIBLE);
+    ambientPoster.bringToFront();
+    ambientPoster.setImageDrawable(null);
     final ImageView target=ambientPoster;
     // R570: fixed neutral backdrop for in-card VIDEO only. The historical
     // asynchronous blurred poster flashed/recomposited behind each TextureView
