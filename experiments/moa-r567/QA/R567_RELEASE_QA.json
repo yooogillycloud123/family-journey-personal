@@ -1,0 +1,102 @@
+{
+  "release": "R567_R569",
+  "status": "JAVA_DEX_JS_SIGNED_CRYPTO_STATIC_PASS__PHYSICAL_GALAXY_NOT_TESTED",
+  "user_video_evidence": [
+    "21846.mp4",
+    "21847.mp4",
+    "21850.mp4"
+  ],
+  "rooted_findings": [
+    "R563 foreground resume checker ran at only 580ms and could return without clearing returnFromBackground, blocking further native Back/repair.",
+    "R563 host could be INVISIBLE with isOpen=true/attached, which cannot be fixed by bringToFront alone.",
+    "Original native Gallery close detaches host synchronously; old 155ms+polling produced 0.5-1.0s gray before JS calendar.",
+    "Previous R563 native currentDay date / pending token check blocked a same-day recreated WebView repair."
+  ],
+  "changes": [
+    "Calendar HTML rendered BEFORE original Gallery is closed during explicit Back.",
+    "Original in-card native host attach/detach watched; foreground native close not confused with controlled WebView restart or Activity onPause.",
+    "PrePause fence prevents Android backgrounding from being misclassified as Back.",
+    "Return checks at 150/480/950/1700/2750/3950ms until WebView verifies same-day live native owner; never reopen live R463 Gallery.",
+    "Live host restored from INVISIBLE, brought forward, NativePending+WebMessagePort re-synced only after same-day JS ACK.",
+    "Confirmed broken native host triggers one controlled same-day restart; partial JS readiness does not clear return flag.",
+    "Exact R535 integer geometry math retained; no novel scrolling feature."
+  ],
+  "code": "567",
+  "restore_code": "569",
+  "original_certificate": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
+  "github_ci": "https://github.com/yooogillycloud123/family-journey-personal/actions/runs/43588010597",
+  "ci_dex_sha256": "a073bd5222aa77f8ca452408d64469c07a556158064f91cfd9b642840982025d",
+  "ci_dex_bytes": 49732,
+  "apk_verifications": [
+    {
+      "file": "MOA_R567_FOREGROUND_NATIVE_RESTORE_ONE_BACK_SAME_SIGNER_TEST.apk",
+      "bytes": 9069544,
+      "sha256": "f205afb72744391ce9f2594f898728699870be006f787c712599a1ee8492e93c",
+      "package": "com.juhyeon.familyjournea",
+      "versionCode": 567,
+      "signer_sha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
+      "apk_v2_rsa_signature": "PASS",
+      "apk_v2_signed_content_digest": "PASS",
+      "zip_crc": "PASS",
+      "stored_entry_4byte_align": "PASS",
+      "dex_sha1_adler32": "PASS",
+      "dex_count": 18,
+      "stored_members": 48,
+      "zip_members": 143
+    },
+    {
+      "file": "MOA_R569_EXACT_R463_GOLDEN_FUNCTION_FORWARD_RECOVERY.apk",
+      "bytes": 8978095,
+      "sha256": "e3545a707402911eb9798d5e01007d066b776018d7e3d7faf96524bf9042fccd",
+      "package": "com.juhyeon.familyjournea",
+      "versionCode": 569,
+      "signer_sha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
+      "apk_v2_rsa_signature": "PASS",
+      "apk_v2_signed_content_digest": "PASS",
+      "zip_crc": "PASS",
+      "stored_entry_4byte_align": "PASS",
+      "dex_sha1_adler32": "PASS",
+      "dex_count": 17,
+      "stored_members": 47,
+      "zip_members": 140
+    }
+  ],
+  "browser_qa": [
+    {
+      "theme": "peach",
+      "no_timer_close": "PASS",
+      "detail_owner_order": "PASS",
+      "detail_to_photo_3x": "PASS",
+      "original_settings": "PASS",
+      "native_back_stale_owner_to_calendar": "PASS",
+      "js_errors": []
+    },
+    {
+      "theme": "black",
+      "no_timer_close": "PASS",
+      "detail_owner_order": "PASS",
+      "detail_to_photo_3x": "PASS",
+      "original_settings": "PASS",
+      "native_back_stale_owner_to_calendar": "PASS",
+      "js_errors": []
+    },
+    {
+      "theme": "white",
+      "no_timer_close": "PASS",
+      "detail_owner_order": "PASS",
+      "detail_to_photo_3x": "PASS",
+      "original_settings": "PASS",
+      "native_back_stale_owner_to_calendar": "PASS",
+      "js_errors": []
+    }
+  ],
+  "protected_r563_members_unchanged": 140,
+  "original_native_core_dex_unchanged": 17,
+  "forward_restore_r565_members_unchanged": 139,
+  "physical_device_test": false,
+  "device_open_issues": [
+    "Samsung Gallery Back dispatcher precedence/first-frame after Home/Recents requires user test",
+    "TextureView content may remain gray despite isAvailable=true; cannot be proven in browser fixture",
+    "Micro-scroll jitter floor from separate WebView/native compositor remains"
+  ]
+}
