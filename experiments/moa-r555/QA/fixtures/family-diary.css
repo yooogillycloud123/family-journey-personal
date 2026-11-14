@@ -1,0 +1,126 @@
+/* R23 family's original diary calendar and full-day narrative UI. */
+#fj-diary-root{position:fixed;inset:0 0 calc(67px + env(safe-area-inset-bottom)) 0;z-index:18;overflow-y:auto;overscroll-behavior:contain;background:#fff;color:#1d2632;font-family:system-ui,'Noto Sans KR',sans-serif;padding:calc(15px + env(safe-area-inset-top)) max(15px,calc((100vw - 620px)/2)) 54px;box-sizing:border-box}
+#fj-diary-root[hidden]{display:none!important}#fj-diary-root *,#fj-diary-root *::before{box-sizing:border-box}
+#fj-diary-root button{font:inherit;cursor:pointer}
+#fj-diary-root .fd23-banner{background:#edf6ff;border-radius:12px;padding:10px 14px;font-size:12px;color:#43719e;margin:4px 0 15px}
+#fj-diary-root .fd23-banner.error{background:#fff1ee;color:#ad4230}
+#fj-diary-root .fd23-header{padding:2px 0 7px}.fd23-heading{font-size:26px;font-weight:800;letter-spacing:-.7px}
+#fj-diary-root .fd23-modes{display:grid;grid-template-columns:1fr 1fr;gap:5px;background:#f1f3f6;border-radius:14px;padding:5px;margin:8px 0 22px}
+#fj-diary-root .fd23-modes button{border:0;border-radius:11px;background:transparent;color:#7b8797;min-height:46px;font-size:13px;font-weight:800;line-height:1.2}
+#fj-diary-root .fd23-modes button.active{background:white;color:#2b83f2;box-shadow:0 2px 8px #23304716}
+#fj-diary-root .fd23-btn{border:0;border-radius:12px;background:#f1f3f7;padding:10px 12px;min-height:42px;color:#445365;font-size:13px;font-weight:700;line-height:1.3}
+#fj-diary-root .fd23-btn.primary{background:#3489f3;color:white}#fj-diary-root .fd23-btn.soft{background:#f3f6fa}#fj-diary-root .fd23-btn.danger{color:#c4493d;background:#fff1ef}
+#fj-diary-root .fd23-btn.wide{width:100%;margin-top:10px;min-height:52px}
+#fj-diary-root .fd23-btn.circle{width:41px;height:42px;padding:6px;font-size:21px}
+#fj-diary-root .fd23-month{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:5px 0 13px}#fj-diary-root .fd23-month strong{font-size:22px;font-weight:800}
+#fj-diary-root .fd23-actions{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:14px 0}
+#fj-diary-root .fd23-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:9px}
+#fj-diary-root .fd23-week{text-align:center;color:#98a4b1;font-size:12px;padding:8px 0}
+#fj-diary-root .fd23-cell{position:relative;background:#fcfdff;border:1px solid #e8ecf2;border-radius:10px;padding:3px;min-height:78px;text-align:left;overflow:hidden;display:flex;flex-direction:column}
+#fj-diary-root .fd23-cell.other{opacity:.3}#fj-diary-root .fd23-cell.today{outline:2px solid #358ff3;outline-offset:-2px}
+#fj-diary-root .fd23-daynum{display:flex;justify-content:space-between;align-items:flex-start;gap:0;font-size:11px;min-height:17px}#fj-diary-root .fd23-daynum span{font-size:9px;color:#8d98a8;white-space:nowrap}
+#fj-diary-root .fd23-cover{width:100%;height:45px;border-radius:6px;object-fit:cover;margin-top:2px}#fj-diary-root .fd23-empty{height:45px}
+#fj-diary-root .fd23-note-dot{position:absolute;bottom:3px;right:4px;font-size:10px;color:#2387f3;text-shadow:0 1px 3px white}
+#fj-diary-root .fd23-hint{font-size:13px;color:#8c98a8;line-height:1.6;margin:12px 0 14px}
+#fj-diary-root .fd23-hero{background:linear-gradient(135deg,#edf5ff,#f8faff);padding:20px;border-radius:18px}
+#fj-diary-root .fd23-hero h2{font-size:20px;margin:0 0 10px}#fj-diary-root .fd23-hero p{font-size:13px;line-height:1.7;color:#697889;margin:0}
+#fj-diary-root .fd23-emptymsg{padding:44px 24px;border-radius:16px;border:1px dashed #d0d9e6;text-align:center;color:#8290a0;font-size:14px;line-height:1.7;margin:15px 0}
+#fj-diary-root .fd23-record{width:100%;background:#fff;border:1px solid #e8edf4;border-radius:15px;display:flex;align-items:center;gap:14px;text-align:left;margin:12px 0;padding:10px}
+#fj-diary-root .fd23-recordphoto{width:94px;height:94px;object-fit:cover;border-radius:10px}
+#fj-diary-root .fd23-record div{display:flex;flex:1;min-width:0;flex-direction:column;gap:8px}#fj-diary-root .fd23-record strong{font-size:16px}#fj-diary-root .fd23-record small{color:#7990a5}#fj-diary-root .fd23-record span{font-size:12px;color:#83909d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#fj-diary-root .fd23-top{display:flex;justify-content:space-between;align-items:center;gap:5px;margin:5px 0 16px}#fj-diary-root .fd23-top>strong{font-size:16px;text-align:center}
+#fj-diary-root .fd23-daystats{font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:5px;background:#f7f9fc;border-radius:12px;padding:12px 14px}#fj-diary-root .fd23-daystats small{font-size:11px;color:#7b8694}
+#fj-diary-root .fd23-shortcuts{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 19px}
+#fj-diary-root .fd23-written{background:#f4f8ff;border-radius:17px;padding:18px;margin-bottom:20px}#fj-diary-root .fd23-written h2{margin:0 0 11px;font-size:22px}#fj-diary-root .fd23-written p{line-height:1.8;white-space:pre-wrap;margin:0 0 12px;font-size:15px}#fj-diary-root .fd23-written small{color:#617991}
+#fj-diary-root .fd23-timeline{border-left:2px solid #dfebf7;margin:18px 0 20px 7px;padding-left:15px}#fj-diary-root .fd23-timeline h3{font-size:18px;margin:0 0 20px}
+#fj-diary-root .fd23-log{position:relative;padding:0 0 22px}#fj-diary-root .fd23-log:before{content:'';position:absolute;left:-22px;top:4px;width:11px;height:11px;border-radius:50%;background:#348cf2;border:3px solid white;box-shadow:0 0 0 1px #348cf2}
+#fj-diary-root .fd23-logtime{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px}#fj-diary-root .fd23-logtime span{background:#edf4fd;padding:3px 7px;border-radius:8px;color:#7289a0;font-size:11px}#fj-diary-root .fd23-logtime small{color:#919eae}
+#fj-diary-root .fd23-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}#fj-diary-root .fd23-photo{border:0;padding:0;background:#f0f3f8;border-radius:10px;overflow:hidden;aspect-ratio:1}#fj-diary-root .fd23-photo img{width:100%;height:100%;object-fit:cover}
+#fj-diary-root .fd23-activity{color:#3e4e63;font-size:15px;white-space:pre-wrap;margin:7px 0 13px}
+#fj-diary-root .fd23-editor{border:1px solid #e6edf5;border-radius:15px;padding:14px;margin:16px 0}#fj-diary-root .fd23-editor h3{margin:3px 0 14px}
+#fj-diary-root .fd23-editor input,#fj-diary-root .fd23-editor textarea,#fj-diary-root .fd23-editor select{width:100%;min-height:48px;border:1px solid #dce5ef;background:#fafcff;padding:11px 12px;border-radius:10px;color:#1d2936;font:inherit;margin:5px 0;outline:none}#fj-diary-root .fd23-editor textarea{min-height:150px;resize:vertical}
+#fj-diary-root .fd23-activity-editor label{display:block;font-size:12px;color:#718498;margin:7px 0}#fj-diary-root .fd23-activity-editor h4{margin-bottom:10px}
+#fj-diary-root .fd23-daynav{display:flex;justify-content:space-between;gap:7px;margin-top:30px}#fj-diary-root .fd23-daynav button{flex:1}
+#fj-diary-root .fd23-chip{padding:7px 10px;border-radius:9px;background:#ecf5ff;color:#3081e5;font-weight:800}
+#fj-diary-root .fd23-picker-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#fj-diary-root .fd23-pickerphoto{padding:0;aspect-ratio:1;border:2px solid transparent;position:relative;overflow:hidden;border-radius:10px;background:#e6eaf0}
+#fj-diary-root .fd23-pickerphoto img{width:100%;height:100%;object-fit:cover}#fj-diary-root .fd23-pickerphoto.sel{border-color:#3289f5}
+#fj-diary-root .fd23-pickercheck{position:absolute;right:4px;top:4px;border-radius:50%;width:22px;height:22px;display:grid;place-items:center;color:white;background:#657281a8;font-size:14px}#fj-diary-root .fd23-pickerphoto.sel .fd23-pickercheck{background:#3289f5}
+#fj-diary-root .fd23-picker-foot{position:sticky;bottom:4px;background:white;padding:12px 8px;box-shadow:0 -5px 14px #1932511d;display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:14px;margin:12px 0}
+#fj-diary-root .fd23-picker-foot button{flex:1}
+
+#fj-diary-root .fd23-date-label{display:flex;flex-direction:column;font-size:13px;color:#60758e;margin-top:16px;gap:6px}
+#fj-diary-root #fd23-newdate{width:100%;font-size:16px;padding:12px;border:1px solid #d1e0f0;border-radius:11px;background:white;color:#24354a;min-height:48px}
+
+/* R24 — deliberate separation of automatic daily roll and curated diary */
+#fj-diary-root .fd23-curated-create{margin:18px 0 14px;padding:16px;background:#f1f7ff;border-radius:15px}
+#fj-diary-root .fd23-curated-create>label{display:block;font-weight:700;font-size:13px;color:#55718e}
+#fj-diary-root #fd23-newdate{width:100%;margin:8px 0 5px;border:1px solid #cbdced;border-radius:12px;background:white;min-height:48px;padding:10px;color:#2a3b4c;font:inherit}
+#fj-diary-root .fd23-mode-note{display:inline-flex;align-items:center;padding:9px 11px;font-size:12px;color:#57758d;background:#edf5ff;border-radius:12px}
+#fj-diary-root .fd23-picker-date{grid-column:1/-1;display:flex;align-items:center;gap:9px;flex-wrap:wrap;border-bottom:1px solid #d9e7f5;padding:14px 0 8px;margin:8px 0 3px;color:#30485c}
+#fj-diary-root .fd23-picker-date strong{font-weight:800;font-size:15px}
+#fj-diary-root .fd23-picker-date span{font-size:12px;color:#8596a5}
+#fj-diary-root .fd23-activity-editor textarea{display:block;width:100%;min-height:104px;line-height:1.6;resize:vertical;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;box-sizing:border-box}
+#fj-diary-root .fd23-editor textarea{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65}
+
+/* R25: PC import is an explicit opt-in action, no background photo transfer. */
+.fd25-pc-import{padding:16px 18px;margin:16px 0;background:linear-gradient(135deg,#eef7ff,#f7f9fc);border:1px solid #dcecf8;border-radius:20px}
+.fd25-pc-import h3{font-size:19px;font-weight:800;margin:0 0 8px}
+.fd25-pc-import p{font-size:13px;line-height:1.65;color:#586778;margin:0 0 12px}
+.fd25-pc-import button{min-height:48px}
+
+
+/* R26: in-place, metadata-only gallery video cards. MP4 bytes stay in MediaStore. */
+#fj-diary-root .fd26-tile{position:relative;min-width:0}
+#fj-diary-root .fd26-tile .fd23-photo{display:block;width:100%;position:relative}
+#fj-diary-root .fd26-video-mark,#fj-diary-root .fd26-picker-video{position:absolute;left:5px;bottom:5px;padding:4px 6px;color:#fff;background:#09182bc7;border-radius:7px;font-weight:800;font-size:11px;pointer-events:none}
+#fj-diary-root .fd26-share{width:100%;border:0;border-radius:0 0 9px 9px;font-size:11px;background:#eef5ff;color:#2472d2;min-height:28px;padding:3px 0}
+#fj-diary-root .fd26-video{border:2px solid #50a1ee}
+#fj-diary-root .fd26-picker-video{font-size:10px;left:3px;bottom:4px;max-width:95%}
+#fj-diary-root .fd26-calendar-play{position:absolute;bottom:15px;left:9px;background:#1f62a0c7;color:white;border-radius:40px;padding:2px 6px;font-size:11px}
+#fj-diary-root .fd23-daynum span{font-size:8px;white-space:normal;line-height:1.1;text-align:right}
+
+/* R28 individual timeline GPS controls: parent R27 CSS baseline retained. */
+#fj-diary-root .fd28-geochip{display:block;margin:4px 0 10px;padding:0 3px;min-height:15px;color:#65788d;font-size:12px}
+#fj-diary-root .fd28-geo-toggle{font-size:11px;min-height:29px;border:0;border-radius:9px;background:#eef5ff;color:#216ab2;padding:5px 7px;display:block;margin:2px auto 4px}
+
+/* R29: photo/video parity, collapsible per-item GPS, user-chosen calendar covers. */
+#fj-diary-root .fd29-media-actions{display:flex;gap:3px;min-width:0;margin:3px 0 2px}
+#fj-diary-root .fd29-quick{flex:1;min-width:0;min-height:30px;border:0;border-radius:8px;background:#eef5ff;color:#2469b8;font-size:11px;font-weight:700;padding:4px 2px}
+#fj-diary-root .fd29-cover-btn,#fj-diary-root .fd29-position{display:block;width:100%;min-height:30px;border:0;border-radius:8px;background:#f3f5f9;color:#607082;font-size:11px;font-weight:650;padding:4px 1px;margin:2px 0}
+#fj-diary-root .fd29-cover-btn.selected{color:#087fa8;background:#e2f8f6}
+#fj-diary-root .fd29-geo-panel{margin:4px 0 9px;padding:2px 0 4px;min-width:0;overflow-wrap:anywhere}
+#fj-diary-root .fd29-geo-panel[hidden]{display:none!important}
+#fj-diary-root .fd29-geo-panel .fj-r28-location{font-size:10px;gap:3px;margin:0}
+#fj-diary-root .fd29-geo-panel .fj-r28-action{font-size:10px;padding:4px 5px}
+#fj-diary-root .fd26-tile{display:flex;flex-direction:column;min-width:0}
+/* R31 additive only: same 30-per-tap presentation as map-place photo pagination. */
+.fd23-root .fd31-more{display:block;box-sizing:border-box;width:100%;margin:13px 0 18px;border:0;border-radius:15px;background:#e8f3ff;color:#2473ca;font-weight:750;font-size:15px;padding:16px;min-height:48px}
+.fd23-root .fd31-more:active{background:#d9eafb}
+
+/* R37: never expose native WebView broken-image glyphs while loading. */
+#fj-diary-root img[data-photo-id]:not([src]),#fj-diary-root img.fd37-pending{opacity:0!important}
+#fj-diary-root .fd23-cell,#fj-diary-root .fd23-photo,#fj-diary-root .fd23-pickerphoto{background-color:#f6f1ee}
+
+/* MOA R41 instant-moment diary */
+.fd41-toolbar{margin:14px 14px 8px;padding:14px;background:#f8f4f0;border-radius:18px;display:flex;flex-wrap:wrap;align-items:center;gap:9px;}
+.fd41-toolbar p{flex:1 0 100%;font-size:13px;margin:1px 0;line-height:1.5;color:#59636f;}
+.fd41-switch{padding:13px 16px!important;border:1px solid #adb1b6!important;border-radius:12px!important;background:#fff!important;color:#263441!important;font-weight:700!important;min-height:44px;}
+.fd41-on{background:#126b54!important;color:white!important;border-color:#126b54!important;}
+.fd41-pending{background:#fff9ea!important;border:1px solid #f0b64b!important;color:#60430c!important;border-radius:12px!important;padding:12px!important;}
+.fd41-shade{position:fixed;inset:0;z-index:2147483640;background:rgba(18,24,32,.58);display:flex;align-items:flex-end;justify-content:center;box-sizing:border-box;}
+.fd41-card{box-sizing:border-box;display:flex;flex-direction:column;gap:10px;background:#fff;color:#263441;border-radius:24px 24px 0 0;width:100%;max-width:650px;padding:22px 18px calc(26px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px #0003;}
+.fd41-card h3{font-weight:800;font-size:21px;margin:0;}
+.fd41-card .fd41-help,.fd41-card .fd41-stamp{font-size:14px;line-height:1.55;color:#59636f;margin:0;}
+.fd41-card textarea{min-height:120px;border:1px solid #e1e4e7;resize:vertical;border-radius:14px;padding:14px;font:16px/1.5 inherit;background:#f9fafb;color:#263441;}
+.fd41-buttons{display:flex;gap:7px;flex-wrap:wrap}.fd41-buttons button{min-height:45px;flex:1;padding:10px;border:1px solid #dedede;border-radius:12px;font-weight:700;}
+.fd41-buttons button.primary{background:#df8084;color:white;}
+.fd41-moments{margin:16px;padding:14px;background:#f9f7f2;border-radius:16px}.fd41-moments h3{margin:0 0 12px;font-size:19px}.fd41-memory{padding:12px;margin:8px 0;background:white;border-radius:12px}.fd41-memory p{white-space:pre-wrap;line-height:1.5;margin:8px 0}.fd41-memory button{border:1px solid #e7e4e0;background:#fafafa;padding:9px 12px;border-radius:10px;}
+
+/* R42: no separate moment-card section. Notes live in their timeline segment. */
+#fj-diary-root .fd42-awaiting{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 12px;margin:8px 0;background:#fff9eb;border:1px solid #f2d8a2;border-radius:12px;color:#756128}
+#fj-diary-root .fd42-awaiting small{font-size:13px}
+#fj-diary-root .fd42-note-btn{border:0!important;padding:8px 10px!important;background:#f9dfaa!important;color:#624a12!important;font-size:13px!important}
+#fj-diary-root .fd42-old-note{background:#fff8e9;white-space:pre-wrap}
+.fd41-card .fd42-microphone{padding:14px;border:1px solid #bdd2e0;border-radius:13px;background:#eaf5ff;color:#1d506e;font-weight:800;min-height:48px;text-align:center}
+.fd41-card .fd42-microphone:disabled{opacity:.75}
