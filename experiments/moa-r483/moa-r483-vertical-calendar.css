@@ -874,3 +874,13 @@ html #fj-diary-root[data-page="day"] .moa-r539-day-settings::before{
 /* Make native scroll the sole rendering owner, not a Web proxy that can
    indefinitely leave native alpha zero after port loss. */
 html #moa-r469-root.moa-r539-scroll-proxy .moa-r469-stage-media{visibility:hidden!important}
+/* The SVG-like dots are a pseudo-glyph so the oval background cannot cover
+   the button text in Samsung WebView painting order. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings{font-size:0!important;color:transparent!important;}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings::after,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings::after{
+ content:"···";position:absolute;inset:0;display:grid;place-items:center;
+ z-index:1;pointer-events:none;color:var(--moa-r491-muted,#776b73);
+ font-size:14px;letter-spacing:.5px;line-height:1;
+}
