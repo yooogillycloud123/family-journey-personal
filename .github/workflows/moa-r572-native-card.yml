@@ -1,7 +1,7 @@
-name: MOA R572 R567-Golden-safe native photo card smoke and DEX
+name: MOA R588 R572 identical UI except redundant outer dock removed
 on:
   push:
-    branches: ['feature/moa-r572-r570-compact-dock-rail-flash-fast-toast-20261114']
+    branches: ['feature/moa-r588-r572-only-remove-outer-dock-background-20261115']
     paths:
       - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
       - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
@@ -32,23 +32,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p /tmp/moa572/classes /tmp/moa572/dex build/moa-r572
+          mkdir -p /tmp/moa588/classes /tmp/moa588/dex build/moa-r588
           javac -encoding UTF-8 -source 17 -target 17 \
             -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
-            -d /tmp/moa572/classes \
+            -d /tmp/moa588/classes \
             experiments/moa-r507/MoaR507InlineGalleryProvider.java
-          find /tmp/moa572/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | \
+          find /tmp/moa588/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | \
             xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 \
             --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
-            --output /tmp/moa572/dex
-          cp /tmp/moa572/dex/classes.dex build/moa-r572/classes18.dex
+            --output /tmp/moa588/dex
+          cp /tmp/moa588/dex/classes.dex build/moa-r588/classes18.dex
           python3 - <<'PY'
           from pathlib import Path
           import hashlib,json
-          p=Path('build/moa-r572/classes18.dex');b=p.read_bytes()
+          p=Path('build/moa-r588/classes18.dex');b=p.read_bytes()
           assert b[:3]==b'dex' and len(b)<200000
           data={'dex_bytes':len(b),'dex_sha256':hashlib.sha256(b).hexdigest(),'device_status':'NOT_TESTED','golden_native_17_dex':'FROZEN'}
-          Path('build/moa-r572/manifest.json').write_text(json.dumps(data,indent=2))
+          Path('build/moa-r588/manifest.json').write_text(json.dumps(data,indent=2))
           print(json.dumps(data))
           PY
       - name: JS and source regression contract
@@ -70,11 +70,19 @@ jobs:
           assert 'moa-r572-video-active' in js and 'background:#000!important' in css
           assert 'moa-r572-toast-leave' in fav and 'toastTimer=setTimeout' in fav
           assert 'Color.BLACK' in java and 'r570OpenFavorite' in java
-          print('R572 native scope/Java interfaces, black standby, rail, fast, toast PASS')
+          
+          assert 'deck.setBackgroundColor(Color.TRANSPARENT);' in java
+          assert 'footer.setStroke' not in java
+          assert 'deck.setBackground(footer)' not in java
+          assert 'capsule.setBackground(bg);' in java
+          assert 'bg.setCornerRadius(dp(a,19))' in java
+          assert 'GradientDrawable bg=new GradientDrawable()' in java
+          assert 'p.height=dp(a,currentId(gallery).startsWith("v")?137:112)' in java
+          print('R588 only outer full-width R572 dock removed; all 8 original action objects/listeners/oval/rail unchanged PASS')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MOA-R572-classes18-DEX-and-QA
-          path: build/moa-r572/
+          name: MOA-R588-classes18-DEX-and-QA
+          path: build/moa-r588/
           if-no-files-found: warn
