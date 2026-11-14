@@ -843,13 +843,38 @@ html #fj-diary-root[data-page="day"]>.fd23-timeline>h3,
 html #fj-diary-root[data-page="day"]>.fd23-written>h2{display:none!important;}
 html #fj-diary-root[data-page="day"]>.fd23-written:not(:has(p,small)){display:none!important;}
 html #fj-diary-root[data-page="day"]>.fd23-timeline{margin-top:12px!important;}
-/* Temporarily render the same WebView slide under invisible native pixels so
-   the moving photo belongs to ONE compositor during vertical fling. */
-html #moa-r469-root.moa-r539-scroll-proxy.moa-r507-native-mounted[data-page="day"] .moa-r469-stage-media{
- visibility:visible!important;pointer-events:none!important;
-}
 /* The original detailed editor has 15px ROOT side padding, while photo root
    has none. Remove the duplicated 15px chrome indentation so both modes align. */
 html #fj-diary-root[data-page="day"] .moa-r539-day-chrome{
  margin-left:2px!important;margin-right:2px!important;
 }
+
+/* R543: both hit boxes remain accessible, while the settings GLYPH CAPSULE
+   has the exact same 44x19px perceived silhouette as its neighboring switch.
+   The former 34px square outlined button was visually oversized. */
+html #moa-r469-root .moa-r539-day-controls .moa-r539-day-settings,
+html #fj-diary-root .moa-r539-day-controls .moa-r539-day-settings{
+  position:relative!important;isolation:isolate;
+  flex:0 0 44px!important;width:44px!important;height:34px!important;min-height:34px!important;
+  border:0!important;border-radius:20px!important;background:transparent!important;
+  padding:0!important;box-shadow:none!important;color:var(--moa-r491-muted,#776b73)!important;
+  font-size:14px!important;font-weight:700!important;letter-spacing:1px!important;line-height:34px!important;
+}
+html #moa-r469-root .moa-r539-day-controls .moa-r539-day-settings::before,
+html #fj-diary-root .moa-r539-day-controls .moa-r539-day-settings::before{
+ content:'';position:absolute;z-index:-1;left:0;top:calc(50% - 9.5px);
+ width:44px;height:19px;box-sizing:border-box;
+ border-radius:100px;background:var(--moa-r491-track,#f3eef1);
+ border:1px solid var(--moa-r491-track-border,#d4c8ce);
+}
+html #moa-r469-root .moa-r539-photo-settings{
+ width:min(178px,58vw)!important;top:37px!important;padding:8px!important;
+ border-radius:11px!important;box-shadow:0 5px 14px #0002!important;
+}
+html #moa-r469-root .moa-r539-settings-detail{
+ min-height:30px!important;margin-top:0!important;padding:6px 8px!important;
+ border-radius:8px!important;font-size:11px!important;font-weight:500!important;
+}
+html #moa-r469-root .moa-r539-settings-detail+.moa-r539-settings-detail{margin-top:4px!important;}
+/* Never promote the old Web slide over a mounted R463 Gallery again. */
+html #moa-r469-root.moa-r507-native-mounted .moa-r469-stage-media{visibility:hidden!important;}
