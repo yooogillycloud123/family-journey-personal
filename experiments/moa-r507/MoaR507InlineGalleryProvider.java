@@ -257,8 +257,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         try{attachCard(a,web,gallery,armedState);}catch(Throwable ignored){}
         disarm();
         host.postDelayed(()->{
+          // Never leave a half-transparent TextureView when the user scrolls
+          // during an entrance fade (position translation does not own alpha).
           if(host==nativeHost&&galleryOpen(gallery)&&ownsGallery)
-            host.animate().alpha(1f).setDuration(75).start();
+            host.setAlpha(1f);
         },16);
         return true;
       }
