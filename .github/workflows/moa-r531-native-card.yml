@@ -51,7 +51,7 @@ jobs:
           assert "hadMountedOnPause" in java and "nativeHost.setAlpha(\"1\".equals(ctrl[2])?0f:1f)" not in java
           assert "moa-r539-day-controls" in css
           assert "nativeOwnerActivity!=null && a!=nativeOwnerActivity" in java
-          assert "if(healthy)" in java and "ONLY the unusable host" in java
+          assert "if(healthy)" in java and "galleryOpen(gallery)&&gallery==galleryRef" in java
           assert "window.__moaR547RebuildDamagedHost" in js
           assert "moa-r547-native-owner" in css and "moa-r547-native-owner" in js
           assert "returnFromBackground=hadMountedOnPause" in java
