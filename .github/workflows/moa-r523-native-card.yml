@@ -72,3 +72,5 @@ jobs:
 # Final R523 in-card-only compact R463 controls repair from dd c22d397437a89c2f4f69179be4f5ed447cce83
 
 # Final native Back IME/voice guard commit 2fe422cb3d4de65f617027038e90e5a526b8a638
+
+# Final native close-debounce and Samsung Back latch source commit 274e017a1e1ef27ca0d25a7aa2cbebbd59ffa6e6
