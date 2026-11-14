@@ -75,6 +75,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // R519 avoids reapplying image/video transforms every native layout tick.
   private long lastFillAt;
   private String lastFillId="";
+  // Read-only repair of an original photo which was temporarily absent from
+  // MediaStore immediately after native Quick Record; no host reopen.
+  private String r578MissingPhotoId="";
+  private long r578MissingPhotoSince=0L;
+  private int r578PhotoRefreshCount=0;
   private int lastIndex = -1;
   private int lastX = Integer.MIN_VALUE, lastY = Integer.MIN_VALUE;
   private int lastW = -1, lastH = -1;
@@ -380,6 +385,22 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       r572SyncFastSetting(a);
       r572SyncRailHeight(a,gallery);
       final String selected=currentId(gallery);
+      // R578: after new Quick Record, R463 may open while MediaStore has not
+      // yet delivered a drawable. Wait for its own async decoder, then invoke
+      // only ORIGINAL refreshPages; never Gallery.close/reopen, never fake PASS.
+      if(!selected.startsWith("v")&&!selected.isEmpty()&&
+         nativeHost!=null&&nativeHost.getVisibility()==View.VISIBLE){
+        long tick=android.os.SystemClock.uptimeMillis();
+        if(!selected.equals(r578MissingPhotoId)){
+          r578MissingPhotoId=selected;r578MissingPhotoSince=tick;r578PhotoRefreshCount=0;
+        }
+        if(actualMediaReady(gallery)){r578MissingPhotoSince=0L;}
+        else if(r578MissingPhotoSince>0L&&tick-r578MissingPhotoSince>1500L&&
+                r578PhotoRefreshCount<5&&tick-lastMediaRefreshAt>2200L){
+          r578PhotoRefreshCount++;
+          refreshOriginalMediaIfBlank(gallery);
+        }
+      }
       if(!selected.equals(lastFillId)){
         lastFillId=selected;fillPrepareAttempts=0;lastFillAt=0L;
         updateAmbientForSelection(a,gallery,selected);
@@ -575,6 +596,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     coverStar=null;railToggle=null;advancedButton=null;favoriteButton=null;r570Actions.clear();railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;ambientPoster=null;ambientParent=null;ambientMediaId="";initialCardChromeHidden=false;
     r572FirstPhotoPending=false;r572NativeMountAck=false;r572FirstPhotoDeadline=0L;
     r574PhotoWaitNotified=false;r574PhotoRefreshAttempts=0;r574VideoCurtainAt=0L;
+    r578MissingPhotoId="";r578MissingPhotoSince=0L;r578PhotoRefreshCount=0;
     r572FastRestorePending=false;r572FastRestoreDone=false;r572FastSeen=false;
     r572LastVideoRail=null;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
@@ -622,6 +644,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // allows the already displayed WebView still to remain underneath.
       round.setColor(Color.TRANSPARENT);round.setCornerRadius(dp(a,23));
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
+      // R578: R567-user-approved photos MUST crop to fill the original card.
+      // Set original ImageView ScaleType before attachCard first sets host visible;
+      // no bitmap replacement, no extra Gallery/MediaPlayer and no synthetic mask.
+      r578RestoreGoldenPhotoCrop(gallery);
       // R576: the R572/R574 first-photo-gate kept entire native host invisible
       // when Quick Record IDs were provisional; revert to proven R567 mounting.
       r572FirstPhotoPending=false;
@@ -1135,35 +1161,32 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       railToggle.setSelected(!expanded);
     }
   }
-  // R576: compact the real, measured vertical gap between the LAST visible
-  // original gallery lower-row child and the existing eight-action capsule.
-  // This moves the whole original nativeLower, including gestures and video
-  // buttons, so touch coordinates/selected thumbnail never become detached.
-  // It is card-local, idempotent, bounded, and not used by fullscreen Gallery.
+  // R578: measure the actual FILMSTRIP, not all children of lowerControls.
+  // R576 measured video controls too; those can sit lower than the thumbnail,
+  // so the algorithm falsely concluded the user-marked gap was already small.
+  // Translate only the original rail View (including its real click target).
+  // The 8 original action View/listeners and original player controls stay put.
   private void r576TightenMeasuredRail(Activity a){
-    if(!ownsGallery||nativeLower==null||actionDeck==null||!railExpanded||
-       nativeLower.getParent()==null||actionDeck.getParent()==null)return;
-    final LinearLayout lower=nativeLower;final FrameLayout deck=actionDeck;
-    lower.post(()->{
-      if(!ownsGallery||nativeLower!=lower||actionDeck!=deck||!railExpanded||
-         lower.getParent()==null||deck.getParent()==null)return;
+    if(!ownsGallery||nativeLower==null||railView==null||actionDeck==null||!railExpanded||
+       nativeLower.getParent()==null||railView.getParent()==null||actionDeck.getParent()==null)return;
+    final View film=railView;final FrameLayout dock=actionDeck;
+    film.post(()->{
+      if(!ownsGallery||!railExpanded||film!=railView||dock!=actionDeck||
+         film.getParent()==null||dock.getParent()==null||!film.isShown()||
+         film.getHeight()<=0||dock.getHeight()<=0)return;
       try{
-        int[] dock=new int[2];deck.getLocationInWindow(dock);
-        float old=lower.getTranslationY();
-        float maxBottom=Float.NEGATIVE_INFINITY;
-        for(int k=0;k<lower.getChildCount();k++){
-          View item=lower.getChildAt(k);
-          if(item==null||item.getVisibility()!=View.VISIBLE||item.getHeight()<=0)continue;
-          int[] p=new int[2];item.getLocationInWindow(p);
-          float actualBottom=p[1]+item.getHeight()*(.5f+.5f*item.getScaleY());
-          maxBottom=Math.max(maxBottom,actualBottom);
-        }
-        if(!Float.isFinite(maxBottom))return;
-        float visualGap=dock[1]-maxBottom;
-        // Convert measured gap back to the unshifted baseline, then request
-        // 7dp of breathing space. Never overlap the capsule or move >38dp.
-        float want=Math.max(0f,Math.min(dp(a,38),old+visualGap-dp(a,7)));
-        if(Math.abs(want-old)>dp(a,1))lower.setTranslationY(want);
+        // Previous R576 modified the entire lowerControls row including video
+        // seek/mute, making the actual visual gap calculation inconsistent.
+        if(nativeLower.getTranslationY()!=0f)nativeLower.setTranslationY(0f);
+        int[] rp=new int[2],dpPos=new int[2];
+        film.getLocationInWindow(rp);dock.getLocationInWindow(dpPos);
+        // ScaleY=.79 preserves current thumbnail art. View position already
+        // includes its translation. The drawn bottom sits above its layout edge.
+        float drawnBottom=rp[1]+film.getHeight()*(.5f+.5f*film.getScaleY());
+        float gap=dpPos[1]-drawnBottom;
+        float old=film.getTranslationY();
+        float desired=Math.max(0f,Math.min(dp(a,68),old+gap-dp(a,5)));
+        if(Math.abs(desired-old)>dp(a,1))film.setTranslationY(desired);
       }catch(Throwable ignored){}
     });
   }
@@ -1175,10 +1198,21 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(raw instanceof TextureView)updateVideoAmbient(a,(TextureView)raw,id);
     else if(ambientPoster!=null)ambientPoster.setVisibility(View.GONE);
   }
+  private void r578RestoreGoldenPhotoCrop(Object gallery){
+    if(currentId(gallery).startsWith("v"))return;
+    Object slots=readField(gallery,"images");
+    if(!(slots instanceof ImageView[]))return;
+    for(ImageView im:(ImageView[])slots){
+      if(im!=null&&im.getScaleType()!=ImageView.ScaleType.CENTER_CROP)
+        im.setScaleType(ImageView.ScaleType.CENTER_CROP);
+    }
+  }
   private void fillNativeMediaCard(Activity a,Object gallery){
-    // R574: do not mutate original photo ScaleType AFTER the first frame.
-    // Keep the R463 Gallery photo layout stable and let its own decoder paint.
-    // The existing video ambient update below is intentionally preserved.
+    Object pictures=readField(gallery,"images");
+    if(pictures instanceof ImageView[]){
+      for(ImageView im:(ImageView[])pictures)if(im!=null && im.getScaleType()!=ImageView.ScaleType.CENTER_CROP)
+        im.setScaleType(ImageView.ScaleType.CENTER_CROP);
+    }
     // R531: photos retain cover; VIDEO must preserve EVERY edge of the frame.
     // Leave the original R463 TextureView FIT transform untouched. Its old
     // in-card max-scale replacement cut away content and caused geometry fights.
@@ -1190,17 +1224,39 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }
   }
   private void updateVideoAmbient(Activity a,TextureView texture,String id){
-    // R576: R570–R574 built an extra gray/black poster and repeatedly
-    // changed TextureView opacity. The original R463 Gallery already owns
-    // its video surface. Restore one opaque original renderer with NO
-    // synthetic full-frame overlay or gray/black transition layer.
-    if(ambientPoster!=null){
-      if(ambientPoster.getParent() instanceof ViewGroup)
-        ((ViewGroup)ambientPoster.getParent()).removeView(ambientPoster);
-      ambientPoster=null;ambientParent=null;
+    if(!id.startsWith("v")||!id.substring(1).matches("[0-9]{1,18}")){
+      if(ambientPoster!=null)ambientPoster.setVisibility(View.GONE);
+      texture.setOpaque(true);return;
     }
-    ambientMediaId=id;
-    texture.setOpaque(true);
+    ViewGroup parent=texture.getParent() instanceof ViewGroup?(ViewGroup)texture.getParent():null;
+    if(!(parent instanceof FrameLayout))return;
+    if(ambientPoster==null||ambientParent!=parent){
+      if(ambientPoster!=null&&ambientPoster.getParent() instanceof ViewGroup)
+        ((ViewGroup)ambientPoster.getParent()).removeView(ambientPoster);
+      ImageView poster=new ImageView(a);poster.setScaleType(ImageView.ScaleType.CENTER_CROP);
+      poster.setBackgroundColor(0xff38343a);poster.setAlpha(.77f);
+      if(Build.VERSION.SDK_INT>=31)poster.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(22f,22f,android.graphics.Shader.TileMode.CLAMP));
+      // Absolute bottom of the native stage. Photos must ALWAYS paint above
+      // video ambient, even in the brief interval before selection callbacks.
+      parent.addView(poster,0,new FrameLayout.LayoutParams(-1,-1));
+      ambientPoster=poster;ambientParent=parent;ambientMediaId="";
+    }
+    ambientPoster.setVisibility(View.VISIBLE);texture.setOpaque(false);
+    if(id.equals(ambientMediaId))return;
+    ambientMediaId=id; // Retain prior blurred thumbnail while next thumb decodes: no gray reflash.
+    final ImageView target=ambientPoster;final String requested=id;
+    // A small MediaStore poster is decoded off the UI thread only when the
+    // media changes, not every video frame or Web/native scroll update.
+    new Thread(()->{
+      android.graphics.Bitmap thumb=null;
+      try{
+        android.net.Uri uri=android.net.Uri.parse("content://media/external/video/media/"+requested.substring(1));
+        thumb=a.getContentResolver().loadThumbnail(uri,new android.util.Size(180,240),null);
+      }catch(Throwable ignored){}
+      final android.graphics.Bitmap ready=thumb;
+      main.post(()->{if(ready!=null&&ownsGallery&&ambientPoster==target&&requested.equals(ambientMediaId))
+        target.setImageBitmap(ready);else if(ready!=null)ready.recycle();});
+    },"moa-r531-video-poster").start();
   }
   private static String currentId(Object gallery){
     try {
