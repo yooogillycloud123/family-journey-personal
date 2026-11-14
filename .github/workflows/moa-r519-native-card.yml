@@ -70,3 +70,5 @@ jobs:
 # Recompile final native startup opacity fix from feature commit 25a79569110303d5e405acfcde158ffdbce5f1be
 
 # Final R519 in-card-only compact R463 controls repair from dd c22d397437a89c2f4f69179be4f5ed447cce83
+
+# Final native Back IME/voice guard commit 2fe422cb3d4de65f617027038e90e5a526b8a638
