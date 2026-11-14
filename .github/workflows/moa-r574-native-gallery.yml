@@ -71,7 +71,7 @@ jobs:
           assert 'moa-r572-toast-leave' in fav and 'toastTimer=setTimeout' in fav
           assert 'Color.BLACK' in java and 'r570OpenFavorite' in java
           assert 'r574PhotoRefreshAttempts' in java and 'deck.setBackgroundColor(Color.TRANSPARENT)' in java
-          assert 'r574IndexAttemptCount' in js and 'r574PhotoStillLoading' in js
+          assert 'r574IndexAttemptCount' in js and '__moaR574PhotoStillLoading' in js
           assert 'r574-index-wait' in css
           assert 'int h=dp(a,expanded?(video?126:100):82)' in java
           print('R574 quick-capture index gate, photo-frame protection, compact rail and prior R572 functionality PASS')
