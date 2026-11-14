@@ -85,4 +85,3 @@
  }
  window.MoaR570PhotoFavorites=Object.freeze({save});
 })();
-})();
