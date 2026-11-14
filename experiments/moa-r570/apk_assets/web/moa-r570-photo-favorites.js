@@ -46,7 +46,7 @@
    const s=window.MoaR469SimpleDiary?.readOnlyStatus?.();
    if(!s?.active||s.page!=='day'||window.__moaR570CurrentMediaId?.()!==id)return false;
    if(typeof window.FamilyJourneyNaver?.saveFromDiaryGps!=='function')return false;
-   const key=id+':'+mode;
+   const key=id; // one in-flight operation per photo across web/native paths
    if(inProgress.has(key)){status('이미 이 사진의 저장 요청을 확인 중입니다.');return false;}
    inProgress.add(key);
    status('원본 사진 촬영 GPS를 확인하는 중…');
