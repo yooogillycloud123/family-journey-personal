@@ -520,6 +520,23 @@ window.__moaR523NativeBack=function(token){
  r495TryBack();
  return ui.page==='calendar'?'exit':'stay';
 };
+// R559 user-initiated Back is synchronous to the CURRENT photo-day.
+// It is not an asynchronous old-host close event and must never be rejected
+// because the Android renderer retains an older token after a re-entry.
+window.__moaR559ForegroundDayBack=function(){
+ if(!ui.open||ui.page!=='day')return 'not-open';
+ if(document.getElementById('moa-r149-voice-modal')){
+   const modal=document.getElementById('moa-r149-voice-modal');
+   const button=modal.querySelector('button[aria-label*="닫기"]');
+   if(button)button.click();else window.__fjBackOverlay?.();
+   return 'modal';
+ }
+ const shade=view?.querySelector('.moa-r479-picker-backdrop');
+ if(shade){shade.remove();return 'picker';}
+ goBack();
+ return ui.page==='calendar'?'exit':'stay';
+};
+window.__moaR559RepositionNative=function(){r527SyncGeometry(true);return true;};
 window.__moaR519NativeBack=window.__moaR523NativeBack;
 function installBack(){if(backInstalled)return;backInstalled=true;r495InstallBackHandlers();}
 function r475ModeToggle(active,onPhoto,onDetail){
