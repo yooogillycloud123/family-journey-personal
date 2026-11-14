@@ -31,51 +31,13 @@ let r527DayToken=0;
 window.__moaR527DayToken=0;
 let r527GeometryPort=null, r527FrameQueued=false, r527LastSentAt=0;
 let r527LastRect='';
-// R539: two independently composited surfaces cannot move in exact phase.
-// While the diary scrolls, show the existing SAME-media WebView poster (one
-// compositor), hide only native-host PIXELS (alpha), keeping native touch owner
-// and MediaPlayer alive. Restore real native pixels after final geometry flush.
-let r539ProxyActive=false,r539ProxyTimer=0,r539LastWake=0,r539HiddenAt=0;
-let r539ProxyClosing=false,r539ProxyAckTimer=0;
-const R539_STABLE_SCROLL_KEY='moa.r539.scroll.web.proxy.v1';
-function r539StableScroll(){try{return localStorage.getItem(R539_STABLE_SCROLL_KEY)!=='off'}catch(_){return true}}
-function r539ProxyMessage(enabled){
- if(!r527GeometryPort)return;
- try{r527GeometryPort.postMessage('s,'+window.__moaR527DayToken+','+(enabled?'1':'0'))}catch(_){r527GeometryPort=null}
-}
-function r539FinishProxy(){
- clearTimeout(r539ProxyAckTimer);r539ProxyAckTimer=0;
- r539ProxyClosing=false;r539ProxyActive=false;
- view?.classList.remove('moa-r539-scroll-proxy');
-}
-function r539EndProxy(){
- clearTimeout(r539ProxyTimer);r539ProxyTimer=0;
- if(!r539ProxyActive||r539ProxyClosing)return;
- // Request the last actual DOM position FIRST; wait for Android's alpha=1
- // acknowledgment BEFORE withdrawing the synchronized WebView poster.
- r539ProxyClosing=true;
- r527SyncGeometry(true);
- r539ProxyMessage(false);
- r539ProxyAckTimer=setTimeout(r539FinishProxy,320);
-}
-window.__moaR539NativeScrollSettled=function(token){
- if(Number(token)===window.__moaR527DayToken&&r539ProxyClosing)r539FinishProxy();
-};
-function r539OnDayScroll(){
- if(!r539StableScroll()||!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced||
-     !window.__moaR507NativePending||!view?.classList.contains('moa-r507-native-mounted'))return;
- if(r539ProxyClosing){
-  clearTimeout(r539ProxyAckTimer);r539ProxyAckTimer=0;r539ProxyClosing=false;
-  r539ProxyMessage(true);
- }
- if(!r539ProxyActive){
-  r539ProxyActive=true;
-  view.classList.add('moa-r539-scroll-proxy');
-  r539ProxyMessage(true);
- }
- clearTimeout(r539ProxyTimer);
- r539ProxyTimer=setTimeout(()=>requestAnimationFrame(r539EndProxy),160);
-}
+// R543: disable R539's dual-compositor alpha-hide proxy. It can leave the
+// original native gallery fully transparent after a lost WebMessagePort ACK.
+// Preserve direct R527 event-driven geometry; NEVER hide native pixels.
+let r539LastWake=0,r539HiddenAt=0;
+function r539StableScroll(){return false}
+function r539EndProxy(){view?.classList.remove('moa-r539-scroll-proxy')}
+function r539OnDayScroll(){/* no alpha changes; native Gallery remains visible */}
 // Both Android resumed and document visibility can signal a return; duplicate
 // hints are debounced. A native handshake, not the JS renderer, owns the close.
 function r539WakeNative(){
@@ -123,7 +85,7 @@ function r527SyncGeometry(force=false){
 window.addEventListener('message',ev=>{
  if(!r527TrustedOrigin()||ev.data!=='MOA_R527_POSITION_CHANNEL'||!ev.ports?.length)return;
  try{r527GeometryPort?.close()}catch(_){}
- r527GeometryPort=ev.ports[0];r527LastRect='';r527SyncGeometry(true);if(r539ProxyActive)r539ProxyMessage(true);
+ r527GeometryPort=ev.ports[0];r527LastRect='';r527SyncGeometry(true);
 },false);
 window.__moaR527BridgeListenReady=true;
 window.addEventListener('resize',()=>r527SyncGeometry(true),{passive:true});
@@ -197,13 +159,19 @@ window.__moaR535ResumeInline=function(token){
 // Reopening is one generation; never render a fresh diary day or reset index.
 window.__moaR539RecoverAfterReturn=function(token){
  if(Number(token)!==window.__moaR527DayToken||!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced)return false;
- r539EndProxy();r507StopInline();r515RecoveryAttempts=0;
+ r539EndProxy();
+ // Native provider has ALREADY closed the stale Gallery. Do NOT send a
+ // second delayed closeNativeGallery() that could close the NEW instance.
+ ++r507Generation;clearTimeout(r507Timer);r507Timer=0;
+ r507Opened=false;window.__moaR507NativePending=false;
+ window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
+ view?.classList.remove('moa-r507-native-mounted');
+ clearTimeout(r519EntryTimer);r519EntryTimer=0;r515RecoveryAttempts=0;
  r527BeginDay();
  if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
- clearTimeout(r507Timer);
  r507Timer=setTimeout(()=>{
   if(ui.open&&ui.page==='day'&&!r523DayExiting&&!r531Advanced)r507StartInline();
- },150);
+ },220);
  return true;
 };
 function r507StopInline(){
@@ -553,12 +521,10 @@ function r539PhotoSettings(){
  const open=view?.querySelector('.moa-r539-photo-settings');if(open){open.remove();return}
  const controls=view?.querySelector('.moa-r539-day-controls');if(!controls)return;
  const panel=elem('div','moa-r539-photo-settings');panel.setAttribute('role','group');panel.setAttribute('aria-label','사진형 보기 설정');
- const option=elem('label','moa-r539-stable-option');const check=elem('input');check.type='checkbox';check.checked=r539StableScroll();
- check.addEventListener('change',()=>{try{localStorage.setItem(R539_STABLE_SCROLL_KEY,check.checked?'on':'off')}catch(_){}if(!check.checked)r539EndProxy();});
- option.append(check,elem('span','','스크롤 중 화면 고정'));panel.append(option);
+ // R539 scroll-fix control removed: this alpha-hide mode was unsafe.
  const details=btn('상세형 보기 설정',()=>{panel.remove();r475OpenDetail(ui.date);setTimeout(()=>{diaryRoot()?.querySelector('.moa-r191-day-menu-trigger')?.click();},120)},'moa-r539-settings-detail');
  panel.append(details);
- const retry=btn('현재 사진 다시 표시',()=>{panel.remove();r539WakeNative()},'moa-r539-settings-detail');
+ const retry=btn('갤러리 다시 연결',()=>{panel.remove();r539WakeNative()},'moa-r539-settings-detail');
  panel.append(retry);controls.append(panel);
 }
 function r475OpenDetail(day){if(ui.dirty){notify('작성 중인 글을 먼저 저장한 뒤 상세형으로 전환해 주세요.');return;}
