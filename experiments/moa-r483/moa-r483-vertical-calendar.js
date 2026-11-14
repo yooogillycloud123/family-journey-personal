@@ -359,14 +359,16 @@ window.__moaR523NativeClosed=function(){
  return goBack();
 };
 window.__moaR523NativeBack=function(){
- if(!ui.open||ui.page!=='day')return false;
+ if(!ui.open||ui.page!=='day')return 'not-open';
  // Voice/recording popups keep their original close priority.
  if(document.getElementById('moa-r149-voice-modal')){
-  const h=window.__fjBackOverlay;if(typeof h==='function')return h();
-  const close=document.querySelector('#moa-r149-voice-modal button[aria-label*="닫기"]');
-  if(close){close.click();return true;}return false;
+  const h=window.__fjBackOverlay;
+  if(typeof h==='function')h();
+  else document.querySelector('#moa-r149-voice-modal button[aria-label*="닫기"]')?.click();
+  return 'modal';
  }
- return r495TryBack();
+ r495TryBack();
+ return ui.page==='calendar'?'exit':'stay';
 };
 window.__moaR519NativeBack=window.__moaR523NativeBack;
 function installBack(){if(backInstalled)return;backInstalled=true;r495InstallBackHandlers();}
