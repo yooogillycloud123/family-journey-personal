@@ -1,3 +1,5 @@
+> **2026-11-15 R576 RELEASE ARCHIVE FINAL HASH CORRECTION (DO NOT REPLACE OR RE-SIGN APKs).** The authoritative final, CRC+19 SHA checked, source/QA bundle is `MOA_R576_R577_FINAL_VERIFIED_20261115.zip`, **26,334,208 bytes**, SHA256 `623180412e9f0e0fd24061fd532fde5ef6610bd470c27a36ca7a7e4385ac8510`; safely saved in private Library `/모아_프로젝트_근거_20261103/R576_R577_SIGNED_20261115/`. Earlier archive filename `MOA_R576_R577_SAME_SIGNER_INSTALL_RECOVERY_SOURCE_QA_20261115.zip` has multiple previous exported snapshots while README test-count text was corrected, so prefer the unique **FINAL_VERIFIED** file and its hash above; any earlier archived SHA listed below applies only to its named historical snapshot. **Signed APK SHA unchanged:** R576 `5435d9e185cbf6acdce451d165bfe81aef386a1f69987b4b355758b64df77fc4`, R577 exact R567 functional recovery `7a2a9d9eb04a25c7f6894efda454e278a36d6b7896fa403f87c7755172b362bb`. Chromium actual available tests **3 PASS**; old text saying 5 was corrected in final README. **R576 Samsung user test pending, R567 user-approved Golden immutable**.
+
 # MOA R576/R577 — R574 실기기 갤러리 먹통·첫 진입 번쩍임·썸네일 간격 수정 (2026-11-15 KST)
 
 ## 현재 상태 및 우선순위
