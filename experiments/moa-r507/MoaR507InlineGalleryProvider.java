@@ -254,17 +254,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       web.getLocationInWindow(wpos);root.getLocationInWindow(rpos);
       double sx=(double)web.getWidth()/vw,sy=(double)web.getHeight()/vh;
       if(sx<.2||sx>10||sy<.2||sy>10)return;
-      double exactX=wpos[0]-rpos[0]+dx*sx,exactY=wpos[1]-rpos[1]+dy*sy;
-      int ix=rounded(exactX),iy=rounded(exactY);
+      // R559: EXACT R535 success-lineage pixel snap; R555 fractional translations
+      // regressed real 120Hz scroll by oscillating across compositor sampling.
+      int ix=rounded(wpos[0]-rpos[0]+dx*sx),iy=rounded(wpos[1]-rpos[1]+dy*sy);
       int iw=rounded(dw*sx),ih=rounded(dh*sy);
       // Do not trigger MediaPlayer/TextureView re-layout in a position frame.
       if(lastW<0||Math.abs(iw-lastW)>dp(foreground,8)||
           Math.abs(ih-lastH)>dp(foreground,8))return;
-      // Float translations preserve CSS fractional scroll positions; the old
-      // rounded integer displacement visibly toggled between adjacent pixels.
-      nativeHost.setTranslationX((float)(exactX-baseX));
-      nativeHost.setTranslationY((float)(exactY-baseY));
-      nativeHost.setVisibility(exactY+ih<0||exactY>root.getHeight()?View.INVISIBLE:View.VISIBLE);
+      // R535 original single geometry owner: exact integer target, no overshoot.
+      nativeHost.setTranslationX(ix-baseX);
+      nativeHost.setTranslationY(iy-baseY);
+      nativeHost.setVisibility(iy+ih<0||iy>root.getHeight()?View.INVISIBLE:View.VISIBLE);
       lastPositionMessageAt=android.os.SystemClock.uptimeMillis();
       lastX=ix;lastY=iy;
     }catch(Throwable ignored){}
@@ -306,6 +306,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       if(ownsGallery && !fullNativeOpen &&
           (returnFromBackground || android.os.SystemClock.uptimeMillis()<returnCloseGuardUntil))return;
       ensurePositionChannel(web);
+      if(!ownsGallery)retireDayBackIfInactive(a,web);
       if(ownsGallery) {
         // R551: an isOpen=false observation may be a media transition, external
         // Activity return, or an old host being retired. It is NOT evidence of
@@ -428,6 +429,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         if(root==null)return;
         armRoot=root;armedState=state;ownedDayToken=state.optInt("token",0);inlineArmed=true;
         armDeadline=android.os.SystemClock.uptimeMillis()+5000;
+        // R559: install the photo-day Back owner while arming, NOT only after
+        // video/photo host becomes visible. A lost host must not swallow Back.
+        installInlineBack(a,web);
         installPreDrawGuard(a,web,root);
         web.evaluateJavascript("window.__moaR511NativeArmed=true;",null);
       }catch(Throwable ignored){}
@@ -485,16 +489,30 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       ((ViewGroup)railToggle.getParent()).removeView(railToggle);
     if(coverStar!=null && coverStar.getParent() instanceof ViewGroup)
       ((ViewGroup)coverStar.getParent()).removeView(coverStar);
-    if(inlineBack!=null && backOwner!=null && Build.VERSION.SDK_INT>=33)try{
-      backOwner.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(inlineBack);
-    }catch(Throwable ignored){}
-    inlineBack=null;backOwner=null;
+    // R559: native host disposal is NOT photo-day disposal. The original Gallery
+    // can briefly lose its SurfaceTexture while the same photo-day is still up.
+    // Keep our single-Back handler until an explicit day exit/fullscreen handoff
+    // or until the trusted JS page is verified to have switched away.
+
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
     nativeOwnerActivity=null;
     coverStar=null;railToggle=null;advancedButton=null;railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;ambientPoster=null;ambientParent=null;ambientMediaId="";initialCardChromeHidden=false;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
     exitInFlight=false;ownedDayToken=0;nativeCloseDetectedAt=0L;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
     lastX=lastY=Integer.MIN_VALUE;
+  }
+  private void dropDayBack(){
+    if(inlineBack!=null&&backOwner!=null&&Build.VERSION.SDK_INT>=33)try{
+      backOwner.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(inlineBack);
+    }catch(Throwable ignored){}
+    inlineBack=null;backOwner=null;exitInFlight=false;
+  }
+  private void retireDayBackIfInactive(Activity a,WebView web){
+    if(inlineBack==null||backOwner!=a||web==null)return;
+    try{web.evaluateJavascript("(function(){var d=window.MoaR469SimpleDiary,s=d&&d.readOnlyStatus&&d.readOnlyStatus();"+
+      "return !!(s&&s.active&&s.page==='day'&&!window.__moaR539AdvancedActive?.());})()",v->{
+      if(backOwner==a&&inlineBack!=null&&!"true".equals(v))dropDayBack();
+    });}catch(Throwable ignored){}
   }
   private static int rounded(double x){return (int)Math.round(x);}
   private void attachCard(Activity a,WebView web,Object gallery,JSONObject s){
@@ -510,9 +528,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(sx<.2||sx>10||sy<.2||sy>10)return;
     int[] webPos=new int[2],rootPos=new int[2];
     web.getLocationInWindow(webPos);root.getLocationInWindow(rootPos);
-    double exactX=webPos[0]-rootPos[0]+s.optDouble("x")*sx;
-    double exactY=webPos[1]-rootPos[1]+s.optDouble("y")*sy;
-    int x=rounded(exactX),y=rounded(exactY);
+    // R559: R535 fallback geometry matches WebMessagePort integer snap.
+    int x=rounded(webPos[0]-rootPos[0]+s.optDouble("x")*sx);
+    int y=rounded(webPos[1]-rootPos[1]+s.optDouble("y")*sy);
     int w=rounded(s.optDouble("w")*sx),h=rounded(s.optDouble("h")*sy);
     if(w<150||h<180)return;
     if(w>root.getWidth()+3||h>root.getHeight()+3)return;
@@ -539,8 +557,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // The 18dp velocity lead made opposite-direction corrections visible
       // when the WebMessagePort stream resumed after a fallback snapshot.
       // Both paths now use the same integer-pixel target, with no animation.
-      host.setTranslationX((float)(exactX-baseX));
-      host.setTranslationY((float)(exactY-baseY));
+      host.setTranslationX(x-baseX);host.setTranslationY(y-baseY);
       lastGeometrySnapshotAt=android.os.SystemClock.uptimeMillis();
       lastGeometrySnapshotY=y;
     }
@@ -567,7 +584,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     syncIndex(web,gallery,s.optString("cover",""));
   }
   private void installInlineBack(Activity a,WebView web){
-    if(Build.VERSION.SDK_INT<33||inlineBack!=null)return;
+    if(Build.VERSION.SDK_INT<33)return;
+    if(inlineBack!=null&&backOwner==a)return;
+    if(inlineBack!=null)dropDayBack();
     try{
       // Overlay priority only during this photo-card session. Unrelated original
       // R463 fullscreen Gallery retains its own Android Back callback and behavior.
@@ -590,11 +609,13 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         // Native Back must exit the PHOTO DAY, not merely Gallery.close() which
         // exposes the abandoned legacy web photo editor underneath.
         exitInFlight=true;lastNativeBackAt=now;
-        final int callbackToken=ownedDayToken;
-        web.evaluateJavascript("window.__moaR523NativeBack?window.__moaR523NativeBack("+callbackToken+"):window.__moaR519NativeBack&&window.__moaR519NativeBack();",result->{
-          // A voice modal or cancelled dirty-editor confirmation does not
-          // complete a day exit; next hardware Back must remain responsive.
-          if(!"\"exit\"".equals(result))exitInFlight=false;
+        // A real user Back is an immediate foreground action, NOT a delayed
+        // async closed-host callback. Never reject because the native token is
+        // older than the current JS day after photo/detail re-entry.
+        web.evaluateJavascript("window.__moaR559ForegroundDayBack?window.__moaR559ForegroundDayBack():\"not-open\"",result->{
+          if("\"exit\"".equals(result)||"\"not-open\"".equals(result)){
+            dropDayBack();
+          }else exitInFlight=false;
         });
       };
       a.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_OVERLAY+50,inlineBack);
@@ -735,8 +756,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     fullNativeOpen=true;fullNativeSeenOpen=false;fullscreenOwnerActivity=foreground;
     fullNativeLastIndex=lastIndex;fullNativeLastId=currentId(gallery);
     fullNativeStartedAt=android.os.SystemClock.uptimeMillis();
-    // Close and detach ONLY our in-card host. A NEW original Gallery.open()
-    // below is then standalone and cannot be reparented by this provider.
+    // Standalone original fullscreen Gallery owns its OWN Back handler.
+    dropDayBack();
     clearCardMark();invokeClose(gallery);
     web.evaluateJavascript("window.__moaR531ShowAdvanced&&window.__moaR531ShowAdvanced();",null);
   }
@@ -903,14 +924,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     final FrameLayout root=a.findViewById(android.R.id.content);
     final Object rawHost=readField(gallery,"host");
     final boolean healthy=galleryOpen(gallery)&&gallery==galleryRef&&
-        rawHost==nativeHost&&nativeHost!=null&&
-        nativeHost.getParent()==root&&nativeHost.getAlpha()>.95f;
+        rawHost==nativeHost&&nativeHost!=null&&nativeHost.getParent()==root;
     if(healthy){
-      // PRESERVE the running R463 Gallery, current media, rail and all listeners.
-      // A pause/resume is not Back and does not invalidate ImageView pixels.
+      // R559: the Gallery is attached and OPEN. Reassert actual Z ordering on
+      // resume (external overlays can be inserted above it while MOA is paused).
+      // Do not close/reopen a healthy original Gallery, ever.
       returnFromBackground=false;hadMountedOnPause=false;nativeCloseDetectedAt=0L;
       returnCloseGuardUntil=android.os.SystemClock.uptimeMillis()+1100L;
-      nativeHost.invalidate();
+      nativeHost.setAlpha(1f);
+      nativeHost.bringToFront();
+      nativeHost.requestLayout();nativeHost.invalidate();
+      web.evaluateJavascript("(function(){try{window.__moaR559RepositionNative&&window.__moaR559RepositionNative()}catch(e){}})()",null);
       android.util.Log.i("MOA_R555","RETURN_GALLERY_HEALTHY preserved="+(prePauseRetainAt>0));
       return;
     }
@@ -937,8 +961,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         Object live=readField(a,"unifiedGallery");
         FrameLayout rr=a.findViewById(android.R.id.content);
         if(galleryOpen(live)&&live==galleryRef&&nativeHost!=null&&
-           readField(live,"host")==nativeHost&&nativeHost.getParent()==rr&&
-           nativeHost.getAlpha()>.95f){returnFromBackground=false;return;}
+           readField(live,"host")==nativeHost&&nativeHost.getParent()==rr){
+          returnFromBackground=false;nativeHost.setAlpha(1f);
+          nativeHost.bringToFront();nativeHost.invalidate();return;}
         returnFromBackground=false;hadMountedOnPause=false;
         lastRebindAt=android.os.SystemClock.uptimeMillis();
         returnCloseGuardUntil=lastRebindAt+1900L;
@@ -1030,7 +1055,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   }
   @Override public void onActivityDestroyed(Activity a){
     if(foreground==a){foreground=null;resumed=false;}
-    if(nativeOwnerActivity==a||fullscreenOwnerActivity==a||prePausedOwnerActivity==a){
+    if(nativeOwnerActivity==a||fullscreenOwnerActivity==a||prePausedOwnerActivity==a||backOwner==a){
+      dropDayBack();
       prePausedRetainedGallery=null;
       prePausedOwnerActivity=null;
       closePositionPort();clearCardMark();fullscreenOwnerActivity=null;
