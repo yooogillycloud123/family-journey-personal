@@ -88,6 +88,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private OnBackInvokedCallback inlineBack;
   private boolean exitInFlight;
   private long lastNativeBackAt;
+  private long nativeCloseDetectedAt;
   private String lastVideoGeometryId="";
   private int fillPrepareAttempts;
   private long lastGeometrySnapshotAt;
@@ -165,6 +166,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     Object gallery=readField(a,"unifiedGallery");
     if(!galleryOpen(gallery)){
       if(ownsGallery) {
+        // A media transition can briefly clear the original open flag. Do not
+        // leave the diary on a single transient observation. Confirm closure.
+        long now=android.os.SystemClock.uptimeMillis();
+        if(nativeCloseDetectedAt==0L){nativeCloseDetectedAt=now;return;}
+        if(now-nativeCloseDetectedAt<180L)return;
         // R523: R519 was re-opening the Gallery just after Android's ORIGINAL
         // gallery Back had closed it. The reopen was mistaken for a failed Back,
         // leaving the user trapped for repeated gestures. An owned Gallery close
@@ -179,6 +185,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       maybeArm(a,web);
       return;
     }
+    nativeCloseDetectedAt=0L;
     if(processing)return;
     processing=true;
     final Activity target=a;
@@ -295,7 +302,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
     coverStar=null;railToggle=null;railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
-    exitInFlight=false;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
+    exitInFlight=false;nativeCloseDetectedAt=0L;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
     lastX=lastY=Integer.MIN_VALUE;
   }
   private static int rounded(double x){return (int)Math.round(x);}
@@ -396,7 +403,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         // Native Back must exit the PHOTO DAY, not merely Gallery.close() which
         // exposes the abandoned legacy web photo editor underneath.
         exitInFlight=true;lastNativeBackAt=now;
-        web.evaluateJavascript("if(window.__moaR523NativeBack)window.__moaR523NativeBack();else if(window.__moaR519NativeBack)window.__moaR519NativeBack();",null);
+        web.evaluateJavascript("window.__moaR523NativeBack?window.__moaR523NativeBack():window.__moaR519NativeBack&&window.__moaR519NativeBack();",result->{
+          // A voice modal or cancelled dirty-editor confirmation does not
+          // complete a day exit; next hardware Back must remain responsive.
+          if(!"\"exit\"".equals(result))exitInFlight=false;
+        });
       };
       a.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_OVERLAY+50,inlineBack);
       backOwner=a;
