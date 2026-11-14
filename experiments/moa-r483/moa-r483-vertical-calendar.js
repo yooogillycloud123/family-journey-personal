@@ -1128,6 +1128,8 @@ function playInlineVideo(media){
 
 const originalAudioEvent=window.__moaNativeAudioEvent;
 if(typeof originalAudioEvent==='function'){window.__moaNativeAudioEvent=function(evt){originalAudioEvent.apply(this,arguments);if(!ui.open||ui.page!=='day')return;const event=String(evt?.event||'');if(event==='play_started'||event==='play_resumed'){ui.audioPlaying=true;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='Ⅱ';}else if(['play_paused','play_finished','play_error'].includes(event)){ui.audioPlaying=false;const b=$('.moa-r469-voice-play',view);if(b)b.textContent='▷';}if(['record_saved','delete'].includes(event))setTimeout(refreshVoices,250);};}
+// Native R570 save gate: exact CURRENT photo id, not merely same day/GPS.
+window.__moaR570CurrentMediaId=()=>ui.open&&ui.page==='day'?String(dayMedia(ui.idx)?.id||''):'';
 window.MoaR469SimpleDiary={openAdvancedGallery:()=>window.__moaR531ShowAdvanced?.(),openCalendar:()=>open('calendar'),openDay:d=>open('day',d),setCoverNative:id=>{if(ui.open&&ui.page==='day'&&ui.media.some(m=>String(m.id)===String(id)))saveCover(id)},home:()=>ui.open?(ui.page==='day'?goBack():true):false,close,readOnlyStatus:()=>({active:ui.open,page:ui.page,date:ui.date,mediaCount:ui.media.length,voiceCount:ui.clips.length})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
