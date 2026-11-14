@@ -884,3 +884,20 @@ html #fj-diary-root[data-page="day"] .moa-r539-day-settings::after{
  z-index:1;pointer-events:none;color:var(--moa-r491-muted,#776b73);
  font-size:14px;letter-spacing:.5px;line-height:1;
 }
+
+/* R547 hard owner invariant: the earlier R503 Web controls must NEVER emerge
+   as a second gallery during an Android Back/NAVER/Activity resume transition.
+   The image itself is only an inert visual poster while R463 native mounts.
+   Header / shared photo-detail switch / diary controls stay interactive. */
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-more,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r503-cover-star,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-tools,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-pager,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-native-fallback,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r531-web-advanced{
+ visibility:hidden!important;pointer-events:none!important;
+}
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-stage-media{
+ pointer-events:none!important;
+}
