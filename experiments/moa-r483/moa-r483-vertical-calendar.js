@@ -549,12 +549,17 @@ function r539PhotoSettings(){
  panel.append(retry);controls.append(panel);
 }
 function r475OpenDetail(day){if(ui.dirty){notify('작성 중인 글을 먼저 저장한 뒤 상세형으로 전환해 주세요.');return;}
- // Render the ORIGINAL detailed editor first while covered by current Photo View.
- // No duplicate diary form/records; original settings/timeline/data are owned there.
+ // Original Diary still owns its detailed timeline/settings/data.
+ // R555 must end the photo Gallery BEFORE selectDay opens the detail Gallery.
  const s=getState();if(!s)return;
  s.mode=ui.source;
+ // R555: close the PHOTO-only Gallery FIRST. The original detail selectDay()
+ // opens/owns the R463 Gallery; closing after selectDay() killed that new owner.
+ // Suppress stale card close callbacks while changing representations.
+ r523DayExiting=true;
+ close();
  window.FamilyJourneyDiary?.selectDay?.(day);
- close();r475DecorateDetail();
+ r475DecorateDetail();
 }
 function r475DecorateDetail(){
  const s=getState(),root=diaryRoot();if(!s?.open||s.page!=='day'||!root||root.hidden||ui.open)return;
