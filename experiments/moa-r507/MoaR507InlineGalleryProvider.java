@@ -1,6 +1,7 @@
 package com.juhyeon.familyjourney;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Application;
 import android.content.ContentProvider;
 import android.content.ContentValues;
@@ -11,6 +12,8 @@ import android.graphics.Matrix;
 import android.media.MediaPlayer;
 import android.graphics.RectF;
 import android.widget.ImageView;
+import android.widget.EditText;
+import android.widget.Toast;
 import android.view.TextureView;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -37,6 +40,10 @@ import org.json.JSONTokener;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * R507 experimental native-gallery PHOTO-CARD bridge.
@@ -75,6 +82,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private UnifiedGlyph coverStar;
   private UnifiedGlyph railToggle;
   private UnifiedGlyph advancedButton;
+  // R570 additive photo-only commands; existing R463 Gallery DEX and listeners remain untouched.
+  private UnifiedGlyph favoriteButton;
+  private final LinkedHashMap<String,View> r570Actions=new LinkedHashMap<>();
+  private AlertDialog r570SaveDialog,r570OrderDialog;
+  private static final String[] R570_ROLES={"cover","share","naver","info","fast","favorite","rail","expand"};
   private boolean initialCardChromeHidden=false;
   private boolean fullNativeOpen=false,fullNativeSeenOpen=false;
   private long fullNativeStartedAt=0L;
@@ -538,8 +550,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // or until the trusted JS page is verified to have switched away.
 
     if(nativeHost!=null)try{nativeHost.animate().cancel();nativeHost.setTranslationX(0);nativeHost.setTranslationY(0);nativeHost.setAlpha(1f);}catch(Throwable ignored){}
+    if(r570SaveDialog!=null&&r570SaveDialog.isShowing())r570SaveDialog.dismiss();
+    if(r570OrderDialog!=null&&r570OrderDialog.isShowing())r570OrderDialog.dismiss();
+    r570SaveDialog=null;r570OrderDialog=null;
     nativeOwnerActivity=null;
-    coverStar=null;railToggle=null;advancedButton=null;railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;ambientPoster=null;ambientParent=null;ambientMediaId="";initialCardChromeHidden=false;
+    coverStar=null;railToggle=null;advancedButton=null;favoriteButton=null;r570Actions.clear();railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;ambientPoster=null;ambientParent=null;ambientMediaId="";initialCardChromeHidden=false;
     compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
     exitInFlight=false;ownedDayToken=0;nativeCloseDetectedAt=0L;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
     lastX=lastY=Integer.MIN_VALUE;
@@ -635,6 +650,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // Overlay priority only during this photo-card session. Unrelated original
       // R463 fullscreen Gallery retains its own Android Back callback and behavior.
       inlineBack=()->{
+        // A photo-only native settings dialog must close BEFORE the photo-day Back.
         // Native Back may be delivered multiple times by Samsung predictive-
         // gesture/legacy callback dispatch; one logical day-exit only.
         long now=android.os.SystemClock.uptimeMillis();
@@ -650,6 +666,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
             return;
           }
         }catch(Throwable ignored){}
+        if(r570SaveDialog!=null&&r570SaveDialog.isShowing()){r570SaveDialog.dismiss();return;}
+        if(r570OrderDialog!=null&&r570OrderDialog.isShowing()){r570OrderDialog.dismiss();return;}
         // Native Back must exit the PHOTO DAY, not merely Gallery.close() which
         // exposes the abandoned legacy web photo editor underneath.
         exitInFlight=true;lastNativeBackAt=now;
@@ -678,6 +696,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // occurs ONCE when the in-card host mounts or the user toggles the rail.
       return;
     }
+    // Stable references to the ORIGINAL four R463 native actions, before inserts.
+    final View r570Share=capsule.getChildAt(0),r570Naver=capsule.getChildAt(1);
+    final View r570Info=capsule.getChildAt(2),r570Fast=capsule.getChildAt(3);
     actionDeck=deck;actionCapsule=capsule;
     if(deck.getLayoutParams() instanceof FrameLayout.LayoutParams){
       FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)deck.getLayoutParams();
@@ -778,6 +799,14 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       if(nativeLower!=null)nativeLower.setVisibility(View.GONE);
       deck.setVisibility(View.GONE);
     }
+    if(favoriteButton==null){
+      // Keep Save separate from the compact capture-address/default-display card.
+      UnifiedGlyph favorite=new UnifiedGlyph(a,UnifiedGlyph.FAVORITE);
+      favorite.setContentDescription("현재 사진 네이버 즐겨찾기 저장");
+      favorite.setTag("moa.gallery.inline.favorite.r570");favorite.setClickable(true);favorite.setFocusable(true);
+      favorite.setOnClickListener(v->r570OpenFavorite(a,web,gallery));
+      capsule.addView(favorite,new LinearLayout.LayoutParams(0,dp(a,34),1f));favoriteButton=favorite;
+    }
     if(advancedButton==null){
       // R535: seventh symbol inside the SAME bottom action capsule, never a
       // floating top-right overlay. Original four R463 listeners remain intact.
@@ -788,12 +817,133 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       advanced.setOnClickListener(v->enterOriginalFullscreen(web,gallery));
       advancedButton=advanced;
     }
+    // Move *existing View objects* only: ORIGINAL OnClickListeners never change.
+    r570InitActionOrder(a,capsule,r570Share,r570Naver,r570Info,r570Fast);
     compactDone=true;
   }
   private void syncAdvancedButton(Object gallery){
     // Parent R463 action deck itself owns show/hide on the media tap.
     if(advancedButton!=null && advancedButton.getVisibility()!=View.VISIBLE)
       advancedButton.setVisibility(View.VISIBLE);
+  }
+  // R570: original R463 actions retain their own listeners and distinct identity.
+  // Reordering only reparents the same views inside the photo-only action capsule.
+  private void r570InitActionOrder(Activity a,LinearLayout capsule,
+         View share,View naver,View info,View fast){
+    if(capsule==null||coverStar==null||favoriteButton==null||railToggle==null||advancedButton==null)return;
+    r570Actions.clear();
+    r570Actions.put("cover",coverStar);r570Actions.put("share",share);
+    r570Actions.put("naver",naver);r570Actions.put("info",info);
+    r570Actions.put("fast",fast);r570Actions.put("favorite",favoriteButton);
+    r570Actions.put("rail",railToggle);r570Actions.put("expand",advancedButton);
+    if(r570Actions.size()!=8)return;
+    for(final View v:r570Actions.values()){
+      // Do NOT replace OnClickListener or intercept original media gestures.
+      v.setOnLongClickListener(target->{r570OpenOrder(a,capsule);return true;});
+    }
+    // Native art has different intrinsic bounds; normalize visual footprints
+    // while retaining 34dp per-action touch areas.
+    float[] ratios={.94f,.92f,.92f,1.02f,.96f,1f,1f,1f};
+    for(int i=0;i<R570_ROLES.length;i++){
+      View role=r570Actions.get(R570_ROLES[i]);if(role==null)continue;
+      View glyph=role instanceof ViewGroup&&((ViewGroup)role).getChildCount()>0?
+         ((ViewGroup)role).getChildAt(0):role;
+      if(glyph instanceof UnifiedGlyph)continue; // fixed 19dp custom canvas
+      glyph.setScaleX(ratios[i]);glyph.setScaleY(ratios[i]);
+    }
+    r570ApplyOrder(a,capsule);
+  }
+  private ArrayList<String> r570SavedRoles(Activity a){
+    final String value=a.getSharedPreferences("moa.r570.photo.actions",0).getString("order","");
+    ArrayList<String> order=new ArrayList<>();
+    if(value.length()>0){for(String role:value.split(",")){if(r570Actions.containsKey(role)&&!order.contains(role))order.add(role);}}
+    // Fail closed: corrupt preference cannot remove any original action.
+    if(order.size()!=R570_ROLES.length){order.clear();order.addAll(Arrays.asList(R570_ROLES));}
+    return order;
+  }
+  private void r570ApplyOrder(Activity a,LinearLayout capsule){
+    if(capsule==null||r570Actions.size()!=8)return;
+    ArrayList<String> order=r570SavedRoles(a);
+    for(String role:order){View v=r570Actions.get(role);
+      if(v==null)return;
+    }
+    // Never re-create actions or listeners. No Gallery replacement.
+    for(String role:order){View v=r570Actions.get(role);
+      if(v.getParent()==capsule)capsule.removeView(v);
+    }
+    for(String role:order){View v=r570Actions.get(role);
+      capsule.addView(v,new LinearLayout.LayoutParams(0,dp(a,34),1f));
+    }
+  }
+  private static String r570RoleLabel(String role){
+    switch(role){case "cover":return "대표 사진";case "share":return "공유";
+      case "naver":return "네이버 지도";case "info":return "촬영 정보";
+      case "fast":return "연속 넘기기";case "favorite":return "네이버 저장";
+      case "rail":return "사진 목록";case "expand":return "전체 화면";default:return role;}
+  }
+  private void r570OpenOrder(Activity a,LinearLayout capsule){
+    if(a==null||a.isFinishing()||capsule!=actionCapsule||r570Actions.size()!=8)return;
+    if(r570OrderDialog!=null&&r570OrderDialog.isShowing())return;
+    ArrayList<String> ids=r570SavedRoles(a);
+    final int[] pos={0};
+    String[] labels=new String[ids.size()];
+    for(int i=0;i<ids.size();i++)labels[i]=(i+1)+". "+r570RoleLabel(ids.get(i));
+    AlertDialog dialog=new AlertDialog.Builder(a)
+      .setTitle("사진형 아이콘 순서")
+      .setSingleChoiceItems(labels,0,(d,which)->pos[0]=which)
+      .setPositiveButton("왼쪽으로",(d,which)->r570MoveOrder(a,capsule,ids,pos[0],-1))
+      .setNeutralButton("오른쪽으로",(d,which)->r570MoveOrder(a,capsule,ids,pos[0],1))
+      .setNegativeButton("닫기",(d,which)->{})
+      .create();r570OrderDialog=dialog;
+    dialog.show();
+  }
+  private void r570MoveOrder(Activity a,LinearLayout capsule,ArrayList<String> order,int pos,int delta){
+    if(pos<0||pos>=order.size()||pos+delta<0||pos+delta>=order.size())return;
+    Collections.swap(order,pos,pos+delta);
+    a.getSharedPreferences("moa.r570.photo.actions",0).edit()
+      .putString("order",android.text.TextUtils.join(",",order)).apply();
+    r570ApplyOrder(a,capsule);
+    Toast.makeText(a,"아이콘 순서가 저장됐습니다",Toast.LENGTH_SHORT).show();
+  }
+  // A native modal sits ABOVE the real R463 TextureView. Do not push/resize
+  // the original capture-info card or create another WebView session.
+  private void r570OpenFavorite(Activity a,WebView web,Object gallery){
+    if(a==null||web==null||gallery==null||!ownsGallery||gallery!=galleryRef||fullNativeOpen||!isTrustedWeb(web))return;
+    final String id=currentId(gallery);
+    if(!id.matches("(?:v)?[0-9]{1,18}")){
+      Toast.makeText(a,"현재 사진의 위치를 확인할 수 없습니다",Toast.LENGTH_SHORT).show();return;
+    }
+    if(r570SaveDialog!=null&&r570SaveDialog.isShowing())return;
+    LinearLayout body=new LinearLayout(a);body.setOrientation(LinearLayout.VERTICAL);
+    int edge=dp(a,18);body.setPadding(edge,dp(a,5),edge,0);
+    TextView help=new TextView(a);help.setText("현재 사진의 원본 촬영 GPS 사용 · 정확한 주소 확인 후 저장");
+    help.setTextSize(12);help.setTextColor(0xff69717a);body.addView(help);
+    EditText alias=new EditText(a);alias.setSingleLine(true);alias.setHint("장소 별명 (선택)");alias.setMaxLines(1);
+    EditText memo=new EditText(a);memo.setHint("네이버 즐겨찾기 메모 (선택)");memo.setMinLines(2);memo.setMaxLines(3);
+    EditText list=new EditText(a);list.setSingleLine(true);list.setHint("저장할 리스트 이름");list.setText("내 장소");
+    body.addView(alias);body.addView(memo);body.addView(list);
+    AlertDialog dialog=new AlertDialog.Builder(a).setTitle("네이버 즐겨찾기 저장")
+      .setView(body).setPositiveButton("비점유 저장",(d,w)->r570DispatchSave(a,web,gallery,id,alias,memo,list,"web"))
+      .setNeutralButton("기존 저장",(d,w)->r570DispatchSave(a,web,gallery,id,alias,memo,list,"native"))
+      .setNegativeButton("취소",(d,w)->{}).create();r570SaveDialog=dialog;
+    dialog.show();
+  }
+  private void r570DispatchSave(Activity a,WebView web,Object gallery,String id,
+                 EditText alias,EditText memo,EditText list,String mode){
+    if(!ownsGallery||gallery!=galleryRef||!id.equals(currentId(gallery))||!isTrustedWeb(web)){
+      Toast.makeText(a,"사진이 변경되어 저장 요청을 취소했습니다",Toast.LENGTH_SHORT).show();return;
+    }
+    // Native Dialog is input-only. The existing first-party JS GPS/Naver writer
+    // stays the sole saving authority, including confirmation / auth / outbox.
+    String script="(function(){return window.MoaR570PhotoFavorites&&"+
+       "window.MoaR570PhotoFavorites.save("+JSONObject.quote(id)+","+
+        JSONObject.quote(alias.getText().toString())+","+
+        JSONObject.quote(memo.getText().toString())+","+
+        JSONObject.quote(list.getText().toString())+","+JSONObject.quote(mode)+");})()";
+    web.evaluateJavascript(script,value->{
+      if(!"true".equals(value))Toast.makeText(a,"저장 엔진 확인 실패 · 다시 시도해 주세요",Toast.LENGTH_LONG).show();
+      else Toast.makeText(a,"저장 요청을 전달했습니다 · 네이버 저장 결과 확인 필요",Toast.LENGTH_LONG).show();
+    });
   }
   private void enterOriginalFullscreen(WebView web,Object gallery){
     if(!ownsGallery||fullNativeOpen||gallery!=galleryRef||!isTrustedWeb(web))return;
@@ -810,7 +960,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // is never entered through this code path.
   // R535: consistent 19dp outlined assets in 34dp hit slots. No font glyphs.
   private static final class UnifiedGlyph extends View{
-    static final int STAR=0,RAIL=1,EXPAND=2;
+    static final int STAR=0,RAIL=1,EXPAND=2,FAVORITE=3;
     private final int kind;
     private final android.graphics.Paint paint=new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
     UnifiedGlyph(Activity a,int kind){super(a);this.kind=kind;
@@ -831,6 +981,13 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         }
         path.close();paint.setStyle(isSelected()?android.graphics.Paint.Style.FILL:android.graphics.Paint.Style.STROKE);
         canvas.drawPath(path,paint);paint.setStyle(android.graphics.Paint.Style.STROKE);
+      }else if(kind==FAVORITE){
+        float x=7.6f*d,y=8.8f*d;
+        android.graphics.Path p=new android.graphics.Path();
+        p.moveTo(cx-x,cy-y);p.lineTo(cx+x,cy-y);p.lineTo(cx+x,cy+y);
+        p.lineTo(cx,cy+3.5f*d);p.lineTo(cx-x,cy+y);p.close();canvas.drawPath(p,paint);
+        canvas.drawLine(cx-3.1f*d,cy-2.1f*d,cx+3.1f*d,cy-2.1f*d,paint);
+        canvas.drawLine(cx,cy-5.2f*d,cx,cy+1.0f*d,paint);
       }else if(kind==RAIL){
         for(int i=0;i<3;i++){
           float x=cx+(i-1)*6.8f*d;
@@ -910,8 +1067,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       if(ambientPoster!=null&&ambientPoster.getParent() instanceof ViewGroup)
         ((ViewGroup)ambientPoster.getParent()).removeView(ambientPoster);
       ImageView poster=new ImageView(a);poster.setScaleType(ImageView.ScaleType.CENTER_CROP);
-      poster.setBackgroundColor(0xff38343a);poster.setAlpha(.77f);
-      if(Build.VERSION.SDK_INT>=31)poster.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(22f,22f,android.graphics.Shader.TileMode.CLAMP));
+      poster.setBackgroundColor(0xff28272c);poster.setAlpha(1f);
       // Absolute bottom of the native stage. Photos must ALWAYS paint above
       // video ambient, even in the brief interval before selection callbacks.
       parent.addView(poster,0,new FrameLayout.LayoutParams(-1,-1));
@@ -920,19 +1076,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     ambientPoster.setVisibility(View.VISIBLE);texture.setOpaque(false);
     if(id.equals(ambientMediaId))return;
     ambientMediaId=id;ambientPoster.setImageDrawable(null);
-    final ImageView target=ambientPoster;final String requested=id;
-    // A small MediaStore poster is decoded off the UI thread only when the
-    // media changes, not every video frame or Web/native scroll update.
-    new Thread(()->{
-      android.graphics.Bitmap thumb=null;
-      try{
-        android.net.Uri uri=android.net.Uri.parse("content://media/external/video/media/"+requested.substring(1));
-        thumb=a.getContentResolver().loadThumbnail(uri,new android.util.Size(180,240),null);
-      }catch(Throwable ignored){}
-      final android.graphics.Bitmap ready=thumb;
-      main.post(()->{if(ready!=null&&ownsGallery&&ambientPoster==target&&requested.equals(ambientMediaId))
-        target.setImageBitmap(ready);else if(ready!=null)ready.recycle();});
-    },"moa-r531-video-poster").start();
+    final ImageView target=ambientPoster;
+    // R570: fixed neutral backdrop for in-card VIDEO only. The historical
+    // asynchronous blurred poster flashed/recomposited behind each TextureView
+    // mount. No MediaPlayer, TextureView transform or R463 callback is changed.
+    target.setImageDrawable(null);
   }
   private static String currentId(Object gallery){
     try {
