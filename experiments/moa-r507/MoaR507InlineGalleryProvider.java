@@ -21,6 +21,7 @@ import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.view.ViewTreeObserver;
 import android.view.animation.LinearInterpolator;
 import android.widget.LinearLayout;
@@ -345,6 +346,17 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // Overlay priority only during this photo-card session. Unrelated original
       // R463 fullscreen Gallery retains its own Android Back callback and behavior.
       inlineBack=()->{
+        // An open diary keyboard owns the first Back gesture. Hide IME without
+        // changing text/recording state; second Back exits the Photo day.
+        try{
+          View decor=a.getWindow().getDecorView();
+          WindowInsets insets=decor.getRootWindowInsets();
+          if(insets!=null && insets.isVisible(WindowInsets.Type.ime())){
+            if(decor.getWindowInsetsController()!=null)
+              decor.getWindowInsetsController().hide(WindowInsets.Type.ime());
+            return;
+          }
+        }catch(Throwable ignored){}
         // Native Back must exit the PHOTO DAY, not merely Gallery.close() which
         // exposes the abandoned legacy web photo editor underneath.
         web.evaluateJavascript("if(window.__moaR519NativeBack)window.__moaR519NativeBack();else window.MoaR469SimpleDiary&&window.MoaR469SimpleDiary.home&&window.MoaR469SimpleDiary.home();",null);
