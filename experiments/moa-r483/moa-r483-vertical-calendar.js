@@ -20,13 +20,15 @@ let r475ExitUntilHidden=false, r475AutostartScheduled=false, r475CalendarRefresh
 // full R503 web presentation and never launch an unexpected fullscreen viewer.
 let r507Generation=0,r507Timer=0,r507Opened=false;
 let r515RecoveryAttempts=0,r515LastNativeMount=0;
+// R519: native bridge takes ownership at day-entry; do not paint obsolete Web controls.
+let r519EntryTimer=0;
 // R511 pre-draw guard arm state; do not start native fullscreen before the provider is ready.
 window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
 window.__moaR507NativePending=false;
 window.__moaR507NativeMounted=function(mounted){
  if(!ui.open||ui.page!=='day')mounted=false;
- if(view)view.classList.toggle('moa-r507-native-mounted',!!mounted);
- if(mounted)r515LastNativeMount=Date.now();
+ if(view){view.classList.toggle('moa-r507-native-mounted',!!mounted);if(mounted)view.classList.remove('moa-r519-native-entering');}
+ if(mounted){r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;}
  if(!mounted){window.__moaR507NativePending=false;r507Opened=false;}
 };
 // R515: a transient Activity/WebView update must not demote the in-card native Gallery.
@@ -35,6 +37,7 @@ window.__moaR515RecoverInline=function(){
  if(++r515RecoveryAttempts>2){r507StopInline();notify('네이티브 갤러리를 다시 연결하지 못했습니다. 사진 데이터는 유지됩니다.');return false;}
  r507Opened=false;window.__moaR507NativePending=false;window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
  view?.classList.remove('moa-r507-native-mounted');
+ if(view)view.classList.add('moa-r519-native-entering');
  clearTimeout(r507Timer);r507Timer=setTimeout(()=>{if(ui.open&&ui.page==='day')r507StartInline()},260);
  return true;
 };
@@ -47,11 +50,16 @@ function r507StopInline(){
  ++r507Generation;clearTimeout(r507Timer);r507Timer=0;
  const opened=r507Opened;
  r507Opened=false;window.__moaR507NativePending=false;window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
- view?.classList.remove('moa-r507-native-mounted');
+ view?.classList.remove('moa-r507-native-mounted','moa-r519-native-entering');
+ clearTimeout(r519EntryTimer);r519EntryTimer=0;
  if(opened){try{window.MoaLocalAudio?.closeNativeGallery?.()}catch(e){console.warn('R507 inline close',e)}}
 }
 function r507StartInline(){
  const generation=++r507Generation;
+ if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
+ clearTimeout(r519EntryTimer);
+ // On unsupported Android/native bridge, restore original web photo UI gracefully.
+ r519EntryTimer=setTimeout(()=>{if(generation===r507Generation&&view&&!view.classList.contains('moa-r507-native-mounted'))view.classList.remove('moa-r519-native-entering');},3500);
  const waitUntil=Date.now()+8000;
  const tryOpen=()=>{
   if(generation!==r507Generation||!ui.open||ui.page!=='day'||view?.hidden)return;
@@ -65,7 +73,7 @@ function r507StartInline(){
   window.__moaR511InlineArm=true;
   if(!window.__moaR511NativeArmed){
    if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,70);
-   else {window.__moaR511InlineArm=false;notify('사진형 네이티브 준비 지연 · 안전하게 웹 보기 유지');}
+   else {window.__moaR511InlineArm=false;view?.classList.remove('moa-r519-native-entering');notify('사진형 네이티브 준비 지연 · 안전하게 웹 보기 유지');}
    return;
   }
   window.__moaR507NativePending=true;
@@ -84,7 +92,7 @@ function r507StartInline(){
    }
   },2700);
  };
- r507Timer=setTimeout(tryOpen,140);
+ r507Timer=setTimeout(tryOpen,0);
 }
 
 // R495: user preference is additive; it does not write to original diary/Gallery databases.
@@ -114,7 +122,10 @@ function r495InstallScrollSetting(){
 function r495SyncLegacyRoot(){
  const root=diaryRoot(),s=getState();if(!root)return;
  // Prevent the older curated/automatic calendar from flashing while the single unified calendar mounts.
- if(s?.open&&!root.hidden&&s.page==='calendar'&&!r475ExitUntilHidden)root.dataset.moaUnifiedPage='calendar';
+ // Own the calendar presentation even if the original detailed editor retains
+ // its previous `page=day` state after native Gallery Back; never flash it.
+ // When switching to the ORIGINAL detailed editor, close() clears this marker.
+ if(s?.open&&!root.hidden&&ui.open&&ui.page==='calendar'&&!r475ExitUntilHidden)root.dataset.moaUnifiedPage='calendar';
  else delete root.dataset.moaUnifiedPage;
 }
 function r495TryBack(){
@@ -328,7 +339,13 @@ function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.i
 function open(page='calendar',day){const s=getState();if(!s?.open)return false;mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
  try{localStorage.setItem(KEY,'simple')}catch(e){}r495SyncLegacyRoot();r495InstallBackHandlers();render();r475LastDataKey=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');installBack();setTimeout(r475RefreshFamily,100);return true;}
 function close(){r507StopInline();r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.open=false;ui.requestGeneration++;if(view)view.hidden=true;r495SyncLegacyRoot();try{localStorage.removeItem(KEY)}catch(e){}return true;}
-function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!confirm('작성 중인 내용이 있습니다. 저장하지 않고 돌아갈까요?'))return true;r507StopInline();window.MoaVoicePlaybackUI?.stop?.();ui.page='calendar';ui.dirty=false;render();return true;}r475ExitUntilHidden=true;close();window.FamilyJourneyDiary?.close?.(false);return true;}
+function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!confirm('작성 중인 내용이 있습니다. 저장하지 않고 돌아갈까요?'))return true;
+  // Hide the dormant original screen BEFORE closing the native renderer.
+  // R515 closed Gallery first, exposing the old web day underneath for one frame.
+  const oldRoot=diaryRoot();if(oldRoot&&!oldRoot.hidden)oldRoot.dataset.moaUnifiedPage='calendar';
+  ui.page='calendar';ui.dirty=false;r507StopInline();window.MoaVoicePlaybackUI?.stop?.();render();return true;}r475ExitUntilHidden=true;close();window.FamilyJourneyDiary?.close?.(false);return true;}
+// The R519 native overlay callback and Web host both lead to the same day→calendar route.
+window.__moaR519NativeBack=function(){if(!ui.open||ui.page!=='day')return false;return r495TryBack()};
 function installBack(){if(backInstalled)return;backInstalled=true;r495InstallBackHandlers();}
 function r475ModeToggle(active,onPhoto,onDetail){
  const wrap=r483Pill(active,[{key:'photo',label:'사진형'},{key:'detail',label:'상세형'}],mode=>{if(mode==='photo')onPhoto();else onDetail()},'moa-r483-day-mode');
@@ -572,7 +589,7 @@ function renderMonth(){
  }
  view.append(feed);r495AttachMonthGestures(feed);
  const todayDock=elem('div','moa-r487-today-dock');
- const todayAction=btn('오늘',()=>{
+ const todayAction=btn('⌃',()=>{
   const today=new Date();ui.selected=dayOf(today);ui.month=new Date(today.getFullYear(),today.getMonth(),1);
   // Recreate only the calendar presentation; original diary/gallery stores stay untouched.
   render();
@@ -637,7 +654,11 @@ function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui
   entry.append(elem('span','moa-r475-family-time',time),elem('span','',String(ev?.title||'일정')));list.append(entry);
  });family.append(list)}
  wrap.append(family);
- const status=elem('div','moa-r469-status','');wrap.append(status);view.append(wrap);renderMedia();refreshVoices();r507StartInline();}
+ const status=elem('div','moa-r469-status','');wrap.append(status);view.append(wrap);
+ // Do not show the web-gallery chrome for a second while the existing native
+ // Gallery is mounting. The static media poster may remain underneath.
+ if(ui.media.length)view.classList.add('moa-r519-native-entering');
+ renderMedia();refreshVoices();if(ui.media.length)r507StartInline();else view.classList.remove('moa-r519-native-entering');}
 function r472MediaSelected(index){
  if(!Number.isFinite(index)||!ui.media.length)return;
  const next=Math.max(0,Math.min(ui.media.length-1,index));
