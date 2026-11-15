@@ -951,3 +951,23 @@ html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-pa
  visibility:visible!important;pointer-events:auto!important;
 }
 html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-stage-media{pointer-events:auto!important;}
+
+/* R596: the original R551 global hide must NOT trap an unmounted Gallery.
+ * Only a confirmed native-mounted host may take away original HTML controls.
+ * Never override the existing native mounted CSS, toolbar/ellipse/spacing. */
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-pager,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-tools,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-more,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r503-cover-star,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r499-video-play,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r531-web-advanced{
+ visibility:visible!important;pointer-events:auto!important;
+}
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-stage-media,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r472-track{
+ visibility:visible!important;pointer-events:auto!important;touch-action:pan-x pan-y!important;
+}
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-tools:not([hidden]){
+ display:block!important;
+}
