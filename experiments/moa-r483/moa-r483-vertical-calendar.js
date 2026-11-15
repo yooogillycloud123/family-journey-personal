@@ -352,7 +352,11 @@ function r507StartInline(){
   }
   const ids=ui.media.map(x=>String(x.id));
   if(!ids.length||ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id))){r594Fallback('INVALID_NATIVE_MEDIA_LIST');return;}
-  if(!view?.querySelector('.moa-r469-stage')?.isConnected)return;
+  if(!view?.querySelector('.moa-r469-stage')?.isConnected){
+   r602Mark('NATIVE_STAGE_NOT_ATTACHED');
+   r594Fallback('NATIVE_STAGE_NOT_ATTACHED');
+   return;
+  }
   // R598: media from Quick Record is committed to original IndexedDB before
   // WebView's separate asynchronous byId index updates. Cache absence is not
   // a missing MediaStore file; the original native Gallery checks the real URI.
@@ -361,12 +365,15 @@ function r507StartInline(){
     uncached:uncached.length,scanning:!!state?.load,at:Date.now()};
   window.__moaR511InlineArm=true;
   if(!window.__moaR511NativeArmed){
-   // An arm signal can be lost across camera/Activity transitions. The
-   // ContentProvider's BridgeReady is already a positive health signal;
-   // the Gallery can attach through its original SNAPSHOT ticker even if the
-   // pre-draw channel was missed. Give it time, then attempt original open once.
-   if(Date.now()<waitUntil-4500){r507Timer=setTimeout(tryOpen,100);return;}
-   r602Mark('ARM_UNCONFIRMED_DIRECT_NATIVE_ATTEMPT');
+   // R604: restore the physically user-approved R567 open gate. BridgeReady
+   // only proves the provider exists, NOT that R463 pre-draw ownership/host
+   // is prepared. Never invoke openNativeGallery while the gate is false.
+   if(Date.now()<waitUntil){r507Timer=setTimeout(tryOpen,70);return;}
+   window.__moaR511InlineArm=false;
+   r602Mark('NATIVE_ARM_TIMEOUT');
+   r594Fallback('NATIVE_ARM_TIMEOUT');
+   r594RequestIndexOnce();
+   return;
   }
   window.__moaR507NativePending=true;
   // R594: try the EXACT original Gallery and original ID order first.
