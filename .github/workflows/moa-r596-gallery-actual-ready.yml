@@ -1,0 +1,121 @@
+name: MOA R596 real native drawable ACK and always-interactive saved photo gallery
+on:
+  push:
+    branches: ['feature/moa-r596-r594-proofed-gallery-ready-and-functional-web-fallback-20261115']
+    paths:
+      - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
+      - 'experiments/moa-r590/**'
+      - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
+      - 'experiments/moa-r483/moa-r483-vertical-calendar.css'
+      - 'experiments/moa-r594/**'
+      - 'experiments/moa-r596/**'
+      - 'experiments/moa-r592/**'
+      - '.github/workflows/moa-r590-native-card-save-rescue.yml'
+      - '.github/workflows/moa-r596-gallery-actual-ready.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile_contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK35 / D8 install
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$sdkmanager" --licenses >/dev/null || true
+          "$sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile isolated original R588 Gallery additive classes18.dex
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa590/gallery/classes /tmp/moa590/gallery/dex build/moa-r596
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa590/gallery/classes experiments/moa-r507/MoaR507InlineGalleryProvider.java
+          find /tmp/moa590/gallery/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa590/gallery/dex
+          cp /tmp/moa590/gallery/dex/classes.dex build/moa-r596/classes18.dex
+      - name: Compile original native MemoPolish helper + verified MediaStore draft recovery classes9.dex
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa590/memo/classes /tmp/moa590/memo/dex
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa590/memo/classes experiments/moa-r590/MoaR217MemoPolish.java
+          find /tmp/moa590/memo/classes -name 'MoaR217MemoPolish*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa590/memo/dex
+          cp /tmp/moa590/memo/dex/classes.dex build/moa-r596/classes9.dex
+      - name: Verify minimal scope / original listeners / persistence contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          a=Path('experiments/moa-r507/MoaR507InlineGalleryProvider.java').read_text()
+          b=Path('experiments/moa-r590/MoaR217MemoPolish.java').read_text()
+          for n in ('classes9.dex','classes18.dex'):
+            d=Path('build/moa-r596',n).read_bytes()
+            assert d[:4]==b'dex\n' and len(d)<200000
+          assert 'deck.setBackgroundColor(Color.TRANSPARENT);' in a
+          assert 'capsule.setBackground(bg);' in a and 'footer.setStroke' not in a
+          assert 'kind==FAVORITE?.67f:.62f' in a
+          assert 'glyph.setScaleX(.64f);glyph.setScaleY(.64f)' in a
+          assert 'getBoolean("rail_expanded",true)' in a
+          assert 'putBoolean("rail_expanded",railExpanded).apply()' in a
+          assert 'getBoolean("fast_enabled",false)' in a
+          assert 'putBoolean("fast_enabled",current).apply()' in a
+          assert 'getBoolean("show_on_open",false)' in a and 'info.performClick()' in a
+          assert 'r592InfoRestoreDone=false;' in a and 'setRailExpanded(a,wantRail)' in a
+          assert 'railToggle.setSelected(expanded);' in a and 'r594SyncIndicators(a);' in a
+          assert 'restoreVerifiedCaptureDraft' in b
+          assert 'getStringExtra("id")' in b and 'ContentUris.withAppendedId' in b
+          assert 'if(ki<0||c.getLong(ki)!=numeric)return false;' in b
+          assert 'draft.put("id",id)' in b and 'draft.put("at",at)' in b
+          assert 'draft.put("memoSaved",false)' in b
+          assert 'getSharedPreferences("moa_camera_native_v1",Context.MODE_PRIVATE)' in b
+          assert 'setOnTouchListener(' not in b and 'save.setOnClickListener(' not in b
+          assert 'rearrangeFooter(a,content);installSavePreflight(a,content);' in b
+          info={n:{"size":len(Path('build/moa-r596',n).read_bytes()),"sha256":hashlib.sha256(Path('build/moa-r596',n).read_bytes()).hexdigest()} for n in ('classes9.dex','classes18.dex')}
+          Path('build/moa-r596/manifest.json').write_text(json.dumps({"dex":info,"device_qa":"NOT_TESTED","classes1_through8_and10_through17":"PROTECTED"},indent=2))
+          print(json.dumps(info))
+          PY
+      - name: Native Gallery and original diary re-link executable regression contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r483/moa-r483-vertical-calendar.js
+          node experiments/moa-r592/qa_shared_diary.js
+          mkdir -p build/moa-r596/qa/src
+          cp experiments/moa-r483/moa-r483-vertical-calendar.js build/moa-r596/qa/src/
+          cp experiments/moa-r483/moa-r483-vertical-calendar.css build/moa-r596/qa/src/
+          cp experiments/moa-r507/MoaR507InlineGalleryProvider.java build/moa-r596/qa/src/
+          MOA_R596_SRC="$PWD/build/moa-r596/qa/src" node experiments/moa-r596/qa_r596.js
+      - name: Include exact matching source and QA in developer handoff artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp experiments/moa-r507/MoaR507InlineGalleryProvider.java build/moa-r596/
+          cp experiments/moa-r590/MoaR217MemoPolish.java build/moa-r596/
+          cp experiments/moa-r483/moa-r483-vertical-calendar.js build/moa-r596/
+          cp experiments/moa-r483/moa-r483-vertical-calendar.css build/moa-r596/
+          cp experiments/moa-r596/qa_r596.js build/moa-r596/
+          cp experiments/moa-r592/qa_shared_diary.js build/moa-r596/
+          sha256sum build/moa-r596/* > build/moa-r596/SHA256SUMS.txt
+          cat > build/moa-r596/READ_FIRST.txt <<'EOF'
+          MOA R596 source+compiled DEX QA. No private signing key here.
+          Baseline is original-signer R594; never wipe diary or uninstall.
+          Replace only version Manifest 596, assets/web/moa-r483-vertical-calendar.js,
+          assets/web/moa-r483-vertical-calendar.css and classes18.dex.
+          classes9.dex recompiled for CI comparison only: actual APK keeps original R592 classes9.dex.
+          R596 physical Galaxy tests pending. This artifact is NOT an APK.
+          
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R596-real-gallery-web-safe-two-DEX-QA
+          path: build/moa-r596/
+          if-no-files-found: warn
