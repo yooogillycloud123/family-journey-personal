@@ -1,0 +1,39 @@
+--- R607/moa-r483-vertical-calendar.css
++++ R609/moa-r483-vertical-calendar.css
+@@ -1001,3 +1001,36 @@
+  font-size:0!important;letter-spacing:0!important;
+  transform:translateX(20px)!important;
+ }
++
++/* R609 correction: user requested the settings BUTTON to match the next
++   photo/detail switch in footprint, not to impersonate its switch state.
++   Leave all R607 menu click handlers and accessibility names untouched. */
++html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"],
++html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]{
++ flex:0 0 68px!important;width:68px!important;min-width:68px!important;max-width:68px!important;
++ height:34px!important;min-height:34px!important;max-height:34px!important;
++ display:grid!important;place-items:center!important;position:relative!important;
++ background:transparent!important;border:0!important;border-radius:19px!important;
++ padding:0!important;box-shadow:none!important;color:var(--moa-r491-ink,#302a32)!important;
++}
++html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::before,
++html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::before{
++ content:""!important;width:64px!important;height:32px!important;
++ position:absolute!important;left:2px!important;top:1px!important;inset:auto!important;
++ background:var(--moa-r491-track,#f3eef1)!important;
++ border:1px solid var(--moa-r491-track-border,#d4c8ce)!important;
++ border-radius:18px!important;box-sizing:border-box!important;
++}
++html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after,
++html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after{
++ content:"···"!important;position:absolute!important;inset:0!important;
++ display:grid!important;place-items:center!important;width:100%!important;height:100%!important;
++ left:0!important;top:0!important;transform:none!important;
++ background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;
++ font-size:20px!important;font-weight:700!important;line-height:1!important;
++ letter-spacing:2px!important;color:var(--moa-r491-ink,#302a32)!important;
++}
++html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]:focus-visible,
++html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]:focus-visible{
++ outline:2px solid var(--moa-r491-accent,#b45b8c)!important;outline-offset:2px!important;
++}
