@@ -19,6 +19,7 @@ assert(!start.includes('if(uncached.length){'),'web byId cache not an early nati
 assert(!start.includes('r596ShowWeb('),'no default demotion to Web on accepted original native');
 const schedule=section(J,'function r596ScheduleWeb(){','function r596ClearWeb');
 assert(schedule.includes('!r507Opened&&!window.__moaR507NativePending'),'time alone cannot demote accepted native Gallery');
+assert(!J.includes('r507StartInline();r596ScheduleWeb();'),'no automatic Web fallback timer armed on successful day entry');
 const unready=section(J,'window.__moaR596NativePhotoUnready=function','window.__moaR507NativeMounted=function');
 assert(!unready.includes('r596ShowWeb('),'photo decode delay is diagnostic only');
 const unmount=section(J,'window.__moaR507NativeMounted=function','// R515:');
