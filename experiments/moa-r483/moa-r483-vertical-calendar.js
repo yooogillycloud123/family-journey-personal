@@ -273,6 +273,23 @@ function r507StopInline(){r596ClearWebTimer();r594ClearMountWatchdog();r594Nativ
  clearTimeout(r519EntryTimer);r519EntryTimer=0;
  if(opened){try{window.MoaLocalAudio?.closeNativeGallery?.()}catch(e){console.warn('R507 inline close',e)}}
 }
+// R598: Unlike asynchronous FamilyJourneyDiary.state.byId, the ORIGINAL
+// R463 Gallery.open validates a selected MediaStore URI with ContentResolver
+// openFileDescriptor() BEFORE creating the native Gallery host. Trust that
+// actual validation, not the stale cached-byId membership for ALL saved photos.
+function r598TryOriginalGallery(ids,wanted,day){
+ const target=Math.max(0,Math.min(ids.length-1,Number.isInteger(wanted)?wanted:0)),candidates=[target];
+ for(let dist=1;dist<ids.length&&candidates.length<4;dist++)
+  for(const index of [(target+dist)%ids.length,(target-dist+ids.length)%ids.length])
+   if(!candidates.includes(index)){candidates.push(index);if(candidates.length>=4)break;}
+ let attempts=0;
+ for(const index of candidates){attempts++;
+  try{if(window.MoaLocalAudio?.openNativeGallery?.(JSON.stringify(ids),index,day))
+    return {ok:true,index,attempts};
+  }catch(e){console.warn('R598 original native MediaStore read',e);}
+ }
+ return {ok:false,index:target,attempts};
+}
 function r507StartInline(){
  if(r523DayExiting||r531Advanced)return;
  // R551: a second asynchronous entry request must not restart or close an
@@ -294,16 +311,12 @@ function r507StartInline(){
   const ids=ui.media.map(x=>String(x.id));
   if(!ids.length||ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id))){r594Fallback('INVALID_NATIVE_MEDIA_LIST');return;}
   if(!view?.querySelector('.moa-r469-stage')?.isConnected)return;
-  // R596: original IndexedDB photos may arrive ahead of MediaStore scan.
-  // Never give the R463 native Gallery a partly unindexed ID set: that call
-  // may be accepted asynchronously without ever mounting a drawable.
-  // Keep the SAME stored IDs available in the usable Web rail while native
-  // indexing runs; retry the native engine ONCE after the old index settles.
-  const state=getState();const missing=ids.filter(id=>!state?.byId?.has(id));
-  if(missing.length){
-   r596ShowWeb(state?.load?'MEDIA_INDEX_SCANNING':'MEDIA_IDS_UNINDEXED');
-   r594RequestIndexOnce();return;
-  }
+  // R598: media from Quick Record is committed to original IndexedDB before
+  // WebView's separate asynchronous byId index updates. Cache absence is not
+  // a missing MediaStore file; the original native Gallery checks the real URI.
+  const state=getState(),uncached=ids.filter(id=>!state?.byId?.has(id));
+  window.__moaR598IndexStatus={day:ui.date,total:ids.length,
+    uncached:uncached.length,scanning:!!state?.load,at:Date.now()};
   window.__moaR511InlineArm=true;
   if(!window.__moaR511NativeArmed){
    if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,70);
@@ -315,8 +328,14 @@ function r507StartInline(){
   // If any stale/provisional same-day ID makes that open fail, retry once
   // using the phone's *real* MediaStore-indexed IDs. Records stay in IDB.
   let ok=false;let map=ui.media.map((_,i)=>i);
-  try{ok=!!window.MoaLocalAudio.openNativeGallery(JSON.stringify(ids),ui.idx,ui.date)}
-  catch(e){console.warn('R594 full original Gallery unavailable',e)}
+  // Delegate readability to original Android ContentResolver instead of byId.
+  // Up to three alternative selected IDs are attempted ONLY on native rejection
+  // and remain within the SAME original gallery playlist.
+  const nativeResult=r598TryOriginalGallery(ids,ui.idx,ui.date);
+  ok=nativeResult.ok;
+  window.__moaR598NativeOpen={at:Date.now(),day:ui.date,total:ids.length,
+   cached:ids.length-uncached.length,attempts:nativeResult.attempts,accepted:ok};
+  if(ok&&nativeResult.index!==ui.idx){ui.idx=nativeResult.index;r472UpdatePager();}
   if(!ok){
    const real=getState()?.byId;
    const kept=ui.media.map((m,i)=>({id:String(m.id),idx:i})).filter(m=>real?.has(m.id));
