@@ -1,0 +1,46 @@
+'use strict';
+const fs=require('fs'),assert=require('assert'),vm=require('vm');
+const dir=process.env.MOA_R600_SRC || __dirname;
+const J=fs.readFileSync(dir+'/moa-r483-vertical-calendar.js','utf8');
+const N=fs.readFileSync(dir+'/MoaR507InlineGalleryProvider.java','utf8');
+function section(s,a,b){const p=s.indexOf(a),q=s.indexOf(b,p+a.length);assert(p>=0&&q>p,'source section missing '+a);return s.slice(p,q)}
+const nativeFinish=section(N,'private void r572FinishEntry(', '// Original R459');
+const mount=section(N,'if(host!=nativeHost){','// Preserve TextureView');
+assert(nativeFinish.includes('r572NativeMountAck=true;') && nativeFinish.includes('__moaR507NativeMounted(true,'),'original native gallery sends mounting ACK');
+assert(nativeFinish.includes('actionDeck==null')&&nativeFinish.includes('nativeHost.getParent()!=root'),'ACK requires physically attached native controls');
+assert(!nativeFinish.includes('nativeHost.setVisibility(View.INVISIBLE)'),'no full-native-host hide because photo still decodes');
+assert(!nativeFinish.includes('if(r572FirstPhotoPending)'),'no photo drawable gate to native deck');
+assert(mount.includes('r572FirstPhotoPending=false;'),'original native host allowed while decoder warms');
+assert(!N.includes('nativeHost.setVisibility(r572FirstPhotoPending||'),'geometry never hides native host due drawable');
+assert(nativeFinish.includes('refreshOriginalMediaIfBlank(gallery)'),'bounded original native ImageView retry');
+const start=section(J,'function r507StartInline(){','// R495: user preference');
+assert(start.includes('r598TryOriginalGallery(ids,ui.idx,ui.date)'),'original MediaStore resolver is still primary opener');
+assert(!start.includes('if(uncached.length){'),'web byId cache not an early native blocker');
+assert(!start.includes('r596ShowWeb('),'no default demotion to Web on accepted original native');
+const schedule=section(J,'function r596ScheduleWeb(){','function r596ClearWeb');
+assert(schedule.includes('!r507Opened&&!window.__moaR507NativePending'),'time alone cannot demote accepted native Gallery');
+const unready=section(J,'window.__moaR596NativePhotoUnready=function','window.__moaR507NativeMounted=function');
+assert(!unready.includes('r596ShowWeb('),'photo decode delay is diagnostic only');
+const unmount=section(J,'window.__moaR507NativeMounted=function','// R515:');
+assert(unmount.includes("r600PreferNativeAfterReturn('NATIVE_UNMOUNTED')"),'unexpected native disconnection schedules native first');
+assert(J.includes("r600PreferNativeAfterReturn('CAMERA_RETURN')"),'return from native camera auto-reopens native without new record');
+assert(J.includes('r592HydrateDay(day)'),'same canonical daily curated record and moments retained');
+assert(J.includes('momentTimes')&&J.includes('selectedIds'),'native gets same saved photo IDs not separate gallery DB');
+assert(J.includes('details.open=true'),'Quick Record notes remain in existing read-only story');
+assert(N.includes('deck.setBackgroundColor(Color.TRANSPARENT);'),'approved R588 one oval no outer rectangle');
+assert(N.includes('r594SyncIndicators(a);'),'original thumb+info ON dot kept');
+const retry=section(J,'let r600RestoreAttempts=0','window.__moaR507NativeMounted=function');
+const events=[];
+const state={view:{classList:{contains:()=>false}},ui:{open:true,page:'day',date:'2026-11-15'},r523DayExiting:false,r531Advanced:false,
+ r507Opened:false,window:{__moaR507NativePending:false,__moaR527DayToken:25,__moaR511InlineArm:true,__moaR511NativeArmed:true},
+ setTimeout:(f,ms)=>{events.push({f,ms});return events.length},r507StartInline:()=>{state.opens++;state.r507Opened=true;},opens:0};
+vm.createContext(state);vm.runInContext(retry+'\nthis.r600PreferNativeAfterReturn=r600PreferNativeAfterReturn;',state);
+assert(state.r600PreferNativeAfterReturn('CAMERA_RETURN')===true,'first native return reconnect');
+assert(events.length===1&&events[0].ms===430,'retry delayed for camera settle');
+events[0].f();assert(state.opens===1,'native original reopen requested');
+assert(state.r600PreferNativeAfterReturn('CAMERA_RETURN')===false,'no repeated reopen while native opened');
+const state2={...state, r507Opened:false,opens:0,window:{...state.window,__moaR527DayToken:26},ui:{...state.ui},setTimeout:(f)=>{state2.f=f}};
+vm.createContext(state2);vm.runInContext(retry+'\nthis.r600PreferNativeAfterReturn=r600PreferNativeAfterReturn;',state2);
+assert(state2.r600PreferNativeAfterReturn('NATIVE_UNMOUNTED')===true);
+state2.window.__moaR527DayToken=27;state2.f();assert(state2.opens===0,'no stale previous day reopening native');
+console.log('R600 native-first actual source contracts and timed camera-return lifecycle: PASS');
