@@ -1,0 +1,44 @@
+--- R607/family-diary.js
++++ R609/family-diary.js
+@@ -237,7 +237,15 @@
+    native.setEnabled(desired);
+    mmEnabled=false;mmQueue=[];mmPersist();
+    document.getElementById('fd41-modal')?.remove();mmPendingPopup=null;
+-   if(S.open){render();setTimeout(()=>{if(S.open)render()},700);setTimeout(()=>{if(S.open)render()},1900)}
++   // R609: the capture watcher is independent of the photo-day viewer.
++   // Legacy render() calls S.root.replaceChildren() and was invoked THREE
++   // times by each ON/OFF toggle (0/700/1900ms). Rebuilding the parallel
++   // diary DOM while R605's original Android Gallery owns an attached host
++   // can invalidate its Web geometry/owner and leave a black/gray day card.
++   // Reconcile the existing controls in place, never rerender either diary.
++   mmSyncNativeSwitchUI();
++   setTimeout(mmSyncNativeSwitchUI,700);
++   setTimeout(mmSyncNativeSwitchUI,1900);
+   }catch(e){alert('모아 네이티브 감시 변경 실패: '+String(e))}
+   return;
+  }
+@@ -248,6 +256,24 @@
+   if(!S.load)loadIndex(false);
+  }else{clearTimeout(mmTimer);mmQueue=[];mmPersist()}
+  if(S.open)render();
++}
++// R609: read-only DOM reconciliation after real native watcher setEnabled().
++// Never call render(), refresh the entire diary, switch photo/detail pages,
++// stop Android native Gallery, or restart NAVER's hidden session here.
++function mmSyncNativeSwitchUI(){
++ const bridge=mmNativeBridge(),available=!!bridge,running=available&&mmNativeRunning();
++ const label=!available?'촬영 감시 · 빠른 설정에서 확인':
++   running?'촬영 즉시 기록 ON · 끄기':'촬영 즉시 기록 OFF · 켜기';
++ document.querySelectorAll('.fd41-switch').forEach(button=>{
++   button.textContent=label;
++   button.classList.toggle('fd41-on',running);
++   button.setAttribute('aria-pressed',available?String(running):'mixed');
++ });
++ const info=document.querySelector('.fd41-toolbar p');
++ if(info)info.textContent=!available?
++  '네이티브 연결 상태 확인 중 · 빠른 설정 [모아 기록]에서 ON/OFF 확인':
++   running?'촬영 감시 ON · 삼성 카메라 바로기록을 저장하면 일기에 반영합니다.':
++           '촬영 감시 OFF · 다시 켜면 바로기록 감시가 재개됩니다.';
+ }
+ function mmButton(){
+  const available=MOA_R58_SINGLE_NATIVE_CAPTURE?!!mmNativeBridge():true;
