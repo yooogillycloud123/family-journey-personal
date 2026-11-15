@@ -1,10 +1,12 @@
 name: MOA R590 two-additive-DEX native icon and verified capture-note recovery
 on:
   push:
-    branches: ['feature/moa-r590-r588-native-icon-save-draft-recovery-20261115']
+    branches: ['feature/moa-r592-r590-shared-diary-prehydrate-state-restore-20261115']
     paths:
       - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
       - 'experiments/moa-r590/**'
+      - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
+      - 'experiments/moa-r592/**'
       - '.github/workflows/moa-r590-native-card-save-rescue.yml'
   workflow_dispatch:
 permissions:
@@ -61,7 +63,8 @@ jobs:
           assert 'putBoolean("rail_expanded",railExpanded).apply()' in a
           assert 'getBoolean("fast_enabled",false)' in a
           assert 'putBoolean("fast_enabled",current).apply()' in a
-          assert 'show_on_open' not in a # existing R391 native preference remains untouched in classes17.dex
+          assert 'getBoolean("show_on_open",false)' in a and 'info.performClick()' in a
+          assert 'r592InfoRestoreDone=false;' in a and 'setRailExpanded(a,wantRail)' in a
           assert 'restoreVerifiedCaptureDraft' in b
           assert 'getStringExtra("id")' in b and 'ContentUris.withAppendedId' in b
           assert 'if(ki<0||c.getLong(ki)!=numeric)return false;' in b
@@ -74,6 +77,12 @@ jobs:
           Path('build/moa-r590/manifest.json').write_text(json.dumps({"dex":info,"device_qa":"NOT_TESTED","classes1_through8_and10_through17":"PROTECTED"},indent=2))
           print(json.dumps(info))
           PY
+      - name: R592 shared data and preference executable contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r483/moa-r483-vertical-calendar.js
+          node experiments/moa-r592/qa_shared_diary.js
       - uses: actions/upload-artifact@v4
         if: always()
         with:
