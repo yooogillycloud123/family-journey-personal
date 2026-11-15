@@ -22,17 +22,50 @@ let r507Generation=0,r507Timer=0,r507Opened=false;
 // R594: never leave the photo day in an invisible native-owner state after
 // the original Gallery has refused a media list or never mounted.
 let r594NativeIndexMap=[],r594MountWatchdog=0,r594RetryUsed=false;
+// R596: the saved diary entry is the ONE source of truth. The Web photo rail
+// stays usable until the original Android compositor has REALLY mounted.
+// The photo reader never writes/duplicates the user's curated day or M4A.
+let r596WebTimer=0,r596LastState='';
+function r596ClearWebTimer(){clearTimeout(r596WebTimer);r596WebTimer=0;}
+function r596ShowWeb(reason){
+ if(!ui.open||ui.page!=='day'||r523DayExiting||!view||view.hidden||
+    view.classList.contains('moa-r507-native-mounted'))return false;
+ const first=!view.classList.contains('moa-r596-web-ready');
+ view.classList.add('moa-r596-web-ready');
+ view.classList.remove('moa-r519-native-entering','moa-r547-native-owner');
+ if(first){
+  ui.tools=true;const tools=$('.moa-r469-tools',view);if(tools)tools.hidden=false;
+  ui.rail=true;toggleRail();
+ }
+ const state=getState();const known=ui.media.filter(m=>state?.byId?.has(String(m.id))).length;
+ r596LastState=reason;
+ window.__moaR596GalleryStatus={reason,day:ui.date,total:ui.media.length,
+  indexed:known,scanning:!!state?.load,nativeMounted:false,time:Date.now()};
+ return true;
+}
+function r596ScheduleWeb(){
+ r596ClearWebTimer();const token=r507Generation,day=ui.date;
+ r596WebTimer=setTimeout(()=>{
+  if(ui.open&&ui.page==='day'&&ui.date===day&&token===r507Generation&&
+     !view?.classList.contains('moa-r507-native-mounted'))
+    r596ShowWeb('NATIVE_NOT_CONFIRMED');
+ },1100);
+}
+function r596ClearWeb(){
+ r596ClearWebTimer();view?.classList.remove('moa-r596-web-ready');
+}
+
 function r594ClearMountWatchdog(){clearTimeout(r594MountWatchdog);r594MountWatchdog=0;}
 function r594Fallback(reason){
  if(!ui.open||ui.page!=='day'||r523DayExiting||view?.classList.contains('moa-r507-native-mounted'))return false;
  view?.classList.add('moa-r594-native-failed');
- view?.classList.remove('moa-r519-native-entering','moa-r547-native-owner');
+ r596ShowWeb(reason);
  window.__moaR594LastFailure={day:ui.date,reason,at:Date.now(),count:ui.media.length};
- notify('갤러리 연결을 확인하고 있어요 · 사진을 넘기거나 상단 ···에서 다시 표시할 수 있어요');
+ notify('원본 갤러리 연결 중에도 저장된 사진과 바로기록을 볼 수 있어요');
  r472RefreshVisibleThumbs();
  return true;
 }
-function r594ClearFallback(){view?.classList.remove('moa-r594-native-failed');r594ClearMountWatchdog();}
+function r594ClearFallback(){view?.classList.remove('moa-r594-native-failed');r596ClearWeb();r594ClearMountWatchdog();}
 function r594RequestIndexOnce(){
  if(r594RetryUsed)return;
  r594RetryUsed=true;
@@ -127,13 +160,20 @@ window.visualViewport?.addEventListener('resize',()=>r527SyncGeometry(true),{pas
 // R511 pre-draw guard arm state; do not start native fullscreen before the provider is ready.
 window.__moaR511InlineArm=false;window.__moaR511NativeArmed=false;
 window.__moaR507NativePending=false;
-window.__moaR507NativeMounted=function(mounted){
+window.__moaR596NativePhotoUnready=function(dayToken){
+ if(Number(dayToken)!==window.__moaR527DayToken)return false;
+ return r596ShowWeb('ORIGINAL_PHOTO_DRAWABLE_NOT_READY');
+};
+window.__moaR507NativeMounted=function(mounted,dayToken){
+ // A stale Gallery callback from an earlier date/Activity must NEVER hide
+ // the current day's working photo/browser controls.
+ if(dayToken!==undefined&&Number(dayToken)!==window.__moaR527DayToken)return;
  if(!ui.open||ui.page!=='day')mounted=false;
  if(view){view.classList.toggle('moa-r507-native-mounted',!!mounted);
-   if(mounted)view.classList.remove('moa-r519-native-entering');
-   if(ui.open&&ui.page==='day'&&ui.media.length)view.classList.add('moa-r547-native-owner');}
+   if(mounted){view.classList.remove('moa-r519-native-entering');view.classList.add('moa-r547-native-owner');}
+   else view.classList.remove('moa-r547-native-owner','moa-r519-native-entering');}
  if(mounted){r594ClearFallback();window.__moaR567ProgrammaticCloseUntil=0;r515RecoveryAttempts=0;r551LostAttempts=0;r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
- if(!mounted){window.__moaR507NativePending=false;r507Opened=false;}
+ if(!mounted){window.__moaR507NativePending=false;r507Opened=false;r596ShowWeb('NATIVE_UNMOUNTED');}
 };
 // R515: a transient Activity/WebView update must not demote the in-card native Gallery.
 window.__moaR515RecoverInline=function(){
@@ -192,7 +232,7 @@ window.__moaR547RebuildDamagedHost=function(token){
  if(Number(token)!==window.__moaR527DayToken || !ui.open || ui.page!=='day' ||
     r523DayExiting || r531Advanced) return false;
  r507StopInline();r515RecoveryAttempts=0;r527BeginDay();
- if(view&&ui.media.length){view.classList.add('moa-r547-native-owner','moa-r519-native-entering');}
+ if(view&&ui.media.length&&!view.classList.contains('moa-r596-web-ready')){view.classList.add('moa-r547-native-owner','moa-r519-native-entering');}
  clearTimeout(r507Timer);
  r507Timer=setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting&&!r531Advanced)r507StartInline()},360);
  return true;
@@ -220,7 +260,7 @@ window.__moaR543RepairInline=function(){
  setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting)r507StartInline()},250);
  return true;
 };
-function r507StopInline(){r594ClearMountWatchdog();r594NativeIndexMap=[];
+function r507StopInline(){r596ClearWebTimer();r594ClearMountWatchdog();r594NativeIndexMap=[];
  r539EndProxy();
  if(r507Opened||window.__moaR507NativePending)
    window.__moaR567ProgrammaticCloseUntil=Date.now()+850;
@@ -254,6 +294,16 @@ function r507StartInline(){
   const ids=ui.media.map(x=>String(x.id));
   if(!ids.length||ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id))){r594Fallback('INVALID_NATIVE_MEDIA_LIST');return;}
   if(!view?.querySelector('.moa-r469-stage')?.isConnected)return;
+  // R596: original IndexedDB photos may arrive ahead of MediaStore scan.
+  // Never give the R463 native Gallery a partly unindexed ID set: that call
+  // may be accepted asynchronously without ever mounting a drawable.
+  // Keep the SAME stored IDs available in the usable Web rail while native
+  // indexing runs; retry the native engine ONCE after the old index settles.
+  const state=getState();const missing=ids.filter(id=>!state?.byId?.has(id));
+  if(missing.length){
+   r596ShowWeb(state?.load?'MEDIA_INDEX_SCANNING':'MEDIA_IDS_UNINDEXED');
+   r594RequestIndexOnce();return;
+  }
   window.__moaR511InlineArm=true;
   if(!window.__moaR511NativeArmed){
    if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,70);
@@ -299,9 +349,10 @@ function r507StartInline(){
   setTimeout(()=>{
    if(generation!==r507Generation||!r507Opened||!ui.open||ui.page!=='day')return;
    if(!view?.classList.contains('moa-r507-native-mounted')){
-     view?.classList.add('moa-r519-native-entering','moa-r547-native-owner');
-     // Preserve both pending and arm flags so the native SNAPSHOT path can
-     // attach an already-open host. No duplicate openNativeGallery() call.
+     if(!view?.classList.contains('moa-r596-web-ready'))
+       view?.classList.add('moa-r519-native-entering','moa-r547-native-owner');
+     // Keep the original Gallery host eligible for async attachment, without
+     // re-locking the Web UI after its already-observed mount failure.
      window.__moaR507NativePending=true;
      window.__moaR511InlineArm=true;
    }
@@ -1039,7 +1090,7 @@ function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui
  tools.querySelector('.moa-r469-actions').addEventListener('click',onAction);wrap.append(tools);
  const story=elem('section','moa-r469-story');story.append(elem('strong','moa-r469-story-title','오늘의 이야기'));
  const area=elem('textarea','moa-r469-text');area.placeholder='오늘의 소중한 순간을 기록해 보세요.';area.value=current?.body||'';area.oninput=()=>{ui.dirty=true;};story.append(area);
- const momentNotes=(current?.moments||[]).filter(x=>String(x.note||'').trim());if(momentNotes.length){const details=elem('details','moa-r469-moments');details.append(elem('summary','',`바로기록 ${momentNotes.length}개`));for(const m of momentNotes){const p=elem('p','',m.note);details.append(p)}story.append(details);}
+ const momentNotes=(current?.moments||[]).filter(x=>String(x.note||'').trim());if(momentNotes.length){const details=elem('details','moa-r469-moments');details.open=true;details.append(elem('summary','',`바로기록 ${momentNotes.length}개`));for(const m of momentNotes){const p=elem('p','',m.note);details.append(p)}story.append(details);}
  const voicehead=elem('div','moa-r469-voice-head');const recButton=btn('',()=>openNativeRecorder(),'moa-r469-record');recButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4M8.5 21h7"/></svg>';recButton.setAttribute('aria-label','기존 음성 녹음 기능');voicehead.append(elem('span','','음성 메모'),recButton);story.append(voicehead);
  const voice=elem('div','moa-r469-voice-player');voice.innerHTML='<button class="moa-r469-voice-play" aria-label="녹음 듣기">▷</button><div class="moa-r469-voice-detail"><span></span><input type="range" min="0" max="100" value="0" aria-label="재생 시간 탐색" disabled></div><button class="moa-r469-voice-select" aria-label="녹음 선택">0/0⌄</button>';
  voice.querySelector('.moa-r469-voice-play').onclick=()=>playVoice();voice.querySelector('.moa-r469-voice-select').onclick=()=>voiceListToggle();story.append(voice);
@@ -1058,7 +1109,7 @@ function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui
  // Do not show the web-gallery chrome for a second while the existing native
  // Gallery is mounting. The static media poster may remain underneath.
  if(ui.media.length)view.classList.add('moa-r519-native-entering','moa-r547-native-owner');
- renderMedia();refreshVoices();if(ui.media.length)r507StartInline();else view.classList.remove('moa-r519-native-entering');r527SyncGeometry(true);}
+ renderMedia();refreshVoices();if(ui.media.length){r507StartInline();r596ScheduleWeb();}else view.classList.remove('moa-r519-native-entering');r527SyncGeometry(true);}
 function r472MediaSelected(index){
  if(!Number.isFinite(index)||!ui.media.length)return;
  const next=Math.max(0,Math.min(ui.media.length-1,index));
