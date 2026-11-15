@@ -162,6 +162,20 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private long lastResumeAt=0L;
   private boolean controlledRebuildInProgress=false;
   private String ownerDayAtPause="";
+  // R602: same-day Quick Record hot-update preserves original native host.
+  private long r602LastJavaSignalAt=0L;
+  private String r602LastJavaSignal="";
+  private void r602Signal(WebView web,String stage){
+    final long now=android.os.SystemClock.uptimeMillis();
+    if(stage.equals(r602LastJavaSignal)&&now-r602LastJavaSignalAt<1800L)return;
+    r602LastJavaSignal=stage;r602LastJavaSignalAt=now;
+    if(web!=null)try{web.evaluateJavascript("window.__moaR602JavaState="+JSONObject.quote(stage)+";"+
+      "window.__moaR602JavaReport&&window.__moaR602JavaReport("+JSONObject.quote(stage)+");",null);
+    }catch(Throwable ignored){}
+  }
+  private long r602LastPlaylistPollAt=0L;
+  private boolean r602PlaylistPolling=false;
+  private String r602LastAppliedSignature="";
   private int fullNativeLastIndex=-1;
   private String fullNativeLastId="";
 
@@ -366,6 +380,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       return;
     }
     nativeCloseDetectedAt=0L;
+    r602Signal(web,"NATIVE_GALLERY_OPEN_OBSERVED");
     ensurePositionChannel(web);
     // R551: when the original Gallery exists but wasn't yet projected over the
     // newly recreated photo-day card, arm even though isOpen()==true. Previous
@@ -375,6 +390,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // keeps streaming, the old video ambient MUST be hidden immediately when
     // a different PHOTO is selected; do not leave a blurred video layer on top.
     if(ownsGallery && gallery==galleryRef){
+      r602PollPlaylist(a,web,gallery);
       r572FinishEntry(a,web,gallery);
       r572SyncFastSetting(a);
       r572SyncRailHeight(a,gallery);
@@ -448,6 +464,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         if(root==null)return;
         armRoot=root;armedState=state;ownedDayToken=state.optInt("token",0);inlineArmed=true;
         armDeadline=android.os.SystemClock.uptimeMillis()+5000;
+        r602Signal(web,"NATIVE_PREDRAW_ARMED");
         // R559: install the photo-day Back owner while arming, NOT only after
         // video/photo host becomes visible. A lost host must not swallow Back.
         installInlineBack(a,web);
@@ -570,6 +587,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     nativeOwnerActivity=null;
     coverStar=null;railToggle=null;advancedButton=null;favoriteButton=null;r570Actions.clear();railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;ambientPoster=null;ambientParent=null;ambientMediaId="";initialCardChromeHidden=false;
     r572FirstPhotoPending=false;r572NativeMountAck=false;r572FirstPhotoDeadline=0L;r596WarnedPhotoId="";
+    r602PlaylistPolling=false;r602LastPlaylistPollAt=0;r602LastAppliedSignature="";
     r572FastRestorePending=false;r572FastRestoreDone=false;r572FastSeen=false;
     r572LastVideoRail=null;
     if(r594InfoDotOwner!=null&&r594InfoDot!=null)r594InfoDotOwner.getOverlay().remove(r594InfoDot);
@@ -598,7 +616,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(!(hostObj instanceof FrameLayout)||!(stageObj instanceof FrameLayout))return;
     FrameLayout host=(FrameLayout)hostObj,stage=(FrameLayout)stageObj;
     FrameLayout root=a.findViewById(android.R.id.content);
-    if(root==null||host.getParent()!=root||stage.getParent()!=host)return;
+    if(root==null||host.getParent()!=root||stage.getParent()!=host){
+      r602Signal(web,"ATTACH_REJECTED_HOST_HIERARCHY");return;
+    }
     double vw=s.optDouble("vw"),vh=s.optDouble("vh");
     if(vw<100||vh<100)return;
     double sx=(double)web.getWidth()/vw,sy=(double)web.getHeight()/vh;
@@ -610,7 +630,9 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     int y=rounded(webPos[1]-rootPos[1]+s.optDouble("y")*sy);
     int w=rounded(s.optDouble("w")*sx),h=rounded(s.optDouble("h")*sy);
     if(w<150||h<180)return;
-    if(w>root.getWidth()+3||h>root.getHeight()+3)return;
+    if(w>root.getWidth()+3||h>root.getHeight()+3){
+      r602Signal(web,"ATTACH_REJECTED_STAGE_SIZE");return;
+    }
     if(host!=nativeHost){
       final int newToken=s.optInt("token",ownedDayToken);
       clearCardMark();nativeHost=host;galleryRef=gallery;nativeOwnerActivity=a;ownsGallery=true;ownedDayToken=newToken;lastPositionMessageAt=0;
@@ -684,11 +706,12 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // images[1].getDrawable() is temporarily null after Quick Record.
     FrameLayout root=a.findViewById(android.R.id.content);
     if(root==null||nativeHost.getParent()!=root||actionDeck==null||
-       actionDeck.getParent()==null)return;
+       actionDeck.getParent()==null){r602Signal(web,"NATIVE_HOST_READY_ACTION_DECK_MISSING");return;}
     if(lastY!=Integer.MIN_VALUE&&lastY+lastH>0&&lastY<root.getHeight()){
       nativeHost.setVisibility(View.VISIBLE);
       if(!r572NativeMountAck){
         r572NativeMountAck=true;
+        r602Signal(web,"NATIVE_HOST_MOUNTED_WITH_ACTIONS");
         web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true,"+ownedDayToken+");",null);
       }
     }
@@ -1241,6 +1264,74 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       return i>=0&&i<ids.size()?String.valueOf(ids.get(i)):"";
     }catch(Throwable ignored){return "";}
   }
+  // Never close/re-open a real Gallery just because new capture IDs were
+  // committed to the same day's original IndexedDB record. The original Gallery
+  // ArrayList and rail exist on the main thread; refreshing them in-place
+  // preserves native swipe inertia, video surface, and all action listeners.
+  private void r602PollPlaylist(Activity a,WebView web,Object gallery){
+    if(!ownsGallery||gallery!=galleryRef||!galleryOpen(gallery)||r602PlaylistPolling)return;
+    final long now=android.os.SystemClock.uptimeMillis();
+    if(now-r602LastPlaylistPollAt<440L)return;
+    r602LastPlaylistPollAt=now;r602PlaylistPolling=true;
+    final String script="(function(){var u=window.__moaR602PlaylistUpdate;"+
+      "if(!u||!Array.isArray(u.ids))return '';return JSON.stringify(u);})()";
+    try{web.evaluateJavascript(script,raw->{
+      r602PlaylistPolling=false;
+      if(gallery!=galleryRef||!galleryOpen(gallery)||!ownsGallery||a!=foreground)return;
+      try{
+        Object v=new JSONTokener(raw).nextValue();if(!(v instanceof String))return;
+        String item=(String)v;if(item.isEmpty())return;
+        JSONObject data=new JSONObject(item);
+        String nativeDay=String.valueOf(readField(gallery,"currentDay"));
+        if(!data.optString("day","").equals(nativeDay))return;
+        int token=data.optInt("token",-1);
+        // Token can evolve while the SAME activity/day host is retained, but
+        // stale earlier-day updates must never replace a later-day list.
+        if(token<ownedDayToken||token<=0)return;
+        org.json.JSONArray in=data.optJSONArray("ids");
+        if(in==null||in.length()==0||in.length()>10000)return;
+        ArrayList<String> updated=new ArrayList<>();
+        for(int i=0;i<in.length();i++){
+          String id=in.optString(i,"");
+          if(!id.matches("(?:v)?[0-9]{1,18}"))return;
+          updated.add(id);
+        }
+        Object rawIds=readField(gallery,"ids");
+        if(!(rawIds instanceof List))return;
+        List<?> live=(List<?>)rawIds;
+        if(updated.equals(live)){
+          r602LastAppliedSignature=nativeDay+":"+data.optLong("changedAt",0L);
+          web.evaluateJavascript("window.__moaR602PlaylistUpdate=null;",null);
+          return;
+        }
+        String selected=currentId(gallery);
+        // Original Gallery owns this List; mutating it on Android main thread
+        // avoids running Gallery.close() and rebuilding the fast player.
+        @SuppressWarnings("unchecked") List<String> ids=(List<String>)rawIds;
+        int oldCount=ids.size();
+        ids.clear();ids.addAll(updated);
+        int selectedIdx=updated.indexOf(selected);
+        if(selectedIdx<0)selectedIdx=Math.max(0,Math.min(updated.size()-1,data.optInt("index",0)));
+        Field indexField=field(gallery.getClass(),"index");
+        if(indexField!=null)indexField.setInt(gallery,selectedIdx);
+        Field loadField=field(gallery.getClass(),"loadToken");
+        if(loadField!=null)loadField.setInt(gallery,loadField.getInt(gallery)+1);
+        Object loaded=readField(gallery,"loadedPageIds");
+        if(loaded instanceof String[])java.util.Arrays.fill((String[])loaded,null);
+        Method update=gallery.getClass().getDeclaredMethod("refreshPages");
+        update.setAccessible(true);update.invoke(gallery);
+        Object originalRail=readField(gallery,"rail");
+        if(originalRail instanceof View)((View)originalRail).invalidate();
+        ownedDayToken=token;
+        r602LastAppliedSignature=nativeDay+":"+data.optLong("changedAt",0L);
+        android.util.Log.i("MOA_R602","NATIVE_PLAYLIST_UPDATED_FROM_CANONICAL old="+oldCount+" new="+updated.size());
+        web.evaluateJavascript("window.__moaR602PlaylistUpdate=null;",null);
+      }catch(Throwable error){
+        android.util.Log.w("MOA_R602","NATIVE_PLAYLIST_UPDATE_FAILED_"+error.getClass().getSimpleName());
+      }
+    });}catch(Throwable error){r602PlaylistPolling=false;}
+  }
+
   private void syncIndex(WebView web,Object gallery,String cover){
     Object idx=readField(gallery,"index");
     if(!(idx instanceof Integer))return;
