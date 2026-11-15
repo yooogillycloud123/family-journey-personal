@@ -19,6 +19,35 @@ let r475ExitUntilHidden=false, r475AutostartScheduled=false, r475CalendarRefresh
 // On missing provider / unsupported activity / invalid MediaStore ID, retain the
 // full R503 web presentation and never launch an unexpected fullscreen viewer.
 let r507Generation=0,r507Timer=0,r507Opened=false;
+// R594: never leave the photo day in an invisible native-owner state after
+// the original Gallery has refused a media list or never mounted.
+let r594NativeIndexMap=[],r594MountWatchdog=0,r594RetryUsed=false;
+function r594ClearMountWatchdog(){clearTimeout(r594MountWatchdog);r594MountWatchdog=0;}
+function r594Fallback(reason){
+ if(!ui.open||ui.page!=='day'||r523DayExiting||view?.classList.contains('moa-r507-native-mounted'))return false;
+ view?.classList.add('moa-r594-native-failed');
+ view?.classList.remove('moa-r519-native-entering','moa-r547-native-owner');
+ window.__moaR594LastFailure={day:ui.date,reason,at:Date.now(),count:ui.media.length};
+ notify('갤러리 연결을 확인하고 있어요 · 사진을 넘기거나 상단 ···에서 다시 표시할 수 있어요');
+ r472RefreshVisibleThumbs();
+ return true;
+}
+function r594ClearFallback(){view?.classList.remove('moa-r594-native-failed');r594ClearMountWatchdog();}
+function r594RequestIndexOnce(){
+ if(r594RetryUsed)return;
+ r594RetryUsed=true;
+ const st=getState();
+ try{if(!st?.load)window.FamilyJourneyDiary?.loadIndex?.(false);}catch(_){ }
+ const token=r507Generation,day=ui.date;
+ setTimeout(()=>{
+  if(!ui.open||ui.page!=='day'||ui.date!==day||r523DayExiting||r507Opened||
+     (token!==r507Generation&&window.__moaR507NativePending))return;
+  // A second try is bounded; do not relaunch a healthy native Gallery.
+  window.__moaR511NativeArmed=false;window.__moaR511InlineArm=false;
+  r507StartInline();
+ },1700);
+}
+
 // JS close/reopen must never be misclassified as a user Back.
 window.__moaR567ProgrammaticCloseUntil=0;
 let r515RecoveryAttempts=0,r515LastNativeMount=0;
@@ -100,7 +129,7 @@ window.__moaR507NativeMounted=function(mounted){
  if(view){view.classList.toggle('moa-r507-native-mounted',!!mounted);
    if(mounted)view.classList.remove('moa-r519-native-entering');
    if(ui.open&&ui.page==='day'&&ui.media.length)view.classList.add('moa-r547-native-owner');}
- if(mounted){window.__moaR567ProgrammaticCloseUntil=0;r515RecoveryAttempts=0;r551LostAttempts=0;r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
+ if(mounted){r594ClearFallback();window.__moaR567ProgrammaticCloseUntil=0;r515RecoveryAttempts=0;r551LostAttempts=0;r515LastNativeMount=Date.now();clearTimeout(r519EntryTimer);r519EntryTimer=0;r527SyncGeometry(true);}
  if(!mounted){window.__moaR507NativePending=false;r507Opened=false;}
 };
 // R515: a transient Activity/WebView update must not demote the in-card native Gallery.
@@ -116,7 +145,8 @@ window.__moaR515RecoverInline=function(){
 };
 window.__moaR507NativeSelected=function(index){
  if(!ui.open||ui.page!=='day'||!window.__moaR507NativePending)return;
- const at=Number(index);if(!Number.isSafeInteger(at)||at<0||at>=ui.media.length)return;
+ const original=Number(index);const at=r594NativeIndexMap[original]??original;
+ if(!Number.isSafeInteger(at)||at<0||at>=ui.media.length)return;
  if(ui.idx!==at){ui.idx=at;r472UpdatePager();}
 };
 // R531: the original R463 Gallery remains the only fullscreen media owner.
@@ -178,6 +208,7 @@ window.__moaR543RebuildInline=function(token){
  return true;
 };
 window.__moaR543RepairInline=function(){
+ r594RetryUsed=false;r594ClearFallback();
  // Manual user action is a safe escape hatch if Android native TextureView
  // silently loses its surface (never auto-triggers during first mount).
  if(!ui.open||ui.page!=='day'||r523DayExiting||r531Advanced)return false;
@@ -186,7 +217,7 @@ window.__moaR543RepairInline=function(){
  setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting)r507StartInline()},250);
  return true;
 };
-function r507StopInline(){
+function r507StopInline(){r594ClearMountWatchdog();r594NativeIndexMap=[];
  r539EndProxy();
  if(r507Opened||window.__moaR507NativePending)
    window.__moaR567ProgrammaticCloseUntil=Date.now()+850;
@@ -214,24 +245,49 @@ function r507StartInline(){
   if(generation!==r507Generation||!ui.open||ui.page!=='day'||view?.hidden)return;
   if(!window.__moaR507BridgeReady || typeof window.MoaLocalAudio?.openNativeGallery!=='function'){
    if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,180);
+   else r594Fallback('BRIDGE_UNAVAILABLE');
    return;
   }
   const ids=ui.media.map(x=>String(x.id));
-  if(!ids.length||ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id)))return;
+  if(!ids.length||ids.length>10000||ids.some(id=>!/^(?:v?[0-9]{1,18})$/.test(id))){r594Fallback('INVALID_NATIVE_MEDIA_LIST');return;}
   if(!view?.querySelector('.moa-r469-stage')?.isConnected)return;
   window.__moaR511InlineArm=true;
   if(!window.__moaR511NativeArmed){
    if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,70);
-   else {window.__moaR511InlineArm=false;notify('네이티브 준비 지연 · 상단 설정에서 다시 연결할 수 있습니다.');}
+   else {window.__moaR511InlineArm=false;r594Fallback('NATIVE_ARM_TIMEOUT');r594RequestIndexOnce();}
    return;
   }
   window.__moaR507NativePending=true;
-  // Real R463 MoaNativeGallery opens photo AND video in one native rail.
-  let ok=false;
+  // R594: try the EXACT original Gallery and original ID order first.
+  // If any stale/provisional same-day ID makes that open fail, retry once
+  // using the phone's *real* MediaStore-indexed IDs. Records stay in IDB.
+  let ok=false;let map=ui.media.map((_,i)=>i);
   try{ok=!!window.MoaLocalAudio.openNativeGallery(JSON.stringify(ids),ui.idx,ui.date)}
-  catch(e){console.warn('R507 original gallery unavailable',e)}
-  if(!ok){window.__moaR507NativePending=false;return;}
+  catch(e){console.warn('R594 full original Gallery unavailable',e)}
+  if(!ok){
+   const real=getState()?.byId;
+   const kept=ui.media.map((m,i)=>({id:String(m.id),idx:i})).filter(m=>real?.has(m.id));
+   if(kept.length && kept.length<ids.length){
+    const safe=kept.map(m=>m.id),chosen=kept.findIndex(m=>m.idx===ui.idx);
+    try{ok=!!window.MoaLocalAudio.openNativeGallery(JSON.stringify(safe),chosen<0?0:chosen,ui.date)}
+    catch(e){console.warn('R594 indexed-media Gallery unavailable',e)}
+    if(ok)map=kept.map(m=>m.idx);
+   }
+  }
+  if(!ok){
+   window.__moaR507NativePending=false;
+   window.__moaR511InlineArm=false;
+   r594Fallback('NATIVE_OPEN_REJECTED');
+   r594RequestIndexOnce();
+   return;
+  }
+  r594NativeIndexMap=map;
   r507Opened=true;
+  r594ClearMountWatchdog();
+  r594MountWatchdog=setTimeout(()=>{
+    if(generation===r507Generation&&r507Opened&&ui.open&&ui.page==='day'&&
+       !view?.classList.contains('moa-r507-native-mounted'))r594Fallback('NATIVE_MOUNT_UNCONFIRMED');
+  },4300);
   // R551: the old 2700ms timer called r507StopInline() (which invokes
   // Gallery.close()) merely because the asynchronous native mounted signal
   // had not reached JS yet. On a detail↔photo or NAVER return this DESTROYED
@@ -560,9 +616,9 @@ window.addEventListener('pageshow',()=>{setTimeout(r472RefreshVisibleThumbs,200)
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){setTimeout(r472RefreshVisibleThumbs,300);setTimeout(()=>{if(ui.open&&ui.page==='day')r592RefreshVisibleDay();},600);}},{passive:true});
 
 function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('scroll',()=>r527SyncGeometry(),{passive:true});n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
-function open(page='calendar',day){const s=getState();if(!s?.open)return false;r527BeginDay();mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
+function open(page='calendar',day){const s=getState();if(!s?.open)return false;r594RetryUsed=false;r594ClearFallback();r527BeginDay();mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
  try{localStorage.setItem(KEY,'simple')}catch(e){}r495SyncLegacyRoot();r495InstallBackHandlers();r592PrepareView();r475LastDataKey=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');installBack();setTimeout(r475RefreshFamily,100);return true;}
-function close(){++r592OpenToken;r507StopInline();view?.classList.remove('moa-r547-native-owner');r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.open=false;ui.requestGeneration++;if(view)view.hidden=true;r495SyncLegacyRoot();try{localStorage.removeItem(KEY)}catch(e){}return true;}
+function close(){++r592OpenToken;r594RetryUsed=false;r594ClearFallback();r507StopInline();view?.classList.remove('moa-r547-native-owner');r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;ui.open=false;ui.requestGeneration++;if(view)view.hidden=true;r495SyncLegacyRoot();try{localStorage.removeItem(KEY)}catch(e){}return true;}
 function goBack(){if(!ui.open)return false;if(ui.page==='day'){if(ui.dirty&&!confirm('작성 중인 내용이 있습니다. 저장하지 않고 돌아갈까요?'))return true;
   // Mark intentional exit BEFORE closing Gallery: native callbacks cannot
   // mistake the old closed player for a crash and auto-reopen it.
@@ -944,7 +1000,7 @@ function renderMonth(){
 }
 function changeMonth(k){ui.month=new Date(ui.month.getFullYear(),ui.month.getMonth()+k,1);render();}
 function dayMedia(index){const m=ui.media[index];return m&&safeMedia(m.id)?m:null;}
-function setDay(day){if(!valid(day))return;ui.date=day;ui.selected=day;ui.page='day';ui.fast=false;ui.idx=0;ui.dirty=false;r527BeginDay();r592PrepareView();}
+function setDay(day){if(!valid(day))return;r594RetryUsed=false;r594ClearFallback();ui.date=day;ui.selected=day;ui.page='day';ui.fast=false;ui.idx=0;ui.dirty=false;r527BeginDay();r592PrepareView();}
 function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui.date,s=getState();if(!valid(d)||!s)return;ui.media=mediaFor(d);const chosen=mainCover(d,ui.media);const ri=ui.media.findIndex(x=>String(x.id)===String(chosen?.id));ui.idx=Math.min(ui.media.length-1,Math.max(0,ui.idx||ri));if(ui.idx===0&&ri>0)ui.idx=ri;
  const current=s.curatedEntries?.get(d)||s.entries?.get(d),wrap=elem('div','moa-r469-day');
  wrap.append(r539DayChrome('photo',d,()=>{},()=>r475OpenDetail(d),r539PhotoSettings));
