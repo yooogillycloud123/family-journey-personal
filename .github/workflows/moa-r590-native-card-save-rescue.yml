@@ -52,7 +52,7 @@ jobs:
           b=Path('experiments/moa-r590/MoaR217MemoPolish.java').read_text()
           for n in ('classes9.dex','classes18.dex'):
             d=Path('build/moa-r590',n).read_bytes()
-            assert d[:4]==b'dex\\n' and len(d)<200000
+            assert d[:4]==b'dex\n' and len(d)<200000
           assert 'deck.setBackgroundColor(Color.TRANSPARENT);' in a
           assert 'capsule.setBackground(bg);' in a and 'footer.setStroke' not in a
           assert 'kind==FAVORITE?.67f:.62f' in a
