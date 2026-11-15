@@ -773,8 +773,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       p.height=dp(a,34);p.width=Math.min(Math.max(dp(a,260),host.getWidth()-dp(a,18)),dp(a,306));
       p.bottomMargin=dp(a,1);capsule.setLayoutParams(p);
     }
-    // R588: keep the oval eight-action capsule, remove ONLY R572's extra
-    // full-width charcoal footer/stroke outside it (R574 verified visual fix).
+    // R588 confirmed visual baseline: the oval stays, no redundant full-width dock.
     deck.setBackgroundColor(Color.TRANSPARENT);
     GradientDrawable bg=new GradientDrawable();bg.setColor(0x90212229);bg.setCornerRadius(dp(a,19));
     bg.setStroke(dp(a,.5f),0x447d828c);capsule.setBackground(bg);
@@ -839,9 +838,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
             ViewGroup vg=(ViewGroup)slot;
             for(int k=0;k<vg.getChildCount();k++){
               View glyph=vg.getChildAt(k);
-              if(i!=1){glyph.setScaleX(.82f);glyph.setScaleY(.82f);}
-              else if(k==0){glyph.setScaleX(.83f);glyph.setScaleY(.83f);}
-              else if(glyph instanceof TextView)((TextView)glyph).setTextSize(10f);
+              // R590: reduce only visual contents; original 31-33dp touch targets,
+              // original media listener, original video time slider are unchanged.
+              if(i!=1){glyph.setScaleX(.64f);glyph.setScaleY(.64f);}
+              else if(k==0){glyph.setScaleX(.68f);glyph.setScaleY(.68f);}
+              else if(glyph instanceof TextView)((TextView)glyph).setTextSize(9.5f);
             }
           }
         }
@@ -1046,7 +1047,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       float cx=getWidth()/2f,cy=getHeight()/2f;
       // Native STAR/RAIL/EXPAND were 18–20dp, while the existing R463
       // share/info strokes were ~16dp. Scale ART, never the 34dp hit target.
-      canvas.save();canvas.scale(kind==FAVORITE?.84f:.78f,kind==FAVORITE?.84f:.78f,cx,cy);
+      canvas.save();canvas.scale(kind==FAVORITE?.67f:.62f,kind==FAVORITE?.67f:.62f,cx,cy);
       if(kind==STAR){
         android.graphics.Path path=new android.graphics.Path();
         for(int i=0;i<10;i++){
