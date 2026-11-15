@@ -97,6 +97,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private boolean railExpanded=true;
   // R592 one-shot user preference reconciliation on each new in-card mount.
   private boolean r592InfoRestoreDone=false;
+  private View r594InfoDotOwner;
+  private R594InfoDot r594InfoDot;
   private boolean railToggleInstalled;
   // R572: entry reveal, photo-only thumbnail geometry, stable native fast preference.
   private boolean r572FirstPhotoPending=false, r572NativeMountAck=false;
@@ -569,6 +571,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     r572FirstPhotoPending=false;r572NativeMountAck=false;r572FirstPhotoDeadline=0L;
     r572FastRestorePending=false;r572FastRestoreDone=false;r572FastSeen=false;
     r572LastVideoRail=null;
+    if(r594InfoDotOwner!=null&&r594InfoDot!=null)r594InfoDotOwner.getOverlay().remove(r594InfoDot);
+    r594InfoDotOwner=null;r594InfoDot=null;
     compactDone=false;r592InfoRestoreDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
     exitInFlight=false;ownedDayToken=0;nativeCloseDetectedAt=0L;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
     lastX=lastY=Integer.MIN_VALUE;
@@ -681,6 +685,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         lastY+lastH>0 && lastY<a.findViewById(android.R.id.content).getHeight())
       nativeHost.setVisibility(View.VISIBLE);
     r592RestoreOriginalInfoPreference(a);
+    r594SyncIndicators(a);
   }
   // Original R459 'info' action owns its own listener and checkbox preference.
   // A reused original Gallery may retain the PRIOR session's expanded state.
@@ -692,6 +697,29 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
        .getBoolean("show_on_open",false);
     if(info.isSelected()!=stored)info.performClick();
     r592InfoRestoreDone=true;
+  }
+  // Small visual ON dots only; original lower INFO tap, checkbox, drag and
+  // thumbnail rail listeners remain owned by R459/R515 respectively.
+  private static final class R594InfoDot extends android.graphics.drawable.Drawable {
+    private final android.graphics.Paint p=new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+    private final float density;private boolean on=false;
+    R594InfoDot(Activity a){density=a.getResources().getDisplayMetrics().density;p.setColor(Color.WHITE);}
+    void show(boolean enabled){if(on!=enabled){on=enabled;invalidateSelf();}}
+    @Override public void draw(android.graphics.Canvas c){if(!on)return;
+      android.graphics.Rect b=getBounds();c.drawCircle(b.exactCenterX(),b.bottom-2.3f*density,1.55f*density,p);}
+    @Override public void setAlpha(int alpha){p.setAlpha(alpha);invalidateSelf();}
+    @Override public void setColorFilter(android.graphics.ColorFilter filter){p.setColorFilter(filter);invalidateSelf();}
+    @Override public int getOpacity(){return android.graphics.PixelFormat.TRANSLUCENT;}
+  }
+  private void r594SyncIndicators(Activity a){
+    final View info=r570Actions.get("info");if(info==null||!ownsGallery)return;
+    if(r594InfoDotOwner!=info){
+      if(r594InfoDotOwner!=null&&r594InfoDot!=null)r594InfoDotOwner.getOverlay().remove(r594InfoDot);
+      r594InfoDotOwner=info;r594InfoDot=new R594InfoDot(a);info.getOverlay().add(r594InfoDot);
+    }
+    r594InfoDot.setBounds(0,0,info.getWidth(),info.getHeight());
+    r594InfoDot.show(a.getSharedPreferences("moa_r443_gallery_top_info_v1",0).getBoolean("show_on_open",false));
+    info.invalidate();
   }
   private void r572SyncFastSetting(Activity a){
     if(!ownsGallery||actionCapsule==null||!r572NativeMountAck)return;
@@ -1099,6 +1127,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         canvas.drawLine(cx+b,cy+a,cx+a,cy+a,paint);canvas.drawLine(cx+a,cy+a,cx+a,cy+b,paint);
       }
       canvas.restore();
+      if(kind==RAIL&&isSelected()){
+        paint.setStyle(android.graphics.Paint.Style.FILL);
+        canvas.drawCircle(cx,getHeight()-2.3f*d,1.55f*d,paint);
+        paint.setStyle(android.graphics.Paint.Style.STROKE);
+      }
     }
   }
   private void installRailToggle(Activity a,LinearLayout capsule){
@@ -1132,7 +1165,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(railToggle!=null){
       railToggle.invalidate();
       railToggle.setContentDescription(expanded?"사진 목록 접기":"사진 목록 펼치기");
-      railToggle.setSelected(!expanded);
+      // R594: the dot means ON/visible, matching the existing FAST indicator.
+      railToggle.setSelected(expanded);
     }
   }
   // Only the in-card Gallery opts into center-crop. Never upscale the bitmap
