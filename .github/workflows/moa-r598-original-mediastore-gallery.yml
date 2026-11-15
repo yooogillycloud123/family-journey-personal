@@ -1,0 +1,48 @@
+name: MOA R598 Restore original direct MediaStore native gallery
+on:
+  push:
+    branches:
+      - 'feature/moa-r598-r596-native-direct-mediastore-open-20261115'
+    paths:
+      - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
+      - 'experiments/moa-r598/**'
+      - '.github/workflows/moa-r598-original-mediastore-gallery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native_contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check source syntax and direct native MediaStore validator
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r483/moa-r483-vertical-calendar.js
+          node experiments/moa-r598/qa_direct_native_gallery.js
+      - name: Freeze exact JS and verification hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/moa-r598
+          cp experiments/moa-r483/moa-r483-vertical-calendar.js build/moa-r598/
+          cp experiments/moa-r598/qa_direct_native_gallery.js build/moa-r598/
+          cat > build/moa-r598/README.txt <<'EOF'
+          R598 source tested against original R596 native Gallery bridge.
+          This artifact is NOT a signed APK.
+          Build update from original-signer R596, keep 18 existing DEX and
+          ALL other assets exactly; change ONLY Manifest version and JS.
+          Native Gallery code unchanged; restore original direct MediaStore
+          selected-URI verification before separate async diary cache indexing.
+          Device physical proof pending.
+          EOF
+          sha256sum build/moa-r598/moa-r483-vertical-calendar.js build/moa-r598/qa_direct_native_gallery.js > build/moa-r598/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R598-exact-js-native-gallery-QA
+          path: build/moa-r598/
+          if-no-files-found: error
