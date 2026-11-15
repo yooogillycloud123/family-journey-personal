@@ -103,7 +103,7 @@ jobs:
           cp experiments/moa-r483/moa-r483-vertical-calendar.css build/moa-r596/
           cp experiments/moa-r596/qa_r596.js build/moa-r596/
           cp experiments/moa-r592/qa_shared_diary.js build/moa-r596/
-          sha256sum build/moa-r596/* > build/moa-r596/SHA256SUMS.txt
+          find build/moa-r596 -maxdepth 1 -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > build/moa-r596/SHA256SUMS.txt
           cat > build/moa-r596/READ_FIRST.txt <<'EOF'
           MOA R596 source+compiled DEX QA. No private signing key here.
           Baseline is original-signer R594; never wipe diary or uninstall.
