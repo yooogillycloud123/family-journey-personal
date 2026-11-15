@@ -8,6 +8,7 @@ on:
       - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
       - 'experiments/moa-r592/**'
       - '.github/workflows/moa-r590-native-card-save-rescue.yml'
+      - '.github/workflows/moa-r592-shared-diary-native-card.yml'
   workflow_dispatch:
 permissions:
   contents: read
