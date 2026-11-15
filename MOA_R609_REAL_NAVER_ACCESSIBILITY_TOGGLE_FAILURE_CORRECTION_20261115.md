@@ -1,0 +1,24 @@
+# MOA R609 — USER REAL GALAXY FAIL, WRONG TOGGLE TARGET: NAVER ACCESSIBILITY SERVICE (2026-11-15)
+
+## Highest-priority user correction
+The user explicitly corrected earlier assistant's false identification: the repeated OFF→ON command is invoked from **Samsung One Hand Operation+** and controls the **NAVER favorite integration accessibility service**, NOT MOA's `촬영 즉시 기록` camera capture observer. On Galaxy, the repeated One Hand Operation+ NAVER accessibility switch still makes the original in-card native Gallery disappear, **even with R609**. Mark R609 device outcome **FAIL for this user issue**. Never claim Android app Settings or Quick Capture switch is a proven workaround. Record R609 camera watcher `mmToggle()` patch as a separate, unrelated code change; its source-mock PASS is not a user real-world NAVER/Accessibility PASS.
+
+## Actual installable R609 APK binary-proof, not conjecture
+Decoded **actual `MOA_R609_R605_GOLDEN_CAPTURE_TOGGLE_GALLERY_SAFE_AND_SETTINGS_DOTS_SIGNED_BETA.apk`** `AndroidManifest.xml` and `res/xml/naver_service.xml`:
+- Declares `<service android:label="모아 · 네이버지도 장소 저장 보조" android:name="com.juhyeon.familyjourney.NaverSaveService" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true">` and `android.accessibilityservice.AccessibilityService` intent action.
+- `res/xml/naver_service.xml` specifically monitors `packageNames="com.nhn.android.nmap"` and can retrieve window content.
+- Accessibility service has **NO explicit `android:process` attribute**. It thus uses default application process absent other application-level overrides; the **native Gallery `MoaR507InlineGalleryProvider`** is declared in same app and no process override was seen for it either. This creates a potential shared process lifecycle coupling, but is **NOT proof** that Android kills/recreates the app process during toggling. 
+- The R609 modified JS `family-diary.js:mmToggle()` instead calls `MoaMomentNative.setEnabled()` and updates camera watcher UI. Neither `NaverSaveService` nor `MoaR507InlineGalleryProvider` DEX was modified in R609. **18/18 DEX byte-identical R605→R607→R609**.
+- The Samsung One Hand Operation+ gesture's exact assigned system action has NOT been read from the user's personal device. Do NOT assert that One Hand Operation+ changes one specific setting API; user describes the observed service ON/OFF, and the APK registers the matching NAVER accessibility service.
+
+## Why repeated service OFF→ON is a distinct diagnostic dimension
+Android official AccessibilityService docs: service is system managed; user/system starts via accessibility enable, runs `onServiceConnected()`, and stops on disable/`onUnbind()`. This is a separate lifecycle from camera watcher `mmToggle()`. No assertion that Settings pathway bypasses this lifecycle; if Settings toggles the same accessibility service, same failure may occur.
+- Before another APK, discriminate by **Gallery diagnostic copied immediately after One Hand Operation+ NAVER OFF→ON**: `BRIDGE`, `ARM`, `NATIVE_OPEN_ACCEPTED/REJECTED`, `ATTACH_REJECTED_HOST_HIERARCHY`, `NATIVE_HOST_STAGE_NOT_ATTACHED`, `MOUNT`, `DECK`. If available, authorized ADB logcat showing process PID before/after plus AccessibilityService `onUnbind/onServiceConnected` and Activity recreate status distinguishes process loss from native host detach.
+- Inspect exact existing Naver accessibility service lifecycle and actual R605 Gallery provider behavior; preserve true user-approved R605 Gallery and NAVER accessibility favorite-save paths. Do not move service into separate process without proving cross-process SharedPreferences/IPC safety; such a blind change could break NAVER save sessions.
+- No new candidate has been built or validated for this corrected NAVER toggle target in this message. **Do not relabel R609 as fixed**.
+
+## Existing verified baseline and release status
+- **R605 user approved Golden**, original APK versionCode605, SHA256 `b357112dd2c90194b218ad197ee988b85fb4edd2a8275b0fe68cb283ed431030`. This is user-approved for initial Gallery and photo/detail & app-return tests, **not confirmed repeated NAVER accessibility toggling**.
+- R609 versionCode609 SHA256 `eed6629e9874d10c12b11beea199fa7d73f68aa564c25455088a8e0960c8d127`: source tests PASS for unrelated camera watcher, **user NAVER repeated toggle FAIL**. No need to reinstall R609 to retest wrong function.
+- R610 versionCode610 `cc02a51b8c309a89e039bc9a587c10392c0507cbc15682d67d0b5249a98145e3` restores exact R605 functional APK payload (versionCode forward only) and drops R607 diary-body enhancement; **not a validated fix for NAVER ON/OFF regression**. Do not instruct user to use it as the solution without a distinct severe regression decision.
+- Never uninstall/reset MOA data, wipe NAVER cookies, disable user-desired save permanently, regenerate Gallery engine, or modify unrelated AirPods.
