@@ -103,6 +103,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // R572: entry reveal, photo-only thumbnail geometry, stable native fast preference.
   private boolean r572FirstPhotoPending=false, r572NativeMountAck=false;
   private long r572FirstPhotoDeadline=0L;
+  private String r596WarnedPhotoId="";
   private boolean r572FastRestorePending=false, r572FastRestoreDone=false;
   private boolean r572FastSeen=false, r572FastState=false;
   private Boolean r572LastVideoRail=null;
@@ -568,7 +569,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     r570SaveDialog=null;r570OrderDialog=null;
     nativeOwnerActivity=null;
     coverStar=null;railToggle=null;advancedButton=null;favoriteButton=null;r570Actions.clear();railView=null;railToggleInstalled=false;nativeHost=null;galleryRef=null;nativeLower=null;actionCapsule=null;actionDeck=null;ambientPoster=null;ambientParent=null;ambientMediaId="";initialCardChromeHidden=false;
-    r572FirstPhotoPending=false;r572NativeMountAck=false;r572FirstPhotoDeadline=0L;
+    r572FirstPhotoPending=false;r572NativeMountAck=false;r572FirstPhotoDeadline=0L;r596WarnedPhotoId="";
     r572FastRestorePending=false;r572FastRestoreDone=false;r572FastSeen=false;
     r572LastVideoRail=null;
     if(r594InfoDotOwner!=null&&r594InfoDot!=null)r594InfoDotOwner.getOverlay().remove(r594InfoDot);
@@ -616,6 +617,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       GradientDrawable round=new GradientDrawable();round.setColor(Color.BLACK);round.setCornerRadius(dp(a,23));
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
       r572FirstPhotoPending=!currentId(gallery).startsWith("v");
+      r596WarnedPhotoId="";
       r572FirstPhotoDeadline=android.os.SystemClock.uptimeMillis()+950L;
       r572NativeMountAck=false;r572FastRestorePending=true;r572FastRestoreDone=false;
       r572FastSeen=false;r572LastVideoRail=null;
@@ -680,7 +682,13 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       if(!actualMediaReady(gallery)){
         nativeHost.setVisibility(View.INVISIBLE);
         if(android.os.SystemClock.uptimeMillis()>=r572FirstPhotoDeadline){
-          web.evaluateJavascript("window.__moaR596NativePhotoUnready&&window.__moaR596NativePhotoUnready("+ownedDayToken+");",null);
+          final String missingPhotoId=currentId(gallery);
+          // The native ticker can run many times per second. Notify the Web
+          // fallback exactly once per currently selected ID, not every tick.
+          if(!missingPhotoId.equals(r596WarnedPhotoId)){
+            r596WarnedPhotoId=missingPhotoId;
+            web.evaluateJavascript("window.__moaR596NativePhotoUnready&&window.__moaR596NativePhotoUnready("+ownedDayToken+");",null);
+          }
         }
         return;
       }
