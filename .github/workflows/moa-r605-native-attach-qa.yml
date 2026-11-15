@@ -1,0 +1,68 @@
+name: MOA R605 original native attachment and same-day playlist isolated QA
+on:
+  push:
+    branches:
+      - feature/moa-r605-r567-native-attach-ack-r602-live-playlist-20261115
+    paths:
+      - 'experiments/moa-r483/moa-r483-vertical-calendar.js'
+      - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
+      - '.github/workflows/moa-r605-native-attach-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original_native_attachment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK 35
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile additive Gallery provider only
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa605/classes /tmp/moa605/dex build/moa-r605
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa605/classes experiments/moa-r507/MoaR507InlineGalleryProvider.java
+          find /tmp/moa605/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa605/dex
+          cp /tmp/moa605/dex/classes.dex build/moa-r605/classes18.dex
+          sha256sum build/moa-r605/classes18.dex > build/moa-r605/dex-sha256.txt
+      - name: Actual source lifecycle contracts and JS parse
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r483/moa-r483-vertical-calendar.js
+          python3 - <<'PY'
+          from pathlib import Path
+          js=Path('experiments/moa-r483/moa-r483-vertical-calendar.js').read_text()
+          java=Path('experiments/moa-r507/MoaR507InlineGalleryProvider.java').read_text()
+          def block(src,start,stop):
+              a=src.index(start);b=src.index(stop,a+len(start));return src[a:b]
+          entry=block(js,'function r507StartInline(){','\n\n// R495:')
+          refresh=block(js,'async function r592RefreshVisibleDay(){','\n\nfunction r602RefreshMomentNotes()')
+          native=block(java,'private void r572FinishEntry(', 'private void r592RestoreOriginalInfoPreference(')
+          assert 'NATIVE_ARM_TIMEOUT' in entry and 'ARM_UNCONFIRMED_DIRECT_NATIVE_ATTEMPT' not in entry
+          assert entry.index('if(!window.__moaR511NativeArmed)') < entry.index('const nativeResult=r598TryOriginalGallery')
+          assert 'window.__moaR602PlaylistUpdate=' in refresh
+          executable='\n'.join(line.split('//')[0] for line in refresh.splitlines())
+          assert 'r507StopInline()' not in executable and 'render()' not in executable
+          assert 'NATIVE_HOST_MOUNTED_ORIGINAL_STAGE' in native
+          assert 'NATIVE_ACTION_DECK_PENDING' in native
+          assert 'actionDeck==null||' not in native
+          assert 'web.evaluateJavascript("window.__moaR507NativeMounted' in native
+          assert '((FrameLayout)stageObj).getParent()!=nativeHost' in native
+          print('PASS R567 arm gate + attached original stage ACK independent of 8-action readiness + R602 same-day no close')
+          PY
+      - name: Create checksum report
+        run: |
+          sha256sum experiments/moa-r483/moa-r483-vertical-calendar.js experiments/moa-r507/MoaR507InlineGalleryProvider.java >> build/moa-r605/source-sha256.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R605-ADDITIVE-DEX-SOURCE-QA-NOT-APK
+          path: build/moa-r605
