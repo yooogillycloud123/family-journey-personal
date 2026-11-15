@@ -1,0 +1,56 @@
+name: MOA R611 NAVER Accessibility OFF ON original Gallery same owner compile
+on:
+  push:
+    branches:
+      - feature/moa-r611-r609-naver-accessibility-gallery-state-recovery-20261115
+    paths:
+      - 'experiments/moa-r507/MoaR507InlineGalleryProvider.java'
+      - '.github/workflows/moa-r611-naver-accessibility-gallery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile_native_gallery_access:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK 35
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile original additive native Gallery provider ONLY (preserve 17 core DEX)
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa611/classes /tmp/moa611/dex build/moa-r611
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa611/classes experiments/moa-r507/MoaR507InlineGalleryProvider.java
+          find /tmp/moa611/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa611/dex
+          cp /tmp/moa611/dex/classes.dex build/moa-r611/classes18.dex
+          sha256sum build/moa-r611/classes18.dex > build/moa-r611/dex-sha256.txt
+          sha256sum experiments/moa-r507/MoaR507InlineGalleryProvider.java > build/moa-r611/source-sha256.txt
+      - name: Verify exact service owner, no Gallery close on accessibility toggle
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('experiments/moa-r507/MoaR507InlineGalleryProvider.java').read_text()
+          a=s[s.index('private int r611ReadNaverEnabled()'):s.index('private int fullNativeLastIndex=-1;')]
+          required=['Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES','/com.juhyeon.familyjourney.NaverSaveService',
+          'r611MarkNaverAccessChange','r611RecheckAfterNaverAccess','returnFromBackground=true',
+          'rebindAfterReturn(a,epoch)','r611HealthyCheckSeq==r611NaverToggleSeq']
+          assert all(x in a for x in required)
+          assert 'invokeClose(' not in a and 'closeNativeGallery(' not in a and 'setEnabled(' not in a
+          assert 'private void r602PollPlaylist(' in s and 'private void r572FinishEntry(' in s
+          assert 'nativeOwnerActivity!=a' in a
+          print('R611 NAVER accessibility observer / original R567 bounded same-day restore contract: PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R611-ORIGINAL-ADDITIVE-GALLERY-DEX-NO-KEY-NO-APK
+          path: build/moa-r611
