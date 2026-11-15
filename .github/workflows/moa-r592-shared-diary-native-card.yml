@@ -83,6 +83,25 @@ jobs:
           set -euo pipefail
           node --check experiments/moa-r483/moa-r483-vertical-calendar.js
           node experiments/moa-r592/qa_shared_diary.js
+      - name: Include exact matching source and QA in developer handoff artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp experiments/moa-r507/MoaR507InlineGalleryProvider.java build/moa-r592/
+          cp experiments/moa-r590/MoaR217MemoPolish.java build/moa-r592/
+          cp experiments/moa-r483/moa-r483-vertical-calendar.js build/moa-r592/
+          cp experiments/moa-r592/qa_shared_diary.js build/moa-r592/
+          sha256sum build/moa-r592/* > build/moa-r592/SHA256SUMS.txt
+          cat > build/moa-r592/READ_FIRST.txt <<'EOF'
+          MOA R592 SOURCE + COMPILED DEX DEV HANDOFF ONLY.
+          NOT an installable original-signer APK.
+          Original user-app R590 remains installed; no device QA performed.
+          Changed-source scope: photo/day calendar JS and additive native provider classes18.dex.
+          classes9.dex is recompiled from frozen R590 helper; all other DEX frozen.
+          For final installable update: retain original package and signer, versionCode >=592,
+          replace only assets/web/moa-r483-vertical-calendar.js, classes18.dex, Manifest.
+          Do not upload private signer, do not uninstall or erase diary/Naver data.
+          EOF
       - uses: actions/upload-artifact@v4
         if: always()
         with:
