@@ -705,15 +705,25 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // demote the entire native Gallery to low-resolution Web merely because
     // images[1].getDrawable() is temporarily null after Quick Record.
     FrameLayout root=a.findViewById(android.R.id.content);
-    if(root==null||nativeHost.getParent()!=root||actionDeck==null||
-       actionDeck.getParent()==null){r602Signal(web,"NATIVE_HOST_READY_ACTION_DECK_MISSING");return;}
+    Object stageObj=readField(gallery,"stage");
+    // R605: R567 physically approved native mount ownership means ORIGINAL
+    // host + stage are attached. A transient 8-action deck lookup is NOT
+    // permission to demote the entire renderer to the obsolete Web pager.
+    if(root==null||nativeHost.getParent()!=root||
+       !(stageObj instanceof FrameLayout)||
+       ((FrameLayout)stageObj).getParent()!=nativeHost){
+      r602Signal(web,"NATIVE_HOST_STAGE_NOT_ATTACHED");return;
+    }
+    boolean deckReady=actionDeck!=null&&actionDeck.getParent()!=null;
+    if(!deckReady)r602Signal(web,"NATIVE_ACTION_DECK_PENDING");
     if(lastY!=Integer.MIN_VALUE&&lastY+lastH>0&&lastY<root.getHeight()){
       nativeHost.setVisibility(View.VISIBLE);
       if(!r572NativeMountAck){
         r572NativeMountAck=true;
-        r602Signal(web,"NATIVE_HOST_MOUNTED_WITH_ACTIONS");
+        r602Signal(web,"NATIVE_HOST_MOUNTED_ORIGINAL_STAGE");
         web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true,"+ownedDayToken+");",null);
       }
+      if(deckReady)r602Signal(web,"NATIVE_8_ACTION_DECK_READY");
     }
     // If a just-taken native photo is still decoding, retry ONLY the
     // original Gallery's refreshPages() at a bounded rate. Never close,
