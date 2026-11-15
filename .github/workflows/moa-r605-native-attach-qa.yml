@@ -66,3 +66,15 @@ jobs:
         with:
           name: MOA-R605-ADDITIVE-DEX-SOURCE-QA-NOT-APK
           path: build/moa-r605
+      - name: Export public APK signing tools (no signing secrets)
+        run: |
+          set -euo pipefail
+          mkdir -p build/moa-r605-public-tools
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" build/moa-r605-public-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" build/moa-r605-public-tools/
+          file build/moa-r605-public-tools/zipalign
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R605-PUBLIC-ANDROID-SIGNING-TOOLS-NO-SECRETS
+          path: build/moa-r605-public-tools
