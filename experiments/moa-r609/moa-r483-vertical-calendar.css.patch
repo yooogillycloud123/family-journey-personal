@@ -22,7 +22,7 @@
 + position:absolute!important;left:2px!important;top:1px!important;inset:auto!important;
 + background:var(--moa-r491-track,#f3eef1)!important;
 + border:1px solid var(--moa-r491-track-border,#d4c8ce)!important;
-+ border-radius:18px!important;box-sizing:border-box!important;
++ border-radius:18px!important;box-sizing:border-box!important;box-shadow:none!important;
 +}
 +html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after,
 +html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after{
