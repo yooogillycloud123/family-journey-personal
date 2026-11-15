@@ -1,0 +1,29 @@
+# MOA R609 / R610 — original-signer repeat watcher toggle non-destructive patch (2026-11-15)
+
+## Immutable physical Golden first
+- **User-approved R605** code605 SHA256 `b357112dd2c90194b218ad197ee988b85fb4edd2a8275b0fe68cb283ed431030`; user video `22375.mp4` confirmed actual original native 8-action Gallery/fast rail, photo/detail roundtrip; user also reports Home/background and other-app return stable. Frozen branch `golden/moa-r605-user-device-approved-native-gallery-20261115`. Never modify / replace original.
+- R607 signed beta code607 SHA `e2a5f442806660b6f4e5d370c1291121ae2c30eb5a5f79cbfd75e71e5c965885` added native QuickRecord transcript into original diary `curated.body` and top-right UI, ALL native DEX unchanged; user screenshot confirms story shows text. Its settings button incorrectly imitated the neighboring slider.
+- User `22427.mp4` ~76.34s: native Gallery photo-day black after app return, gray blank after photo/detail return, later appears, user reports repeat **촬영 즉시 기록 ON/끄기** toggling can make original native Gallery disappear from second cycle. This is a DEVICE FAIL. Specific Android life-cycle root not independently proven by video.
+
+## Deterministic source hazard and constrained fix
+- R607 original `assets/web/family-diary.js:mmToggle()` called native `MoaMomentNative.setEnabled(!mmNativeRunning())`, then **`render()` at 0ms, 700ms, 1900ms** whenever `S.open`. Actual legacy diary `render()` starts `S.root.replaceChildren()`. These three full DOM rebuilds are unnecessary during native watcher ON/OFF and can interfere with separately owned original R605 native Activity-root Gallery host/stage. Source-confirmed lifecycle hazard; likely relevant to failure but phone cause still unverified.
+- R609 **retains exact native setEnabled behavior** but replaces only the three whole-diary renders with `mmSyncNativeSwitchUI()` (reconciliation of existing button text / class / aria + existing instruction). No DOM replacement, no Gallery.close(), no Java/DEX or Naver hidden WebView/session change. Existing 700/1900ms delayed *status reads* do not mutate original page.
+- CSS-only correction: right-day settings stays 68×34 hit area like left photo/detail slider, but is an independent center **`···` capsule MENU** (not a second switch/knob). Original menu event handler and accessibility label are untouched.
+- Note: this camera **capturing watcher toggle is not itself NAVER account save session toggle**. User reports Naver saves depend on toggling; treat as unresolved interaction and do not assert Naver has been fixed absent device evidence.
+- Exact detailed timeline, Java/JS ownership and all R594→R605 debugging conditions: [Deep Golden Forensic](MOA_R605_GOLDEN_DEEP_FORENSIC_R609_CAPTURE_TOGGLE_20261115.md). MUST READ before future Gallery modifications.
+
+## Signed outputs and reproducible QA
+- **Install-only R609 beta**, package `com.juhyeon.familyjournea`, code**609**, `MOA_R609_R605_GOLDEN_CAPTURE_TOGGLE_GALLERY_SAFE_AND_SETTINGS_DOTS_SIGNED_BETA.apk`, **9,105,117 B**, SHA256 **`eed6629e9874d10c12b11beea199fa7d73f68aa564c25455088a8e0960c8d127`**. Compared to R607 exactly **141/144** APK member payloads identical; only `AndroidManifest.xml`, `assets/web/family-diary.js`, `assets/web/moa-r483-vertical-calendar.css` changed. Original source `moa-r483-vertical-calendar.js` unchanged. ALL original **18 DEX byte-identical** and Gallery native engine unmodified.
+- **Emergency EXACT R605 user-Golden functional return R610**, code**610**, `MOA_R610_EXACT_R605_GOLDEN_FORWARD_RECOVERY_ORIGINAL_SIGNED.apk`, **9,100,997 B**, SHA256 **`cc02a51b8c309a89e039bc9a587c10392c0507cbc15682d67d0b5249a98145e3`**. Compared to original R605 **143/144** byte-identical member payloads, ONLY Manifest version605→610. R607/R609 add-ons lost in emergency, but approved R605 function preserved. Next code >=611.
+- Original signing certificate SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`; APKv2 same-signer verification SDK29,35,37 PASS; ZIP CRC PASS; all DEX SHA1/Adler32 and byte equality PASS; stored entry alignment PASS. Original private signer existed only in user PRIVATE Library, loaded locally and key/password NEVER uploaded/shared.
+- **Real original `mmToggle` source** isolated VM ON→OFF→ON→OFF **4/4 PASS**, `MoaMomentNative.setEnabled` once each cycle and **0 full render/replacement**. Real Chromium CSS photo/detail button measured **68×34** and centered `···` both PASS; JS parser PASS. **No Galaxy R609 repeat native Gallery actual PASS yet; R609 BETA, NOT GOLDEN.**
+- All-in-one signed APK + same-Golden recovery + exact modified full JS/CSS + patches + QA + deep forensic doc ZIP `MOA_R609_R610_GOLDEN_SAFE_TOGGLE_FIX_SIGNED_APK_SOURCE_FORENSIC_20261115.zip` 13,213,481 B SHA256 **`aefdc251ff4427c6dbea8b5138267752bdf1e029c292b6c74b20a999aea56249`**, PRIVATE Library `/모아_프로젝트_근거_20261103/R609_R610_R605_GOLDEN_CAPTURE_TOGGLE_SAFE_20261115/`; NO signing secrets, no user media.
+
+## Install, device gate, rollback
+1. Install **R609 only** as same-signer update over currently installed R607/R608 (no uninstall/data/cache/cookie erase, no Nav­er logout). **Do not install R610 first.**
+2. Confirm original fast native Gallery and all 8 actions/rail on initial photo-day; detail↔photo, Home/app switch return.
+3. Settings → 사진 및 데이터 → **촬영 즉시 기록** OFF/ON at least 3 cycles, verify original fast Gallery after each, no Web fallback/black/gray.
+4. New photo + QuickRecord speech/memo → original story text, individual record, original M4A. Verify Naver place save independently.
+5. On failure share `설정 → 원본 갤러리 진단 복사` (bridge/arm/open/host/deck/mount; no personal photo text). If serious new regression, update-install R610 to return EXACT approved R605 function. R610 version means next update must be >=611.
+
+**Project policy:** all R605 native Golden audio/gallery/diary source frozen; AA AirPods separate audio project untouched.
