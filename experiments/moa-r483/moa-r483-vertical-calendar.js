@@ -38,14 +38,17 @@ function r594RequestIndexOnce(){
  r594RetryUsed=true;
  const st=getState();
  try{if(!st?.load)window.FamilyJourneyDiary?.loadIndex?.(false);}catch(_){ }
- const token=r507Generation,day=ui.date;
- setTimeout(()=>{
+ const token=r507Generation,day=ui.date,started=Date.now();
+ const retryAfterIndex=()=>{
   if(!ui.open||ui.page!=='day'||ui.date!==day||r523DayExiting||r507Opened||
      (token!==r507Generation&&window.__moaR507NativePending))return;
-  // A second try is bounded; do not relaunch a healthy native Gallery.
+  // R594: a MediaStore scan may be slower than 1.7 seconds. Do not burn the
+  // only automatic retry while the original index is still rebuilding.
+  if(getState()?.load&&Date.now()-started<18000){setTimeout(retryAfterIndex,900);return;}
   window.__moaR511NativeArmed=false;window.__moaR511InlineArm=false;
   r507StartInline();
- },1700);
+ };
+ setTimeout(retryAfterIndex,1250);
 }
 
 // JS close/reopen must never be misclassified as a user Back.
