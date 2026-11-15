@@ -95,6 +95,8 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private String ambientMediaId="";
   private View railView;
   private boolean railExpanded=true;
+  // R592 one-shot user preference reconciliation on each new in-card mount.
+  private boolean r592InfoRestoreDone=false;
   private boolean railToggleInstalled;
   // R572: entry reveal, photo-only thumbnail geometry, stable native fast preference.
   private boolean r572FirstPhotoPending=false, r572NativeMountAck=false;
@@ -567,7 +569,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     r572FirstPhotoPending=false;r572NativeMountAck=false;r572FirstPhotoDeadline=0L;
     r572FastRestorePending=false;r572FastRestoreDone=false;r572FastSeen=false;
     r572LastVideoRail=null;
-    compactDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
+    compactDone=false;r592InfoRestoreDone=false;ownsGallery=false;lastIndex=-1;lastW=lastH=-1;inactiveAt=0;lastFillAt=0;lastFillId="";
     exitInFlight=false;ownedDayToken=0;nativeCloseDetectedAt=0L;lastGeometrySnapshotAt=0;lastVideoGeometryId="";fillPrepareAttempts=0;
     lastX=lastY=Integer.MIN_VALUE;
   }
@@ -678,6 +680,18 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(nativeHost.getVisibility()!=View.VISIBLE && lastY!=Integer.MIN_VALUE &&
         lastY+lastH>0 && lastY<a.findViewById(android.R.id.content).getHeight())
       nativeHost.setVisibility(View.VISIBLE);
+    r592RestoreOriginalInfoPreference(a);
+  }
+  // Original R459 'info' action owns its own listener and checkbox preference.
+  // A reused original Gallery may retain the PRIOR session's expanded state.
+  // Reconcile once on photo-card entry by calling ONLY that original listener.
+  private void r592RestoreOriginalInfoPreference(Activity a){
+    if(r592InfoRestoreDone||!ownsGallery)return;
+    final View info=r570Actions.get("info");if(info==null)return;
+    final boolean stored=a.getSharedPreferences("moa_r443_gallery_top_info_v1",0)
+       .getBoolean("show_on_open",false);
+    if(info.isSelected()!=stored)info.performClick();
+    r592InfoRestoreDone=true;
   }
   private void r572SyncFastSetting(Activity a){
     if(!ownsGallery||actionCapsule==null||!r572NativeMountAck)return;
@@ -863,9 +877,16 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     // do not install a competing touch listener on its stage.
     if(!initialCardChromeHidden){
       initialCardChromeHidden=true;
-      try{Field f=field(gallery.getClass(),"chromeVisible");if(f!=null)f.setBoolean(gallery,false);}catch(Throwable ignored){}
-      if(nativeLower!=null)nativeLower.setVisibility(View.GONE);
-      deck.setVisibility(View.GONE);
+      // R592: the previous blanket hide defeated the saved thumbnail ON
+      // choice even though 'rail_expanded' was correctly read and persisted.
+      // Keep original chrome/hit targets alive; rail visibility alone follows
+      // the saved preference. No new gallery overlay or button is introduced.
+      final boolean wantRail=a.getSharedPreferences("moa.r515.card_ui",0).getBoolean("rail_expanded",true);
+      railExpanded=wantRail;
+      try{Field f=field(gallery.getClass(),"chromeVisible");if(f!=null)f.setBoolean(gallery,true);}catch(Throwable ignored){}
+      if(nativeLower!=null)nativeLower.setVisibility(View.VISIBLE);
+      deck.setVisibility(View.VISIBLE);
+      setRailExpanded(a,wantRail);
     }
     if(favoriteButton==null){
       // Keep Save separate from the compact capture-address/default-display card.
