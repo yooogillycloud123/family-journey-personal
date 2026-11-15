@@ -269,7 +269,10 @@ public final class MoaR217MemoPolish {
    // Recheck before write, so a legitimate concurrent CaptureService draft wins.
    current=pref.getString(key,null);
    if(current!=null&&!current.isEmpty())return true;
-   return pref.edit().putString(key,draft.toString()).commit();
+   // CaptureService.poll() uses seen:<id> to avoid overwriting an existing
+   // recovered memo with a later empty capture draft. Commit both atomically.
+   return pref.edit().putString(key,draft.toString())
+      .putBoolean("seen:"+id,true).commit();
   }catch(Throwable ignored){return false;}
  }
  private static void installSavePreflight(Activity a,ViewGroup content){
