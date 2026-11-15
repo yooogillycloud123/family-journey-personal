@@ -673,13 +673,22 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private void r572FinishEntry(Activity a,WebView web,Object gallery){
     if(!ownsGallery||gallery!=galleryRef||nativeHost==null||!galleryOpen(gallery))return;
     if(r572FirstPhotoPending){
-      if(!actualMediaReady(gallery) &&
-          android.os.SystemClock.uptimeMillis()<r572FirstPhotoDeadline)return;
+      // R596: the old 950ms timeout used to ACK a blank photo as a mounted
+      // Gallery. R580 incorrectly hid it without exposing any Web controls.
+      // R596 keeps a working fallback Web rail and retries the ORIGINAL
+      // Gallery decoder in-place; no fresh native open or personal data write.
+      if(!actualMediaReady(gallery)){
+        nativeHost.setVisibility(View.INVISIBLE);
+        if(android.os.SystemClock.uptimeMillis()>=r572FirstPhotoDeadline){
+          web.evaluateJavascript("window.__moaR596NativePhotoUnready&&window.__moaR596NativePhotoUnready("+ownedDayToken+");",null);
+        }
+        return;
+      }
       r572FirstPhotoPending=false;
     }
     if(!r572NativeMountAck){
       r572NativeMountAck=true;
-      web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true);",null);
+      web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true,"+ownedDayToken+");",null);
     }
     if(nativeHost.getVisibility()!=View.VISIBLE && lastY!=Integer.MIN_VALUE &&
         lastY+lastH>0 && lastY<a.findViewById(android.R.id.content).getHeight())
