@@ -297,7 +297,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       // R535 original single geometry owner: exact integer target, no overshoot.
       nativeHost.setTranslationX(ix-baseX);
       nativeHost.setTranslationY(iy-baseY);
-      nativeHost.setVisibility(r572FirstPhotoPending||iy+ih<0||iy>root.getHeight()?View.INVISIBLE:View.VISIBLE);
+      nativeHost.setVisibility(iy+ih<0||iy>root.getHeight()?View.INVISIBLE:View.VISIBLE);
       lastPositionMessageAt=android.os.SystemClock.uptimeMillis();
       lastX=ix;lastY=iy;
     }catch(Throwable ignored){}
@@ -616,7 +616,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       clearCardMark();nativeHost=host;galleryRef=gallery;nativeOwnerActivity=a;ownsGallery=true;ownedDayToken=newToken;lastPositionMessageAt=0;
       GradientDrawable round=new GradientDrawable();round.setColor(Color.BLACK);round.setCornerRadius(dp(a,23));
       host.setBackground(round);host.setClipToOutline(true);host.setClipChildren(true);host.setClipToPadding(true);
-      r572FirstPhotoPending=!currentId(gallery).startsWith("v");
+      // R600: original R567 native-first card. Asynchronous image decode cannot
+      // hide the *whole* native Gallery: the eight-action dock and filmstrip
+      // remain interactive even before the bitmap arrives.
+      r572FirstPhotoPending=false;
       r596WarnedPhotoId="";
       r572FirstPhotoDeadline=android.os.SystemClock.uptimeMillis()+950L;
       r572NativeMountAck=false;r572FastRestorePending=true;r572FastRestoreDone=false;
@@ -646,7 +649,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       lastGeometrySnapshotY=y;
     }
     lastX=x;lastY=y;lastW=w;lastH=h;
-    if(r572FirstPhotoPending||y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
+    if(y+h<0||y>root.getHeight())host.setVisibility(View.INVISIBLE);
     else host.setVisibility(View.VISIBLE);
     compactNativeCard(a,web,host,gallery);
     syncAdvancedButton(gallery);
@@ -674,33 +677,27 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   // so could deadlock its SurfaceTexture). 950ms fail-open prevents stuck gray.
   private void r572FinishEntry(Activity a,WebView web,Object gallery){
     if(!ownsGallery||gallery!=galleryRef||nativeHost==null||!galleryOpen(gallery))return;
-    if(r572FirstPhotoPending){
-      // R596: the old 950ms timeout used to ACK a blank photo as a mounted
-      // Gallery. R580 incorrectly hid it without exposing any Web controls.
-      // R596 keeps a working fallback Web rail and retries the ORIGINAL
-      // Gallery decoder in-place; no fresh native open or personal data write.
-      if(!actualMediaReady(gallery)){
-        nativeHost.setVisibility(View.INVISIBLE);
-        if(android.os.SystemClock.uptimeMillis()>=r572FirstPhotoDeadline){
-          final String missingPhotoId=currentId(gallery);
-          // The native ticker can run many times per second. Notify the Web
-          // fallback exactly once per currently selected ID, not every tick.
-          if(!missingPhotoId.equals(r596WarnedPhotoId)){
-            r596WarnedPhotoId=missingPhotoId;
-            web.evaluateJavascript("window.__moaR596NativePhotoUnready&&window.__moaR596NativePhotoUnready("+ownedDayToken+");",null);
-          }
-        }
-        return;
-      }
-      r572FirstPhotoPending=false;
-    }
-    if(!r572NativeMountAck){
-      r572NativeMountAck=true;
-      web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true,"+ownedDayToken+");",null);
-    }
-    if(nativeHost.getVisibility()!=View.VISIBLE && lastY!=Integer.MIN_VALUE &&
-        lastY+lastH>0 && lastY<a.findViewById(android.R.id.content).getHeight())
+    // R600: user approved native R567 Gallery is PRIMARY. Native host and
+    // original eight actions are complete at this point; a bitmap is loaded
+    // asynchronously by the original ImageView/MediaStore decoder. Do not
+    // demote the entire native Gallery to low-resolution Web merely because
+    // images[1].getDrawable() is temporarily null after Quick Record.
+    FrameLayout root=a.findViewById(android.R.id.content);
+    if(root==null||nativeHost.getParent()!=root||actionDeck==null||
+       actionDeck.getParent()==null)return;
+    if(lastY!=Integer.MIN_VALUE&&lastY+lastH>0&&lastY<root.getHeight()){
       nativeHost.setVisibility(View.VISIBLE);
+      if(!r572NativeMountAck){
+        r572NativeMountAck=true;
+        web.evaluateJavascript("window.__moaR507NativeMounted&&window.__moaR507NativeMounted(true,"+ownedDayToken+");",null);
+      }
+    }
+    // If a just-taken native photo is still decoding, retry ONLY the
+    // original Gallery's refreshPages() at a bounded rate. Never close,
+    // replace with Web, or reset its selected media/rail/controls.
+    if(!currentId(gallery).startsWith("v")&&!actualMediaReady(gallery)&&
+       android.os.SystemClock.uptimeMillis()>=r572FirstPhotoDeadline)
+      refreshOriginalMediaIfBlank(gallery);
     r592RestoreOriginalInfoPreference(a);
     r594SyncIndicators(a);
   }
