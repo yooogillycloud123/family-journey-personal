@@ -1,0 +1,37 @@
+--- R605/assets/web/family-diary.js
++++ R607/assets/web/family-diary.js
+@@ -2124,16 +2124,30 @@
+   target.note=prior?prior+'\n'+d.note:d.note;
+   target.updatedAt=Date.now();
+  }
+- // A native draft only adds its photo and moment. Existing title, prose,
+- // activities, tags, and all other photos/moments remain untouched.
+- const updated={...existing,day,photoIds,moments,updatedAt:Date.now()};
++ // R607: native Quick Record speech/text already persisted in moments.note,
++ // but the PHOTO '오늘의 이야기' editor reads curated.body. Add the exact
++ // saved user text ONCE, preserving existing story, diary fields and M4A.
++ // The media ID marker survives re-delivery; never append a duplicate.
++ const synced=Array.isArray(existing.r607BodySyncedMediaIds)?
++  existing.r607BodySyncedMediaIds.map(String).filter(x=>/^(?:v?[0-9]{1,19})$/.test(x)).slice(-9999):[];
++ let nextBody=String(existing.body||'');
++ if(d.note&&!synced.includes(d.id)){
++  const memo=String(d.note).trim();
++  if(memo&&!nextBody.includes(memo))nextBody=nextBody.trim()?nextBody.trimEnd()+'\n\n'+memo:memo;
++  synced.push(d.id);
++ }
++ // Preserve all previous fields, detailed diary and existing native metadata.
++ const updated={...existing,day,photoIds,moments,body:nextBody,
++  r607BodySyncedMediaIds:synced,updatedAt:Date.now()};
+  await dbPut('curated',day,updated); // transaction oncomplete is awaited
+  const confirmed=await dbGet('curated',day);
+  if(!confirmed||(confirmed.photoIds||[]).map(String).indexOf(d.id)<0||
+-   !(confirmed.moments||[]).some(m=>(m.photoIds||[]).map(String).includes(d.id)&&(!d.note||String(m.note||'').includes(d.note))))
++   !(confirmed.moments||[]).some(m=>(m.photoIds||[]).map(String).includes(d.id)&&(!d.note||String(m.note||'').includes(d.note)))||
++   (d.note&&!String(confirmed.body||'').includes(String(d.note).trim())))
+    throw new Error('INDEXEDDB_READBACK_NOT_CONFIRMED');
+  S.curatedEntries.set(day,confirmed);r73HydrateSelected();
+  mmSeen.add(d.id);mmPersist();
++ try{w.dispatchEvent(new CustomEvent('moa:native-diary-committed',{detail:{day}}))}catch(_){}
+  return {id:d.id,ackable:d.memoSaved||Boolean(String(target.note||'').trim())};
+ }
+ w.__moaNativeSync=function(packet){
