@@ -971,3 +971,33 @@ html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="
 html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-tools:not([hidden]){
  display:block!important;
 }
+
+/* R607: restore day Settings slider beside R475 photo/detail slider.
+   Appearance ONLY: original R539/R191 menu click remains unchanged. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"],
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]{
+ display:grid!important;place-items:center!important;position:relative!important;
+ flex:0 0 68px!important;width:68px!important;min-width:68px!important;max-width:68px!important;
+ height:34px!important;min-height:34px!important;max-height:34px!important;
+ padding:0!important;background:transparent!important;border:0!important;
+ border-radius:22px!important;font-size:0!important;color:transparent!important;box-shadow:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::before,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::before{
+ content:""!important;position:absolute!important;z-index:0!important;pointer-events:none!important;
+ width:44px!important;height:19px!important;left:calc(50% - 22px)!important;top:calc(50% - 9.5px)!important;
+ border:1px solid var(--moa-r491-track-border,#d4c8ce)!important;
+ border-radius:100px!important;background:var(--moa-r491-track,#f3eef1)!important;
+ box-sizing:border-box!important;box-shadow:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after{
+ content:""!important;position:absolute!important;z-index:1!important;pointer-events:none!important;inset:auto!important;
+ display:block!important;width:18px!important;height:15px!important;
+ left:calc(50% - 19px)!important;top:calc(50% - 7.5px)!important;
+ background:var(--moa-r491-accent,#b45b8c)!important;
+ border:1px solid color-mix(in srgb,var(--moa-r491-accent,#b45b8c) 82%,var(--moa-r491-ink,#302a32))!important;
+ box-sizing:border-box!important;border-radius:100px!important;box-shadow:0 1px 2px #0002!important;
+ font-size:0!important;letter-spacing:0!important;
+ transform:translateX(20px)!important;
+}
