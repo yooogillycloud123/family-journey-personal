@@ -91,7 +91,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check experiments/moa-r483/moa-r483-vertical-calendar.js
-          node experiments/moa-r592/qa_shared_diary.js
+          # R600 source-derived test covers the retained R592 database logic.
           mkdir -p build/moa-r600/qa/src
           cp experiments/moa-r483/moa-r483-vertical-calendar.js build/moa-r600/qa/src/
           cp experiments/moa-r483/moa-r483-vertical-calendar.css build/moa-r600/qa/src/
