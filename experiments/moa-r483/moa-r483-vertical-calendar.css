@@ -938,3 +938,16 @@ html #moa-r469-root.moa-r572-video-active[data-page="day"] .moa-r469-stage{backg
 html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
 /* R572 save notices fade automatically; they do NOT affect Gallery geometry. */
 html #moa-r469-root[data-page="day"] .moa-r570-save-status.moa-r572-toast-leave{opacity:0!important;transition:opacity .18s ease!important;}
+
+/* R594 native bridge fail-safe: only when Android did not mount the original
+   gallery, expose the existing Web media strip and original navigation tools.
+   Never expose duplicate controls while the native Gallery is mounted. */
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-pager,
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-more,
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-native-fallback,
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r531-web-advanced,
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-tools{
+ visibility:visible!important;pointer-events:auto!important;
+}
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-stage-media{pointer-events:auto!important;}
