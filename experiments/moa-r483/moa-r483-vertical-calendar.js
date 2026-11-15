@@ -582,17 +582,35 @@ async function stored(table,key){const d=await db();try{return await new Promise
     const index=next.findIndex(p=>String(p.id)===previousId);
     ui.media=next;ui.idx=index>=0?index:Math.min(ui.idx,Math.max(0,next.length-1));
     r602Mark('SAME_DAY_LIST_CHANGED',{oldCount:previous?previous.split('|').length:0,newCount:next.length,nativeOpen:!!r507Opened});
-    renderMedia();refreshVoices();r602RefreshMomentNotes();r527SyncGeometry(true);
+    renderMedia();refreshVoices();r602RefreshMomentNotes();r607RefreshStoryBody();r527SyncGeometry(true);
     window.__moaR602PlaylistUpdate={day,token:window.__moaR527DayToken,ids:next.map(p=>String(p.id)),index:ui.idx,changedAt:Date.now()};
     // Only if Android has no accepted original host may we open a new one.
     if(!r507Opened&&!window.__moaR507NativePending){r594RetryUsed=false;r507StartInline();}
     return true;
    }
-   refreshVoices();r602RefreshMomentNotes();return false;
+   refreshVoices();r602RefreshMomentNotes();r607RefreshStoryBody();return false;
   }catch(e){console.warn('R592 media refresh',String(e));return false;}
   finally{r592RefreshBusy=false;}
  }
 
+// R607: the Quick Record canonical text is now committed in curated.body.
+// Refresh ONLY this textarea when native IndexedDB ACK arrives, never repaint
+// the native Gallery host, image rail, playback or the 8 action listeners.
+function r607RefreshStoryBody(){
+ if(!ui.open||ui.page!=='day'||ui.dirty||!view)return;
+ const area=view.querySelector('.moa-r469-text');
+ if(!area||document.activeElement===area)return; // never clobber live typing
+ const entry=getState()?.curatedEntries?.get(ui.date)||getState()?.entries?.get(ui.date);
+ const value=String(entry?.body||'');
+ if(area.value!==value)area.value=value;
+}
+// The original camera/QuickRecord IndexedDB writer sends this once it
+// ACTUALLY commits and reads back. No polling over the camera or Gallery.
+window.addEventListener('moa:native-diary-committed',event=>{
+ const day=event?.detail?.day;
+ if(ui.open&&ui.page==='day'&&day===ui.date&&!ui.dirty)
+  Promise.resolve().then(()=>r592RefreshVisibleDay());
+});
 function r602RefreshMomentNotes(){
  if(!view||!ui.open||ui.page!=='day')return;
  const noteHost=view.querySelector('.moa-r469-story');if(!noteHost)return;
@@ -886,7 +904,10 @@ function r539DayChrome(mode,day,onPhoto,onDetail,onSettings){
  const controls=elem('div','moa-r539-day-controls');
  const switcher=r475ModeToggle(mode,onPhoto,onDetail);
  switcher.classList.add(mode==='photo'?'moa-r475-photo-switch':'moa-r475-detail-switch');
- const settings=btn('···',onSettings,'moa-r539-day-settings');
+ // R607: matching switch-shaped settings button, NOT a second menu or
+ // extra Web view. Preserve the exact native/detail original settings owner.
+ const settings=btn('',onSettings,'moa-r539-day-settings');
+ settings.dataset.moaR607Slider='1';
  settings.setAttribute('aria-label','일기 보기 설정 및 관리');settings.title='일기 보기 설정';
  controls.append(switcher,settings);frame.append(title,controls);return frame;
 }
