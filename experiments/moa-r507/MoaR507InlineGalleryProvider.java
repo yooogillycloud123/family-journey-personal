@@ -7,6 +7,9 @@ import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.content.res.ColorStateList;
 import android.database.Cursor;
+import android.database.ContentObserver;
+import android.provider.Settings;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.media.MediaPlayer;
@@ -176,6 +179,85 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private long r602LastPlaylistPollAt=0L;
   private boolean r602PlaylistPolling=false;
   private String r602LastAppliedSignature="";
+  // R611: observe the exact NAVER favorite ACCESSIBILITY toggle triggered by
+  // Samsung One Hand Operation+. The camera capture watcher is unrelated.
+  // Never move the original NAVER service to another process: its original
+  // favorites SharedPreferences have strict same-process continuity.
+  private int r611NaverEnabled=-1;
+  private long r611LastNaverToggleAt=0L;
+  private int r611NaverToggleSeq=0,r611HealthyCheckSeq=0;
+  private ContentObserver r611AccessibilityObserver;
+  private int r611ReadNaverEnabled(){
+    try{
+      String value=Settings.Secure.getString(getContext().getContentResolver(),
+          Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+      if(value==null||value.trim().isEmpty())return 0;
+      for(String component:value.split(":")){
+        if(component.trim().endsWith("/com.juhyeon.familyjourney.NaverSaveService"))return 1;
+      }
+      return 0;
+    }catch(Throwable ignored){return -1;}
+  }
+  private void r611InstallNaverAccessWatcher(){
+    try{
+      SharedPreferences p=getContext().getSharedPreferences("moa.r611.naver_toggle",0);
+      int initial=r611ReadNaverEnabled(),previous=p.getInt("lastEnabled",-1);
+      r611NaverEnabled=initial;
+      if(initial>=0)p.edit().putInt("lastEnabled",initial).apply();
+      if(initial>=0&&previous>=0&&initial!=previous)r611MarkNaverAccessChange(initial);
+      r611AccessibilityObserver=new ContentObserver(main){
+        @Override public void onChange(boolean selfChange){r611OnNaverAccessChange();}
+        @Override public void onChange(boolean selfChange,Uri uri){r611OnNaverAccessChange();}
+      };
+      getContext().getContentResolver().registerContentObserver(
+         Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES),
+         false,r611AccessibilityObserver);
+    }catch(Throwable ex){
+      android.util.Log.w("MOA_R611","NAVER_ACCESS_OBSERVER_FAILED_"+ex.getClass().getSimpleName());
+    }
+  }
+  private void r611OnNaverAccessChange(){
+    int enabled=r611ReadNaverEnabled();
+    if(enabled<0||enabled==r611NaverEnabled)return;
+    r611NaverEnabled=enabled;
+    try{getContext().getSharedPreferences("moa.r611.naver_toggle",0)
+        .edit().putInt("lastEnabled",enabled).apply();}catch(Throwable ignored){}
+    r611MarkNaverAccessChange(enabled);
+  }
+  private void r611MarkNaverAccessChange(int enabled){
+    r611LastNaverToggleAt=android.os.SystemClock.uptimeMillis();
+    ++r611NaverToggleSeq;r611HealthyCheckSeq=0;
+    android.util.Log.i("MOA_R611",enabled==1?"NAVER_ACCESS_ENABLED":"NAVER_ACCESS_DISABLED");
+    final Activity owner=nativeOwnerActivity;
+    if(owner==null||!ownsGallery||galleryRef==null)return;
+    // Mark this as an *external* lifecycle transition, never a user Back.
+    returnFromBackground=true;hadMountedOnPause=true;
+    returnCloseGuardUntil=r611LastNaverToggleAt+11500L;
+    final int seq=r611NaverToggleSeq;
+    for(long delay:new long[]{200L,650L,1450L,2900L,4850L}){
+      main.postDelayed(()->{
+        if(seq!=r611NaverToggleSeq||!resumed||foreground!=owner||
+           nativeOwnerActivity!=owner||owner.isDestroyed()||owner.isFinishing())return;
+        r611RecheckAfterNaverAccess(owner,foregroundEpoch);
+      },delay);
+    }
+  }
+  private void r611RecheckAfterNaverAccess(Activity a,int epoch){
+    if(!resumed||foreground!=a||epoch!=foregroundEpoch||
+       nativeOwnerActivity!=a||!a.hasWindowFocus()||fullNativeOpen)return;
+    WebView web=findWeb(a);if(!isTrustedWeb(web))return;
+    Object gallery=readField(a,"unifiedGallery");
+    FrameLayout root=a.findViewById(android.R.id.content);
+    boolean healthy=galleryOpen(gallery)&&gallery==galleryRef&&nativeHost!=null&&
+       readField(gallery,"host")==nativeHost&&nativeHost.getParent()==root;
+    // A healthy R605 Gallery is never closed or restarted. One bounded
+    // original R567 same-day live rebind is allowed if the Activity returned.
+    if(healthy&&r611HealthyCheckSeq==r611NaverToggleSeq)return;
+    if(healthy)r611HealthyCheckSeq=r611NaverToggleSeq;
+    r602Signal(web,healthy?"NAVER_ACCESS_ORIGINAL_HOST_LIVE":"NAVER_ACCESS_ORIGINAL_HOST_LOST");
+    returnFromBackground=true;hadMountedOnPause=true;
+    rebindAfterReturn(a,epoch);
+  }
   private int fullNativeLastIndex=-1;
   private String fullNativeLastId="";
 
@@ -202,6 +284,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     try {
       Application app=(Application)getContext().getApplicationContext();
       app.registerActivityLifecycleCallbacks(this);
+      r611InstallNaverAccessWatcher();
       main.post(ticker);
       return true;
     } catch (Throwable ex) {return false;}
@@ -1601,6 +1684,13 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   }
   @Override public void onActivityResumed(Activity a){
     foreground=a;resumed=true;final int epoch=++foregroundEpoch;
+    // An Accessibility ON/OFF may not deliver a regular Activity pause; in
+    // that case schedule the same original R567 owner health checks explicitly.
+    if(a==nativeOwnerActivity&&r611LastNaverToggleAt>0L&&
+       android.os.SystemClock.uptimeMillis()-r611LastNaverToggleAt<18000L){
+      for(long delay:new long[]{240L,860L,1860L,3600L})
+        main.postDelayed(()->r611RecheckAfterNaverAccess(a,epoch),delay);
+    }
     // Other activities (NAVER, share sheet, etc.) are not the Gallery owner.
     // Keep the owner's pending health check until THAT Activity resumes.
     if(a==nativeOwnerActivity)lifecyclePauseInProgress=false;
