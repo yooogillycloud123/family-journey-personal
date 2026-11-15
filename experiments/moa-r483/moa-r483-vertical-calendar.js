@@ -1152,7 +1152,7 @@ function renderDay(){r515RecoveryAttempts=0;r495InstallBackHandlers();const d=ui
  // Do not show the web-gallery chrome for a second while the existing native
  // Gallery is mounting. The static media poster may remain underneath.
  if(ui.media.length)view.classList.add('moa-r519-native-entering','moa-r547-native-owner');
- renderMedia();refreshVoices();if(ui.media.length){r507StartInline();r596ScheduleWeb();}else view.classList.remove('moa-r519-native-entering');r527SyncGeometry(true);}
+ renderMedia();refreshVoices();if(ui.media.length){r507StartInline();}else view.classList.remove('moa-r519-native-entering');r527SyncGeometry(true);}
 function r472MediaSelected(index){
  if(!Number.isFinite(index)||!ui.media.length)return;
  const next=Math.max(0,Math.min(ui.media.length-1,index));
