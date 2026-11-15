@@ -19,6 +19,21 @@ let r475ExitUntilHidden=false, r475AutostartScheduled=false, r475CalendarRefresh
 // On missing provider / unsupported activity / invalid MediaStore ID, retain the
 // full R503 web presentation and never launch an unexpected fullscreen viewer.
 let r507Generation=0,r507Timer=0,r507Opened=false;
+// R602: nonpersonal native lifecycle reason codes to distinguish failure stages.
+const r602Diag={events:[],last:'INIT',nativeOpen:false};
+function r602Mark(code,extra={}){
+ const row={event:String(code),at:Date.now(),...extra};
+ r602Diag.last=row.event;r602Diag.events.push(row);
+ if(r602Diag.events.length>24)r602Diag.events.shift();
+ return row;
+}
+window.__moaR602JavaReport=(stage)=>r602Mark(String(stage));
+window.__moaR602GalleryDiagnostic=()=>JSON.stringify({
+ version:602,last:r602Diag.last,events:r602Diag.events.slice(-18),
+ visibleDay:ui.open&&ui.page==='day',count:ui.media.length,
+ bridge:!!window.__moaR507BridgeReady,arm:!!window.__moaR511NativeArmed,
+ pending:!!window.__moaR507NativePending,opened:!!r507Opened,
+ mounted:!!view?.classList.contains('moa-r507-native-mounted')});
 // R594: never leave the photo day in an invisible native-owner state after
 // the original Gallery has refused a media list or never mounted.
 let r594NativeIndexMap=[],r594MountWatchdog=0,r594RetryUsed=false;
@@ -59,6 +74,7 @@ function r596ClearWeb(){
 function r594ClearMountWatchdog(){clearTimeout(r594MountWatchdog);r594MountWatchdog=0;}
 function r594Fallback(reason){
  if(!ui.open||ui.page!=='day'||r523DayExiting||view?.classList.contains('moa-r507-native-mounted'))return false;
+ r602Mark('FALLBACK_'+reason);
  view?.classList.add('moa-r594-native-failed');
  r596ShowWeb(reason);
  window.__moaR594LastFailure={day:ui.date,reason,at:Date.now(),count:ui.media.length};
@@ -188,6 +204,7 @@ function r600PreferNativeAfterReturn(reason){
  return true;
 }
 window.__moaR507NativeMounted=function(mounted,dayToken){
+ r602Mark(mounted?'NATIVE_MOUNT_ACK':'NATIVE_UNMOUNT',{hasToken:dayToken!==undefined});
  // A stale Gallery callback from an earlier date/Activity must NEVER hide
  // the current day's working photo/browser controls.
  if(dayToken!==undefined&&Number(dayToken)!==window.__moaR527DayToken)return;
@@ -320,6 +337,7 @@ function r507StartInline(){
  // original Gallery which the user is already viewing.
  if(r507Opened&&window.__moaR507NativePending)return;
  const generation=++r507Generation;
+ r602Mark('START_INLINE',{count:ui.media.length});
  if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
  clearTimeout(r519EntryTimer);
  // On unsupported Android/native bridge, restore original web photo UI gracefully.
@@ -329,7 +347,7 @@ function r507StartInline(){
   if(generation!==r507Generation||!ui.open||ui.page!=='day'||view?.hidden)return;
   if(!window.__moaR507BridgeReady || typeof window.MoaLocalAudio?.openNativeGallery!=='function'){
    if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,180);
-   else r594Fallback('BRIDGE_UNAVAILABLE');
+   else {r602Mark('PROVIDER_BRIDGE_TIMEOUT');r594Fallback('BRIDGE_UNAVAILABLE');}
    return;
   }
   const ids=ui.media.map(x=>String(x.id));
@@ -343,9 +361,12 @@ function r507StartInline(){
     uncached:uncached.length,scanning:!!state?.load,at:Date.now()};
   window.__moaR511InlineArm=true;
   if(!window.__moaR511NativeArmed){
-   if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,70);
-   else {window.__moaR511InlineArm=false;r594Fallback('NATIVE_ARM_TIMEOUT');r594RequestIndexOnce();}
-   return;
+   // An arm signal can be lost across camera/Activity transitions. The
+   // ContentProvider's BridgeReady is already a positive health signal;
+   // the Gallery can attach through its original SNAPSHOT ticker even if the
+   // pre-draw channel was missed. Give it time, then attempt original open once.
+   if(Date.now()<waitUntil-4500){r507Timer=setTimeout(tryOpen,100);return;}
+   r602Mark('ARM_UNCONFIRMED_DIRECT_NATIVE_ATTEMPT');
   }
   window.__moaR507NativePending=true;
   // R594: try the EXACT original Gallery and original ID order first.
@@ -359,6 +380,7 @@ function r507StartInline(){
   ok=nativeResult.ok;
   window.__moaR598NativeOpen={at:Date.now(),day:ui.date,total:ids.length,
    cached:ids.length-uncached.length,attempts:nativeResult.attempts,accepted:ok};
+  r602Mark(ok?'NATIVE_OPEN_ACCEPTED':'NATIVE_OPEN_REJECTED',{count:ids.length,uncached:uncached.length,tries:nativeResult.attempts});
   if(ok&&nativeResult.index!==ui.idx){ui.idx=nativeResult.index;r472UpdatePager();}
   if(!ok){
    const real=getState()?.byId;
@@ -427,6 +449,18 @@ function r495InstallScrollSetting(){
   label.append(radio,elem('span','',name));options.append(label);
  }
  li.append(heading,description,options);const photo=host.querySelector('#moa-r117-photo-settings');if(photo)host.insertBefore(li,photo.nextSibling);else host.prepend(li);
+ // R602: diagnosis is in SETTINGS only, never outside the Gallery/card.
+ // No personal media identifiers, GPS, photos, diary text or M4A names.
+ if(!document.getElementById('moa-r602-gallery-diagnostic')){
+  const row=elem('li','moa-r602-gallery-diagnostic');row.id='moa-r602-gallery-diagnostic';
+  const trigger=btn('원본 갤러리 진단 복사',()=>{
+   const report=window.__moaR602GalleryDiagnostic?.()||'DIAGNOSTIC_UNAVAILABLE';
+   try{navigator.clipboard.writeText(report).then(()=>notify('갤러리 진단 정보 복사 완료')).catch(()=>prompt('갤러리 진단 복사',report));}
+   catch(_){prompt('갤러리 진단 복사',report);}
+  },'moa-r602-gallery-diagnostic-copy');
+  row.append(trigger,elem('small','','연결 실패 단계만 기록 · 사진과 메모 내용은 포함하지 않음'));
+  li.insertAdjacentElement('afterend',row);
+ }
 }
 function r495SyncLegacyRoot(){
  const root=diaryRoot(),s=getState();if(!root)return;
@@ -533,16 +567,39 @@ async function stored(table,key){const d=await db();try{return await new Promise
    if(token!==r592OpenToken||!ui.open||ui.page!=='day'||ui.date!==day||ui.dirty||r523DayExiting)return false;
    const next=mediaFor(day),ids=next.map(p=>String(p.id)).join('|');
    if(ids!==previous){
-    // Only a committed ID-list change permits ONE controlled native playlist
-    // rebind. Note/voice-only changes NEVER close a working Gallery.
-    const currentId=String(ui.media[ui.idx]?.id||'');
-    const index=next.findIndex(p=>String(p.id)===currentId);
-    ui.idx=index>=0?index:0;render();return true;
+    // R602: A new Quick Record changes ONLY the SAME-DAY playlist.
+    // render() calls r507StopInline()->MoaNativeGallery.close(), destroying
+    // the working native rail, TextureView, and all eight action listeners.
+    // Preserve the old native host; its provider hot-updates its ORIGINAL ids.
+    const previousId=String(ui.media[ui.idx]?.id||'');
+    const index=next.findIndex(p=>String(p.id)===previousId);
+    ui.media=next;ui.idx=index>=0?index:Math.min(ui.idx,Math.max(0,next.length-1));
+    r602Mark('SAME_DAY_LIST_CHANGED',{oldCount:previous?previous.split('|').length:0,newCount:next.length,nativeOpen:!!r507Opened});
+    renderMedia();refreshVoices();r602RefreshMomentNotes();r527SyncGeometry(true);
+    window.__moaR602PlaylistUpdate={day,token:window.__moaR527DayToken,ids:next.map(p=>String(p.id)),index:ui.idx,changedAt:Date.now()};
+    // Only if Android has no accepted original host may we open a new one.
+    if(!r507Opened&&!window.__moaR507NativePending){r594RetryUsed=false;r507StartInline();}
+    return true;
    }
-   refreshVoices();return false;
+   refreshVoices();r602RefreshMomentNotes();return false;
   }catch(e){console.warn('R592 media refresh',String(e));return false;}
   finally{r592RefreshBusy=false;}
  }
+
+function r602RefreshMomentNotes(){
+ if(!view||!ui.open||ui.page!=='day')return;
+ const noteHost=view.querySelector('.moa-r469-story');if(!noteHost)return;
+ const content=getState()?.curatedEntries?.get(ui.date)||getState()?.entries?.get(ui.date);
+ const notes=(content?.moments||[]).filter(m=>String(m?.note||'').trim());
+ let box=noteHost.querySelector('.moa-r469-moments');
+ if(!notes.length){box?.remove();return;}
+ if(!box){box=elem('details','moa-r469-moments');box.open=true;
+  const area=noteHost.querySelector('.moa-r469-text');area?.insertAdjacentElement('afterend',box);}
+ const wasOpen=box.open;
+ box.replaceChildren(elem('summary','',`바로기록 ${notes.length}개`));
+ for(const m of notes)box.append(elem('p','',String(m.note)));
+ box.open=wasOpen;
+}
 
 async function persist(table,key,record){const d=await db();try{await new Promise((resolve,reject)=>{const tx=d.transaction(table,'readwrite'),st=tx.objectStore(table);table==='curated'||table==='entries'?st.put(record):st.put(record,key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}finally{d.close();}}
 async function mergeDiaryBody(day,body,table){if(!['curated','entries'].includes(table))throw Error('unsupported diary table');const d=await db();try{return await new Promise((resolve,reject)=>{
@@ -710,7 +767,7 @@ function r472RefreshVisibleThumbs(){if(!ui.open||!view||view.hidden)return;
 
 }
 window.addEventListener('pageshow',()=>{setTimeout(r472RefreshVisibleThumbs,200)},{passive:true});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){setTimeout(r472RefreshVisibleThumbs,300);setTimeout(()=>{if(ui.open&&ui.page==='day'){r592RefreshVisibleDay();setTimeout(()=>r600PreferNativeAfterReturn('CAMERA_RETURN'),420);}},600);}},{passive:true});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){setTimeout(r472RefreshVisibleThumbs,300);setTimeout(async()=>{if(ui.open&&ui.page==='day'){await r592RefreshVisibleDay();r600PreferNativeAfterReturn('CAMERA_RETURN');}},600);}},{passive:true});
 
 function mount(){if(view)return view;const n=elem('section','moa-r469-root');n.id='moa-r469-root';n.setAttribute('aria-label','통합 사진 일기 달력');n.hidden=true;n.addEventListener('scroll',()=>r527SyncGeometry(),{passive:true});n.addEventListener('click',e=>{if(Date.now()<r479SwipeBlockUntil&&e.target.closest('.moa-r469-date')){e.stopImmediatePropagation();e.preventDefault()}},true);document.body.append(n);view=n;return n;}
 function open(page='calendar',day){const s=getState();if(!s?.open)return false;r594RetryUsed=false;r594ClearFallback();r527BeginDay();mount();ui.open=true;ui.page=page==='day'?'day':'calendar';ui.selected=valid(day)?day:ui.selected;ui.date=ui.selected;ui.month=new Date(ui.selected+'T12:00:00');ui.month.setDate(1);ui.idx=0;ui.fast=false;ui.tools=false;ui.rail=false;ui.dirty=false;view.hidden=false;
