@@ -1,3 +1,5 @@
+> **2026-11-16 USER PHYSICAL UPDATE (OVERRIDES ORIGINAL PRE-DEVICE-BETA STATUS BELOW):** Galaxy S26 Ultra 사용자가 **Samsung One Hand Operation+ OFF→ON 이후** R648 잠금화면·화면 켜짐·모아 전면 바로기록과 원본 Gallery 정상 작동을 확인. 함께 제공한 `테스트.txt` R648 태그 581행에서 native START_INLINE/PREDRAW_ARMED/OPEN_ACCEPTED/HOST_MOUNTED/8_ACTION_DECK_READY 각14, MOUNT_ACK20, QuickRecord native commit4가 관측됨. 리소스 로드 오류는 이미지6, 동영상2이며 사진 추가 오류와 인과 미확정. **이제 R648은 사용자가 확인한 조건 내에서 SCOPED GOLDEN 보호 기준**, 사진 추가/원핸드 조작 없이 최초 실행/기타 전체 UX까지 FINAL 아님. 아래 'REAL GALAXY STATUS = UNVERIFIED BETA'는 이 사용자 보고 전의 역사적 출시 상태임. 최신 필수 진실과 사진 추가 명세: [MOA_R648_USER_PHYSICAL_SCOPED_GOLDEN_PHOTO_ADD_LOCK_20261116.md](MOA_R648_USER_PHYSICAL_SCOPED_GOLDEN_PHOTO_ADD_LOCK_20261116.md). R648 기능 byte hash 보존, 새 사진추가 독립 owner, 무설치삭제/데이터보존, 상위 코드 복구 APK 필수.
+
 # MOA R648 — R647 physical fail, R641 user-approved Golden clone + separate passive diagnostics (2026-11-16)
 
 **REAL GALAXY STATUS = UNVERIFIED BETA.** The source Golden R641 was physically approved on Galaxy; R648 has only static + isolated browser tests. DO NOT promote R648 to GOLDEN without new user-device confirmation.
