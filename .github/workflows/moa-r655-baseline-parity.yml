@@ -1,0 +1,39 @@
+name: MOA R655 Baseline R611 Java parity probe
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/moa-r655-baseline-parity.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: golden/moa-r611-user-device-approved-onehand-naver-native-gallery-20261115
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile original R611
+        shell: bash
+        run: |
+          set -euo pipefail
+          SM="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          "$SM" "platforms;android-35" "build-tools;35.0.0"
+          mkdir -p /tmp/moa/classes /tmp/moa/dex build/r655-parity
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa/classes experiments/moa-r507/MoaR507InlineGalleryProvider.java
+          find /tmp/moa/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa/dex
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,base64,zlib
+          d=Path('/tmp/moa/dex/classes.dex').read_bytes()
+          Path('build/r655-parity/classes18.dex.z.b64').write_text(base64.b64encode(zlib.compress(d,9)).decode())
+          Path('build/r655-parity/sha256.txt').write_text(hashlib.sha256(d).hexdigest()+' '+str(len(d))+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R655-R611-SOURCE-PARITY
+          path: build/r655-parity/
