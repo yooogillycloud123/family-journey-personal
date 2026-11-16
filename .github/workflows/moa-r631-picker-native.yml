@@ -1,8 +1,8 @@
-name: MOA R631 R611 native picker-select additive DEX compile
+name: MOA R633 original Gallery bottom selection QuickRecord isolated DEX compile
 on:
   push:
     branches:
-      - feature/moa-r631-r629-native-selection-ui-regressions-20261116
+      - feature/moa-r633-r631-quickrecord-guard-native-bottom-select-20261116
     paths:
       - .github/workflows/moa-r631-picker-native.yml
       - experiments/moa-r631/**
@@ -39,12 +39,12 @@ jobs:
           from pathlib import Path
           b=Path('build/moa-r631/classes18.dex').read_bytes()
           assert b.startswith(b'dex\n') and b'MoaR507InlineGalleryProvider' in b
-          assert b'r631ObservePicker' in b and b'r611RecheckAfterNaverAccess' in b
+          assert b'r631ObservePicker' in b and b'r611RecheckAfterNaverAccess' in b and b'moa.picker.bottom.select.r633' in b
           assert len(b)<180000
-          print('R631_NATIVE_PICKER_DEX_COMPILE_PASS',len(b))
+          print('R633_NATIVE_BOTTOM_PICKER_DEX_COMPILE_PASS',len(b))
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: MOA-R631-R611-ADDITIVE-NATIVE-PICKER-SELECTION-DEX
+          name: MOA-R633-R611-ADDITIVE-NATIVE-BOTTOM-SELECT-DEX
           path: build/moa-r631/
           if-no-files-found: error
