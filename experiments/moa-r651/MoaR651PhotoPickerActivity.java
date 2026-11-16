@@ -145,6 +145,7 @@ public final class MoaR651PhotoPickerActivity extends Activity {
       }catch(Exception e){android.util.Log.w("MOA_R651","MEDIA_QUERY_FAILED:"+e.getClass().getSimpleName());
         ui.post(()->Toast.makeText(this,"사진·영상 접근 권한을 확인해 주세요",Toast.LENGTH_LONG).show());
       }
+      fresh.sort((a,b)->Long.compare(b.time,a.time));
       ui.post(()->{if(isFinishing()||isDestroyed())return;all.clear();all.addAll(fresh);refresh();});
     });
   }
