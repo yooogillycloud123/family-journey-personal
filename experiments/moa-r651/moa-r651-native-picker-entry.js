@@ -66,7 +66,9 @@
    if(x?.type==='picker_open_failed'){awaitingNative=false;stamp('PICKER_OPEN_FAILED');window.alert?.('네이티브 사진 추가 화면을 열지 못했습니다. 기존 사진과 일기는 변경되지 않았습니다.');}
  }
  window.addEventListener('message',event=>{
-   if(event.origin!==ORIGIN||event.data!=='MOA_R651_PORT'||!event.ports?.[0])return;
+   // Follow R527's proven native WebMessagePort origin check: the trusted page
+   // is this app's own WebView, while Android-originated events may carry no event.origin.
+   if(window.location?.origin!==ORIGIN||event.data!=='MOA_R651_PORT'||!event.ports?.[0])return;
    port=event.ports[0];port.onmessage=onNativeMessage;port.start?.();stamp('NATIVE_BRIDGE_CONNECTED');post({type:'hello'});
  },false);
  // Register BEFORE the R641 lazy Web picker capture handler. Prevent it only
