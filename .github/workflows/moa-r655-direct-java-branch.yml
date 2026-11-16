@@ -1,4 +1,5 @@
 name: MOA R655 correlated Java branch forensic DEX
+# R655-REV2 per-branch throttle and disarm caller
 on:
   push:
     branches: [main]
