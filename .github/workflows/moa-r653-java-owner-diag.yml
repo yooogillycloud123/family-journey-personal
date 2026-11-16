@@ -1,0 +1,61 @@
+name: MOA R653 passive inline Java owner diagnostics DEX
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/moa-r653-java-owner-diag.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/moa-r653-passive-java-owner-diagnostic-20261117
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SM="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          "$SM" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile additive passive R653 Java provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa653/classes /tmp/moa653/dex build/moa-r653
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d /tmp/moa653/classes \
+            experiments/moa-r653/MoaR653InlineOwnerDiagProvider.java 2>&1 | tee build/moa-r653/compile.log
+          find /tmp/moa653/classes -name '*.class' -print0 | \
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 \
+              --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
+              --output /tmp/moa653/dex 2>&1 | tee -a build/moa-r653/compile.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,base64,zlib,hashlib
+          dex=Path('/tmp/moa653/dex/classes.dex').read_bytes()
+          assert dex.startswith(b'dex\n')
+          assert b'MoaR653InlineOwnerDiagProvider' in dex
+          assert b'R653_JAVA_ARM_DENIAL_SNAPSHOT' in dex
+          assert b'getLocalContentProvider' in dex
+          for forbidden in (b'openNativeGallery',b'closeNativeGallery',b'__moaR543RepairInline',b'r507StopInline'):
+              assert forbidden not in dex,forbidden
+          p=Path('build/moa-r653')
+          (p/'classes19.dex.z.b64').write_text(base64.b64encode(zlib.compress(dex,9)).decode()+'\n')
+          (p/'verify.json').write_text(json.dumps({'dex_size':len(dex),'sha256':hashlib.sha256(dex).hexdigest(),
+            'source_sha256':hashlib.sha256(Path('experiments/moa-r653/MoaR653InlineOwnerDiagProvider.java').read_bytes()).hexdigest(),
+            'owner_java_introspection':'PASSIVE_READ_ONLY',
+            'runtime_device':'NOT_TESTED'},indent=2))
+          print((p/'verify.json').read_text())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R653-PASSIVE-OWNER-DIAG-DEX
+          path: build/moa-r653/
