@@ -1,5 +1,5 @@
 name: MOA R651 isolated native picker DEX compile (no signer)
-# REV2: native cancellation acknowledgement + HQ ImageDecoder
+# REV3: bridge handshake retry + precise date ordering + launch error callback
 on:
   push:
     branches: [main]
