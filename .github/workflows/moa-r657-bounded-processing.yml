@@ -1,0 +1,46 @@
+name: MOA R657 bounded processing owner Java compile
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/moa-r657-bounded-processing.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/moa-r657-bounded-processing-owner-safe-20261117
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile R657 original R611 Java with bounded processing guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          SM="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          "$SM" "platforms;android-35" "build-tools;35.0.0"
+          mkdir -p /tmp/moa657/classes /tmp/moa657/dex build/moa-r657
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa657/classes experiments/moa-r657/MoaR507InlineGalleryProvider.java 2>&1 | tee build/moa-r657/compile.log
+          find /tmp/moa657/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa657/dex
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,base64,zlib,json
+          p=Path('build/moa-r657');dex=Path('/tmp/moa657/dex/classes.dex').read_bytes()
+          assert dex.startswith(b'dex\\n')
+          assert b'EVAL_STALE_UNLOCK' in dex
+          assert b'EVAL_LATE_IGNORED' in dex
+          assert b'MoaR507InlineGalleryProvider' in dex
+          assert b'r655Branch' not in dex
+          (p/'classes18.dex.z.b64').write_text(base64.b64encode(zlib.compress(dex,9)).decode())
+          (p/'verify.json').write_text(json.dumps({'sha256':hashlib.sha256(dex).hexdigest(),'size':len(dex),'sourceSha256':hashlib.sha256(Path('experiments/moa-r657/MoaR507InlineGalleryProvider.java').read_bytes()).hexdigest(),'sourceBase':'R611 exact Golden','processingRecovery':'bounded 3500ms generation guard','deviceQA':'NOT_PERFORMED','APKSigner':'NOT_AVAILABLE_IN_THIS_CI'},indent=2))
+          print((p/'verify.json').read_text())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R657-BOUNDED-PROCESSING-DEX-QA
+          path: build/moa-r657/
