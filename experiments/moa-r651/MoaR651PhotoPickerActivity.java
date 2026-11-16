@@ -8,6 +8,7 @@ import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.ImageDecoder;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.media.MediaPlayer;
@@ -58,7 +59,7 @@ public final class MoaR651PhotoPickerActivity extends Activity {
   private final ArrayList<Item> all=new ArrayList<>(),visible=new ArrayList<>();
   private final LinkedHashSet<String> chosen=new LinkedHashSet<>();
   private String day;
-  private boolean allPeriod=false,fast=false,railExpanded=true,dragSelect=false;
+  private boolean allPeriod=false,fast=false,railExpanded=true,dragSelect=false,completed=false;
   private GridView grid;
   private TextView status,subtitle;
   private Button save,scope;
@@ -157,7 +158,19 @@ public final class MoaR651PhotoPickerActivity extends Activity {
   private Bitmap bitmap(Uri uri,int px){
     String key=uri.toString()+"@"+px;Bitmap cached=cache.get(key);if(cached!=null&&!cached.isRecycled())return cached;
     Bitmap result=null;
-    try{result=getContentResolver().loadThumbnail(uri,new Size(px,px),null);}catch(Throwable ignored){}
+    if(px>=1600){
+      try{
+        final int limit=px;
+        ImageDecoder.Source source=ImageDecoder.createSource(getContentResolver(),uri);
+        result=ImageDecoder.decodeBitmap(source,(decoder,info,src)->{
+          int w=info.getSize().getWidth(),h=info.getSize().getHeight(),sample=1;
+          while(Math.max(w,h)/sample>limit*1.5)sample*=2;
+          decoder.setTargetSampleSize(sample);
+          decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
+        });
+      }catch(Throwable ignored){}
+    }
+    if(result==null)try{result=getContentResolver().loadThumbnail(uri,new Size(px,px),null);}catch(Throwable ignored){}
     if(result==null){try(InputStream in=getContentResolver().openInputStream(uri)){
       if(in!=null){BitmapFactory.Options o=new BitmapFactory.Options();o.inJustDecodeBounds=true;
         byte[] raw=readBounded(in,28*1024*1024);BitmapFactory.decodeByteArray(raw,0,raw.length,o);
@@ -275,9 +288,18 @@ public final class MoaR651PhotoPickerActivity extends Activity {
       boolean ok=getSharedPreferences(PREF,0).edit().putString("result",result.toString()).commit();
       if(!ok)throw new IllegalStateException("PERSIST_FAILED");
       android.util.Log.i("MOA_R651","PHOTO_PICKER_SELECTION_COMMITTED_COUNT="+chosen.size());
-      Toast.makeText(this,"일기에 추가를 처리하고 있어요",Toast.LENGTH_SHORT).show();finish();
+      completed=true;Toast.makeText(this,"일기에 추가를 처리하고 있어요",Toast.LENGTH_SHORT).show();finish();
     }catch(Exception e){Toast.makeText(this,"선택을 저장하지 못했습니다. 다시 시도해 주세요",Toast.LENGTH_LONG).show();}
   }
   @Override protected void onPause(){super.onPause();if(movie!=null)try{movie.pause();}catch(Throwable ignored){}}
-  @Override protected void onDestroy(){stopVideo();images.shutdownNow();super.onDestroy();}
+  @Override protected void onDestroy(){
+    if(!completed){
+      try{JSONObject cancel=new JSONObject();cancel.put("type","picker_cancelled");
+        cancel.put("token",java.util.UUID.randomUUID().toString());
+        getSharedPreferences(PREF,0).edit().putString("result",cancel.toString()).commit();
+        android.util.Log.i("MOA_R651","PICKER_CANCELLED");
+      }catch(Exception ignored){}
+    }
+    stopVideo();images.shutdownNow();super.onDestroy();
+  }
 }
