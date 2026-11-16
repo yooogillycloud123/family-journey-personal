@@ -1,0 +1,71 @@
+name: MOA R635 R611 Golden isolated native picker action DEX
+on:
+  push:
+    branches:
+      - feature/moa-r635-r611-immutable-native-picker-isolation-20261116
+    paths:
+      - experiments/moa-r635/**
+      - .github/workflows/moa-r635-native-isolated.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile_native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Verify original R611 golden functions stay identical
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          g=Path('experiments/moa-r507/MoaR507InlineGalleryProvider.java').read_text()
+          n=Path('experiments/moa-r635/MoaR507InlineGalleryProvider.java').read_text()
+          anchors=[
+             ('private void r611RecheckAfterNaverAccess(', 'private int fullNativeLastIndex='),
+             ('private void r602PollPlaylist(', 'private void syncIndex('),
+             ('private boolean actualMediaReady(', 'private void refreshOriginalMediaIfBlank(')
+          ]
+          for a,b in anchors:
+              x=g[g.index(a):g.index(b,g.index(a))]
+              y=n[n.index(a):n.index(b,n.index(a))]
+              assert x==y,a
+          assert n.count('r635PickerFromExistingArm(a,web)')==1
+          assert 'r631ObservePicker' not in n and 'r633LastConfirmedLostRepair' not in n
+          print('R611_GOLDEN_ACCESSIBILITY_PLAYLIST_NATIVE_CONTENT_EXACT_MATCH_PASS')
+          PY
+      - name: Java D8
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/moa-r635 /tmp/moar635/classes /tmp/moar635/dex
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moar635/classes experiments/moa-r635/MoaR507InlineGalleryProvider.java
+          find /tmp/moar635/classes -name 'MoaR507InlineGalleryProvider*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moar635/dex
+          cp /tmp/moar635/dex/classes.dex build/moa-r635/classes18.dex
+          sha256sum build/moa-r635/classes18.dex > build/moa-r635/dex-sha256.txt
+          sha256sum experiments/moa-r635/MoaR507InlineGalleryProvider.java > build/moa-r635/source-sha256.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          b=Path('build/moa-r635/classes18.dex').read_bytes()
+          assert b.startswith(b'dex\n') and b'MoaR507InlineGalleryProvider' in b
+          assert b'moa.picker.native.bottom.pick.r635' in b
+          assert b'r611RecheckAfterNaverAccess' in b
+          assert b'r602PollPlaylist' in b
+          print('R635_ISOLATED_NATIVE_PICKER_DEX_PASS',len(b))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R635-R611-GOLDEN-PICKER-ONLY-DEX
+          path: build/moa-r635/
+          if-no-files-found: error
