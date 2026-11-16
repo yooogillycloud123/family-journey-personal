@@ -63,6 +63,7 @@
    let x;try{x=JSON.parse(evt.data)}catch(_){return;}
    if(x?.type==='picker_saved'){stamp('PICKER_RESULT_RECEIVED');void commitSaved(x);}
    if(x?.type==='picker_cancelled'){awaitingNative=false;stamp('PICKER_CANCELLED');post({type:'saved_ack',token:String(x.token||'')});}
+   if(x?.type==='picker_open_failed'){awaitingNative=false;stamp('PICKER_OPEN_FAILED');window.alert?.('네이티브 사진 추가 화면을 열지 못했습니다. 기존 사진과 일기는 변경되지 않았습니다.');}
  }
  window.addEventListener('message',event=>{
    if(event.origin!==ORIGIN||event.data!=='MOA_R651_PORT'||!event.ports?.[0])return;
