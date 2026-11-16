@@ -1,0 +1,1381 @@
+/* R469 additive simple diary layout; legacy #fj-diary-root unchanged. */
+#moa-r469-root{position:fixed;z-index:22;inset:0 0 calc(67px + env(safe-area-inset-bottom)) 0;background:#fbfaf9;color:#282329;overflow-y:auto;overscroll-behavior:contain;font-family:system-ui,'Noto Sans KR',sans-serif;padding:calc(10px + env(safe-area-inset-top)) max(0px,calc((100vw - 650px)/2)) 38px;scrollbar-width:thin}
+#moa-r469-root[hidden],#moa-r469-root [hidden]{display:none!important}
+#moa-r469-root *{box-sizing:border-box}#moa-r469-root button{border:0;font:inherit;cursor:pointer;touch-action:manipulation}#moa-r469-root button:focus-visible{outline:2px solid var(--accent,#c45d85);outline-offset:2px}
+#moa-r469-root .moa-r469-head{display:flex;align-items:center;justify-content:space-between;min-height:58px;padding:4px 16px 10px;gap:10px;font-size:14px}
+#moa-r469-root .moa-r469-head strong{font-size:15px;letter-spacing:-.035em;font-weight:650}#moa-r469-root .moa-r469-head button{font-size:13px;background:transparent;color:#746970;padding:10px;min-width:40px;min-height:40px}
+#moa-r469-root .moa-r469-month-head{display:flex;justify-content:space-between;align-items:center;margin:12px 16px 9px;gap:5px}
+#moa-r469-root .moa-r469-month-head button{min-width:39px;min-height:39px;border-radius:11px;background:#f5f2f3;color:#7a6873}#moa-r469-root .moa-r469-month-head .moa-r469-month-name{font-size:18px;font-weight:700;background:transparent;color:#342c33}
+#moa-r469-root .moa-r469-month-head .moa-r469-today{font-size:12px;padding:5px}
+#moa-r469-root .moa-r469-progress{display:flex;justify-content:space-between;color:#a39b9f;font-size:11px;margin:0 16px 8px}#moa-r469-root .moa-r469-progressbar{height:4px;background:#e9e4e6;border-radius:9px;margin:0 16px 13px;overflow:hidden}#moa-r469-root .moa-r469-progressbar span{display:block;background:var(--accent,#c45d85);height:100%;border-radius:9px}
+#moa-r469-root .moa-r469-month-grid{margin:0 16px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+#moa-r469-root .moa-r469-week{text-align:center;font-size:11px;color:#aca3a8;padding:8px 0}#moa-r469-root .moa-r469-blank{display:block;aspect-ratio:.74}
+#moa-r469-root .moa-r469-date{min-width:0;padding:0;border-radius:7px;aspect-ratio:.74;position:relative;background:#eeebea;overflow:hidden;display:block}
+#moa-r469-root .moa-r469-date img{height:100%;width:100%;object-fit:cover;display:block}
+#moa-r469-root .moa-r469-date.selected{outline:2.5px solid var(--accent,#c45d85);outline-offset:-2.5px;box-shadow:0 0 0 1px #fff8 inset}
+#moa-r469-root .moa-r469-day-number{position:absolute;top:4px;left:4px;font-size:10px;font-weight:650;color:white;text-shadow:0 1px 5px #000a;padding:1px 3px;border-radius:3px;background:#0003}
+#moa-r469-root .moa-r469-date.today .moa-r469-day-number{background:var(--accent,#c45d85);color:white}
+#moa-r469-root .moa-r469-record-mark{position:absolute;right:3px;bottom:2px;color:white;text-shadow:0 0 4px #111;font-size:12px}
+#moa-r469-root .moa-r469-video-mark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;color:#fff;background:#0007;font-size:16px;width:28px;height:28px;display:grid;place-items:center}
+#moa-r469-root .moa-r469-footer{margin:15px 16px 0;display:flex;justify-content:space-between;align-items:center;gap:5px}#moa-r469-root .moa-r469-footer button{padding:8px 14px;border-radius:100px;background:#f1edef;color:#70666c;font-size:12px}
+#moa-r469-root .moa-r469-footer button.moa-r469-plus{background:#2a272a;color:#fff;border-radius:100%;height:45px;width:45px;font-size:26px;font-weight:300;padding:0}
+#moa-r469-root .moa-r469-stage{height:clamp(330px,56vh,570px);margin:0 16px;position:relative;border-radius:21px;overflow:hidden;background:#e5ddd9;isolation:isolate;touch-action:pan-y}
+#moa-r469-root .moa-r469-stage-media{width:100%;height:100%;display:grid;place-items:center}#moa-r469-root .moa-r469-stage-media>img{width:100%;height:100%;object-fit:cover;display:block}
+#moa-r469-root .moa-r469-stage-media .moa-r469-empty{padding:35px;font-size:13px;text-align:center;color:#91858b}
+#moa-r469-root .moa-r469-more{position:absolute;top:12px;right:12px;color:white;background:#201b1d77;width:35px;height:35px;border-radius:50%;font-size:17px;line-height:1;backdrop-filter:blur(6px)}
+#moa-r469-root .moa-r469-video-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#1d1c1d88;color:#fff;border:1px solid #fff9;border-radius:50%;width:56px;height:56px;font-size:23px}
+#moa-r469-root .moa-r469-inline-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent}#moa-r469-root .moa-r469-native-fallback{position:absolute;bottom:22px;left:15%;width:70%;background:#242124dd;color:#fff;border-radius:10px;padding:12px;font-size:12px}
+#moa-r469-root .moa-r469-pager{height:25px;display:flex;align-items:center;justify-content:center;gap:5px;overflow:hidden;margin:0 16px}
+#moa-r469-root .moa-r469-dot{width:6px;height:6px;min-width:6px;padding:0;border-radius:10px;background:#d3cbd0}#moa-r469-root .moa-r469-dot.active{background:var(--accent,#c45d85);width:15px}
+#moa-r469-root .moa-r469-tools{margin:0 16px 8px;background:#f0eded;border-radius:16px;padding:6px}
+#moa-r469-root .moa-r469-actions{display:flex;justify-content:space-around;gap:2px}#moa-r469-root .moa-r469-actions button{width:20%;height:43px;background:transparent;border-radius:9px;font-size:22px;color:#70646c}#moa-r469-root .moa-r469-actions button.active{background:#fff;color:var(--accent,#c45d85)}
+#moa-r469-root .moa-r469-info{margin:6px 5px;background:#fff;border-radius:11px;padding:9px;font-size:11px;line-height:1.7;color:#696067}
+#moa-r469-root .moa-r469-rail-toggle{display:block;margin:auto;background:transparent;padding:7px;font-size:11px;color:#847780}
+#moa-r469-root .moa-r469-rail{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 7px}
+#moa-r469-root .moa-r469-rail-item{flex:0 0 52px;width:52px;height:44px;position:relative;overflow:hidden;border-radius:7px;border:2px solid transparent;background:#b4a6a8;padding:0}
+#moa-r469-root .moa-r469-rail-item.active{border-color:var(--accent,#c45d85)}#moa-r469-root .moa-r469-rail-item img{width:100%;height:100%;object-fit:cover}#moa-r469-root .moa-r469-rail-item small{position:absolute;bottom:0;left:4px;color:#fff;text-shadow:0 0 5px #000}
+#moa-r469-root .moa-r469-story{margin:10px 16px 0;border-radius:21px;background:#f4f2f2;padding:20px 18px 18px;min-height:220px}
+#moa-r469-root .moa-r469-story-title{display:block;font-size:14px;font-weight:650;color:#3a3237}
+#moa-r469-root .moa-r469-text{width:100%;min-height:125px;border:0;background:transparent;resize:vertical;font:13px/1.85 inherit;color:#342d33;padding:12px 0;outline:none;white-space:pre-wrap}
+#moa-r469-root .moa-r469-text::placeholder{color:#a59ba0}
+#moa-r469-root .moa-r469-moments{padding:11px 0;border-top:1px solid #e6dedf;color:#6b6167;font-size:12px}#moa-r469-root .moa-r469-moments p{white-space:pre-wrap;color:#6a6066}
+#moa-r469-root .moa-r469-voice-head{border-top:1px solid #e6dfe2;padding-top:10px;display:flex;justify-content:space-between;align-items:center;color:#8a7f84;font-size:11px}
+#moa-r469-root .moa-r469-record{background:transparent;color:#a76183;width:34px;height:34px;border-radius:50%;font-size:20px}
+#moa-r469-root .moa-r469-voice-player{display:flex;align-items:center;gap:9px;min-height:36px}
+#moa-r469-root .moa-r469-voice-play{border:1px solid #c9bec4;border-radius:50%;height:30px;width:30px;flex:none;background:transparent;color:#645a60;font-size:16px}
+#moa-r469-root .moa-r469-voice-play:disabled{opacity:.35}
+#moa-r469-root .moa-r469-voice-detail{flex:1;min-width:0;color:#675e62;font-size:11px}#moa-r469-root .moa-r469-voice-detail span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#moa-r469-root .moa-r469-voice-detail input{width:100%;height:3px;accent-color:var(--accent,#c45d85)}
+#moa-r469-root .moa-r469-voice-select{border:0;background:transparent;color:#796c73;font-size:11px;padding:8px 3px}
+#moa-r469-root .moa-r469-voice-list{max-height:170px;overflow:auto;border-top:1px solid #e5dfe2;margin-top:7px;padding-top:7px}#moa-r469-root .moa-r469-voice-choice{display:block;background:transparent;width:100%;padding:11px 5px;color:#62565e;font-size:12px;text-align:left}
+#moa-r469-root .moa-r469-story-footer{display:flex;justify-content:space-between;margin-top:17px;align-items:center}#moa-r469-root .moa-r469-detail{background:transparent;color:#8a7d84;font-size:12px}#moa-r469-root .moa-r469-save{background:#363036;color:#fff;border-radius:12px;padding:10px 19px;font-size:12px}
+#moa-r469-root .moa-r469-status{font-size:11px;line-height:1.6;color:var(--accent,#a65777);margin:10px 16px;min-height:18px}
+@media(max-width:360px){#moa-r469-root .moa-r469-stage{margin:0 13px}#moa-r469-root .moa-r469-story{margin:10px 13px 0}#moa-r469-root .moa-r469-month-grid{margin:0 13px}}
+/* Native overlay still owns microphone and original audio-clip lifecycle. */
+
+#fj-diary-root .fd23-modes:has(.moa-r469-choose){grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+#fj-diary-root .fd23-modes .moa-r469-choose{font-size:12px;color:var(--accent,#ad4875);background:#fff9fc}
+#moa-r469-root .moa-r469-record svg{height:19px;width:19px;stroke:currentColor;stroke-width:1.55;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* R472 — photo-first calendar, native-snap inline gallery, no broken alt icons */
+#moa-r469-root{background:#fffdfc;color:#272529}
+#moa-r469-root .moa-r469-month-head{margin:13px 16px 15px;gap:4px}
+#moa-r469-root .moa-r469-month-head button{background:transparent;border-radius:12px;color:#736972;min-height:44px;padding:4px 11px;font-size:15px}
+#moa-r469-root .moa-r469-month-head .moa-r469-today{font-size:12px;color:#a25279;background:#f8f3f5;border-radius:50px}
+#moa-r469-root .moa-r472-month-picker{flex:1;min-width:0;position:relative;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:700;color:#2e2a2f;letter-spacing:-.055em;min-height:45px}
+#moa-r469-root .moa-r472-month-picker input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+#moa-r469-root .moa-r469-progress{margin:0 17px 7px;font-size:11px;color:#a8a1a5}
+#moa-r469-root .moa-r469-progressbar{height:3px;margin:0 17px 17px;background:#f4f1f2}
+#moa-r469-root .moa-r469-month-grid{gap:3px;margin:0 15px}
+#moa-r469-root .moa-r469-date{border-radius:6px;background:#f0eeed;aspect-ratio:.73;border:0;box-shadow:none}
+#moa-r469-root .moa-r469-date img{opacity:0;transition:opacity .23s;object-fit:cover;position:absolute;inset:0}
+#moa-r469-root .moa-r469-date img.moa-r472-image-ready{opacity:1}
+#moa-r469-root .moa-r469-date.selected{outline:2px solid #be5b89;outline-offset:-2px;box-shadow:0 0 0 2px #fffc inset}
+#moa-r469-root .moa-r469-day-number{top:5px;left:5px;font-weight:580;font-size:11px;min-width:17px;height:18px;display:grid;place-items:center;padding:0 3px;background:#29242938;color:white;text-shadow:0 1px 4px #0009;border-radius:5px}
+#moa-r469-root .moa-r469-date:not(:has(img)) .moa-r469-day-number{color:#8c8589;text-shadow:none;background:#e3e0df77}
+#moa-r469-root .moa-r469-date.today .moa-r469-day-number{background:#b94a7f;color:white}
+#moa-r469-root .moa-r469-record-mark{right:5px;bottom:1px;color:#fff5;font-size:11px}
+#moa-r469-root .moa-r469-video-mark{background:#0006;font-size:12px;width:25px;height:25px}
+#moa-r469-root .moa-r469-footer{margin:20px 16px 0}
+#moa-r469-root .moa-r469-footer .moa-r469-plus{background:#242226}
+#moa-r469-root .moa-r469-stage{background:#e6e0dd}
+#moa-r469-root .moa-r469-stage-media{display:block;position:relative}
+#moa-r469-root .moa-r472-track{height:100%;width:100%;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+#moa-r469-root .moa-r472-track.is-fast{scroll-snap-type:none}
+#moa-r469-root .moa-r472-track::-webkit-scrollbar{display:none}
+#moa-r469-root .moa-r472-slide{height:100%;flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always;position:relative;background:#e7e3e1;overflow:hidden}
+#moa-r469-root .moa-r472-slide img{display:block;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .22s}
+#moa-r469-root .moa-r472-slide img.moa-r472-image-ready{opacity:1}
+#moa-r469-root .moa-r472-slide:has(img:not(.moa-r472-image-ready)){background:linear-gradient(110deg,#e9e4e0,#e4e4e2 35%,#f2eeeb 60%,#e3dddd)}
+#moa-r469-root .moa-r469-inline-video{position:absolute;inset:0;z-index:2;width:100%;height:100%;object-fit:contain;background:#1d1919}
+#moa-r469-root .moa-r469-rail-item img{opacity:0;transition:opacity .18s}
+#moa-r469-root .moa-r469-rail-item img.moa-r472-image-ready{opacity:1}
+#moa-r469-root .moa-r469-story{background:#f6f4f3;border-radius:21px}
+#moa-r469-root .moa-r469-dot{background:#d6d2d4}
+#moa-r469-root .moa-r469-dot.active{background:#be5b89}
+#moa-r469-root .moa-r472-family-head{font-size:11px!important;color:#938189!important;padding:3px 7px!important;white-space:nowrap}
+#moa-r469-root .moa-r469-month-head .moa-r472-family-head{min-width:55px}
+#tabbar [data-tab=family]{display:none!important}
+#tabbar [data-tab=moa-plus]{display:flex!important;align-items:center!important;justify-content:center!important;flex-direction:column!important;font-size:35px!important;font-weight:250!important;line-height:1!important;color:var(--accent,#c45d85)!important;min-width:0;padding:0 6px!important}
+#tabbar [data-tab=moa-plus].active{color:var(--accent,#c45d85)!important}
+#fj-diary-root .moa-r472-family-inside{border-radius:12px;padding:10px 12px;background:#f6eef3;color:#9b4375;font-size:12px;font-weight:600}
+
+#moa-r469-root .moa-r469-date:not(:has(img.moa-r472-image-ready)) .moa-r469-day-number{color:#80797c;background:#e1dddb99;text-shadow:none}
+
+#moa-r469-root .moa-r469-stage{touch-action:auto}
+#tabbar .moa-r472-plus-disc{display:grid;place-items:center;width:46px;height:46px;border-radius:100%;background:#272429;color:#fff;font-size:32px;font-weight:250;line-height:1;box-shadow:0 1px 3px #0002}
+
+
+/* R475: one calendar, compact consistent daily view toggle, original detailed editor remains source-of-truth. */
+#moa-r469-root .moa-r475-view-toggle,
+#fj-diary-root .moa-r475-view-toggle{display:flex;align-items:center;justify-content:flex-end;gap:2px;margin:0 16px 7px;height:27px;background:transparent;border:0;padding:0}
+#moa-r469-root .moa-r475-view-option,
+#fj-diary-root .moa-r475-view-option{border:1px solid transparent;border-radius:100px;padding:3px 11px;min-height:27px;background:transparent;color:#969095;font-size:11px;font-weight:550;line-height:1.1;box-shadow:none}
+#moa-r469-root .moa-r475-view-option.active,
+#fj-diary-root .moa-r475-view-option.active{background:#f4edef;border-color:#e9dce1;color:#a64776;font-weight:650}
+#moa-r469-root .moa-r469-head{min-height:47px;padding:5px 16px 3px}
+#moa-r469-root .moa-r469-day .moa-r469-head strong{font-size:13px;font-weight:650;letter-spacing:-.02em}
+#moa-r469-root .moa-r475-source-filter{display:flex;width:max-content;max-width:calc(100% - 32px);gap:2px;margin:-3px 16px 12px;padding:2px;border-radius:90px;background:#f5f1f2}
+#moa-r469-root .moa-r475-source-option{min-height:29px;background:transparent;border-radius:90px;font-size:11px;color:#938990;padding:4px 13px}
+#moa-r469-root .moa-r475-source-option.active{background:#fff;color:#a95079;box-shadow:0 1px 4px #0000000b;font-weight:650}
+/* Continuous photo mosaic: no individual date tile frames and no wide bright gutters. */
+#moa-r469-root .moa-r469-month-grid{gap:1px;margin:0 15px;border-radius:13px;overflow:hidden;background:#fff}
+#moa-r469-root .moa-r469-date{border-radius:0;background:#f0edeb}
+#moa-r469-root .moa-r469-week{padding:5px 0 6px;background:#fff;font-size:10px}
+#moa-r469-root .moa-r469-blank{background:#fff}
+#moa-r469-root .moa-r469-date.selected{outline:2px solid #c15b88;outline-offset:-2px;box-shadow:inset 0 0 0 1px #fffc;z-index:1}
+#moa-r469-root .moa-r469-day-number{top:4px;left:4px;font-size:10px;min-width:0;height:auto;background:none!important;text-shadow:0 1px 5px #000e;padding:0 2px;font-weight:650}
+#moa-r469-root .moa-r469-date:not(:has(img)) .moa-r469-day-number{color:#888083!important;text-shadow:none}
+#moa-r469-root .moa-r469-date.today .moa-r469-day-number{background:#b84f7d!important;border-radius:4px;padding:0 3px;color:#fff!important}
+#moa-r469-root .moa-r475-event-mark{position:absolute;bottom:5px;left:5px;width:5px;height:5px;background:#d8789c;border-radius:100%;box-shadow:0 1px 4px #0004}
+#moa-r469-root .moa-r475-family{margin:13px 16px 10px;color:#61575c;font-size:12px;padding:13px 5px 15px;border-top:1px solid #ece7e8}
+#moa-r469-root .moa-r475-family-top{display:flex;justify-content:space-between;align-items:center;gap:9px}
+#moa-r469-root .moa-r475-family-manage{background:transparent;color:#998d92;font-size:11px;padding:4px 1px}
+#moa-r469-root .moa-r475-family-list{display:flex;flex-direction:column;gap:8px;padding:11px 0 2px}
+#moa-r469-root .moa-r475-family-item{display:flex;gap:12px;align-items:center}
+#moa-r469-root .moa-r475-family-time{font-size:10px;color:#ba7a92;flex:0 0 47px}
+#moa-r469-root .moa-r475-save-note{font-size:10px;color:#aaa0a4}
+/* Make ORIGINAL detailed view visually belong to the same photo-diary system, without touching editor logic. */
+#fj-diary-root[data-page="day"]{color:#302a2f;background:#fffdfc}
+#fj-diary-root[data-page="day"] .fd23-top{margin:1px 16px 2px;min-height:43px}
+#fj-diary-root[data-page="day"] .fd23-top>strong{font-size:13px;font-weight:650;letter-spacing:-.02em}
+#fj-diary-root[data-page="day"] .moa-r475-detail-switch{margin:0 16px 7px}
+#fj-diary-root[data-page="day"] .fd23-written,
+#fj-diary-root[data-page="day"] .fd23-editor,
+#fj-diary-root[data-page="day"] .fd23-log,
+#fj-diary-root[data-page="day"] .fd23-daystats{border-radius:21px;border-color:#eee6e9;background:#f6f3f3;box-shadow:none}
+#fj-diary-root[data-page="day"] .fd23-written h2{font-size:16px;font-weight:650}
+#fj-diary-root[data-page="day"] .fd23-daystats{font-size:11px;font-weight:500;color:#999096;padding:8px 13px;margin:2px 16px 11px}
+#fj-diary-root[data-page="day"] .fd23-daystats small{font-size:10px;color:#aca2a6}
+#fj-diary-root[data-page="day"] .fd23-btn.primary{background:#b95783}
+@media(max-width:360px){#moa-r469-root .moa-r475-source-filter,#moa-r469-root .moa-r475-view-toggle,#fj-diary-root .moa-r475-view-toggle{margin-left:13px;margin-right:13px}}
+
+/* R479 — one actual main diary calendar, no legacy hub / title / statistics. */
+#moa-r469-root[data-page="calendar"]{background:#fff!important;padding-top:calc(8px + env(safe-area-inset-top))!important;overscroll-behavior-y:contain}
+#moa-r469-root .moa-r479-calendar-toolbar{position:relative;min-height:118px;display:flex;align-items:flex-start;justify-content:center;margin:0 15px 3px;padding-top:21px}
+#moa-r469-root .moa-r479-period{padding:6px 16px 8px;min-height:43px;border-radius:17px;background:transparent;color:#272329;display:flex;align-items:center;gap:8px;letter-spacing:-.045em}
+#moa-r469-root .moa-r479-period strong{font-size:24px;font-weight:720;line-height:1.1}
+#moa-r469-root .moa-r479-period span{font-size:13px;color:#ae98a2}
+#moa-r469-root .moa-r479-right-stack{position:absolute;right:0;top:17px;display:flex;flex-direction:column;align-items:center;gap:7px;width:106px}
+#moa-r469-root .moa-r479-today{border-radius:18px;background:#f8f5f7;border:1px solid #f3eff1;color:#a8587c;font-size:12px;padding:6px 17px;min-height:34px}
+#moa-r469-root .moa-r479-source-switch{height:32px;width:106px;display:grid;grid-template-columns:1fr 1fr;position:relative;padding:3px;border:1px solid #eee8eb;background:#f7f4f6;border-radius:18px;touch-action:pan-y;user-select:none;box-shadow:0 1px 3px #211a2011}
+#moa-r469-root .moa-r479-source-switch::before{content:"";position:absolute;left:3px;top:3px;width:calc(50% - 3px);height:calc(100% - 6px);border-radius:14px;background:white;box-shadow:0 1px 3px #120e171a;transition:transform .2s cubic-bezier(.2,.8,.2,1)}
+#moa-r469-root .moa-r479-source-switch[data-source="automatic"]::before{transform:translateX(100%)}
+#moa-r469-root .moa-r479-source-choice{z-index:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:3px;background:transparent;border-radius:12px;color:#a29ca1;font-weight:550;font-size:10px;padding:0 2px;touch-action:pan-y}
+#moa-r469-root .moa-r479-source-choice.active{color:#a6557b;font-weight:700}
+#moa-r469-root .moa-r479-switch-icon{font-size:12px;line-height:1}
+#moa-r469-root .moa-r479-month-frame{padding:0 12px;touch-action:pan-y;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-user-drag:none}
+#moa-r469-root .moa-r479-month-frame img{-webkit-user-drag:none;pointer-events:none}
+#moa-r469-root .moa-r469-month-grid{margin:0!important;gap:1px!important;background:#f4f1f1;border-radius:23px!important;overflow:hidden;isolation:isolate;box-shadow:0 1px 2px #44333909;touch-action:pan-y;will-change:transform,opacity}
+#moa-r469-root .moa-r469-week{padding:12px 0 13px!important;background:#fff!important;color:#9b9196;font-size:11px!important;touch-action:pan-y}
+#moa-r469-root .moa-r469-date{background:#fff!important;border:0!important;border-radius:0!important;box-shadow:none;touch-action:pan-y;aspect-ratio:.77}
+#moa-r469-root .moa-r469-blank{background:#fff!important;touch-action:pan-y}
+#moa-r469-root .moa-r469-date.selected{z-index:1;outline:2px solid #c96896!important;outline-offset:-2px!important;box-shadow:none!important}
+#moa-r469-root .moa-r469-date:not(:has(img.moa-r472-image-ready)) .moa-r469-day-number{color:#938c90!important;text-shadow:none!important;background:transparent!important}
+#moa-r469-root .moa-r469-day-number{font-size:11px!important;top:5px!important;left:5px!important}
+#moa-r469-root .moa-r469-date.today .moa-r469-day-number{background:#bd5a8a!important;color:white!important;border-radius:7px!important;padding:2px 5px!important;text-shadow:none!important}
+#moa-r469-root .moa-r475-event-mark{position:absolute!important;left:5px!important;right:5px!important;bottom:3px!important;width:auto!important;height:3px!important;border-radius:100px!important;background:linear-gradient(90deg,#cb5f90,#efb1cb)!important;box-shadow:0 1px 3px #57344436!important;z-index:3}
+#moa-r469-root .moa-r469-record-mark{right:5px;bottom:7px;opacity:.7}
+#moa-r469-root .moa-r479-picker-backdrop{position:fixed;inset:0;z-index:350;background:#15101480;display:flex;align-items:flex-end;justify-content:center;padding:0 0 env(safe-area-inset-bottom);backdrop-filter:blur(3px)}
+#moa-r469-root .moa-r479-picker-sheet{background:#fff;border-radius:25px 25px 0 0;max-width:650px;width:100%;padding:20px 23px 29px;box-shadow:0 -12px 42px #0002;color:#393137}
+#moa-r469-root .moa-r479-picker-heading{display:flex;justify-content:space-between;align-items:center;font-size:17px;margin-bottom:23px}
+#moa-r469-root .moa-r479-picker-close{width:35px;height:35px;border-radius:50%;background:#f6f1f3;color:#9b7b89;font-size:24px}
+#moa-r469-root .moa-r479-picker-year{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:16px}
+#moa-r469-root .moa-r479-picker-year input{width:100px;text-align:center;border:0;background:transparent;font-size:23px;font-weight:730;color:#342d31}
+#moa-r469-root .moa-r479-picker-year button{font-size:22px;background:#f6f3f4;border-radius:14px;width:41px;height:40px;color:#80757c}
+#moa-r469-root .moa-r479-picker-months{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+#moa-r469-root .moa-r479-month-choice{background:#f9f7f8;border-radius:13px;min-height:48px;color:#786d74;font-size:14px}
+#moa-r469-root .moa-r479-month-choice.is-selected{background:#f8edf3;color:#a4497a;font-weight:720}
+#moa-r469-root .moa-r479-picker-hint{text-align:center;font-size:11px;color:#9e9498;margin:17px 0 0}
+#moa-r469-root .moa-r479-schedule-form{display:grid;gap:11px}
+#moa-r469-root .moa-r479-schedule-field{display:flex;flex-direction:column;gap:6px;color:#807780;font-size:12px}
+#moa-r469-root .moa-r479-schedule-field input,#moa-r469-root .moa-r479-time-fields input{border:1px solid #eee6ea;border-radius:12px;padding:11px 12px;font-size:14px;background:#fdfbfc;color:#39343a;max-width:100%;min-width:0}
+#moa-r469-root .moa-r479-schedule-check{display:flex;gap:8px;font-size:13px;color:#76676f;align-items:center}
+#moa-r469-root .moa-r479-time-fields{display:flex;gap:9px}
+#moa-r469-root .moa-r479-form-error{font-size:11px;color:#b32258;min-height:14px}
+#moa-r469-root .moa-r479-form-actions{display:flex;justify-content:flex-end;gap:8px}
+#moa-r469-root .moa-r479-form-actions button{padding:10px 17px;border-radius:11px;background:#f6f2f4;color:#7b6470}
+#moa-r469-root .moa-r479-form-actions button.moa-r479-submit{background:#b75988;color:#fff}
+#moa-r469-root .moa-r479-form-actions button.moa-r479-remove{margin-right:auto;color:#c34c74}
+#moa-r469-root .moa-r475-family-item{width:100%;text-align:left;background:#fff;padding:11px 9px;border-radius:12px;color:#564f54;font-size:12px}
+#moa-r469-root .moa-r475-family-manage{font-size:11px;color:#a25277;border-radius:12px;background:#f8f0f4;padding:7px 10px}
+@media(max-width:380px){#moa-r469-root .moa-r479-right-stack{width:93px}#moa-r469-root .moa-r479-source-switch{width:93px}#moa-r469-root .moa-r479-period strong{font-size:21px}#moa-r469-root .moa-r479-calendar-toolbar{margin:0 10px 3px}}
+
+/* R483: Photos365-style continuous VERTICAL months, unified minimalist controls */
+#moa-r469-root[data-page="calendar"]{background:#fff;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0}
+#moa-r469-root[data-page="calendar"] .moa-r469-status{display:none}
+#moa-r469-root .moa-r479-calendar-toolbar{flex:0 0 112px;min-height:112px;margin:0 17px!important;padding:5px 0 10px;display:flex;align-items:flex-start;justify-content:space-between;position:relative;background:#fff;box-shadow:none}
+#moa-r469-root .moa-r479-period{padding:11px 0 8px;min-height:52px;max-width:calc(100% - 106px);color:#322d31;justify-content:flex-start}
+#moa-r469-root .moa-r479-period strong{font-size:23px;font-weight:725;white-space:nowrap}
+#moa-r469-root .moa-r479-period span{font-size:13px}
+#moa-r469-root .moa-r479-right-stack{position:static;right:auto;top:auto;width:78px;min-width:78px;flex:0 0 78px;align-items:center;gap:8px;padding-top:6px}
+#moa-r469-root .moa-r479-today{width:76px;height:36px;min-height:36px;padding:0;font-size:12px;border-radius:22px;background:#f8f5f6}
+/* Two oval states: NO visible label, icon or textual content; ARIA labels preserved */
+#moa-r469-root .moa-r483-oval-switch,#fj-diary-root .moa-r483-oval-switch{display:grid!important;grid-template-columns:repeat(2,1fr);align-items:center;position:relative;width:76px!important;height:30px!important;min-height:30px!important;max-width:76px!important;border-radius:99px!important;background:#f1edf0!important;border:1px solid #e8e0e5!important;gap:0!important;padding:3px!important;box-shadow:none!important;touch-action:pan-y;user-select:none;margin:0!important}
+#moa-r469-root .moa-r483-thumb,#fj-diary-root .moa-r483-thumb{position:absolute;top:3px;left:3px;height:22px;width:calc(50% - 3px);border-radius:99px;background:#bb648d;box-shadow:0 1px 3px #5e3c4a33;transition:transform .21s cubic-bezier(.22,.78,.19,1);pointer-events:none}
+#moa-r469-root .moa-r483-oval-switch[data-source="automatic"] .moa-r483-thumb,#moa-r469-root .moa-r483-oval-switch[data-source="detail"] .moa-r483-thumb,#fj-diary-root .moa-r483-oval-switch[data-source="detail"] .moa-r483-thumb{transform:translateX(100%)}
+#moa-r469-root .moa-r483-toggle-hit,#fj-diary-root .moa-r483-toggle-hit{min-height:24px!important;height:24px!important;min-width:0!important;width:100%;z-index:1;border:0!important;box-shadow:none!important;background:transparent!important;padding:0!important;margin:0!important;border-radius:99px;color:transparent;font-size:0;touch-action:pan-y}
+#moa-r469-root .moa-r483-toggle-hit:focus-visible,#fj-diary-root .moa-r483-toggle-hit:focus-visible{outline:2px solid #9d5577!important;outline-offset:3px}
+#moa-r469-root .moa-r483-day-mode{margin:0 17px 6px auto!important;width:76px!important;height:30px!important;justify-content:initial!important}
+#fj-diary-root .moa-r483-day-mode{margin:2px 16px 8px auto!important;width:76px!important;height:30px!important;justify-content:initial!important}
+#moa-r469-root .moa-r483-month-feed{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;position:relative;padding:0 17px 18px;touch-action:pan-y}
+#moa-r469-root .moa-r483-month-feed::-webkit-scrollbar{display:none}
+#moa-r469-root .moa-r483-month{padding:0 0 15px;margin:0 0 10px;contain:layout style}
+#moa-r469-root .moa-r483-month-title{font-size:14px;font-weight:650;color:#726870;margin:4px 3px 9px;line-height:1.8;letter-spacing:-.025em}
+#moa-r469-root .moa-r483-month:first-child .moa-r483-month-title{margin-top:1px}
+#moa-r469-root .moa-r483-month .moa-r469-month-grid{margin:0!important;gap:1px!important;background:#f4eff1;border-radius:21px!important;overflow:hidden;touch-action:pan-y;will-change:auto;box-shadow:0 1px 4px #2415220c}
+#moa-r469-root .moa-r483-month .moa-r469-week{background:#fff!important;padding:10px 0 11px!important;color:#9f9297}
+#moa-r469-root .moa-r483-month .moa-r469-date{aspect-ratio:.80;background:#fff!important;overflow:hidden;touch-action:pan-y;isolation:isolate}
+#moa-r469-root .moa-r483-month .moa-r469-blank{aspect-ratio:.80;background:#fff!important}
+#moa-r469-root .moa-r483-month .moa-r469-date img{position:absolute!important;inset:0 0 9px!important;width:100%!important;height:calc(100% - 9px)!important;object-fit:cover;pointer-events:none}
+#moa-r469-root .moa-r483-event-lane{position:absolute;bottom:0;left:0;right:0;height:9px;background:#fff;z-index:2;border-top:1px solid #f6f2f4;pointer-events:none}
+#moa-r469-root .moa-r483-event-lane .moa-r475-event-mark{position:absolute!important;left:5px!important;right:5px!important;top:3px!important;bottom:auto!important;height:2px!important;border-radius:3px;background:#c76c95!important;box-shadow:none!important;width:auto!important}
+#moa-r469-root .moa-r483-month .moa-r469-day-number{font-size:11px!important;top:5px!important;left:5px!important;color:#fff;text-shadow:0 1px 4px #0008}
+#moa-r469-root .moa-r483-month .moa-r469-date.today{outline:2px solid #bd4b86!important;outline-offset:-2px!important;box-shadow:inset 0 0 0 1px #fff!important;z-index:3}
+#moa-r469-root .moa-r483-month .moa-r469-date.today .moa-r469-day-number{color:inherit!important;background:transparent!important;border:0!important;padding:1px 3px!important;border-radius:0!important;text-shadow:0 1px 4px #0008!important}
+#moa-r469-root .moa-r483-month .moa-r469-date.selected:not(.today){outline:1px solid #d9a5bb!important;outline-offset:-1px!important;box-shadow:none!important;z-index:2}
+#moa-r469-root .moa-r483-month .moa-r469-record-mark{bottom:10px!important;z-index:2;right:4px;opacity:.65}
+#moa-r469-root .moa-r483-month .moa-r469-video-mark{top:calc(50% - 4px)}
+#moa-r469-root .moa-r483-picker-sheet{max-height:min(82vh,750px);display:flex;flex-direction:column}
+#moa-r469-root .moa-r483-picker-labels{display:grid;grid-template-columns:94px 1fr;gap:13px;margin-bottom:8px;color:#9d8d94;font-size:11px;text-align:center}
+#moa-r469-root .moa-r483-picker-columns{display:grid;grid-template-columns:94px 1fr;gap:13px;min-height:240px;max-height:380px}
+#moa-r469-root .moa-r483-year-list{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;display:flex;flex-direction:column;gap:4px;padding:2px 4px;border-radius:13px;background:#f8f5f7}
+#moa-r469-root .moa-r483-year-option{flex:0 0 42px;border-radius:9px;background:transparent;color:#8b8086;font-size:15px}
+#moa-r469-root .moa-r483-year-option.active{background:#fff;color:#ad4e7c;font-weight:750;box-shadow:0 1px 5px #0001}
+#moa-r469-root .moa-r483-picker-months{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(4,1fr);gap:7px;min-width:0}
+#moa-r469-root .moa-r483-month-option{border-radius:12px;min-width:0;min-height:43px;background:#faf8f9;color:#7c7076;font-size:13px}
+#moa-r469-root .moa-r483-month-option.active{background:#f4e6ee;color:#ac4b7a;font-weight:700}
+@media(max-width:375px){#moa-r469-root .moa-r479-calendar-toolbar{margin:0 12px!important}#moa-r469-root .moa-r479-period strong{font-size:21px}#moa-r469-root .moa-r483-month-feed{padding-left:11px;padding-right:11px}}
+/* R483 picker containment correction: prevent 201 years from expanding the grid height. */
+#moa-r469-root .moa-r483-picker-columns{height:326px!important;min-height:0!important;max-height:326px!important;flex:0 0 326px;overflow:hidden}
+#moa-r469-root .moa-r483-picker-columns>*{min-height:0!important;max-height:326px!important;align-self:stretch;overflow:hidden}
+#moa-r469-root .moa-r483-picker-columns>.moa-r483-year-list{overflow-y:auto!important;overscroll-behavior-y:contain!important}
+#moa-r469-root .moa-r483-picker-columns>.moa-r483-picker-months{display:grid!important;grid-template-rows:repeat(4,minmax(0,1fr));height:326px!important}
+#moa-r469-root .moa-r483-year-option{min-height:42px!important}
+
+
+/* R487 — DayPic-inspired photography-first single-month viewport.
+   Only the R483 additive overlay is styled; R463 original owner/data/native DEX frozen. */
+#moa-r469-root[data-page="calendar"]{background:#fff!important;padding-top:env(safe-area-inset-top)!important;padding-bottom:0!important}
+#moa-r469-root[data-page="calendar"] .moa-r479-calendar-toolbar{flex:0 0 66px!important;min-height:66px!important;margin:0 14px!important;padding:5px 0 2px!important;align-items:center!important}
+#moa-r469-root[data-page="calendar"] .moa-r479-period{min-height:50px!important;padding:2px 0!important;max-width:calc(100% - 86px)!important}
+#moa-r469-root[data-page="calendar"] .moa-r479-period strong{font-size:24px!important;letter-spacing:-.045em}
+#moa-r469-root[data-page="calendar"] .moa-r479-right-stack{height:48px!important;flex:0 0 78px!important;width:78px!important;min-width:78px!important;padding-top:0!important;align-items:center!important;justify-content:center!important}
+#moa-r469-root[data-page="calendar"] .moa-r483-month-feed{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;padding:0 13px!important;scroll-snap-type:y proximity;scroll-padding-top:0;overscroll-behavior-y:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+#moa-r469-root[data-page="calendar"] .moa-r483-month{position:relative;display:flex;flex-direction:column;box-sizing:border-box;height:100%;min-height:100%;margin:0!important;padding:5px 0 8px!important;scroll-snap-align:start;scroll-snap-stop:always;contain:layout style}
+#moa-r469-root[data-page="calendar"] .moa-r483-month-title{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;border:0!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important}
+#moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-month-grid{display:grid!important;flex:1 1 auto!important;height:auto!important;min-height:0!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;grid-template-rows:25px repeat(var(--moa-r487-week-rows,5),minmax(0,1fr))!important;gap:1px!important;border-radius:13px!important;background:#f1ecec!important;box-shadow:0 1px 4px #53434a13!important;overflow:hidden;isolation:isolate;touch-action:pan-y}
+#moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-week{height:25px!important;padding:0!important;display:flex;align-items:center;justify-content:center;font-size:11px!important;line-height:1;color:#a39b9d!important;background:#fff!important}
+#moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date,
+#moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-blank{aspect-ratio:auto!important;width:100%!important;height:100%!important;min-height:0!important;min-width:0!important;border-radius:0!important}
+#moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date{background:#f9f7f6!important}
+#moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-blank{background:#fff!important}
+#moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date img{inset:0 0 9px!important;width:100%!important;height:calc(100% - 9px)!important;object-fit:cover!important}
+#moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-day-number{top:5px!important;left:4px!important;font-size:11px!important;font-weight:720!important;color:#fff;text-shadow:0 1px 4px #24161cbd!important;background:none!important;padding:0 2px!important}
+#moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date.today{outline:2px solid #bc5987!important;outline-offset:-2px!important;z-index:4}
+#moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date.today .moa-r469-day-number{color:inherit!important;background:transparent!important;text-shadow:0 1px 4px #24161cbd!important}
+#moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r483-event-lane{height:9px!important;background:#fff!important;border-top:1px solid #f4eff0!important}
+#moa-r469-root[data-page="calendar"] .moa-r487-today-dock{flex:0 0 59px;min-height:59px;display:flex;align-items:center;padding:6px 13px 8px;background:#fff;border-top:1px solid #eee8e6;z-index:5}
+#moa-r469-root[data-page="calendar"] .moa-r487-today-action{display:block;width:100%;height:43px;min-height:43px;border-radius:13px;background:#927a68;color:#fff;font-size:14px;font-weight:650;letter-spacing:-.02em;border:1px solid #8f7664;box-shadow:0 1px 2px #60433221;padding:0 18px;text-align:center}
+#moa-r469-root[data-page="calendar"] .moa-r487-today-action:active{background:#7b6758;transform:scale(.995)}
+@media(max-width:375px){#moa-r469-root[data-page="calendar"] .moa-r483-month-feed{padding-left:9px!important;padding-right:9px!important}#moa-r469-root[data-page="calendar"] .moa-r479-period strong{font-size:22px!important}#moa-r469-root[data-page="calendar"] .moa-r487-today-dock{padding-left:9px;padding-right:9px}}
+/* MOA R491 — UX correction after physical R487 screenshots.
+   All properties follow existing R117 data-moa-ui auto/icon pink/white/black/peach palette.
+   No changes to diary stores, 17 original native DEX, photo records or navigation. */
+html{
+ --moa-r491-accent:#ad3d63;--moa-r491-on-accent:#fff;
+ --moa-r491-ui:#fffcfa;--moa-r491-surface:#fff;
+ --moa-r491-empty:#f2f0ee;--moa-r491-grid:#e4dfe2;
+ --moa-r491-ink:#302a32;--moa-r491-muted:#79727b;
+ --moa-r491-track:#f3eef1;--moa-r491-track-border:#d4c8ce;
+ --moa-r491-dock-border:#e1d8df;
+}
+html[data-moa-ui="peach"]{
+ --moa-r491-accent:#a74463;--moa-r491-on-accent:#fff;
+ --moa-r491-ui:#fffcfa;--moa-r491-surface:#fff;
+ --moa-r491-empty:#f4f1ef;--moa-r491-grid:#e5dfe1;
+ --moa-r491-ink:#302a32;--moa-r491-muted:#786d76;
+ --moa-r491-track:#f8eef1;--moa-r491-track-border:#d9c9d0;
+ --moa-r491-dock-border:#e5dde0;
+}
+html[data-moa-ui="pink"]{
+ --moa-r491-accent:#c70762;--moa-r491-on-accent:#fff;
+ --moa-r491-ui:#fffafd;--moa-r491-surface:#fff;
+ --moa-r491-empty:#f5f0f3;--moa-r491-grid:#eadce4;
+ --moa-r491-ink:#2c2430;--moa-r491-muted:#807181;
+ --moa-r491-track:#f8f0f5;--moa-r491-track-border:#ddc4d1;
+ --moa-r491-dock-border:#eadce4;
+}
+html[data-moa-ui="white"]{
+ --moa-r491-accent:#262831;--moa-r491-on-accent:#fff;
+ --moa-r491-ui:#fff;--moa-r491-surface:#fff;
+ --moa-r491-empty:#f0f1f4;--moa-r491-grid:#dee1e7;
+ --moa-r491-ink:#272c32;--moa-r491-muted:#69717d;
+ --moa-r491-track:#f1f2f5;--moa-r491-track-border:#cdd1d9;
+ --moa-r491-dock-border:#dce0e6;
+}
+html[data-moa-ui="black"]{
+ --moa-r491-accent:#e4dce7;--moa-r491-on-accent:#211b27;
+ --moa-r491-ui:#1d1b23;--moa-r491-surface:#29262e;
+ --moa-r491-empty:#38343d;--moa-r491-grid:#4c4350;
+ --moa-r491-ink:#f4eff5;--moa-r491-muted:#c2b7c6;
+ --moa-r491-track:#39333e;--moa-r491-track-border:#766b79;
+ --moa-r491-dock-border:#504654;
+}
+/* Respect the active UI theme live: R117 changes html[data-moa-ui] after user selects Settings. */
+html #moa-r469-root,
+html #moa-r469-root[data-page="calendar"]{
+ background:var(--moa-r491-ui)!important;color:var(--moa-r491-ink)!important;
+}
+html #moa-r469-root button:focus-visible,
+html #fj-diary-root .moa-r483-oval-switch:focus-within{outline-color:var(--moa-r491-accent)!important}
+html #moa-r469-root[data-page="calendar"] .moa-r479-calendar-toolbar{
+ background:var(--moa-r491-ui)!important;
+}
+html #moa-r469-root .moa-r479-period,
+html #moa-r469-root .moa-r479-period strong{color:var(--moa-r491-ink)!important}
+html #moa-r469-root .moa-r479-period span{color:var(--moa-r491-muted)!important}
+/* Small visual slider, but preserve broad invisible 68x40 hit area for both ends.
+   Visual ~44x19, ~50% of R487 76x30; each tappable zone 34x40. */
+html #moa-r469-root .moa-r483-oval-switch,
+html #fj-diary-root .moa-r483-oval-switch{
+ position:relative;display:grid!important;grid-template-columns:1fr 1fr!important;
+ width:68px!important;max-width:68px!important;min-width:68px!important;
+ height:40px!important;min-height:40px!important;max-height:40px!important;
+ padding:0!important;margin:0!important;border:0!important;
+ background:transparent!important;box-shadow:none!important;
+ border-radius:22px!important;align-items:center!important;gap:0!important;
+ isolation:isolate;touch-action:pan-y;
+}
+html #moa-r469-root .moa-r483-oval-switch::before,
+html #fj-diary-root .moa-r483-oval-switch::before{
+ content:"";display:block;position:absolute;z-index:0;
+ width:44px;height:19px;left:calc(50% - 22px);top:calc(50% - 9.5px);
+ background:var(--moa-r491-track);border:1px solid var(--moa-r491-track-border);
+ border-radius:100px;box-sizing:border-box;
+}
+html #moa-r469-root .moa-r483-thumb,
+html #fj-diary-root .moa-r483-thumb{
+ position:absolute!important;z-index:1;pointer-events:none;
+ width:18px!important;height:15px!important;min-width:18px!important;
+ left:calc(50% - 19px)!important;top:calc(50% - 7.5px)!important;
+ background:var(--moa-r491-accent)!important;
+ border:1px solid color-mix(in srgb,var(--moa-r491-accent) 82%,var(--moa-r491-ink))!important;
+ border-radius:100px!important;box-shadow:0 1px 2px #0002!important;
+ transform:translateX(0)!important;transition:transform .18s ease!important;
+}
+html #moa-r469-root .moa-r483-oval-switch[data-source="automatic"] .moa-r483-thumb,
+html #moa-r469-root .moa-r483-oval-switch[data-source="detail"] .moa-r483-thumb,
+html #fj-diary-root .moa-r483-oval-switch[data-source="detail"] .moa-r483-thumb{
+ transform:translateX(20px)!important;
+}
+html #moa-r469-root .moa-r483-toggle-hit,
+html #fj-diary-root .moa-r483-toggle-hit{
+ width:100%!important;height:40px!important;min-height:40px!important;max-height:40px!important;
+ border:0!important;background:transparent!important;box-shadow:none!important;
+ padding:0!important;margin:0!important;position:relative;z-index:2;
+ border-radius:18px!important;color:transparent!important;font-size:0!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r479-right-stack{
+ flex:0 0 68px!important;width:68px!important;min-width:68px!important;
+ height:44px!important;align-items:center!important;justify-content:center!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r479-period{max-width:calc(100% - 74px)!important}
+html #moa-r469-root .moa-r483-day-mode,
+html #fj-diary-root .moa-r483-day-mode{
+ width:68px!important;height:40px!important;min-height:40px!important;
+ margin-right:16px!important;margin-left:auto!important;justify-content:flex-end!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-month-grid{
+ border-radius:21px!important;gap:3px!important;
+ background:var(--moa-r491-grid)!important;
+ box-shadow:none!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-week{
+ color:var(--moa-r491-muted)!important;background:var(--moa-r491-surface)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date,
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-blank{
+ border-radius:7px!important;overflow:hidden!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date{
+ background:var(--moa-r491-empty)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-blank{
+ background:var(--moa-r491-surface)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date img{
+ position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+ object-fit:cover!important;border-radius:7px!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date:not(:has(img.moa-r472-image-ready)) .moa-r469-day-number{
+ color:var(--moa-r491-muted)!important;background:transparent!important;text-shadow:none!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date.today{
+ outline:2px solid var(--moa-r491-accent)!important;
+ outline-offset:-2px!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date.selected:not(.today){
+ outline:1.5px solid var(--moa-r491-accent)!important;outline-offset:-1.5px!important;
+}
+/* Event is one 3px accent stroke INSIDE THE photo/date tile. No white reserved lane. */
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r483-event-lane{
+ position:absolute!important;left:0!important;right:0!important;bottom:0!important;
+ height:7px!important;background:transparent!important;border:0!important;
+ box-shadow:none!important;pointer-events:none;z-index:4;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r483-event-lane .moa-r475-event-mark{
+ position:absolute!important;left:6px!important;right:6px!important;
+ top:auto!important;bottom:2px!important;width:auto!important;
+ height:3px!important;border-radius:8px!important;
+ background:var(--moa-r491-accent)!important;
+ box-shadow:0 0 1px var(--moa-r491-surface)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-dock{
+ background:var(--moa-r491-ui)!important;
+ border-top:1px solid var(--moa-r491-dock-border)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{
+ background:var(--moa-r491-accent)!important;
+ color:var(--moa-r491-on-accent)!important;
+ border:1px solid var(--moa-r491-accent)!important;
+ box-shadow:0 2px 7px #00000015!important;
+ border-radius:15px!important;font-size:14px!important;font-weight:700!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action:active{
+ filter:brightness(.93)!important;
+}
+/* Date/photo/detail surfaces also inherit existing R117 screen theme. */
+html #moa-r469-root .moa-r469-head,
+html #moa-r469-root .moa-r469-head strong{color:var(--moa-r491-ink)!important}
+html #moa-r469-root .moa-r469-head button{color:var(--moa-r491-muted)!important}
+html #moa-r469-root .moa-r469-story{
+ background:var(--moa-r491-surface)!important;
+ border:1px solid var(--moa-r491-grid)!important;
+ color:var(--moa-r491-ink)!important;
+}
+html #moa-r469-root .moa-r469-story-title,
+html #moa-r469-root .moa-r469-text{color:var(--moa-r491-ink)!important}
+html #moa-r469-root .moa-r469-text::placeholder{color:var(--moa-r491-muted)!important}
+html #moa-r469-root .moa-r469-dot.active{background:var(--moa-r491-accent)!important}
+html #moa-r469-root .moa-r469-stage{background:var(--moa-r491-empty)!important}
+html #moa-r469-root .moa-r479-picker-sheet{
+ background:var(--moa-r491-surface)!important;color:var(--moa-r491-ink)!important;
+}
+html #moa-r469-root .moa-r483-year-list{background:var(--moa-r491-empty)!important}
+html #moa-r469-root .moa-r483-year-option,
+html #moa-r469-root .moa-r483-month-option{
+ background:var(--moa-r491-surface)!important;color:var(--moa-r491-ink)!important;
+}
+html #moa-r469-root .moa-r483-year-option.active,
+html #moa-r469-root .moa-r483-month-option.active{
+ background:var(--moa-r491-track)!important;color:var(--moa-r491-accent)!important;
+ box-shadow:inset 0 0 0 1px var(--moa-r491-track-border)!important;
+}
+html #moa-r469-root .moa-r479-picker-close{
+ color:var(--moa-r491-ink)!important;background:var(--moa-r491-empty)!important;
+}
+/* Black theme: light accent is high contrast on a dark surface, but selected foreground
+   must be dark when ON that light accent. Button text elsewhere retains pale ink. */
+html[data-moa-ui="black"] #moa-r469-root .moa-r469-day-number,
+html[data-moa-ui="black"] #moa-r469-root .moa-r469-week{color:var(--moa-r491-muted)}
+
+
+/* MOA R495 unified-photo-calendar: white quiet cells, single owner, no legacy flash. */
+#fj-diary-root[data-moa-unified-page="calendar"]{visibility:hidden!important;pointer-events:none!important}
+/* White/black-compatible quiet grid. Existing R117 applied theme still drives accents and text. */
+html #moa-r469-root[data-page="calendar"]{--moa-r495-cell:#fff;--moa-r495-blank:#fff;--moa-r495-line:#fff;--moa-r495-week-outline:rgba(70,60,85,.055)}
+html[data-moa-ui="black"] #moa-r469-root[data-page="calendar"]{--moa-r495-cell:#29262e;--moa-r495-blank:#29262e;--moa-r495-line:#29262e;--moa-r495-week-outline:rgba(255,255,255,.09)}
+html #moa-r469-root[data-page="calendar"] .moa-r479-calendar-toolbar{
+ flex:0 0 53px!important;min-height:53px!important;height:53px!important;
+ margin:0 14px!important;padding:0!important;align-items:flex-start!important;justify-content:space-between!important;
+ border:0!important;box-shadow:none!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r479-period{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ height:39px!important;min-height:39px!important;padding:0 12px!important;
+ margin:1px 0 0!important;max-width:calc(100% - 80px)!important;
+ border:1px solid color-mix(in srgb,var(--moa-r491-muted) 17%,transparent)!important;
+ background:transparent!important;border-radius:13px!important;box-shadow:none!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r479-period strong{
+ font-size:21px!important;line-height:1.15!important;white-space:nowrap;letter-spacing:-.035em!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r479-period span{display:none!important}
+html #moa-r469-root[data-page="calendar"] .moa-r479-right-stack{
+ height:41px!important;min-height:41px!important;padding:0!important;margin:0!important;
+ align-self:flex-start!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month-feed{
+ padding:0 9px!important;scroll-padding-top:0!important;scrollbar-width:none!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month{
+ margin:0!important;padding:0!important;min-height:100%!important;height:100%!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-month-grid{
+ background:var(--moa-r495-line)!important;
+ gap:2px!important;border-radius:20px!important;
+ box-shadow:none!important;border:0!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-week{
+ border-radius:10px!important;
+ background:var(--moa-r495-cell)!important;
+ border:1px solid var(--moa-r495-week-outline)!important;
+ box-shadow:none!important;color:var(--moa-r491-muted)!important;
+ font-weight:600!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date,
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-blank{
+ background:var(--moa-r495-cell)!important;
+ border-radius:12px!important;
+ border:1px solid color-mix(in srgb,var(--moa-r491-muted) 6%,transparent)!important;
+ box-shadow:none!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-blank,
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date:not(:has(img.moa-r472-image-ready)){
+ background:var(--moa-r495-blank)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-date img{
+ border-radius:11px!important;
+}
+/* R495: one compact Today bar, without either dividing line or clipping. */
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-dock{
+ flex:0 0 48px!important;min-height:48px!important;height:48px!important;
+ background:var(--moa-r491-ui)!important;
+ padding:3px 9px 5px!important;
+ border:0!important;border-top:0!important;border-bottom:0!important;
+ box-shadow:none!important;margin:0!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{
+ height:37px!important;min-height:37px!important;max-height:37px!important;
+ border-radius:13px!important;box-shadow:none!important;
+ font-size:13px!important;font-weight:650!important;
+}
+/* A strictly one-month-at-a-time mode; free-flow mode remains untouched. */
+html #moa-r469-root[data-page="calendar"][data-month-scroll="page"] .moa-r483-month-feed{
+ overflow-y:hidden!important;touch-action:none!important;scroll-snap-type:none!important;
+}
+html #moa-r469-root[data-page="calendar"][data-month-scroll="page"] .moa-r483-month .moa-r469-date,
+html #moa-r469-root[data-page="calendar"][data-month-scroll="page"] .moa-r483-month .moa-r469-blank{
+ touch-action:none!important;
+}
+/* Daily story and family schedule share professional card rhythm. */
+html #moa-r469-root[data-page="day"] .moa-r475-family{
+ margin:12px 16px 16px!important;padding:15px 16px 17px!important;
+ border-radius:20px!important;
+ border:1px solid var(--moa-r491-grid)!important;
+ background:var(--moa-r491-surface)!important;
+ color:var(--moa-r491-ink)!important;
+ box-shadow:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r475-family-top{
+ color:var(--moa-r491-ink)!important;min-height:32px!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r475-family-manage{
+ color:var(--moa-r491-ink)!important;
+ background:color-mix(in srgb,var(--moa-r491-accent) 9%,var(--moa-r491-surface))!important;
+ border:1px solid color-mix(in srgb,var(--moa-r491-accent) 20%,transparent)!important;
+ border-radius:12px!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r475-family-item{
+ color:var(--moa-r491-ink)!important;
+ background:var(--moa-r491-surface)!important;
+ border:1px solid var(--moa-r491-grid)!important;
+}
+/* Accessible saved setting in original Settings > Photo & data. */
+#moa-r495-scroll-setting{
+ list-style:none!important;padding:14px 14px 13px!important;margin:8px 0!important;
+ border:1px solid var(--moa-r491-grid,#e7e3e9)!important;border-radius:16px!important;
+ color:var(--moa-r491-ink,#242228)!important;
+ background:var(--moa-r491-surface,#fff)!important;
+ display:grid;gap:6px;
+}
+#moa-r495-scroll-setting .moa-r495-scroll-label{font-size:13px;font-weight:700}
+#moa-r495-scroll-setting .moa-r495-scroll-desc{font-size:11px;color:var(--moa-r491-muted,#726975);line-height:1.5}
+#moa-r495-scroll-setting .moa-r495-scroll-options{display:flex;gap:8px;margin-top:4px}
+#moa-r495-scroll-setting .moa-r495-scroll-choice{
+ display:flex;gap:5px;align-items:center;flex:1;min-width:0;justify-content:center;
+ border:1px solid var(--moa-r491-grid,#e1dfe6);border-radius:12px;
+ padding:9px 4px;font-size:11px;font-weight:600;white-space:nowrap;
+ background:var(--moa-r491-surface,#fff);color:var(--moa-r491-ink,#242228);
+}
+#moa-r495-scroll-setting .moa-r495-scroll-choice input{accent-color:var(--moa-r491-accent,#bb527e);width:14px;height:14px;margin:0}
+@media(max-width:375px){html #moa-r469-root[data-page="calendar"] .moa-r479-period strong{font-size:19px!important}}
+
+/* R499: calm photo diary controls inherit original icon/theme palette, no duplicate geo buttons. */
+#moa-r469-root[data-page="calendar"] .moa-r479-period{border:0!important;box-shadow:none!important;background:transparent!important;border-radius:0!important;padding:0 2px!important;min-height:38px!important}
+#moa-r469-root[data-page="calendar"] .moa-r479-period strong{border-bottom:1px solid color-mix(in srgb,var(--moa-r491-muted,#aaa) 26%,transparent);line-height:1.38;padding-bottom:2px}
+#moa-r469-root[data-page="calendar"] .moa-r487-today-action{width:94px!important;max-width:94px!important;height:36px!important;min-height:36px!important;border-radius:16px!important;font-size:13px!important}
+#moa-r469-root[data-page="calendar"] .moa-r487-today-dock{justify-content:center!important}
+#moa-r469-root .moa-r469-tools{background:var(--moa-r491-surface,#f8f7f8)!important;border:1px solid color-mix(in srgb,var(--moa-r491-muted,#9c9a9c) 13%,transparent)!important;border-radius:14px!important;padding:4px 7px 5px!important;box-shadow:none!important}
+#moa-r469-root .moa-r469-actions{height:40px;gap:4px;align-items:center}
+#moa-r469-root .moa-r469-actions button{height:36px!important;flex:1;width:auto!important;display:flex;align-items:center;justify-content:center;border-radius:9px!important;color:var(--moa-r491-ink,#323138)!important}
+#moa-r469-root .moa-r469-actions svg{width:18px;height:18px;display:block}
+#moa-r469-root .moa-r469-actions button.active{color:var(--moa-r491-accent,#b65380)!important;background:var(--moa-r491-empty,#f0e9ef)!important}
+#moa-r469-root .moa-r469-rail-toggle{width:26px!important;height:19px!important;min-height:19px!important;margin:1px auto 0!important;padding:0!important;border-radius:10px!important;background:transparent!important;font-size:0!important;display:flex;align-items:center;justify-content:center}
+#moa-r469-root .moa-r469-rail-toggle::after{content:'';width:13px;height:5px;border-radius:20px;background:var(--moa-r491-muted,#8d8690);opacity:.48;transition:transform .2s ease}
+#moa-r469-root .moa-r469-rail-toggle[aria-expanded="true"]::after{transform:rotate(180deg)}
+#moa-r469-root .moa-r469-rail{display:flex;overflow-x:auto!important;scroll-behavior:auto!important;-webkit-overflow-scrolling:touch;scroll-snap-type:none!important;touch-action:pan-x!important;overscroll-behavior-x:contain;padding:3px 5px 5px!important;gap:5px!important}
+#moa-r469-root .moa-r469-rail-item{flex:0 0 50px;height:48px;width:50px;border-radius:7px!important;touch-action:pan-x}
+#moa-r469-root .moa-r499-video-controls{position:absolute;z-index:5;left:10px;right:10px;bottom:10px;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+#moa-r469-root .moa-r499-video-controls button{pointer-events:auto;background:#24242bdc!important;color:white!important;border-radius:18px!important;width:35px;height:32px;display:grid;place-items:center;font-size:17px!important;border:1px solid #fff5!important}
+#moa-r469-root .moa-r469-more{width:30px!important;height:30px!important;font-size:14px!important}
+html[data-moa-ui="black"] #moa-r469-root .moa-r469-actions button{color:#eee!important}
+
+
+/* R503: clean period title and matching year/month scrollable columns; app theme-driven. */
+html #moa-r469-root[data-page="calendar"] .moa-r479-period,
+html #moa-r469-root[data-page="calendar"] .moa-r479-period strong{
+ border:0!important;border-bottom:0!important;box-shadow:none!important;background:transparent!important;
+ text-decoration:none!important;padding-bottom:0!important;
+}
+html #moa-r469-root .moa-r483-picker-columns{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:12px!important;}
+html #moa-r469-root .moa-r483-picker-labels{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:12px!important;}
+html #moa-r469-root .moa-r483-picker-columns>.moa-r483-year-list,
+html #moa-r469-root .moa-r483-picker-columns>.moa-r483-picker-months{
+ display:flex!important;flex-direction:column!important;gap:6px!important;min-width:0!important;
+ overflow-y:auto!important;overscroll-behavior-y:contain!important;scrollbar-width:thin;
+ background:var(--moa-r491-surface,#fff)!important;padding:2px 3px!important;border-radius:15px!important;
+ height:326px!important;min-height:0!important;max-height:326px!important;
+}
+html #moa-r469-root .moa-r483-year-option,
+html #moa-r469-root .moa-r483-month-option{
+ flex:0 0 43px!important;min-height:43px!important;width:100%!important;
+ border-radius:13px!important;background:var(--moa-r491-surface,#fff)!important;
+ border:1px solid var(--moa-r491-grid,#eee)!important;color:var(--moa-r491-ink,#282630)!important;
+ font-size:15px!important;box-shadow:none!important;
+}
+html #moa-r469-root .moa-r483-year-option.active,
+html #moa-r469-root .moa-r483-month-option.active{
+ border-color:var(--moa-r491-accent,#ad648b)!important;
+ color:var(--moa-r491-accent,#ad648b)!important;
+ background:var(--moa-r491-surface,#fff)!important;
+ box-shadow:inset 0 0 0 1px var(--moa-r491-accent,#ad648b)!important;
+}
+/* Original transparent period control remains fully tappable at least 39px high. */
+html #moa-r469-root[data-page="day"] .moa-r503-cover-star{
+ position:absolute;z-index:8;left:12px;top:12px;border:1px solid #fff9;
+ background:#18181ab0;color:#fff;border-radius:50%;width:35px;height:35px;
+ font-size:22px;line-height:1;display:grid;place-items:center;padding:0;
+ box-shadow:0 2px 7px #0002;
+}
+html #moa-r469-root[data-page="day"] .moa-r503-cover-star.active{color:#ffd56a;border-color:#ffe59b;}
+html #moa-r469-root[data-page="day"] .moa-r503-cover-star:focus-visible{outline:3px solid var(--moa-r491-accent,#c45d85);outline-offset:2px}
+
+/* R503 thumb cover selector is explicit; per-media star and rail selection are separate hit targets. */
+html #moa-r469-root .moa-r469-rail-item{position:relative!important;overflow:hidden!important;border-radius:8px!important;}
+html #moa-r469-root .moa-r503-rail-select{position:absolute;inset:0;width:100%;height:100%;border:0;padding:0;background:transparent;}
+html #moa-r469-root .moa-r503-rail-select img{width:100%;height:100%;object-fit:cover;}
+html #moa-r469-root .moa-r503-rail-star{position:absolute;top:1px;right:1px;z-index:5;width:19px;height:19px;padding:0!important;border-radius:50%;font-size:13px;line-height:1;background:#151517b3;color:white;border:1px solid #fff6;display:grid;place-items:center;touch-action:manipulation;}
+html #moa-r469-root .moa-r503-rail-star.active{color:#ffdc8c;border-color:#ffdc8c;}
+
+/* R507: when real R463 native Gallery host is aligned with photo card, it owns
+   images/video/rail/4-action footer; hide duplicate web media controls ONLY
+   while native host is successfully mounted. The original story/agenda stay. */
+#moa-r469-root.moa-r507-native-mounted .moa-r469-more,
+#moa-r469-root.moa-r507-native-mounted .moa-r503-cover-star,
+#moa-r469-root.moa-r507-native-mounted .moa-r469-pager,
+#moa-r469-root.moa-r507-native-mounted .moa-r469-tools{visibility:hidden!important;pointer-events:none!important;}
+#moa-r469-root.moa-r507-native-mounted .moa-r469-stage{isolation:isolate;}
+
+
+/* R511 — fixed weekday header; date grid ONLY scrolls. Native Gallery Golden unaffected. */
+html #moa-r469-root[data-page="calendar"] .moa-r511-sticky-weekdays{
+ display:grid!important;flex:0 0 35px!important;min-height:35px!important;
+ grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;
+ margin:0 9px 2px!important;padding:0 0 1px!important;
+ background:var(--moa-r491-ui,#fff)!important;z-index:8;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r511-weekday{
+ display:flex;align-items:center;justify-content:center;min-width:0;
+ height:32px;border-radius:11px;font-size:12px;font-weight:650;
+ color:var(--moa-r491-muted,#7f7882)!important;
+ background:var(--moa-r491-surface,#fff)!important;
+ border:1px solid color-mix(in srgb,var(--moa-r491-muted,#888) 11%,transparent)!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month .moa-r469-month-grid{
+ grid-template-rows:repeat(var(--moa-r487-week-rows,5),minmax(0,1fr))!important;
+}
+/* Readable month transition without a repeating weekday row or a strong color separator. */
+html #moa-r469-root[data-page="calendar"] .moa-r483-month{overflow:visible!important}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month::before{
+ content:'';position:absolute;left:15%;right:15%;height:2px;top:0;
+ z-index:5;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--moa-r491-accent,#a65482) 25%,transparent),transparent);
+ pointer-events:none;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month.moa-r511-active-month::before{opacity:0}
+html #moa-r469-root[data-page="calendar"] .moa-r483-month:not(.moa-r511-active-month) .moa-r483-month-title{
+ position:absolute!important;top:6px!important;left:50%!important;transform:translateX(-50%)!important;
+ width:auto!important;height:23px!important;min-height:23px!important;max-width:none!important;
+ clip:auto!important;clip-path:none!important;overflow:visible!important;
+ margin:0!important;padding:3px 10px!important;border:1px solid color-mix(in srgb,var(--moa-r491-accent,#b35e88) 26%,transparent)!important;
+ border-radius:999px!important;background:var(--moa-r491-surface,#fff)!important;
+ color:var(--moa-r491-ink,#29272c)!important;font-size:11px!important;line-height:16px!important;
+ font-weight:650!important;white-space:nowrap!important;z-index:6!important;
+ box-shadow:0 2px 9px #00000010!important;pointer-events:none;
+}
+/* Compact daily header so that the actual media viewer gets more vertical space. */
+html #moa-r469-root[data-page="day"] .moa-r469-head{
+ min-height:41px!important;height:41px!important;padding:0 17px 1px!important;margin:0!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r469-back{display:none!important}
+html #moa-r469-root[data-page="day"] .moa-r469-head strong{margin-left:auto;font-size:14px!important}
+html #moa-r469-root[data-page="day"] .moa-r483-day-mode{
+ height:33px!important;min-height:33px!important;margin-top:0!important;margin-bottom:0!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r469-stage{
+ height:clamp(370px,64vh,660px)!important;
+ border-radius:23px!important;overflow:hidden!important;
+ background:var(--moa-r491-empty,#f0eef1)!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r469-stage img{border-radius:21px!important}
+/* The star now lives in the native Gallery action deck, never over a photo. */
+html #moa-r469-root[data-page="day"] .moa-r503-cover-star{display:none!important}
+html #moa-r469-root[data-page="day"] .moa-r469-pager{height:12px!important}
+@media(max-width:370px){html #moa-r469-root[data-page="calendar"] .moa-r511-sticky-weekdays{margin-left:9px!important;margin-right:9px!important}}
+
+/* R519: no old Web Gallery toolbar during native Gallery handoff.
+   The underlying photo may remain as a noninteractive poster; if native fails,
+   controls return after bounded retry. Only the additive photo-day is scoped. */
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-more,
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r503-cover-star,
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-tools,
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-pager,
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-native-fallback{visibility:hidden!important;pointer-events:none!important}
+/* R519: look like a slender thumb-wide current-month anchor, not a large CTA. */
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-dock{
+ flex-basis:36px!important;min-height:36px!important;height:36px!important;
+ padding:3px 7px!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{
+ height:29px!important;min-height:29px!important;max-height:29px!important;
+ font-size:15px!important;font-weight:550!important;line-height:26px!important;
+ letter-spacing:0!important;border-radius:10px!important;
+}
+/* R515: thumb-reachable entire lower dock, without a narrow centered capsule. */
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-dock{
+ flex:0 0 40px!important;min-height:40px!important;height:40px!important;
+ margin:0!important;padding:3px 7px 3px!important;justify-content:stretch!important;
+ background:var(--moa-r491-ui,#fff)!important;border:0!important;box-shadow:none!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{
+ display:block!important;flex:1 1 auto!important;box-sizing:border-box!important;
+ width:100%!important;max-width:none!important;min-width:0!important;
+ height:33px!important;min-height:33px!important;max-height:33px!important;
+ padding:0!important;margin:0!important;border-radius:12px!important;
+ font-size:12px!important;line-height:32px!important;
+}
+/* Make Web media an unobtrusive standby surface only while real native R463 host is mounted. */
+html #moa-r469-root.moa-r507-native-mounted[data-page="day"] .moa-r469-stage-media{
+ visibility:hidden!important;pointer-events:none!important;
+}
+
+/* R519 final cascade override after R515 geometry; retain full-width hit surface. */
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-dock{height:36px!important;min-height:36px!important;flex-basis:36px!important;}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{height:29px!important;min-height:29px!important;max-height:29px!important;line-height:27px!important;font-size:15px!important;}
+
+/* R523 strict user instruction: blank Today tap strip — no text, no glyph. */
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action{font-size:0!important;color:transparent!important;}
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action::before,
+html #moa-r469-root[data-page="calendar"] .moa-r487-today-action::after{content:none!important;display:none!important;}
+
+/* R531 fallback-only: preserve the entire video composition. A low-res matching
+   poster provides a blurred ambient canvas instead of black letterboxes.
+   The original R463 native gallery remains responsible for its own rendering. */
+#moa-r469-root .moa-r531-video-slide{isolation:isolate;background:#403a41;}
+#moa-r469-root .moa-r531-video-slide::before{content:"";position:absolute;z-index:0;inset:-22px;background-image:var(--moa-r531-poster,none);background-position:center;background-size:cover;filter:blur(19px) brightness(.72);pointer-events:none;}
+#moa-r469-root .moa-r531-video-slide>img{position:relative;z-index:1;object-fit:contain!important;}
+#moa-r469-root .moa-r531-video-slide>.moa-r469-video-play,#moa-r469-root .moa-r531-video-slide>video{z-index:2;}
+#moa-r469-root .moa-r469-inline-video{object-fit:contain!important;background:transparent!important;}
+#moa-r469-root[data-page="day"] .moa-r469-stage{overflow-anchor:none;transform:translateZ(0);}
+#moa-r469-root[data-page="day"] .moa-r469-day{overflow-anchor:none;}
+#moa-r469-root .moa-r531-web-advanced{position:relative;z-index:auto;width:20%;height:43px;min-height:43px;background:transparent;color:inherit;display:flex;align-items:center;justify-content:center;border-radius:9px;padding:0;}
+#moa-r469-root .moa-r531-web-advanced svg{width:19px;height:19px;display:block;}
+#moa-r469-root.moa-r507-native-mounted .moa-r531-web-advanced{display:none!important;}
+
+
+/* R539: single shared date + switch + ⋯ controls for photo and detailed modes. */
+html #moa-r469-root[data-page="day"],html #fj-diary-root[data-page="day"]{
+ padding-top:calc(8px + env(safe-area-inset-top))!important;
+}
+#moa-r469-root[data-page="day"] .moa-r539-day-chrome,
+#fj-diary-root[data-page="day"] .moa-r539-day-chrome{
+ position:relative;display:block;padding:0;margin:0 17px 4px;min-height:75px;
+ color:var(--moa-r491-ink,#302a32);font-family:system-ui,'Noto Sans KR',sans-serif;
+}
+#moa-r469-root .moa-r539-day-head,#fj-diary-root .moa-r539-day-head{
+ display:flex;align-items:center;justify-content:flex-end;min-height:41px;height:41px;padding:0!important;margin:0!important;
+}
+#moa-r469-root .moa-r539-day-head strong,#fj-diary-root .moa-r539-day-head strong{
+ color:var(--moa-r491-ink,#302a32)!important;font-size:14px!important;font-weight:650!important;text-align:right;
+}
+#moa-r469-root .moa-r539-day-controls,#fj-diary-root .moa-r539-day-controls{
+ position:relative;z-index:12;display:flex;align-items:center;justify-content:flex-end;gap:6px;height:34px;margin:0!important;padding:0!important;
+}
+html #moa-r469-root .moa-r539-day-controls .moa-r483-day-mode,
+html #fj-diary-root .moa-r539-day-controls .moa-r483-day-mode{
+ margin:0!important;max-width:68px!important;min-width:68px!important;width:68px!important;height:34px!important;min-height:34px!important;flex:0 0 68px!important;
+}
+html #moa-r469-root .moa-r539-day-controls .moa-r483-toggle-hit,
+html #fj-diary-root .moa-r539-day-controls .moa-r483-toggle-hit{height:34px!important;min-height:34px!important;max-height:34px!important;}
+html #moa-r469-root .moa-r539-day-settings,
+html #fj-diary-root .moa-r539-day-settings{
+ display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;min-height:34px;
+ border:1px solid color-mix(in srgb,var(--moa-r491-muted,#888) 17%,transparent);border-radius:11px;
+ background:var(--moa-r491-surface,#fff);color:var(--moa-r491-muted,#776b73);font-size:21px;
+ letter-spacing:0;line-height:1;padding:0;box-shadow:none;
+}
+html #moa-r469-root .moa-r539-photo-settings{
+ position:absolute;right:0;top:38px;z-index:70;width:min(230px,75vw);padding:11px;
+ background:var(--moa-r491-surface,#fff);color:var(--moa-r491-ink,#302a32);
+ border:1px solid var(--moa-r491-grid,#e7e1e6);border-radius:14px;box-shadow:0 8px 28px #0002;
+}
+html #moa-r469-root .moa-r539-stable-option{display:flex;align-items:center;gap:8px;font-size:12px;min-height:34px;}
+html #moa-r469-root .moa-r539-stable-option input{accent-color:var(--moa-r491-accent,#b45b8c);width:17px;height:17px;}
+html #moa-r469-root .moa-r539-settings-detail{border:0;border-radius:9px;background:var(--moa-r491-track,#f5eef3);color:var(--moa-r491-ink,#302a32);width:100%;padding:10px;margin-top:6px;font-size:12px;}
+/* Original detailed header and verbose introductory headings are replaced ONLY
+   visually. Its original settings/actions/listeners and data are preserved. */
+html #fj-diary-root[data-page="day"]>.fd23-top,
+html #fj-diary-root[data-page="day"]>.fd23-banner,
+html #fj-diary-root[data-page="day"]>.fd23-daystats,
+html #fj-diary-root[data-page="day"]>.fd23-shortcuts,
+html #fj-diary-root[data-page="day"]>.fd23-timeline>h3,
+html #fj-diary-root[data-page="day"]>.fd23-written>h2{display:none!important;}
+html #fj-diary-root[data-page="day"]>.fd23-written:not(:has(p,small)){display:none!important;}
+html #fj-diary-root[data-page="day"]>.fd23-timeline{margin-top:12px!important;}
+/* Temporarily render the same WebView slide under invisible native pixels so
+   the moving photo belongs to ONE compositor during vertical fling. */
+html #moa-r469-root.moa-r539-scroll-proxy.moa-r507-native-mounted[data-page="day"] .moa-r469-stage-media{
+ visibility:visible!important;pointer-events:none!important;
+}
+/* The original detailed editor has 15px ROOT side padding, while photo root
+   has none. Remove the duplicated 15px chrome indentation so both modes align. */
+html #fj-diary-root[data-page="day"] .moa-r539-day-chrome{
+ margin-left:2px!important;margin-right:2px!important;
+}
+
+/* R543 physical Galaxy correction: visual icon must match oval switch track,
+   not a disproportionate 34x34 bordered square. Hit target remains 34px. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings{
+ position:relative!important;display:grid!important;place-items:center!important;
+ flex:0 0 34px!important;width:34px!important;min-width:34px!important;
+ height:34px!important;min-height:34px!important;max-height:34px!important;
+ border:0!important;background:transparent!important;box-shadow:none!important;
+ padding:0!important;line-height:1!important;font-size:12px!important;letter-spacing:0!important;
+ color:var(--moa-r491-muted,#776b73)!important;border-radius:12px!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings::before,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings::before{
+ content:"";position:absolute;pointer-events:none;width:25px;height:19px;
+ border:1px solid var(--moa-r491-track-border,#d4c8ce);box-sizing:border-box;
+ border-radius:10px;background:var(--moa-r491-track,#f3eef1);z-index:0;
+}
+/* Make native scroll the sole rendering owner, not a Web proxy that can
+   indefinitely leave native alpha zero after port loss. */
+html #moa-r469-root.moa-r539-scroll-proxy .moa-r469-stage-media{visibility:hidden!important}
+/* The SVG-like dots are a pseudo-glyph so the oval background cannot cover
+   the button text in Samsung WebView painting order. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings{font-size:0!important;color:transparent!important;}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings::after,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings::after{
+ content:"···";position:absolute;inset:0;display:grid;place-items:center;
+ z-index:1;pointer-events:none;color:var(--moa-r491-muted,#776b73);
+ font-size:14px;letter-spacing:.5px;line-height:1;
+}
+
+/* R547 hard owner invariant: the earlier R503 Web controls must NEVER emerge
+   as a second gallery during an Android Back/NAVER/Activity resume transition.
+   The image itself is only an inert visual poster while R463 native mounts.
+   Header / shared photo-detail switch / diary controls stay interactive. */
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-more,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r503-cover-star,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-tools,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-pager,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-native-fallback,
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r531-web-advanced{
+ visibility:hidden!important;pointer-events:none!important;
+}
+html #moa-r469-root.moa-r547-native-owner[data-page="day"] .moa-r469-stage-media{
+ pointer-events:none!important;
+}
+
+/* R551: never render interactive R503 fallback playback/gallery chrome in
+   photo-day, even before the native-mounted class or after a lifecycle race.
+   Native R463 owns the rail, playback, stage gestures and original actions. */
+html #moa-r469-root[data-page="day"] .moa-r469-pager,
+html #moa-r469-root[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root[data-page="day"] .moa-r499-video-play,
+html #moa-r469-root[data-page="day"] .moa-r531-web-advanced,
+html #moa-r469-root[data-page="day"] .moa-r469-more,
+html #moa-r469-root[data-page="day"] .moa-r469-tools{
+ visibility:hidden!important;pointer-events:none!important;
+}
+
+/* R570: entrance stability. Do not use a second blurred Web poster while the
+   unchanged R463 native video texture is mounting. This only changes visual
+   standby decoration, not the original Gallery media/playback lifecycle. */
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r531-video-slide::before{
+  filter:none!important;background-image:none!important;opacity:0!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r570-save-status{
+  position:fixed;z-index:1200;bottom:calc(82px + env(safe-area-inset-bottom));
+  left:9%;right:9%;padding:7px 12px;margin:0;
+  border:1px solid #dfd6dc;border-radius:15px;background:#ffffffef;
+  box-shadow:0 3px 12px #00000019;font:500 11px/1.35 system-ui,sans-serif;color:#6f586b;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  pointer-events:none;max-width:none;
+}
+
+/* R572: photograph/video photo-card only. Original fullscreen/native media untouched.
+   Black is the underlying VIDEO compositor color, not animated blur or gray. */
+html #moa-r469-root[data-page="day"] .moa-r531-video-slide{background:#000!important;}
+html #moa-r469-root[data-page="day"] .moa-r531-video-slide::before{display:none!important;content:none!important;background:none!important;filter:none!important;}
+html #moa-r469-root.moa-r572-video-active[data-page="day"] .moa-r469-stage{background:#000!important;}
+/* The original Web photo stays painted as a static underlay until the original native drawable arrives. */
+html #moa-r469-root.moa-r519-native-entering[data-page="day"] .moa-r469-stage-media{visibility:visible!important;}
+/* R572 save notices fade automatically; they do NOT affect Gallery geometry. */
+html #moa-r469-root[data-page="day"] .moa-r570-save-status.moa-r572-toast-leave{opacity:0!important;transition:opacity .18s ease!important;}
+
+/* R594 native bridge fail-safe: only when Android did not mount the original
+   gallery, expose the existing Web media strip and original navigation tools.
+   Never expose duplicate controls while the native Gallery is mounted. */
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-pager,
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-more,
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-native-fallback,
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r531-web-advanced,
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-tools{
+ visibility:visible!important;pointer-events:auto!important;
+}
+html #moa-r469-root.moa-r594-native-failed:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-stage-media{pointer-events:auto!important;}
+
+/* R596: the original R551 global hide must NOT trap an unmounted Gallery.
+ * Only a confirmed native-mounted host may take away original HTML controls.
+ * Never override the existing native mounted CSS, toolbar/ellipse/spacing. */
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-pager,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-tools,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-more,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r503-cover-star,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-video-play,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r499-video-play,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r531-web-advanced{
+ visibility:visible!important;pointer-events:auto!important;
+}
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-stage-media,
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r472-track{
+ visibility:visible!important;pointer-events:auto!important;touch-action:pan-x pan-y!important;
+}
+html #moa-r469-root.moa-r596-web-ready:not(.moa-r507-native-mounted)[data-page="day"] .moa-r469-tools:not([hidden]){
+ display:block!important;
+}
+
+/* R607: restore day Settings slider beside R475 photo/detail slider.
+   Appearance ONLY: original R539/R191 menu click remains unchanged. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"],
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]{
+ display:grid!important;place-items:center!important;position:relative!important;
+ flex:0 0 68px!important;width:68px!important;min-width:68px!important;max-width:68px!important;
+ height:34px!important;min-height:34px!important;max-height:34px!important;
+ padding:0!important;background:transparent!important;border:0!important;
+ border-radius:22px!important;font-size:0!important;color:transparent!important;box-shadow:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::before,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::before{
+ content:""!important;position:absolute!important;z-index:0!important;pointer-events:none!important;
+ width:44px!important;height:19px!important;left:calc(50% - 22px)!important;top:calc(50% - 9.5px)!important;
+ border:1px solid var(--moa-r491-track-border,#d4c8ce)!important;
+ border-radius:100px!important;background:var(--moa-r491-track,#f3eef1)!important;
+ box-sizing:border-box!important;box-shadow:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after{
+ content:""!important;position:absolute!important;z-index:1!important;pointer-events:none!important;inset:auto!important;
+ display:block!important;width:18px!important;height:15px!important;
+ left:calc(50% - 19px)!important;top:calc(50% - 7.5px)!important;
+ background:var(--moa-r491-accent,#b45b8c)!important;
+ border:1px solid color-mix(in srgb,var(--moa-r491-accent,#b45b8c) 82%,var(--moa-r491-ink,#302a32))!important;
+ box-sizing:border-box!important;border-radius:100px!important;box-shadow:0 1px 2px #0002!important;
+ font-size:0!important;letter-spacing:0!important;
+ transform:translateX(20px)!important;
+}
+
+/* R609 correction: user requested the settings BUTTON to match the next
+   photo/detail switch in footprint, not to impersonate its switch state.
+   Leave all R607 menu click handlers and accessibility names untouched. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"],
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]{
+ flex:0 0 68px!important;width:68px!important;min-width:68px!important;max-width:68px!important;
+ height:34px!important;min-height:34px!important;max-height:34px!important;
+ display:grid!important;place-items:center!important;position:relative!important;
+ background:transparent!important;border:0!important;border-radius:19px!important;
+ padding:0!important;box-shadow:none!important;color:var(--moa-r491-ink,#302a32)!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::before,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::before{
+ content:""!important;width:64px!important;height:32px!important;
+ position:absolute!important;left:2px!important;top:1px!important;inset:auto!important;
+ background:var(--moa-r491-track,#f3eef1)!important;
+ border:1px solid var(--moa-r491-track-border,#d4c8ce)!important;
+ border-radius:18px!important;box-sizing:border-box!important;box-shadow:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after{
+ content:"···"!important;position:absolute!important;inset:0!important;
+ display:grid!important;place-items:center!important;width:100%!important;height:100%!important;
+ left:0!important;top:0!important;transform:none!important;
+ background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;
+ font-size:20px!important;font-weight:700!important;line-height:1!important;
+ letter-spacing:2px!important;color:var(--moa-r491-ink,#302a32)!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]:focus-visible,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]:focus-visible{
+ outline:2px solid var(--moa-r491-accent,#b45b8c)!important;outline-offset:2px!important;
+}
+
+/* R613: the right settings ACTION shares the 68x34 hit target of the left mode
+   switch but MUST NOT resemble a second on/off slider, nor huge ellipsis. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"],
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]{
+ flex:0 0 68px!important;width:68px!important;min-width:68px!important;max-width:68px!important;
+ height:34px!important;min-height:34px!important;max-height:34px!important;
+ position:relative!important;display:grid!important;place-items:center!important;
+ padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::before,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::before{
+ content:""!important;position:absolute!important;pointer-events:none!important;
+ left:calc(50% - 25px)!important;top:4px!important;inset:auto!important;
+ width:50px!important;height:26px!important;border-radius:15px!important;
+ background:var(--moa-r491-track,#f3eef1)!important;
+ border:1px solid var(--moa-r491-track-border,#d4c8ce)!important;
+ box-sizing:border-box!important;transform:none!important;box-shadow:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings[data-moa-r607-slider="1"]::after{
+ content:"···"!important;position:absolute!important;pointer-events:none!important;
+ inset:0!important;left:0!important;top:0!important;width:100%!important;height:100%!important;
+ display:grid!important;place-items:center!important;transform:none!important;
+ font:650 13px/1 system-ui!important;letter-spacing:1.1px!important;
+ color:var(--moa-r491-muted,#776b73)!important;
+ background:transparent!important;border:0!important;box-shadow:none!important;
+}
+
+/* R613 photo-only additions — original R605 native Gallery frame/rail untouched. */
+#moa-r469-root .moa-r469-text{resize:vertical;overflow-y:hidden!important;min-height:125px;height:auto;max-height:none;transition:none}
+#moa-r469-root .moa-r469-voice-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0 5px;border-top:1px solid var(--moa-r491-grid,#e6dfe2)}
+#moa-r469-root .moa-r613-voice-toggle{font:600 12px/1.4 system-ui;color:var(--moa-r491-ink,#302a32);background:transparent;border:0;padding:8px 0;text-align:left;flex:1;min-width:0}
+#moa-r469-root .moa-r613-voice-toggle[aria-expanded="true"]{color:var(--moa-r491-accent,#b45b8c)}
+#moa-r469-root .moa-r469-record{flex:none;display:grid;place-items:center;width:34px;height:34px;background:transparent;border-radius:50%;padding:0}
+#moa-r469-root .moa-r613-rec-dot{display:block;width:20px;height:20px;min-width:20px;background:#e34353;border-radius:50%;box-shadow:0 0 0 3px #f7e7ea,0 1px 4px #4210192b}
+#moa-r469-root .moa-r613-voice-list[hidden]{display:none!important}
+#moa-r469-root .moa-r613-voice-list{display:grid;gap:9px;margin-top:4px;padding:8px 0}
+#moa-r469-root .moa-r613-voice-card{border:1px solid #e6dce1;border-radius:15px;padding:10px 11px;display:grid;grid-template-columns:1fr auto;gap:4px 8px;background:color-mix(in srgb,var(--moa-r491-surface,#fff) 86%,transparent)}
+#moa-r469-root .moa-r613-voice-title{min-width:0;overflow-wrap:anywhere;font-size:12px;color:var(--moa-r491-ink,#302a32)}
+#moa-r469-root .moa-r613-voice-date{font-size:10px;color:var(--moa-r491-muted,#80777d);text-align:right}
+#moa-r469-root .moa-r613-voice-play{grid-column:1/-1;width:100%;min-height:35px;display:flex;justify-content:center;align-items:center;gap:6px;padding:7px 10px;background:#25252a;color:#fff;border:0;border-radius:100px;font:600 12px/1.25 tabular-nums,system-ui;letter-spacing:.3px}
+#moa-r469-root .moa-r613-voice-play.moa-voice-paused{background:#44424a}
+#moa-r469-root .moa-r613-voice-remaining{grid-column:1/-1;justify-self:end;font:10px/1.2 system-ui;color:var(--moa-r491-muted,#80777d)}
+#moa-r469-root .moa-r613-voice-transcript{grid-column:1/-1;margin:2px 0 0;font-size:12px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--moa-r491-ink,#302a32)}
+#moa-r469-root .moa-r613-voice-empty{font-size:12px;opacity:.72;margin:4px 0}
+
+/* R615 — golden-preserving UI alignment ONLY, from signed R613.
+ * Both modes use one header; no WebView, native Gallery, NAVER service or
+ * indexedDB writes are restarted or touched. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-controls,
+html #fj-diary-root[data-page="day"] .moa-r539-day-controls{
+  display:flex!important;align-items:center!important;justify-content:flex-end!important;
+  gap:6px!important;height:34px!important;min-height:34px!important;
+  width:auto!important;max-width:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-controls .moa-r483-day-mode,
+html #fj-diary-root[data-page="day"] .moa-r539-day-controls .moa-r483-day-mode{
+  flex:0 0 68px!important;width:68px!important;min-width:68px!important;max-width:68px!important;
+  height:34px!important;min-height:34px!important;max-height:34px!important;
+  margin:0!important;align-self:center!important;box-sizing:border-box!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings.moa-r615-settings-control,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings.moa-r615-settings-control{
+  flex:0 0 36px!important;width:36px!important;min-width:36px!important;max-width:36px!important;
+  height:34px!important;min-height:34px!important;max-height:34px!important;
+  display:grid!important;place-items:center!important;position:relative!important;
+  margin:0!important;padding:0!important;
+  border:1px solid var(--moa-r491-track-border,#d4c8ce)!important;
+  border-radius:15px!important;background:var(--moa-r491-track,#f3eef1)!important;
+  box-shadow:none!important;outline-offset:2px;
+  color:var(--moa-r491-ink,#302a32)!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings.moa-r615-settings-control::before,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings.moa-r615-settings-control::before,
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings.moa-r615-settings-control::after,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings.moa-r615-settings-control::after{
+  content:none!important;display:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-settings.moa-r615-settings-control svg,
+html #fj-diary-root[data-page="day"] .moa-r539-day-settings.moa-r615-settings-control svg{
+  width:18px!important;height:18px!important;display:block!important;
+  color:var(--moa-r491-ink,#302a32)!important;pointer-events:none!important;
+}
+/* The voice and QuickRecord rows have matching disclosure affordances,
+ * text sizing, divider, tap height, and state indicator. Only native M4A
+ * recorder/playback receives the existing click callbacks. */
+#moa-r469-root .moa-r469-moments,
+#moa-r469-root .moa-r469-voice-head{
+  border-top:1px solid var(--moa-r491-grid,#e6dfe2)!important;
+  border-bottom:0!important;margin:9px 0 0!important;
+  padding:0!important;color:var(--moa-r491-ink,#302a32)!important;
+}
+#moa-r469-root .moa-r469-moments > summary,
+#moa-r469-root .moa-r613-voice-toggle{
+  position:relative!important;box-sizing:border-box!important;
+  display:flex!important;align-items:center!important;
+  list-style:none!important;min-height:43px!important;
+  padding:0 7px 0 25px!important;margin:0!important;
+  text-align:left!important;color:var(--moa-r491-ink,#302a32)!important;
+  background:transparent!important;border:0!important;
+  border-radius:10px!important;
+  font:600 12.5px/1.45 system-ui,'Noto Sans KR',sans-serif!important;
+  letter-spacing:-.01em!important;white-space:nowrap!important;
+}
+#moa-r469-root .moa-r469-moments > summary{cursor:pointer!important;}
+#moa-r469-root .moa-r469-moments > summary::-webkit-details-marker{display:none!important;}
+#moa-r469-root .moa-r469-moments > summary::before,
+#moa-r469-root .moa-r613-voice-toggle::before{
+  content:""!important;display:block!important;
+  position:absolute!important;left:8px!important;top:calc(50% - 4px)!important;
+  width:7px!important;height:7px!important;
+  border-right:1.6px solid var(--moa-r491-muted,#80777d)!important;
+  border-bottom:1.6px solid var(--moa-r491-muted,#80777d)!important;
+  transform:rotate(-45deg)!important;transition:transform .15s ease!important;
+}
+#moa-r469-root .moa-r469-moments[open] > summary::before,
+#moa-r469-root .moa-r613-voice-toggle[aria-expanded="true"]::before{
+  transform:rotate(45deg)!important;
+}
+#moa-r469-root .moa-r469-moments p{
+  margin:0 6px 8px 25px!important;font:400 12px/1.55 system-ui!important;
+  color:var(--moa-r491-muted,#776b73)!important;
+  white-space:pre-wrap!important;
+}
+#moa-r469-root .moa-r469-voice-head{
+  display:flex!important;align-items:center!important;justify-content:space-between!important;
+  gap:8px!important;min-height:43px!important;
+}
+#moa-r469-root .moa-r613-voice-toggle{
+  flex:1 1 auto!important;width:auto!important;min-width:0!important;
+}
+#moa-r469-root .moa-r613-voice-toggle[aria-expanded="true"]{
+  color:var(--moa-r491-ink,#302a32)!important;
+}
+#moa-r469-root .moa-r469-record{
+  flex:0 0 34px!important;width:34px!important;height:34px!important;
+  min-width:34px!important;min-height:34px!important;max-height:34px!important;
+  box-sizing:border-box!important;
+  display:grid!important;place-items:center!important;
+  margin:0 4px 0 0!important;padding:0!important;
+  border:1px solid var(--moa-r491-track-border,#e4cbd2)!important;
+  border-radius:13px!important;background:var(--moa-r491-track,#faf5f6)!important;
+  box-shadow:none!important;color:#bd526a!important;
+}
+#moa-r469-root .moa-r613-rec-dot{
+  display:block!important;width:11px!important;height:11px!important;min-width:11px!important;
+  border-radius:50%!important;background:#d85c6c!important;
+  box-shadow:0 0 0 2px rgba(216,92,108,.08)!important;
+}
+#moa-r469-root .moa-r469-story-footer{
+  display:flex!important;align-items:center!important;justify-content:space-between!important;
+  gap:12px!important;margin-top:16px!important;
+}
+#moa-r469-root .moa-r475-save-note{
+  display:block!important;min-width:0!important;flex:1!important;
+  white-space:pre-line!important;font:400 10.5px/1.55 system-ui,'Noto Sans KR',sans-serif!important;
+  color:var(--moa-r491-muted,#80777d)!important;
+}
+#moa-r469-root .moa-r469-save{
+  flex:none!important;min-width:82px!important;min-height:40px!important;
+  padding:9px 13px!important;border-radius:13px!important;
+  font:600 12px/1.25 system-ui,'Noto Sans KR',sans-serif!important;
+}
+
+/* R617 DEVICE CORRECTION — compare the *VISIBLE* left switch TRACK, not its hitbox.
+   R615 incorrectly filled the settings 36x34 CSS hitbox; on Galaxy this
+   showed as a ~68x64-pixel tile versus the left 44x19-css-px track. Both
+   drawn surfaces are now 44x19 CSS px, centered on the same 34px control
+   row. NO menu callback, native Gallery, service, voice or data changes. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-controls,
+html #fj-diary-root[data-page="day"] .moa-r539-day-controls{
+  gap:4px!important;
+  height:34px!important;min-height:34px!important;max-height:34px!important;
+  align-items:center!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-controls .moa-r539-day-settings.moa-r615-settings-control,
+html #fj-diary-root[data-page="day"] .moa-r539-day-controls .moa-r539-day-settings.moa-r615-settings-control{
+  flex:0 0 48px!important;width:48px!important;min-width:48px!important;max-width:48px!important;
+  height:34px!important;min-height:34px!important;max-height:34px!important;
+  box-sizing:border-box!important;align-self:center!important;
+  display:grid!important;place-items:center!important;position:relative!important;
+  margin:0!important;padding:0!important;border:0!important;
+  background:transparent!important;box-shadow:none!important;border-radius:99px!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-controls .moa-r539-day-settings.moa-r615-settings-control::before,
+html #fj-diary-root[data-page="day"] .moa-r539-day-controls .moa-r539-day-settings.moa-r615-settings-control::before{
+  content:""!important;display:block!important;position:absolute!important;pointer-events:none!important;
+  width:44px!important;min-width:44px!important;max-width:44px!important;
+  height:19px!important;min-height:19px!important;max-height:19px!important;
+  left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
+  transform:translate(-50%,-50%)!important;
+  box-sizing:border-box!important;border:1px solid var(--moa-r491-track-border,#d4c8ce)!important;
+  background:var(--moa-r491-track,#f3eef1)!important;
+  border-radius:100px!important;box-shadow:none!important;z-index:0!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-controls .moa-r539-day-settings.moa-r615-settings-control::after,
+html #fj-diary-root[data-page="day"] .moa-r539-day-controls .moa-r539-day-settings.moa-r615-settings-control::after{
+  content:none!important;display:none!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-controls .moa-r539-day-settings.moa-r615-settings-control svg,
+html #fj-diary-root[data-page="day"] .moa-r539-day-controls .moa-r539-day-settings.moa-r615-settings-control svg{
+  position:relative!important;z-index:1!important;
+  width:14px!important;min-width:14px!important;max-width:14px!important;
+  height:14px!important;min-height:14px!important;max-height:14px!important;
+  color:var(--moa-r491-ink,#302a32)!important;
+  pointer-events:none!important;display:block!important;
+}
+/* R619 — Date+media UI only. Original R611 native host, filmstrip, eight buttons,
+   Naver Accessibility owner and photo/detail switch CSS remain unmodified. */
+html #moa-r469-root[data-page="day"] .moa-r539-day-chrome,
+html #fj-diary-root[data-page="day"] .moa-r539-day-chrome{
+  display:flex!important;align-items:center!important;flex-wrap:nowrap!important;
+  justify-content:space-between!important;gap:3px!important;
+  min-height:49px!important;height:49px!important;
+  padding:0!important;margin-top:0!important;margin-bottom:6px!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-head,
+html #fj-diary-root[data-page="day"] .moa-r539-day-head{
+  display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  flex:1 1 auto!important;width:auto!important;min-width:0!important;
+  height:42px!important;min-height:42px!important;overflow:hidden!important;
+  padding:0!important;margin:0!important;
+}
+html #moa-r469-root[data-page="day"] .moa-r539-day-controls,
+html #fj-diary-root[data-page="day"] .moa-r539-day-controls{
+  flex:0 0 auto!important;gap:2px!important;
+  margin:0!important;min-width:0!important;height:34px!important;
+  align-items:center!important;justify-content:flex-end!important;
+}
+#moa-r469-root .moa-r619-date-host,#fj-diary-root .moa-r619-date-host{
+  width:100%;min-width:0;overflow:hidden;position:relative;
+}
+#moa-r469-root .moa-r619-date-rail,#fj-diary-root .moa-r619-date-rail{
+  display:flex;align-items:center;overflow-x:auto;overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;
+  scrollbar-width:none;overscroll-behavior-x:contain;touch-action:pan-x;
+  height:42px;width:100%;user-select:none;-webkit-user-select:none;
+}
+#moa-r469-root .moa-r619-date-rail::-webkit-scrollbar,#fj-diary-root .moa-r619-date-rail::-webkit-scrollbar{display:none}
+#moa-r469-root .moa-r619-date-cell,#fj-diary-root .moa-r619-date-cell{
+  flex:0 0 100%;height:42px;scroll-snap-align:start;scroll-snap-stop:normal;
+  background:none!important;border:none!important;color:var(--moa-r491-ink,#302a32)!important;
+  padding:0!important;margin:0!important;min-width:0!important;
+  overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+  display:flex;align-items:center;justify-content:flex-start;
+  font:700 clamp(12px,3.3vw,14px)/1.3 system-ui,'Noto Sans KR',sans-serif!important;
+  text-align:left;letter-spacing:-.035em;touch-action:pan-x;cursor:grab;
+}
+#moa-r469-root .moa-r619-date-cell:active,#fj-diary-root .moa-r619-date-cell:active{cursor:grabbing}
+#moa-r469-root .moa-r619-date-cell:focus-visible,#fj-diary-root .moa-r619-date-cell:focus-visible{outline:2px solid #bc5887;outline-offset:-3px}
+#moa-r469-root[data-page="picker"],#moa-r469-root[data-page="period"]{background:#fff!important;padding-bottom:28px!important;}
+#moa-r469-root .moa-r619-picker-screen,#moa-r469-root .moa-r619-period-screen{
+  max-width:650px;margin:0 auto;padding:16px 16px 34px;min-height:100%;color:#302a32;
+}
+#moa-r469-root .moa-r619-picker-header{display:flex;align-items:center;gap:10px;min-height:44px;margin:0 0 8px}
+#moa-r469-root .moa-r619-picker-header strong{font:700 16px/1.4 system-ui,'Noto Sans KR',sans-serif;letter-spacing:-.04em}
+#moa-r469-root .moa-r619-text-back{flex:none;min-width:40px;min-height:40px;background:#f5f1f3;border-radius:13px;color:#52444c;font-size:20px}
+#moa-r469-root .moa-r619-picker-intro{font-size:12px;color:#82757d;line-height:1.6;margin:0 0 18px}
+#moa-r469-root .moa-r619-picker-modes{display:flex;align-items:center;gap:0;padding:3px;background:#f4f1f3;border-radius:18px;margin:0 0 12px}
+#moa-r469-root .moa-r619-picker-mode{flex:1;border-radius:15px;background:transparent;min-height:40px;font-weight:600;font-size:13px;color:#80717a}
+#moa-r469-root .moa-r619-picker-mode.active{background:#fff;box-shadow:0 1px 5px #30243816;color:#9d4975}
+#moa-r469-root .moa-r619-picker-toolbar{display:flex;align-items:center;justify-content:space-between;margin:0 0 14px;color:#776972;font-size:12px}
+#moa-r469-root .moa-r619-refresh{min-height:34px;background:#f6f3f5;color:#7f5d6f;border-radius:11px;padding:0 12px;font-size:11px}
+#moa-r469-root .moa-r619-picker-group{margin:0 0 20px}
+#moa-r469-root .moa-r619-picker-date{display:block;font-size:14px;margin:0 0 9px;color:#453741;font-weight:700}
+#moa-r469-root .moa-r619-picker-rail{display:flex;align-items:stretch;gap:8px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x;scrollbar-width:none;scroll-snap-type:x proximity;padding:3px 2px 10px}
+#moa-r469-root .moa-r619-picker-rail::-webkit-scrollbar{display:none}
+#moa-r469-root .moa-r619-picker-tile{flex:0 0 106px;position:relative;width:106px;height:123px;padding:0;border:2px solid transparent;border-radius:14px;overflow:hidden;background:#eee9ec;scroll-snap-align:start;touch-action:pan-x}
+#moa-r469-root .moa-r619-picker-tile.selected{border-color:#b95685}
+#moa-r469-root .moa-r619-picker-tile img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
+#moa-r469-root .moa-r619-picker-check{position:absolute;right:7px;top:7px;width:23px;height:23px;display:grid;place-items:center;border-radius:50%;border:1px solid #fffa;background:#0008;color:#fff;font-weight:700;font-size:14px}
+#moa-r469-root .moa-r619-picker-tile.selected .moa-r619-picker-check{background:#bd5887;border-color:#fff}
+#moa-r469-root .moa-r619-picker-video{position:absolute;bottom:5px;left:5px;color:#fff;background:#0009;border-radius:6px;padding:2px 5px;font-size:11px}
+#moa-r469-root .moa-r619-picker-more{background:#f7f2f5;color:#815a70;padding:6px 11px;border-radius:10px;font-size:11px;margin:1px 0 8px}
+#moa-r469-root .moa-r619-picker-empty{padding:25px 14px;background:#f9f7f8;border-radius:15px;font-size:13px;color:#91858d;line-height:1.7}
+#moa-r469-root .moa-r619-picker-footer{position:sticky;bottom:0;display:flex;gap:9px;align-items:center;padding:13px 0 calc(12px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#fffd,#fff 28%);z-index:20}
+#moa-r469-root .moa-r619-picker-footer button{flex:1;min-height:45px;padding:7px 12px;border-radius:14px;font-size:13px;font-weight:700}
+#moa-r469-root .moa-r619-picker-open{background:#f4f0f2;color:#675b62}
+#moa-r469-root .moa-r619-picker-save{background:#343037;color:#fff}
+#moa-r469-root .moa-r619-picker-save:disabled{opacity:.37}
+#moa-r469-root .moa-r619-period-screen h2{font-size:19px;margin:12px 0 18px}
+#moa-r469-root .moa-r619-period-columns{display:grid;grid-template-columns:96px 1fr;gap:12px;height:min(31vh,280px);min-height:195px}
+#moa-r469-root .moa-r619-years{overflow-y:auto;scrollbar-width:thin;display:grid;align-content:start;gap:4px;overscroll-behavior:contain}
+#moa-r469-root .moa-r619-year-option{min-height:38px;border-radius:11px;background:#f7f4f5;color:#746771;font-size:13px}
+#moa-r469-root .moa-r619-year-option.active{background:#f5e5ed;color:#a64278;font-weight:700}
+#moa-r469-root .moa-r619-months{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;align-content:stretch}
+#moa-r469-root .moa-r619-month-option{border-radius:11px;background:#f7f4f5;color:#746771;font-size:13px}
+#moa-r469-root .moa-r619-month-option.active{background:#f5e5ed;color:#a64278;font-weight:700}
+#moa-r469-root .moa-r619-period-guide{font-size:11px;color:#998a95;margin:16px 0}
+#moa-r469-root .moa-r619-month-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+#moa-r469-root .moa-r619-date-option{min-height:39px;background:#faf8f9;border-radius:11px;font-size:12px;color:#51464d}
+#moa-r469-root .moa-r619-date-option.active{background:#b95685;color:#fff}
+
+/* R621: visible date position stays put; only the numerals change after a swipe. */
+#moa-r469-root .moa-r619-date-host,#fj-diary-root .moa-r619-date-host{width:100%;min-width:0;overflow:hidden}
+#moa-r469-root .moa-r621-date-number,#fj-diary-root .moa-r621-date-number{
+ width:100%!important;max-width:100%!important;min-width:0!important;height:42px!important;
+ display:flex!important;align-items:center!important;justify-content:flex-start!important;
+ overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+ background:transparent!important;border:0!important;padding:0!important;margin:0!important;
+ touch-action:pan-y!important;user-select:none!important;-webkit-user-select:none!important;
+ font:700 clamp(12px,3.3vw,14px)/1.3 system-ui,'Noto Sans KR',sans-serif!important;
+ color:var(--moa-r491-ink,#302a32)!important;text-align:left!important;
+}
+/* Reuse the exact main calendar year/month BOTTOM sheet; no separate button matrix. */
+#moa-r469-root .moa-r621-period-underlay{min-height:100%;padding:36px 18px;color:var(--moa-r491-muted,#81737d)}
+#moa-r469-root .moa-r621-settings-underlay{min-height:100%;position:relative;padding:10px 18px 40px;overflow:hidden}
+#moa-r469-root .moa-r621-settings-underlay>img{display:block;width:100%;height:min(65vh,700px);object-fit:contain;filter:blur(3px);opacity:.55;background:#201d20}
+#moa-r469-root .moa-r621-settings-backdrop{animation:moa-r621-shade-in .18s ease-out both}
+#moa-r469-root .moa-r621-settings-sheet{animation:moa-r621-sheet-up .22s cubic-bezier(.2,.8,.25,1) both}
+#moa-r469-root .moa-r621-settings-row{display:block;width:100%;margin:8px 0;padding:16px;text-align:left;border-radius:13px;background:#f8f5f7;color:#343037;font:600 14px system-ui,sans-serif}
+#moa-r469-root .moa-r621-settings-dismiss{display:block;width:100%;margin-top:15px;min-height:42px;border-radius:12px;background:#efeaf0;color:#343037}
+@keyframes moa-r621-shade-in{from{opacity:0}to{opacity:1}}
+@keyframes moa-r621-sheet-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+/* Vertical inertia is owned by the WebView's native vertical scroll compositor. */
+#moa-r469-root[data-page="picker"]{overscroll-behavior-y:contain;touch-action:pan-y!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
+#moa-r469-root .moa-r619-picker-screen{min-height:100%;padding-bottom:88px!important}
+#moa-r469-root .moa-r619-picker-group{margin:0 0 22px!important}
+#moa-r469-root .moa-r619-picker-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;align-items:start!important}
+#moa-r469-root .moa-r619-picker-tile{position:relative!important;display:block!important;width:100%!important;height:auto!important;aspect-ratio:3 / 4!important;min-width:0!important;overflow:hidden!important;border-radius:10px!important;padding:0!important;border:2px solid transparent!important;touch-action:pan-y!important;scroll-snap-align:none!important}
+#moa-r469-root .moa-r619-picker-tile.selected{border-color:#b95685!important}
+#moa-r469-root .moa-r621-picker-open-preview{display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;padding:0!important;margin:0!important;border:0!important;overflow:hidden!important;background:#eee9ec!important;touch-action:pan-y!important}
+#moa-r469-root .moa-r621-picker-open-preview img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important}
+#moa-r469-root .moa-r619-picker-check{position:absolute!important;right:5px!important;top:5px!important;z-index:3!important;border-radius:50%!important;width:28px!important;height:28px!important;padding:0!important;color:#fff!important;background:#0008!important;border:1px solid #fffd!important;display:grid!important;place-items:center!important}
+#moa-r469-root .moa-r619-picker-tile.selected .moa-r619-picker-check{background:#bd5887!important}
+#moa-r469-root .moa-r619-picker-video{z-index:2!important;pointer-events:none!important}
+#moa-r469-root .moa-r619-picker-more,#moa-r469-root .moa-r619-picker-rail{display:none!important}
+#moa-r469-root .moa-r619-picker-sentinel{height:20px!important;width:100%!important}
+/* Fullscreen large preview on the picker route only; original native Gallery DEX untouched. */
+#moa-r469-root .moa-r621-media-preview{position:fixed!important;inset:0!important;z-index:1200!important;background:#111!important;color:#fff!important;display:flex!important;flex-direction:column!important;padding:calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom))!important;overflow:hidden!important}
+#moa-r469-root .moa-r621-preview-top{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;min-height:44px!important;color:#fff!important}
+#moa-r469-root .moa-r621-preview-top strong{font-size:13px!important;font-weight:600!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+#moa-r469-root .moa-r621-preview-close{width:44px!important;height:44px!important;border-radius:50%!important;background:#393939!important;color:#fff!important;font-size:25px!important}
+#moa-r469-root .moa-r621-preview-stage{flex:1 1 auto!important;min-height:0!important;display:flex!important;align-items:center!important;justify-content:center!important;position:relative!important;overflow:hidden!important;touch-action:pan-y!important}
+#moa-r469-root .moa-r621-preview-stage img{display:block!important;max-width:100%!important;max-height:100%!important;width:auto!important;height:auto!important;object-fit:contain!important}
+#moa-r469-root .moa-r621-preview-video{position:absolute!important;bottom:15px!important;left:50%!important;transform:translateX(-50%)!important;color:#fff!important;background:#0009!important;font-size:12px!important}
+#moa-r469-root .moa-r621-preview-actions{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;min-height:56px!important}
+#moa-r469-root .moa-r621-preview-actions button{min-height:44px!important;border-radius:12px!important;background:#2f2f32!important;color:#fff!important;padding:0 12px!important;font-size:15px!important}
+#moa-r469-root .moa-r621-preview-actions .moa-r621-preview-select{flex:1 1 auto!important;background:#ac537d!important}
+#moa-r469-root .moa-r621-preview-actions button:disabled{opacity:.32!important}
+#moa-r469-root .moa-r621-preview-play{height:44px!important;border-radius:12px!important;background:#eee!important;color:#222!important;margin-top:6px!important}
+
+#moa-r469-root .moa-r621-settings-underlay .moa-r539-day-chrome{position:relative!important;z-index:500!important}
+#moa-r469-root .moa-r621-settings-underlay .moa-r539-day-settings{pointer-events:auto!important}
