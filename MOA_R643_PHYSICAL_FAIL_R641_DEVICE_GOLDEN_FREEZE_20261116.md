@@ -1,0 +1,29 @@
+# MOA R643 physical regression — R641 user confirmed Golden must remain frozen (2026-11-16)
+
+## User's latest **physical** result, outranks browser/mock source claims
+User Galaxy reports after updating from **R641** to **R643**, **QuickRecord no longer restores the original photo-day native Gallery**. The new independent photo-add screen is also **not** the requested native-grade photo gallery; user calls it the old legacy viewer. User shared `23115.mp4` and exact Settings-copy diagnostic:
+```json
+{"version":602,"last":"INIT","events":[],"visibleDay":false,"count":0,"bridge":true,"arm":false,"pending":false,"opened":false,"mounted":false,"r641LastActiveDay":null,"r641LegacyRecoveryAttemptsDisabled":0,"r641Timeline":[{"type":"BOOTSTRAP_LOADED","at":1794829550699,"nativeGallerySource":"R611","alwaysOnRecovery":false}]}
+```
+**IMPORTANT:** This is a Settings-state diagnostic with NO live day events. It cannot establish which QuickRecord native Gallery callback failed; user's physical QuickRecord failure is authoritative despite this empty log.
+
+## Absolute version status
+- **R611 original immutable Golden**: original native Gallery and repeated Samsung One Hand Operation+ NAVER Accessibility OFF→ON PASS, SHA256 `38a507cf2e88a235282ae4d9ad64cf0799033f34ae8fe3e179a58960d1213ccd`.
+- **R641 scoped user device approved core Golden**: user explicitly checked initial app Gallery, photo/detail toggles, One Hand OFF/ON, QuickRecord and native return; all PASS on 2026-11-16. Original signed APK SHA256 `bf1633ad830057b61ef1d256d57a9215b393800c739c75a113dbb10f06167e89`, size 9,119,310 B. Frozen Library `/모아_프로젝트_근거_20261103/GOLDEN_R641_NATIVE_QR_ONEHAND_DEVICE_APPROVED_20261116/`. **DO NOT PATCH R641 GOLDEN IN PLACE.**
+- **R643 physically FAILED**: signed APK SHA256 `49346c49656bd0c4a8bd43f694eb1e1e9bed039672038348b02814f91414663a`, version643. Claim of '144/147 member identical' and original DEX18 byte-match is archive fact, not runtime regression PASS. R643 changed Manifest version and ONLY picker JS/CSS within its 147 R641 components. Actual failing call route is **not yet localized**; don't invent it. If R643's picker is used it can disturb app-level shared UI/diary lifecycle even when original native DEX unchanged. Reconstruct **actual** source path rather than assuming.
+- **R644 exact R641 forward recovery**: signed same original certificate, code644, SHA256 `091456295a4a4e47624e5ebcc12990993c63f5858f110a5faec010d01c5ace9e`, 9,119,322 B. R641 146/147 original content entries identical, only Manifest version modified. Emergency functional restore ONLY; **real Galaxy after installing R644 has not been tested**, so do not falsely claim physical fix. Future APK must use versionCode >=645 if R644 installed. File exists in user's Library `/모아_프로젝트_근거_20261103/R643_R644_R641_DEVICE_PASS_GOLDEN_ISOLATED_PICKER_20261116/`.
+
+## More critical violation identified in new-chat handoffs
+Past assistants repeatedly based new 'success' on original DEX equality and Chromium simulated picker UX without real-device QuickRecord/One Hand tests. Exact new-chat prompt `MOA_NEW_CHAT_RESUME_PROMPT_R611_GOLDEN_R625_20261116.md` says user-approved R611 native Gallery immutable; picker photo/video full-resolution and video scrub device QA remain unverified, browser PASS cannot substitute. `MOA_NEW_CHAT_RESUME_PROMPT_R611_GOLDEN_R623_20261116.md` explicitly identifies the photo picker filmstrip as a **WebUI imitation, not Android native renderer**. R643 still reused a lazy Web viewer, so it did NOT satisfy user's request for a truly separate high-fidelity gallery. Prior presentations implying physical equivalent were overclaimed.
+
+## Required future implementation gates
+1. Freeze exact signed R641 as working core, not R643. Preserve full R611 Gallery original DEX, R641 photo JS/QuickRecord/OneHand code, user data and account.
+2. Analyze actual R641/R643 picker JS/CSS and full lifecycle; identify every listener, global state, event during central+ open, saving/cancel, day return and QuickRecord commit, before any new patch.
+3. Build photo-add as a truly independently owned viewer/selection component. **No original native open/close, shared r507StopInline/r531Advanced state or native gallery host.** If real native-quality playback/gesture parity requested, do not describe WebView imitation as same native renderer; use separate properly isolated Android component after code/prototype tests.
+4. Precise first-launch, OneHand OFF→ON and repeated QuickRecord native test success is mandatory **on new candidate on actual Galaxy** before Golden promotion; only synthetic QA pass should be called BETA. No repeated guess timers, no normal-flow forced native restart, no data wipe, no certificate changes.
+5. Build only signed APK version > current installed code, with version-forward safe core recovery, APKv2 cert, original protected file hash, ZIP CRC. Do not claim delivery if signing/container/runtime unavailable.
+
+## Current process error
+A user screenshot says '오류' in the ChatGPT GitHub-analysis workflow; that is **not evidence of an Android application crash**. Local execution tools for signing/byte inspection returned ClientError in this session, so **NO NEW CORRECTIVE APK WAS CREATED** by this update.
+
+Do not touch unrelated AirPods Android Auto audio project.
