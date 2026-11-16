@@ -1,0 +1,29 @@
+{
+  "apk": "/mnt/data/MOA_R646_R641_QUICKRECORD_RECOVERY_FULL_TRACE_ORIGINAL_SIGNED_BETA.apk",
+  "sha256": "0d2778071915bf871eb808dd37795b2e2bd8d03cb0e4dc881217b11528941a5f",
+  "size_bytes": 9097706,
+  "versionCode": 646,
+  "original_signer": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
+  "apk_v2_signature": "PASS",
+  "rsa_sha256": "PASS",
+  "zip_crc": "PASS",
+  "R641_preexisting_members": 147,
+  "R646_members": 148,
+  "R641_unchanged_original_members": 143,
+  "R641_changed_existing_members": [
+    "AndroidManifest.xml",
+    "assets/web/index.html",
+    "assets/web/moa-r483-vertical-calendar.js",
+    "assets/web/moa-r641-safeguard-bootstrap.js"
+  ],
+  "R645_changed_existing_members": [
+    "AndroidManifest.xml",
+    "assets/web/moa-r483-vertical-calendar.js",
+    "assets/web/moa-r641-safeguard-bootstrap.js",
+    "assets/web/moa-r645-full-runtrace.js"
+  ],
+  "DEX18_byte_identical": true,
+  "apk_signing_keys_in_release": false,
+  "physical_Galaxy_QA": "PENDING",
+  "full_native_pre_webview_telemetry": "NOT_IMPLEMENTED"
+}
