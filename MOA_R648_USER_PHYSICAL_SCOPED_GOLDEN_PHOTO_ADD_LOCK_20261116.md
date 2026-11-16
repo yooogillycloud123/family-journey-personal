@@ -1,3 +1,5 @@
+> **2026-11-16 CORRECTION R649 QUARANTINE:** New optional R649 candidate has now FAILED user's real Galaxy QuickRecord Gallery return and photo-add content preview, despite all original Gallery protected source hashes matching R648. Read [MOA_R649_REAL_GALAXY_QUICKRECORD_AND_PHOTO_PICKER_FAIL_20261116.md](MOA_R649_REAL_GALAXY_QUICKRECORD_AND_PHOTO_PICKER_FAIL_20261116.md). Protect actual R648 successful scope; R649 is not a safe update recommendation. R650 original-function recovery candidate available, hardware QA pending. No application uninstall or user data reset. 
+
 # MOA R648 사용자 실기기 성공 범위 보호 · 사진추가 완전 요구사항 · 새 채팅 필독
 2026-11-16 / USER-PHYSICAL-EVIDENCE / CANONICAL MOA PHOTO-ADD SAFETY LOCK
 
