@@ -1,3 +1,5 @@
+> **2026-11-17 NEXT TRACE BUILD:** Direct-brach R655 signed diagnostics + R656 function-R648 rescue created, see [MOA_R655_DIRECT_JS_JAVA_BRANCH_FORENSIC_R656_RECOVERY_20261117.md](MOA_R655_DIRECT_JS_JAVA_BRANCH_FORENSIC_R656_RECOVERY_20261117.md). R655 changed the actual original Java owner `tick/maybeArm` executed guard paths plus JS asynchronous tryOpen transition, correlated by attemptId; this is diagnosis only and Galaxy test pending. Previous R653 passive reflection observer blindspot remains a confirmed prior issue, R653 must not be reused.
+
 # MOA R653 Galaxy device FAIL from INITIAL app launch + Java forensic blind spot (2026-11-17)
 
 **USER PHYSICAL FAIL — supersedes static-only R653 QA and diagnostic handoff. Do not promote or reissue R653.** User video `23249.mp4` (37.85s), R653 Java inline mount forensic 240 selected historical/new rows. Keep user video/log private in original conversation; never commit media or personal content to public GitHub.
