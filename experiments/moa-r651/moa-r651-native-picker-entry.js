@@ -62,6 +62,7 @@
  function onNativeMessage(evt){
    let x;try{x=JSON.parse(evt.data)}catch(_){return;}
    if(x?.type==='picker_saved'){stamp('PICKER_RESULT_RECEIVED');void commitSaved(x);}
+   if(x?.type==='picker_cancelled'){awaitingNative=false;stamp('PICKER_CANCELLED');post({type:'saved_ack',token:String(x.token||'')});}
  }
  window.addEventListener('message',event=>{
    if(event.origin!==ORIGIN||event.data!=='MOA_R651_PORT'||!event.ports?.[0])return;
