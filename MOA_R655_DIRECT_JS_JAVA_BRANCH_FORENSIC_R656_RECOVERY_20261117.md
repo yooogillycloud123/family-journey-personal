@@ -1,3 +1,5 @@
+> **USER ACTUAL GALAXY RESULT SUPERSEDES SIGNED/STATIC PASS STATUS:** Read [MOA_R655_GALAXY_ACTUAL_JAVA_PROCESSING_LATCH_DEVICE_FAIL_20261117.md](MOA_R655_GALAXY_ACTUAL_JAVA_PROCESSING_LATCH_DEVICE_FAIL_20261117.md). R655 PHOTO-inline mount FAILED on user's Galaxy (848 current-build events, 61 direct Java MAYBE_ARM_DENY_PROCESSING, no native mount ACK). R655 is NOT FUNCTIONALLY SUCCESSFUL. Original shared `processing` boolean appears stuck (callback missing possible but unproven), R655 telemetry itself uses frequent WebView evaluateJavascript and can perturb scheduling. R656 exact-R648-functional forward recovery remains untested on device. Do not present R655 as golden, fix method requires native-only processing lifetime trace before bounded same-generation stale lock mitigation.
+
 # R655 actual WebView / Java / Native-owner direct-branch diagnostic, R656 Golden function recovery
 
 Status: 2026-11-17 SIGNED/SDK35 COMPILE/STATIC-QA PASS; **NO REAL GALAXY HARDWARE TEST**. R655 is diagnostic BETA, not a bug fix or GOLDEN. R648 remains physically approved under One Hand Operation+ OFF→ON precondition. R649/R651/R653 are Galaxy physical failures.
