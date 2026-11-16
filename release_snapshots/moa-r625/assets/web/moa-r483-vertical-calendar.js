@@ -1169,6 +1169,7 @@ function r621OpenPreview(items,index,update,save){
   // Windowed 125-thumbnail filmstrip: enough kinetic travel without forcing
   // thousands of WebView/MediaStore thumbnail requests at once.
   const lo=Math.max(0,r621PreviewIndex-62),hi=Math.min(r621PreviewAssets.length,lo+125);
+  if(lastRailLow>=0&&r621PreviewIndex>=lastRailLow+18 && r621PreviewIndex<lastRailHigh-18)return;
   if(lastRailLow===lo&&lastRailHigh===hi)return;
   lastRailLow=lo;lastRailHigh=hi;rail.replaceChildren();
   const imgs=[];
@@ -1199,7 +1200,7 @@ function r621OpenPreview(items,index,update,save){
   }
   const chosen=rail.querySelector('.moa-r623-preview-rail-tile.active');
   if(chosen&&!railInteracting&&!['rail','rail-scroll'].includes(source)&&r623PreviewRailVisible){
-   try{railProgrammaticUntil=Date.now()+550;clearTimeout(railScrollDebounce);const left=chosen.offsetLeft-rail.offsetLeft-rail.clientWidth/2+chosen.clientWidth/2;rail.scrollTo({left:Math.max(0,left),behavior:r623PreviewFast?'instant':'smooth'});}catch(_){/* optional */}
+   try{railProgrammaticUntil=Date.now()+220;clearTimeout(railScrollDebounce);const left=chosen.offsetLeft-rail.offsetLeft-rail.clientWidth/2+chosen.clientWidth/2;rail.scrollTo({left:Math.max(0,left),behavior:'auto'});}catch(_){/* optional */}
   }
  }
  function paint(source='open'){
@@ -1269,11 +1270,12 @@ function r619RenderPicker(){
  const actions=elem('div','moa-r625-picker-actions');
  const save=btn('사진·영상 추가',()=>r619CommitPicked(save),'moa-r619-picker-save');save.disabled=true;
  const openDiary=btn('일기 열기',r619ReturnFromAux,'moa-r619-picker-open');
- actions.append(openDiary,save);footer.append(note,actions);shell.insertBefore(footer,shell.firstChild);view.append(shell);
+ actions.append(openDiary,save);footer.append(note,actions);shell.insertBefore(footer,shell.firstChild);footer.hidden=!r619PickSelection.size;view.append(shell);
  const all=r619PickerAssets(),grouped=new Map();for(const p of all){const d=dayOf(Number(p.t));if(!grouped.has(d))grouped.set(d,[]);grouped.get(d).push(p);}
  r619PickerGroups=[...grouped.entries()].sort((a,b)=>b[0].localeCompare(a[0]));
  const update=()=>{
   note.textContent=`선택 ${r619PickSelection.size}개 · 사진 터치 선택 · 길게 눌러 드래그 연속 선택`;
+  footer.hidden=!r619PickSelection.size;
   save.disabled=!r619PickSelection.size;save.textContent=`선택 ${r619PickSelection.size}개 추가`;
   const order=new Map([...r619PickSelection].map((id,i)=>[id,i+1]));
   for(const tile of groupsHost.querySelectorAll('.moa-r619-picker-tile')){
@@ -1332,9 +1334,9 @@ function r619RenderPicker(){
    try{navigator.vibrate?.(20)}catch(_){}
    const tick=()=>{
     if(r623Drag!==drag||!drag.active)return;
-    const rect=view.getBoundingClientRect();
+    const rect=shell.getBoundingClientRect();
     const edge=56,offset=drag.y<rect.top+edge?-Math.min(18,(rect.top+edge-drag.y)*.55):drag.y>rect.bottom-edge?Math.min(18,(drag.y-(rect.bottom-edge))*.55):0;
-    if(offset){view.scrollTop+=offset;const target=tileAt(drag.x,drag.y);if(target)dragApply(target.dataset.id);}
+    if(offset){shell.scrollTop+=offset;const target=tileAt(drag.x,drag.y);if(target)dragApply(target.dataset.id);}
     r623DragAutoscroll=requestAnimationFrame(tick);
    };r623DragAutoscroll=requestAnimationFrame(tick);
   },360);
@@ -1375,7 +1377,7 @@ function r619RenderPicker(){
    };
    const rowObserver=new IntersectionObserver(entries=>{
     if(entries.some(e=>e.isIntersecting)&&ui.open&&ui.page==='picker')appendTiles();
-   },{root:view,rootMargin:'350px'});
+   },{root:shell,rootMargin:'350px'});
    group.append(grid,watch);groupsHost.insertBefore(group,groupsHost.querySelector('.moa-r619-picker-sentinel'));
    appendTiles();if(cursor<photos.length){rowObserver.observe(watch);r621RowObservers.push(rowObserver);}
   }
@@ -1386,7 +1388,7 @@ function r619RenderPicker(){
  const sentinel=elem('div','moa-r619-picker-sentinel');groupsHost.append(sentinel);
  r619PickerObserver?.disconnect();r619PickerObserver=new IntersectionObserver(entries=>{
   if(entries.some(e=>e.isIntersecting)&&ui.open&&ui.page==='picker'&&r619PickerGroupCount<r619PickerGroups.length)appendGroups();
- },{root:view,rootMargin:'380px'});r619PickerObserver.observe(sentinel);
+ },{root:shell,rootMargin:'380px'});r619PickerObserver.observe(sentinel);
 }
 function r619PickerStatus(t){const x=view?.querySelector('.moa-r619-picker-intro');if(x)x.textContent=t;}
 async function r619CommitPicked(button){
@@ -1556,7 +1558,7 @@ function start(){mount();r495InstallBackHandlers();r495InstallScrollSetting();ob
  },true);}
 
 function render(){if(!ui.open||!view)return;if(r507Opened && !(r523DayExiting && ui.page==='calendar'))r507StopInline();ui.requestGeneration++;view.replaceChildren();view.dataset.page=ui.page;view.dataset.monthScroll=r495ScrollMode();requestAnimationFrame(()=>window.__moaR613ScrollNavRefresh?.());r495SyncLegacyRoot();
- ui.page==='day'?renderDay():ui.page==='picker'?r619RenderPicker():ui.page==='period'?r619RenderPeriod():ui.page==='settings'?r621RenderPhotoSettings():renderMonth();view.append(elem('div','moa-r469-status',''));view.scrollTop=0;r472Nav();setTimeout(r472RefreshVisibleThumbs,600);}
+ ui.page==='day'?renderDay():ui.page==='picker'?r619RenderPicker():ui.page==='period'?r619RenderPeriod():ui.page==='settings'?r621RenderPhotoSettings():renderMonth();const status=elem('div','moa-r469-status','');if(ui.page==='picker'){(view.querySelector('.moa-r619-picker-screen')||view).append(status);}else view.append(status);view.scrollTop=0;r472Nav();setTimeout(r472RefreshVisibleThumbs,600);}
 function header(title,back){const h=elem('header','moa-r469-head');h.append(btn('‹',back,'moa-r469-back'),elem('strong','',title));return h;}
 function r483MonthKey(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`}
 function r483MonthDate(str){const [y,m]=str.split('-').map(Number);return new Date(y,m-1,1)}
