@@ -1,0 +1,91 @@
+--- R645/moa-r483-vertical-calendar.js
++++ R646/moa-r483-vertical-calendar.js
+@@ -302,7 +302,15 @@
+  setTimeout(()=>{if(ui.open&&ui.page==='day'&&!r523DayExiting)r507StartInline()},250);
+  return true;
+ };
+-function r507StopInline(){r596ClearWebTimer();r594ClearMountWatchdog();r594NativeIndexMap=[];
++function r507StopInline(){
++ // R646: record a cancelled/unmounted attempt before resetting its generation/timer.
++ // Diagnostic only; the original close and cleanup ownership stay unchanged.
++ if(r507Timer || window.__moaR511InlineArm || window.__moaR507NativePending || r507Opened)
++   r602Mark('R646_INLINE_STOP',{opened:!!r507Opened,pending:!!window.__moaR507NativePending,
++     arm:!!window.__moaR511NativeArmed,inlineArm:!!window.__moaR511InlineArm,
++     stageAttached:!!view?.querySelector('.moa-r469-stage')?.isConnected,
++     page:ui.page,exiting:!!r523DayExiting});
++ r596ClearWebTimer();r594ClearMountWatchdog();r594NativeIndexMap=[];
+  r539EndProxy();
+  if(r507Opened||window.__moaR507NativePending)
+    window.__moaR567ProgrammaticCloseUntil=Date.now()+850;
+@@ -333,10 +341,12 @@
+  return {ok:false,index:target,attempts};
+ }
+ function r507StartInline(){
+- if(r523DayExiting||r531Advanced)return;
++ if(r523DayExiting||r531Advanced){
++   r602Mark('R646_START_SKIPPED',{reason:r523DayExiting?'DAY_EXITING':'ADVANCED_OWNER'});return;}
+  // R551: a second asynchronous entry request must not restart or close an
+  // original Gallery which the user is already viewing.
+- if(r507Opened&&window.__moaR507NativePending)return;
++ if(r507Opened&&window.__moaR507NativePending){
++   r602Mark('R646_START_SKIPPED',{reason:'ALREADY_OPEN_PENDING'});return;}
+  // R641: The IndexedDB QuickRecord ACK and the render/hydrate callbacks can
+  // both request opening during the SAME R611 native pre-draw ARM. The original
+  // entry increments r507Generation, silently invalidating the pending timer.
+@@ -351,19 +361,35 @@
+  }
+  const generation=++r507Generation;
+  r602Mark('START_INLINE',{count:ui.media.length});
++ const r646At=Date.now();let r646FirstTick=true,r646WaitType='',r646WaitSince=0;
++ // A bounded observer records a lost timer/ARM without restarting a healthy host.
++ setTimeout(()=>{
++   if(generation!==r507Generation||!ui.open||ui.page!=='day'||r523DayExiting||
++      r507Opened||window.__moaR507NativePending)return;
++   r602Mark('R646_OPEN_STALLED',{elapsedMs:Date.now()-r646At,
++     stageAttached:!!view?.querySelector('.moa-r469-stage')?.isConnected,
++     bridge:!!window.__moaR507BridgeReady,arm:!!window.__moaR511NativeArmed,
++     inlineArm:!!window.__moaR511InlineArm});
++ },6100);
+  if(view&&ui.media.length)view.classList.add('moa-r519-native-entering');
+  clearTimeout(r519EntryTimer);
+  // On unsupported Android/native bridge, restore original web photo UI gracefully.
+  r519EntryTimer=setTimeout(()=>{if(generation===r507Generation&&view&&!view.classList.contains('moa-r507-native-mounted'))notify('네이티브 갤러리 연결 확인 중');},3500);
+  const waitUntil=Date.now()+8000;
+  const tryOpen=()=>{
++  if(r646FirstTick){r646FirstTick=false;r602Mark('R646_TIMER_FIRED',{
++     elapsedMs:Date.now()-r646At,stageAttached:!!view?.querySelector('.moa-r469-stage')?.isConnected});}
+   if(generation!==r507Generation||!ui.open||ui.page!=='day'||view?.hidden){
+    r602Mark('START_INLINE_ABORTED',{cause:generation!==r507Generation?'SUPERSEDED':
+      !ui.open?'CLOSED':ui.page!=='day'?'PAGE_CHANGED':'VIEW_HIDDEN'});
+    return;
+   }
+   if(!window.__moaR507BridgeReady || typeof window.MoaLocalAudio?.openNativeGallery!=='function'){
+-   if(Date.now()<waitUntil)r507Timer=setTimeout(tryOpen,180);
++   if(Date.now()<waitUntil){
++     if(r646WaitType!=='BRIDGE'){r646WaitType='BRIDGE';r646WaitSince=Date.now();
++       r602Mark('R646_WAIT_BRIDGE');}
++     r507Timer=setTimeout(tryOpen,180);
++   }
+    else {r602Mark('PROVIDER_BRIDGE_TIMEOUT');r594Fallback('BRIDGE_UNAVAILABLE');}
+    return;
+   }
+@@ -385,13 +411,18 @@
+    // R604: restore the physically user-approved R567 open gate. BridgeReady
+    // only proves the provider exists, NOT that R463 pre-draw ownership/host
+    // is prepared. Never invoke openNativeGallery while the gate is false.
+-   if(Date.now()<waitUntil){r507Timer=setTimeout(tryOpen,70);return;}
++   if(Date.now()<waitUntil){
++     if(r646WaitType!=='ARM'){r646WaitType='ARM';r646WaitSince=Date.now();
++       r602Mark('R646_WAIT_NATIVE_ARM',{bridge:true,stageAttached:true});}
++     r507Timer=setTimeout(tryOpen,70);return;
++   }
+    window.__moaR511InlineArm=false;
+    r602Mark('NATIVE_ARM_TIMEOUT');
+    r594Fallback('NATIVE_ARM_TIMEOUT');
+    r594RequestIndexOnce();
+    return;
+   }
++  r602Mark('R646_ARM_CONFIRMED',{elapsedMs:Date.now()-r646At});
+   window.__moaR507NativePending=true;
+   // R594: try the EXACT original Gallery and original ID order first.
+   // If any stale/provisional same-day ID makes that open fail, retry once
