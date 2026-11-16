@@ -434,6 +434,11 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
         }
         try{
           Object parsed=new JSONTokener(raw).nextValue();
+          // Normal R611 Gallery has no picker state. Empty means healthy
+          // baseline, not an overlay error; never spam logs or mutate host.
+          if(parsed instanceof String && ((String)parsed).isEmpty()){
+            r631ClearPickButton();return;
+          }
           JSONObject data=parsed instanceof String?new JSONObject((String)parsed):
             parsed instanceof JSONObject?(JSONObject)parsed:null;
           if(data==null||!data.optBoolean("active",false)){
