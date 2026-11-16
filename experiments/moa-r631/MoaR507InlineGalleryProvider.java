@@ -400,92 +400,127 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     }catch(Throwable ignored){}
   }
 
-  // R631 ONLY: picker fullscreen selection overlay. Original R611 native
-  // gallery, its rail/video/8-actions and Naver Accessibility recovery remain
-  // untouched. This overlay only exists while picker JS reports active.
+  // R633: picker-only action within the ORIGINAL Android Gallery bottom
+  // action capsule. The proven R611 photo-day host, native rail, One Hand
+  // Accessibility lifecycle and all original action listeners are untouched.
   private TextView r631PickButton;
   private FrameLayout r631PickRoot;
+  private LinearLayout r633PickCapsule;
+  private int r633PickCapsuleOldWidth=-1;
   private Object r631PickGallery;
   private String r631PickCurrentId="";
   private boolean r631PickerPending=false;
   private long r631LastCheckAt=0L;
   private void r631ClearPickButton(){
-    if(r631PickButton!=null){
-      try{if(r631PickButton.getParent() instanceof ViewGroup)
-        ((ViewGroup)r631PickButton.getParent()).removeView(r631PickButton);}catch(Throwable ignored){}
-    }
-    r631PickButton=null;r631PickRoot=null;r631PickGallery=null;r631PickCurrentId="";
+    if(r631PickButton!=null)try{
+      if(r631PickButton.getParent() instanceof ViewGroup)
+        ((ViewGroup)r631PickButton.getParent()).removeView(r631PickButton);
+    }catch(Throwable ignored){}
+    if(r633PickCapsule!=null&&r633PickCapsuleOldWidth>=0)try{
+      if(r633PickCapsule.getLayoutParams() instanceof FrameLayout.LayoutParams){
+        FrameLayout.LayoutParams p=(FrameLayout.LayoutParams)r633PickCapsule.getLayoutParams();
+        p.width=r633PickCapsuleOldWidth;r633PickCapsule.setLayoutParams(p);
+      }
+    }catch(Throwable ignored){}
+    r631PickButton=null;r631PickRoot=null;r633PickCapsule=null;
+    r633PickCapsuleOldWidth=-1;r631PickGallery=null;r631PickCurrentId="";
   }
   private void r631ObservePicker(final Activity a, final WebView web, final Object gallery){
-    if(!galleryOpen(gallery)||a==null||web==null){r631ClearPickButton();return;}
+    // CRITICAL R611 regression gate: never evaluate picker JavaScript or add
+    // even one view while an original in-card photo-day Gallery is owned.
+    // This isolates QuickRecord media refresh and Naver OFF->ON restoration.
+    if(ownsGallery||fullNativeOpen){
+      if(r631PickButton!=null)r631ClearPickButton();return;
+    }
+    if(!galleryOpen(gallery)||a==null||web==null){
+      if(r631PickButton!=null)r631ClearPickButton();return;
+    }
     long now=android.os.SystemClock.uptimeMillis();
-    if(r631PickerPending||now-r631LastCheckAt<320L)return;
+    if(r631PickerPending||now-r631LastCheckAt<400L)return;
     r631LastCheckAt=now;
     final String id=currentId(gallery);
-    if(!id.matches("(?:v)?[0-9]{1,18}")){r631ClearPickButton();return;}
+    if(!id.matches("(?:v)?[0-9]{1,18}")){
+      if(r631PickButton!=null)r631ClearPickButton();return;
+    }
     r631PickerPending=true;
     final String script="(function(){var f=window.__moaR631PickerState;"
        +"return f?JSON.stringify(f("+JSONObject.quote(id)+")):'';})()";
-    try{
-      web.evaluateJavascript(script, raw->{
-        r631PickerPending=false;
-        if(a!=foreground||gallery!=readField(a,"unifiedGallery")||!galleryOpen(gallery)){
-          r631ClearPickButton();return;
+    try{web.evaluateJavascript(script,raw->{
+      r631PickerPending=false;
+      if(a!=foreground||ownsGallery||fullNativeOpen||
+          gallery!=readField(a,"unifiedGallery")||!galleryOpen(gallery)){
+        if(r631PickButton!=null)r631ClearPickButton();return;
+      }
+      try{
+        Object parsed=new JSONTokener(raw).nextValue();
+        if(parsed instanceof String && ((String)parsed).isEmpty()){
+          if(r631PickButton!=null)r631ClearPickButton();return;
         }
-        try{
-          Object parsed=new JSONTokener(raw).nextValue();
-          // Normal R611 Gallery has no picker state. Empty means healthy
-          // baseline, not an overlay error; never spam logs or mutate host.
-          if(parsed instanceof String && ((String)parsed).isEmpty()){
-            r631ClearPickButton();return;
-          }
-          JSONObject data=parsed instanceof String?new JSONObject((String)parsed):
-            parsed instanceof JSONObject?(JSONObject)parsed:null;
-          if(data==null||!data.optBoolean("active",false)){
-            r631ClearPickButton();return;
-          }
-          View content=a.findViewById(android.R.id.content);
-          if(!(content instanceof FrameLayout)){r631ClearPickButton();return;}
-          FrameLayout parent=(FrameLayout)content;
-          if(r631PickButton==null||r631PickRoot!=parent||r631PickGallery!=gallery){
-            r631ClearPickButton();
-            final TextView button=new TextView(a);
-            button.setGravity(Gravity.CENTER);
-            button.setTextSize(14f);
-            button.setTextColor(Color.WHITE);
-            button.setTypeface(android.graphics.Typeface.DEFAULT,android.graphics.Typeface.BOLD);
-            button.setContentDescription("현재 사진 또는 동영상 선택 · 다시 누르면 선택 해제");
-            FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(a,108),dp(a,46),Gravity.TOP|Gravity.RIGHT);
-            lp.topMargin=dp(a,11);lp.rightMargin=dp(a,14);
-            parent.addView(button,lp);
-            button.bringToFront();
-            r631PickButton=button;r631PickRoot=parent;r631PickGallery=gallery;
-            button.setOnClickListener(v->{
-              if(gallery!=readField(a,"unifiedGallery")||!galleryOpen(gallery))return;
-              final String selectedId=currentId(gallery);
-              if(!selectedId.equals(r631PickCurrentId))return;
-              String clickScript="window.__moaR631ToggleFromNative&&window.__moaR631ToggleFromNative("
-                 +JSONObject.quote(selectedId)+")";
-              try{web.evaluateJavascript(clickScript,result->{r631LastCheckAt=0L;});}
-              catch(Throwable failure){android.util.Log.w("MOA_R631","PICKER_SELECT_CALLBACK_FAILED");}
-            });
-          }
-          r631PickCurrentId=id;
-          boolean selected=data.optBoolean("selected",false);
-          int count=Math.max(0,data.optInt("count",0));
-          r631PickButton.setText(selected?("✓ 선택됨 · "+count):("＋ 선택 · "+count));
-          GradientDrawable bg=new GradientDrawable();
-          bg.setColor(selected?Color.rgb(169,67,113):Color.argb(222,34,31,38));
-          bg.setCornerRadius(dp(a,23));
-          bg.setStroke(dp(a,1),Color.argb(190,255,255,255));
-          r631PickButton.setBackground(bg);
-          r631PickButton.bringToFront();
-        }catch(Throwable error){
+        JSONObject data=parsed instanceof String?new JSONObject((String)parsed):
+           parsed instanceof JSONObject?(JSONObject)parsed:null;
+        if(data==null||!data.optBoolean("active",false)){
+          if(r631PickButton!=null)r631ClearPickButton();return;
+        }
+        Object hostObj=readField(gallery,"host");
+        if(!(hostObj instanceof FrameLayout))return;
+        FrameLayout host=(FrameLayout)hostObj;
+        View found=host.findViewWithTag("moa.gallery.action.deck.r443");
+        if(!(found instanceof FrameLayout))return;
+        FrameLayout deck=(FrameLayout)found;
+        if(deck.getChildCount()!=1||!(deck.getChildAt(0) instanceof LinearLayout))return;
+        LinearLayout capsule=(LinearLayout)deck.getChildAt(0);
+        if(capsule.getChildCount()<4)return;
+        if(r631PickButton==null||r631PickRoot!=deck||r631PickGallery!=gallery||
+            r633PickCapsule!=capsule){
           r631ClearPickButton();
-          android.util.Log.w("MOA_R631","PICKER_SELECTION_OVERLAY_FAILED_"+error.getClass().getSimpleName());
+          final TextView button=new TextView(a);
+          button.setGravity(Gravity.CENTER);
+          button.setTextSize(18f);
+          button.setTextColor(Color.WHITE);
+          button.setTypeface(android.graphics.Typeface.DEFAULT,android.graphics.Typeface.BOLD);
+          button.setContentDescription("현재 사진 또는 동영상 선택 · 다시 누르면 선택 해제");
+          button.setTag("moa.picker.bottom.select.r633");
+          button.setClickable(true);button.setFocusable(true);
+          if(capsule.getLayoutParams() instanceof FrameLayout.LayoutParams){
+            FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)capsule.getLayoutParams();
+            r633PickCapsuleOldWidth=lp.width;
+            // Five icons share the SAME existing native capsule; no overlay.
+            // Constrain to available width without disturbing gallery actions.
+            int available=Math.max(dp(a,220),host.getWidth()-dp(a,20));
+            lp.width=Math.min(dp(a,300),Math.max(dp(a,254),lp.width));
+            lp.width=Math.min(lp.width,available);
+            capsule.setLayoutParams(lp);
+          }
+          capsule.addView(button,new LinearLayout.LayoutParams(0,dp(a,34),1f));
+          r631PickButton=button;r631PickRoot=deck;r633PickCapsule=capsule;
+          r631PickGallery=gallery;
+          button.setOnClickListener(v->{
+            if(gallery!=readField(a,"unifiedGallery")||!galleryOpen(gallery)||ownsGallery)return;
+            String selectedId=currentId(gallery);
+            if(!selectedId.equals(r631PickCurrentId))return;
+            String action="window.__moaR631ToggleFromNative&&window.__moaR631ToggleFromNative("
+                +JSONObject.quote(selectedId)+")";
+            try{web.evaluateJavascript(action,result->{r631LastCheckAt=0L;});}
+            catch(Throwable error){android.util.Log.w("MOA_R633","NATIVE_PICKER_SELECT_FAILED");}
+          });
         }
-      });
-    }catch(Throwable error){r631PickerPending=false;r631ClearPickButton();}
+        r631PickCurrentId=id;
+        boolean selected=data.optBoolean("selected",false);
+        int count=Math.max(0,data.optInt("count",0));
+        r631PickButton.setText(selected?"✓":"□");
+        r631PickButton.setTextColor(selected?Color.rgb(244,135,182):Color.WHITE);
+        r631PickButton.setContentDescription((selected?"선택 해제":"현재 사진 선택")+
+            " · 총 "+count+"개 선택됨");
+        r631PickButton.bringToFront();
+      }catch(Throwable error){
+        if(r631PickButton!=null)r631ClearPickButton();
+        android.util.Log.w("MOA_R633","NATIVE_PICKER_BOTTOM_ACTION_FAILED_"+
+            error.getClass().getSimpleName());
+      }
+    });}catch(Throwable error){
+      r631PickerPending=false;
+      if(r631PickButton!=null)r631ClearPickButton();
+    }
   }
 
   private void tick(){
@@ -498,7 +533,10 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     if(fullNativeOpen && fullscreenOwnerActivity!=null && a!=fullscreenOwnerActivity)return;
     WebView web=findWeb(a);if(web==null)return;
     Object gallery=readField(a,"unifiedGallery");
-    r631ObservePicker(a,web,gallery);
+    // Picker actions never join R611 QuickRecord/in-card Gallery lifecycle.
+    if(ownsGallery || fullNativeOpen){
+      if(r631PickButton!=null)r631ClearPickButton();
+    }else r631ObservePicker(a,web,gallery);
     // R531: intentionally opened ORIGINAL fullscreen Gallery is NOT an in-card
     // renderer. Return to the same photo-day only after native Gallery closes.
     if(fullNativeOpen){
