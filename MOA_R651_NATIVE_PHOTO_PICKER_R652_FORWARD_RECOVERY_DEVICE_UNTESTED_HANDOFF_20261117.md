@@ -1,3 +1,5 @@
+> **SUPERSEDED BY ACTUAL USER HARDWARE FAIL, 2026-11-17:** See [MOA_R651_GALAXY_PHYSICAL_FAIL_INLINE_PREDRAW_AND_PICKER_BRIDGE_20261117.md](MOA_R651_GALAXY_PHYSICAL_FAIL_INLINE_PREDRAW_AND_PICKER_BRIDGE_20261117.md). R651 is now user PHYSICAL FAIL, not merely Device Untested. PLUS request always blocked by JS because native WebMessagePort null, plus photo-inline ARM gate fails after QuickRecord and again on restart. Old static QA alone was misleading. Native Activity photo picker never launched in this user's test. Exact native owner CLOSE/ARM guard cause still unproved. R652 remains physically unverified recovery only.
+
 # MOA R651 Native Photo Add / R652 R648-functional forward recovery — 2026-11-17
 
 **Release status: SIGNED APK / STATIC+ANDROID SDK35 CI PASS / ACTUAL GALAXY TEST NOT PERFORMED. R651 IS NOT GOLDEN.** R648 remains user-confirmed scoped Golden only after One Hand Operation+ OFF→ON; R649 physically FAILED. Read R611→R650 full timeline and R648 scoped Golden lock before changes.
