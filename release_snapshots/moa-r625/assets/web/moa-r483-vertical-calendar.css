@@ -1525,3 +1525,61 @@ html #fj-diary-root[data-page="day"] .moa-r539-day-controls{
 #moa-r469-root .moa-r625-video-seek{flex:1;min-width:40px;accent-color:#ed95b9;touch-action:pan-x;}
 #moa-r469-root .moa-r625-video-clock{flex:0 0 auto;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;}
 #moa-r469-root .moa-r621-preview-player{inset:0!important;object-fit:contain!important;}
+
+/* R627 source candidate: picker UX corrections; never touches R611 native Gallery. */
+#moa-r469-root[data-page="picker"] {
+  overflow-y:hidden!important;
+  padding-top:0!important;
+  padding-bottom:0!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r619-picker-screen {
+  height:100%!important;
+  min-height:0!important;
+  max-height:100%!important;
+  overflow-y:auto!important;
+  overscroll-behavior-y:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  padding-top:0!important;
+  scrollbar-width:thin;
+}
+#moa-r469-root[data-page="picker"] .moa-r625-picker-command {
+  position:sticky!important;
+  top:0!important;
+  z-index:100!important;
+  isolation:isolate;
+  background:#fff!important;
+  box-shadow:0 3px 8px #32273320!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r625-picker-command[hidden] {
+  display:none!important;
+}
+#moa-r469-root .moa-r623-grid-zoom {
+  width:32px!important; height:32px!important;
+  min-width:32px!important; min-height:32px!important;
+  border:none!important; background:transparent!important;
+  border-radius:8px!important;
+  font-size:11px!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+  isolation:isolate;
+}
+#moa-r469-root .moa-r623-grid-zoom::before {
+  content:""; position:absolute; left:50%; top:50%;
+  width:16px; height:16px; transform:translate(-50%,-50%);
+  background:#17151cd9; border:1px solid #fffc; border-radius:5px;
+  box-shadow:0 1px 2px #0004; z-index:-1;
+}
+#moa-r469-root .moa-r623-preview-rail,
+#moa-r469-root .moa-r623-preview-rail.is-fast {
+  scroll-snap-type:none!important;
+  scroll-behavior:auto!important;
+  overscroll-behavior-x:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+#moa-r469-root .moa-r623-preview-rail-tile {
+  scroll-snap-align:none!important;
+  scroll-snap-stop:normal!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r619-picker-header {
+  padding-top:calc(10px + env(safe-area-inset-top))!important;
+}
