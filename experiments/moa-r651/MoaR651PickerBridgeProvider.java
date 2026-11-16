@@ -26,7 +26,8 @@ public final class MoaR651PickerBridgeProvider extends ContentProvider implement
   private WeakReference<Activity> owner=new WeakReference<>(null);
   private WeakReference<WebView> attached=new WeakReference<>(null);
   private WebMessagePort recv;
-  private String lastPortToken="";
+  private boolean portConfirmed=false;
+  private long lastOfferAt=0L;
 
   @Override public boolean onCreate(){
     ((Application)getContext().getApplicationContext()).registerActivityLifecycleCallbacks(this);
@@ -47,7 +48,10 @@ public final class MoaR651PickerBridgeProvider extends ContentProvider implement
     if(activity==null||activity.isFinishing()||activity.isDestroyed()||activity instanceof MoaR651PhotoPickerActivity)return;
     WebView web=find(activity.getWindow().getDecorView());
     if(!trusted(web))return;
-    if(attached.get()==web && recv!=null){deliverPending();return;}
+    if(attached.get()==web && recv!=null){
+      if(portConfirmed){deliverPending();return;}
+      if(android.os.SystemClock.uptimeMillis()-lastOfferAt<700L)return;
+    }
     try{
       if(recv!=null)recv.close();
       WebMessagePort[] pair=web.createWebMessageChannel();
@@ -59,6 +63,7 @@ public final class MoaR651PickerBridgeProvider extends ContentProvider implement
         }
       });
       owner=new WeakReference<>(activity);attached=new WeakReference<>(web);recv=pair[0];
+      portConfirmed=false;lastOfferAt=android.os.SystemClock.uptimeMillis();
       web.postWebMessage(new WebMessage("MOA_R651_PORT",new WebMessagePort[]{pair[1]}),Uri.parse(ORIGIN));
       log("BRIDGE_OFFERED");
       deliverPending();
@@ -67,14 +72,17 @@ public final class MoaR651PickerBridgeProvider extends ContentProvider implement
   private void onCommand(Activity activity,String text){
     try{
       JSONObject cmd=new JSONObject(text);String type=cmd.optString("type","");
-      if("hello".equals(type)){log("BRIDGE_READY");deliverPending();return;}
+      if("hello".equals(type)){portConfirmed=true;log("BRIDGE_READY");deliverPending();return;}
       if("open".equals(type)){
         String day=cmd.optString("day","");if(!day.matches("\\d{4}-\\d{2}-\\d{2}"))return;
         if(!activity.hasWindowFocus()||activity.isFinishing())return;
         Intent intent=new Intent(activity,MoaR651PhotoPickerActivity.class);
         intent.putExtra("moa_day",day);
         log("PHOTO_PICKER_LAUNCH_REQUEST");
-        activity.startActivity(intent);
+        try{activity.startActivity(intent);}catch(Throwable error){
+          log("PICKER_LAUNCH_FAILED:"+error.getClass().getSimpleName());
+          if(recv!=null)recv.postMessage(new WebMessage("{\"type\":\"picker_open_failed\"}"));
+        }
       }else if("saved_ack".equals(type)){
         String token=cmd.optString("token","");String stored=getContext().getSharedPreferences(PREF,0).getString("result","");
         if(!stored.isEmpty()&&token.equals(new JSONObject(stored).optString("token"))){
@@ -95,9 +103,12 @@ public final class MoaR651PickerBridgeProvider extends ContentProvider implement
     for(long delay:new long[]{100,450,1100,2500,4500})handler.postDelayed(()->attach(activity),delay);
   }
   @Override public void onActivityCreated(Activity a,Bundle b){schedule(a);}
-  @Override public void onActivityResumed(Activity a){schedule(a);}
+  @Override public void onActivityResumed(Activity a){
+    if(a==owner.get())log("PARENT_RESUMED_OWNER");
+    schedule(a);
+  }
   @Override public void onActivityStarted(Activity a){}
-  @Override public void onActivityPaused(Activity a){}
+  @Override public void onActivityPaused(Activity a){if(a==owner.get())log("PARENT_PAUSED_OWNER");}
   @Override public void onActivityStopped(Activity a){}
   @Override public void onActivitySaveInstanceState(Activity a,Bundle b){}
   @Override public void onActivityDestroyed(Activity a){if(owner.get()==a){if(recv!=null)try{recv.close();}catch(Throwable ignored){}recv=null;owner.clear();attached.clear();}}
