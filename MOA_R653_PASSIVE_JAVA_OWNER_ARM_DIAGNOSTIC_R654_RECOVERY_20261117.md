@@ -1,3 +1,5 @@
+> **2026-11-17 USER DEVICE RESULT OVERRIDES STATIC QA: R653 INITIAL PHOTO INLINE GALLERY FAIL + JAVA DIAG FAIL.** Read [MOA_R653_REAL_DEVICE_INITIAL_INLINE_FAIL_AND_FORENSIC_BLINDSPOT_20261117.md](MOA_R653_REAL_DEVICE_INITIAL_INLINE_FAIL_AND_FORENSIC_BLINDSPOT_20261117.md). START_INLINE emitted before async tryOpen, no proof whether JS early-return or Java ARM guard. R653 java observer's first `R507_NOT_RESUMED` was from STOPPED Activity, absent relevant failure snapshot. Previous signed APK builds still exist, but NOT Galaxy successful. Do not promote R653 or promise guaranteed R654 physical restore.
+
 # 모아 R653 Java PHOTO-inline owner 상태 진단 APK / R654 R648 기능복원 — 2026-11-17
 
 > **R653은 문제 해결 완료본이 아니라 실패 원인 수집용 실기기 미검증 베타다.** 골든은 기존 사용자 실기기 검증 R648 (One Hand Operation+ 네이버 접근성 OFF→ON 선행 조건). R651은 실제 Galaxy FAIL. 사진 추가 기능을 다시 수정하지 않았다. AA AirPods 음향 프로젝트 코드/데몬 수정 없음.
