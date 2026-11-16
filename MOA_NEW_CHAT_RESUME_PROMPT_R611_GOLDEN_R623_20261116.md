@@ -1,0 +1,9 @@
+# 새 채팅 모아 재개 — 2026-11-16 R623
+
+1. 반드시 GitHub `yooogillycloud123/workexcel-devbridge/main/AA_AirPods_FINAL_READ_FIRST_v1.0_20261005.md`를 처음부터 끝까지 읽고, `yooogillycloud123/family-journey-personal/main/MOA_READ_FIRST_NEW_CHAT.md`, `MOA_R611_USER_DEVICE_APPROVED_GOLDEN_LOCK_20261115.md`, `MOA_R621_R622_IMPLEMENTATION_HANDOFF_20261116.md`, `MOA_R623_R624_SELECTION_FILMSTRIP_HANDOFF_20261116.md`를 순서대로 읽어라.
+2. 사용자 실기기 승인 불변 최상위 골든 R611 SHA256 `38a507cf2e88a235282ae4d9ad64cf0799033f34ae8fe3e179a58960d1213ccd`; One Hand Operation+ NAVER 즐겨찾기 접근성 OFF→ON 반복 후 네이티브 Gallery 8버튼/영상/필름스트립 정상 유지. Golden GitHub 브랜치/원본 APK 수정 금지.
+3. 직전 정상 베타 R621 SHA256 `748efd3c2836b1325393f1815006948d373e76c7ea85415a9d8c98633bffaca3`(code621)에서 **R623(code623)** SHA256 `400ddac95278906a93b81ce640cf9aeef37afe57f5b27b7d7c406b241843983a`(9,125,927B) 제작. Manifest + 사진형 JS/CSS 3개만 변경, **141/144 원본 APK 항목 동일, 18 DEX 동일**. R623은 Galaxy 실기기 검사 전 베타.
+4. 사용자는 `22620.mp4` 카카오톡 사례처럼 사진 터치=선택, 좌상단이 아닌 **우측 상단 원형 선택 순서 숫자**, **좌측 하단 확대**, 360ms 길게 누르고 드래그 연속 선택, 선택 총 개수, 확대 화면 하단 관성 필름스트립/빠른 이동 ON/OFF/선택 공유를 요구. R623은 기존 단일 `r619PickSelection` Set과 `r619CommitPicked` 저장 함수를 재사용. 기존 MediaStore 영상/사진, 날짜별 세로 스크롤·자동 로드·전체 기간·앱 데이터 그대로.
+5. R623 미리보기 필름스트립은 기존 갤러리 **유사 WebUI**이며 실제 R611 native Gallery 렌더러 교체는 전혀 아님. Chrome 모바일 실제 소스 테스트 PASS, 삼성 실기기 터치·속도·동영상 권한은 PENDING. 사용자 새 영상 우선.
+6. **R624 비상 동일 서명 R621 기능 복구** versionCode624 SHA256 `e60d3167e3206a5ed97ba7091e4432ef8eb7d7929426da656bca05e4396eb457`, R621 대비 Manifest만 변경. R624 설치 후 새 APK code>=625. 앱 삭제, 데이터·네이버 쿠키 초기화 금지.
+7. 정확한 R623 소스와 APK, QA, SHA, README는 개인 Library `/모아_프로젝트_근거_20261103/R623_R624_R611_GOLDEN_KAKAO_SELECTION_20261116/` 및 독립 GitHub 브랜치 `feature/moa-r623-r621-kakao-drag-selection-preview-filmstrip-20261116`에 저장. 테스트 PASS와 실기기 PASS 절대 혼동 금지. AirPods Android Auto 코드는 별개이며 수정 금지.
