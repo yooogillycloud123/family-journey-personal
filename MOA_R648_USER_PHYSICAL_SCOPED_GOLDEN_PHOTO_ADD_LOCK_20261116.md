@@ -45,3 +45,6 @@ H. 과거 R623/R625 웹뷰 모의 갤러리는 원본 Android 네이티브 갤�
 
 ## 공통 프로젝트 경계
 이 문서는 MOA 사진 기능 개발 지침이다. 독립 AA AirPods Android Auto 오디오/daemon/GitHub runtime의 소스나 상태를 변경하지 않는다.
+
+## 추가 실제 소스 감사 (2026-11-16)
+R648 실제 설치 APK를 이전 Library release ZIP에서 읽어 확인한 결과 기존 사진 추가 자산은 `assets/web/moa-r640-lazy-picker.js`(19,577B) 및 CSS(6,785B)이고, 원본 native Gallery open/close 함수에 직접 접근하지 않는다는 주석·코드가 존재한다. 그러나 기존 picker JS의 `ensureBack()`는 실행 시 전역 `window.__fjBackOverlay`와 `window.__photoMapBack`을 체인으로 감싸며, ESC/Backspace 캡처 및 `popstate` 이벤트 리스너를 설치한다. 이는 **새 기능과 원본 화면의 간접적인 상태/네비게이션 충돌을 감사해야 할 구체적 지점**이지, 기존 R629~R647 실패의 확정 원인이라는 뜻은 아니다. 기존 R648 구현에서 정상 동작 중인 전역 경로는 함부로 정리하거나 고치지 말고, 새 사진 추가 구현은 자체 로컬/독립 owner의 닫기·뒤로가기 계약을 갖춰 원본 글로벌 callback을 중복 후킹하지 않는다. 기존 picker의 `render()`/`renderPreview()`에서 `root.replaceChildren()`과 `resetVideo()`를 호출하는 구조, `content://media/external/video/media/` WebView 재생, `__requestThumbs` 썸네일 fallback도 품질/영상/상태 전환의 감사 대상이다. R648의 6 img + 2 video RESOURCE_LOAD_ERROR는 구체 URL/예외 타입을 로그에 싣지 않으므로 위 각 경로의 인과관계는 아직 미확정이다.
