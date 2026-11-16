@@ -1,0 +1,62 @@
+name: MOA R651 isolated native picker DEX compile (no signer)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/moa-r651-native-picker-dex.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/moa-r651-r648-native-photo-picker-owner-isolation-20261117
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Ensure Android SDK platform / D8
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile strictly independent Activity and Provider into NEW DEX
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa651/classes /tmp/moa651/dex build/moa-r651
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d /tmp/moa651/classes \
+            experiments/moa-r651/MoaR651PickerBridgeProvider.java \
+            experiments/moa-r651/MoaR651PhotoPickerActivity.java \
+            2>&1 | tee build/moa-r651/compile.log
+          find /tmp/moa651/classes -name '*.class' -print0 | \
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 \
+              --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
+              --output /tmp/moa651/dex 2>&1 | tee -a build/moa-r651/compile.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,base64,zlib,hashlib
+          dex=Path('/tmp/moa651/dex/classes.dex').read_bytes()
+          assert dex.startswith(b'dex\n') and b'MoaR651PhotoPickerActivity' in dex
+          assert b'MoaR651PickerBridgeProvider' in dex
+          for forbidden in (b'MoaNativeGallery',b'r507StopInline',b'closeNativeGallery',b'openNativeGallery'):
+              assert forbidden not in dex,forbidden
+          p=Path('build/moa-r651')
+          (p/'classes19.dex.z.b64').write_text(base64.b64encode(zlib.compress(dex,9)).decode()+'\n')
+          (p/'verify.json').write_text(json.dumps({'dex_size':len(dex),'sha256':hashlib.sha256(dex).hexdigest(),
+            'photo_picker_java_sha256':hashlib.sha256(Path('experiments/moa-r651/MoaR651PhotoPickerActivity.java').read_bytes()).hexdigest(),
+            'provider_java_sha256':hashlib.sha256(Path('experiments/moa-r651/MoaR651PickerBridgeProvider.java').read_bytes()).hexdigest(),
+            'device_test':'NOT_PERFORMED','original_r648_dex_1_18':'UNTOUCHED'},indent=2))
+          print((p/'verify.json').read_text())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R651-NEW-NATIVE-PICKER-DEX
+          path: build/moa-r651/
