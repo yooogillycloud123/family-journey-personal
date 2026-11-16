@@ -30,7 +30,7 @@ jobs:
           from pathlib import Path
           import hashlib,base64,zlib,json
           p=Path('build/moa-r657');dex=Path('/tmp/moa657/dex/classes.dex').read_bytes()
-          assert dex.startswith(b'dex\\n')
+          assert dex[:3]==b'dex'
           assert b'EVAL_STALE_UNLOCK' in dex
           assert b'EVAL_LATE_IGNORED' in dex
           assert b'MoaR507InlineGalleryProvider' in dex
