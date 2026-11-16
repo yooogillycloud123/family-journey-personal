@@ -1,0 +1,36 @@
+# MOA R641 R611 Golden QuickRecord native ARM deduplication — 2026-11-16
+
+## User-proven current status — do not falsify
+On installed **R640**, actual Galaxy report: **first native Gallery displays, photo/detail transitions work, One Hand Operation+ NAVER favorite Accessibility OFF→ON works, BUT after QuickRecord Gallery fails to remount**. This is newer and more specific physical evidence than the earlier R637 fail. Exact R640 diagnostic:
+- Native mount/8-action deck repeatedly observed first (`NATIVE_MOUNT_ACK`, `NATIVE_GALLERY_OPEN_OBSERVED`, `NATIVE_8_ACTION_DECK_READY`).
+- Later `START_INLINE` repeated three times with counts 8, 29, 8 but no following new mount ACK.
+- R640 last active page=day, stageConnected=true,width352, bridge=true,nativeMethod=true, nativeOpen=false,arm/pending/opened/mounted=false. R640 timeline shows calendar/day transitions. No automatic retry happened: `r640RecoveryAttempts:0`.
+- The exact root cause at the native Java/OS level is NOT proven. The repeated START_INLINE without ACK and R611 source generation invalidation indicate a concrete async interleaving **risk**, NOT proven unique root cause.
+- User explicitly needs the assistant to produce a new signed APK, rather than asking them to perform code edits.
+
+## What is exactly protected
+Approved R611 original APK SHA256 `38a507cf2e88a235282ae4d9ad64cf0799033f34ae8fe3e179a58960d1213ccd`, package `com.juhyeon.familyjournea`, original signing cert SHA256 `5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15`.
+R641 was rebuilt FROM exact original R611 signed APK (not a failing R625/R629/R631/R633/R635/R637 or R640 derivative). Original 144 members: **141 identical**, **three changed**: `AndroidManifest.xml` for code641; `assets/web/index.html` for boot script; **only two scoped changes** in `assets/web/moa-r483-vertical-calendar.js`. Three additive assets include bootstrap and R640 already separated lazy Web photo picker JS/CSS. **Native DEX18/18 original exact**; original `family-diary.js`, `moa-r149-voice.js`, photo CSS all exact. R611 Android NAVER Accessibility observer and `r602PollPlaylist` provider logic unchanged.
+
+## R641 code scope and reason
+1. In original `r507StartInline()`, if same photo-day original native **pre-draw ARM is already in progress** (`__moaR511InlineArm===true`, timer exists, stage attached, not opened, not pending), coalesce a duplicate call instead of incrementing `r507Generation`. Previously duplicate calls can cancel prior `tryOpen` silently by generation mismatch. Original open path otherwise unchanged.
+2. The original asynchronous `tryOpen` now logs `START_INLINE_ABORTED` with non-personal reason SUPERSEDED/CLOSED/PAGE_CHANGED/VIEW_HIDDEN instead of silently returning. Logs are not proof of which path executed on user phone.
+3. R640's 950ms always-on diagnostic/repair interval is **removed**. Bootstrap retains limited diagnostics and lazy photo picker. Only on actual `moa:native-diary-committed` ACK, allow R611 original refresh first. If after 3.2 sec still on same day with attached stage, native explicitly CLOSED, original ARM/pending/open/mount all false, bridge present, and START_INLINE between 1.8 and 9s ago, invoke existing `__moaR543RepairInline()` at most **once per commit**. No repair for healthy/unknown native Gallery, no install-time native restart, no extra Java helper.
+4. Picker remains separate WebView DOM photo-add, lazy loaded only when user presses central +, never invokes `MoaLocalAudio.openNativeGallery`/close or original photo-stage owner. Real Web video/full-res quality physical pending.
+
+## Signed installables and SHA
+- R641 primary same-original-signer APK `MOA_R641_R611_QUICKRECORD_ARM_DEDUP_LAZY_PICKER_ORIGINAL_SIGNED_BETA.apk`, versionCode 641, **9,119,310 bytes**, SHA256 **`bf1633ad830057b61ef1d256d57a9215b393800c739c75a113dbb10f06167e89`**.
+- Emergency only R642 `MOA_R642_EXACT_R611_GOLDEN_FORWARD_RECOVERY_ORIGINAL_SIGNED.apk`, code642, **9,106,884 bytes**, SHA256 **`2da19ffb59d3c01e43be55bead4ba0c2c57d6b31b8205aa8395c8875128e0c7f`**; exactly original R611 143/144 unchanged members, manifest code only differs. Emergency loses R613+ picker/UI; installing R642 will block lower code R641 downgrade and next signed candidate must exceed642.
+- ZIP `MOA_R641_R642_R611_QUICKRECORD_ARM_FIX_SOURCE_QA_20261116.zip`, 13,206,087 bytes, SHA256 `8386b840a79714c26f0f3405432a837a7a396d2330d1440cbf84c686dc585f9a`. Contains 2 APK, source JS/CSS, exact R611->R641 JS unified patch, README, SHA256 sums, verification reports, mock tests; **no signer/keystore/password/user photo/media/login**.
+- Private Library `/모아_프로젝트_근거_20261103/R641_R642_R611_GOLDEN_QUICKRECORD_ARM_GUARD_20261116/` holds all three files.
+
+## Tests actually performed
+- Original APKv2 full signed content digest & RSA signature with exact original cert PASS; ZIP CRC/ZIP stored alignment PASS; core original DEX18 exact; original diary/voice/photo CSS exact.
+- JavaScript Node syntax PASS. Extracted exact R641 ARM guard 5 source-based cases PASS.
+- Chromium browser visual/selection mock 360/390/412px PASS (lazy photo picker, grid select, enlarged selection, rail, mock IndexedDB save/readback; native API calls 0).
+- Chromium QuickRecord guarded remediation 5 cases PASS: healthy native=0, closed same day=1, calendar=0, unknown native state=0, missing stage=0.
+- **R641 physical Galaxy initial Gallery / QuickRecord / One Hand OFF→ON / new picker are ALL NOT YET REVALIDATED. Not Golden/FINAL**. Mock PASS not equal physical success.
+- No Android DEX rebuild needed; original native classes byte-identical. No app uninstall/data clear/Naver reset. No AA AirPods audio changes.
+
+## Minimal physical confirmation
+Install R641 over currently installed same-signer MOA **without uninstalling**. Check (1) initial native 8-action photo mode (2) detail/photo toggle (3) One Hand Naver accessibility OFF→ON (4) QuickRecord and same day photo return, repeated (5) independent photo-add selection. If QuickRecord remains failed, use Settings > 원본 갤러리 진단 복사 to obtain new R641 START_INLINE_ABORTED / START_INLINE_JOIN_ACTIVE_ARM and mount stages; do not create another unbounded retry/Java overlay on guesses.
