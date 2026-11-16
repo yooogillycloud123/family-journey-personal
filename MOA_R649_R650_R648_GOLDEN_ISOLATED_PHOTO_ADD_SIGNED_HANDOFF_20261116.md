@@ -1,3 +1,5 @@
+> **RETRACTED AS WORKING CANDIDATE — 2026-11-16 USER R649 PHYSICAL FAIL:** Previous R649 signed/static/browser success is NOT app functionality success. User R649 real Galaxy video+R602: QuickRecord native Gallery loss and black/broken photo-add preview. Do not recommend R649 install anymore, do not promote Golden. See [MOA_R649_REAL_GALAXY_QUICKRECORD_AND_PHOTO_PICKER_FAIL_20261116.md](MOA_R649_REAL_GALAXY_QUICKRECORD_AND_PHOTO_PICKER_FAIL_20261116.md). R650 exact-R648 recovery still exists and is not yet phone-tested. R648 scoped Golden remains based on user-confirmed scenario only.
+
 # 모아 R649/R650 — 사용자 실기기 R648 scoped Golden 보호, 독립 사진추가 signed APK/상위복구 (2026-11-16)
 
 > **중요: R649는 서명된 설치용 베타이며 Galaxy 실기기 PASS 미확인. R648의 검증된 기능을 현재 사용자 scoped Golden으로 그대로 보호.** 모아 앱 사용자 데이터/네이버/권한 초기화 금지. AA AirPods Android Auto 오디오 별도 프로젝트 수정 금지.
