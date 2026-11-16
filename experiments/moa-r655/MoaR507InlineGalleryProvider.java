@@ -169,13 +169,14 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
   private long r602LastJavaSignalAt=0L;
   // R655 additive trace: records ACTUALLY EXECUTED owner-guard branches.
   // No Gallery open/close/rearm writes. Events tagged with current JS attempt.
-  private String r655LastBranch="";
-  private long r655LastBranchAt=0L;
+  private final java.util.LinkedHashMap<String,Long> r655BranchTimes=new java.util.LinkedHashMap<>();
   private void r655Branch(WebView web,String branch){
     try{
       long now=android.os.SystemClock.uptimeMillis();
-      if(branch.equals(r655LastBranch)&&now-r655LastBranchAt<1450L)return;
-      r655LastBranch=branch;r655LastBranchAt=now;
+      Long prev=r655BranchTimes.get(branch);
+      if(prev!=null&&now-prev.longValue()<850L)return;
+      r655BranchTimes.put(branch,now);
+      if(r655BranchTimes.size()>64)r655BranchTimes.remove(r655BranchTimes.keySet().iterator().next());
       android.util.Log.i("MOA_R655_BRANCH",branch);
       if(web!=null)web.evaluateJavascript(
         "window.__moaR655DirectJavaEvent&&window.__moaR655DirectJavaEvent("+
@@ -452,7 +453,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
       final long now=android.os.SystemClock.uptimeMillis();
       if(ownsGallery && !fullNativeOpen &&
           (returnFromBackground || now<returnCloseGuardUntil ||
-           nativeOwnerActivity!=a || !a.hasWindowFocus()))return;
+           nativeOwnerActivity!=a || !a.hasWindowFocus())){r655Branch(web,"TICK_DENY_CLOSED_OWNER_RETURN_GUARD");return;}
       ensurePositionChannel(web);
       if(!ownsGallery)retireDayBackIfInactive(a,web);
       if(ownsGallery){
@@ -584,6 +585,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     });
   }
   private void disarm(){
+    try{StackTraceElement[] st=Thread.currentThread().getStackTrace();String caller=st.length>3?st[3].getMethodName():"unknown";r655Branch(foreground==null?null:findWeb(foreground),"JAVA_DISARM_CALLER_"+caller);}catch(Throwable ignored){}
     if(armRoot!=null&&armGuard!=null)try{
       ViewTreeObserver obs=armRoot.getViewTreeObserver();
       if(obs.isAlive())obs.removeOnPreDrawListener(armGuard);
@@ -653,6 +655,7 @@ public final class MoaR507InlineGalleryProvider extends ContentProvider
     host.addOnAttachStateChangeListener(monitoredHostListener);
   }
   private void exitForegroundClosedGallery(Activity a,WebView web,Object gallery,String day){
+    r655Branch(web,"JAVA_EXIT_FOREGROUND_CLOSED_ENTER");
     if(!resumed||a!=foreground||!a.hasWindowFocus()||
        lifecyclePauseInProgress||controlledRebuildInProgress||fullNativeOpen||galleryOpen(gallery)||
        galleryRef!=gallery||nativeOwnerActivity!=a)return;
