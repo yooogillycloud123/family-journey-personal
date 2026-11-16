@@ -1,0 +1,47 @@
+name: MOA R655 correlated Java branch forensic DEX
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/moa-r655-direct-java-branch.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/moa-r655-direct-branch-correlation-20261117
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK and compile exact R611-derived R655 Java owner
+        shell: bash
+        run: |
+          set -euo pipefail
+          SM="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          "$SM" "platforms;android-35" "build-tools;35.0.0"
+          mkdir -p /tmp/moa655/classes /tmp/moa655/dex build/moa-r655
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa655/classes experiments/moa-r655/MoaR507InlineGalleryProvider.java 2>&1 | tee build/moa-r655/compile.log
+          find /tmp/moa655/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa655/dex
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,base64,zlib,json
+          p=Path('build/moa-r655');p.mkdir(parents=True,exist_ok=True)
+          dex=Path('/tmp/moa655/dex/classes.dex').read_bytes()
+          assert b'MoaR507InlineGalleryProvider' in dex
+          for tag in (b'MAYBE_ARM_DENY_PROCESSING',b'MAYBE_ARM_CALLBACK_DENY_INACTIVE',b'GALLERY_EXIT_CALL_CLOSED_WHILE_OWNED',b'R655'):
+              assert tag in dex,tag
+          (p/'classes18.dex.z.b64').write_text(base64.b64encode(zlib.compress(dex,9)).decode())
+          (p/'verify.json').write_text(json.dumps({'sha256':hashlib.sha256(dex).hexdigest(),'bytes':len(dex),'source_sha256':hashlib.sha256(Path('experiments/moa-r655/MoaR507InlineGalleryProvider.java').read_bytes()).hexdigest(),
+             'base_parity_test': 'R611 golden source compiled byte-identically to R648 classes18 in run 43925629456',
+             'galaxy_physical_test':'PENDING'},indent=2))
+          print((p/'verify.json').read_text())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R655-DIRECT-JAVA-BRANCH-DEX
+          path: build/moa-r655/
