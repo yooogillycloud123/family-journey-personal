@@ -51,12 +51,3 @@ jobs:
         with:
           name: MOA-R677-ISOLATED-DEX
           path: build/moa-r677/
-      - name: Store source-derived DEX for local ORIGINAL signer
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "moa-r677-source-ci"
-          git config user.email "actions@users.noreply.github.com"
-          git add build/moa-r677/classes19.dex.z.b64 build/moa-r677/verify.json
-          git commit -m "R677 isolated native DEX compile [skip ci]"
-          git push origin HEAD:feature/moa-r677-video23414-evidence-surgical-20261117
