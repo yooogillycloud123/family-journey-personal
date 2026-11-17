@@ -28,9 +28,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/moa685/c17 /tmp/moa685/c19 /tmp/moa685/d17 /tmp/moa685/d19 build/moa-r685
-          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/c17 experiments/moa-r685/MoaR391SessionPersistProvider.java
+          javac -encoding UTF-8 --release 8 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/c17 experiments/moa-r685/MoaR391SessionPersistProvider.java
           find /tmp/moa685/c17 -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa685/d17
-          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/c19 experiments/moa-r685/MoaR675PickerGalleryDeck.java experiments/moa-r685/MoaR667NativePickerProvider.java
+          javac -encoding UTF-8 --release 8 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/c19 experiments/moa-r685/MoaR675PickerGalleryDeck.java experiments/moa-r685/MoaR667NativePickerProvider.java
           find /tmp/moa685/c19 -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa685/d19
           python3 - <<'PY'
           from pathlib import Path
@@ -81,9 +81,9 @@ jobs:
           assert __import__('hashlib').sha256(u.encode()).hexdigest()=='a628810122a36341e2d70dfcf3eb30c894193f74352128463ff22c5f6699f5fa'
           Path('/tmp/moa685/base19src/MoaR667NativePickerProvider.java').write_text(u)
           PY
-          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/base17class /tmp/moa685/base17src/MoaR391SessionPersistProvider.java
+          javac -encoding UTF-8 --release 8 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/base17class /tmp/moa685/base17src/MoaR391SessionPersistProvider.java
           find /tmp/moa685/base17class -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa685/base17dex
-          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/base19class /tmp/moa685/base19src/MoaR675PickerGalleryDeck.java /tmp/moa685/base19src/MoaR667NativePickerProvider.java
+          javac -encoding UTF-8 --release 8 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/base19class /tmp/moa685/base19src/MoaR675PickerGalleryDeck.java /tmp/moa685/base19src/MoaR667NativePickerProvider.java
           find /tmp/moa685/base19class -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa685/base19dex
           python3 - <<'PY'
           from pathlib import Path
