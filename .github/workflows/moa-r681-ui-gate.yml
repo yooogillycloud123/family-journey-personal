@@ -1,0 +1,55 @@
+name: MOA R681 canonical-header and picker bridge source gate
+on:
+  push:
+    branches:
+      - feature/moa-r681-23428-31-header-bridge-20261117
+    paths:
+      - experiments/moa-r681/**
+      - .github/workflows/moa-r681-ui-gate.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check exact JS parse and user request contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r681/moa-r681-vertical-calendar.js
+          node - <<'JS'
+          const fs=require('fs'),assert=require('node:assert/strict');
+          const js=fs.readFileSync('experiments/moa-r681/moa-r681-vertical-calendar.js','utf8');
+          const css=fs.readFileSync('experiments/moa-r681/moa-r681-photo-picker.css','utf8');
+          const native=fs.readFileSync('experiments/moa-r681/MoaR667NativePickerProvider.java','utf8');
+          for(const fragment of [
+            "r483Pill(r619PickerScope", "moa-r539-day-chrome moa-r479-calendar-toolbar",
+            "moa-r539-day-chrome moa-r665-picker-header", "moa-r681-today-symbol",
+            "window.__moaR681PickerPortReady=true", "window.MoaR681NativePicker",
+            "s.page==='calendar'", "r681InstallLegacySync", "r681CapturePhotoDetailTypography"
+          ])assert.ok(js.includes(fragment), 'missing '+fragment);
+          for(const fragment of ["moa-r681-header", "moa-r681-today-symbol",
+            "moa-r681-settings-placeholder", "moa-r681-date-spacing",
+            "moa-r483-thumb"] ) assert.ok(css.includes(fragment),'missing '+fragment);
+          for(const fragment of ["createWebMessageChannel", "postWebMessage",
+            "r681StabilizeHostBars", "r681BeginPort", "new Bridge(a,w).open"])
+            assert.ok(native.includes(fragment),'missing '+fragment);
+          assert.equal((js.match(/function r539DayChrome\(/g)||[]).length,1);
+          assert.equal((js.match(/function r665PickerScopePill\(/g)||[]).length,1);
+          assert.equal((js.match(/function r619RenderPicker\(/g)||[]).length,1);
+          assert.ok(!js.includes("today.innerHTML='<span class=\"moa-r667-today-dot\""));
+          console.log('R681 static controls / native port gates PASS');
+          JS
+      - name: Record source SHA256
+        run: |
+          sha256sum experiments/moa-r681/moa-r681-vertical-calendar.js experiments/moa-r681/moa-r681-photo-picker.css experiments/moa-r681/MoaR667NativePickerProvider.java | tee r681-source-sha256.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R681-UI-SOURCE-CHECK
+          path: r681-source-sha256.txt
