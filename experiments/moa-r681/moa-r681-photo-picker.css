@@ -1,0 +1,663 @@
+/* MOA R663: isolated PHOTO ADD only. Base original R661 CSS unmodified. */
+/* MOA R658 — picker-only presentation. Original native 8-action Gallery,
+   QuickRecord, Naver and day/photo/detail selectors retain R657 byte-exact code. */
+#moa-r469-root[data-page="picker"] .moa-r619-picker-screen{
+ padding:9px 15px calc(94px + env(safe-area-inset-bottom))!important;
+ background:#fff!important;max-width:650px!important;min-height:100%!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-header{
+ display:flex!important;align-items:center!important;min-height:62px!important;
+ gap:9px!important;margin:0 0 10px!important;padding:0 1px!important;
+ background:#fff!important;position:sticky!important;top:0!important;z-index:28!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-header .moa-r619-text-back{
+ width:27px!important;min-width:27px!important;min-height:34px!important;height:34px!important;
+ padding:0!important;background:transparent!important;color:#33353c!important;border-radius:0!important;
+ font-size:29px!important;font-weight:350!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-title{
+ flex:1!important;min-width:0!important;white-space:nowrap!important;
+ overflow:hidden!important;text-overflow:ellipsis!important;
+ font:750 clamp(17px,4.4vw,22px)/1.35 system-ui,'Noto Sans KR',sans-serif!important;
+ letter-spacing:-.055em!important;color:#24262c!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-scope{
+ flex:0 0 67px!important;width:67px!important;height:33px!important;min-height:33px!important;
+ border:1.4px solid #cdd0d6!important;border-radius:22px!important;padding:3px!important;
+ background:#f0f1f4!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-switch-dot{
+ display:block!important;flex:none!important;width:25px!important;height:25px!important;
+ border-radius:50%!important;background:#262830!important;transition:transform .16s ease!important;
+ box-shadow:0 1px 3px #0003!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-scope[aria-checked="true"] .moa-r658-picker-switch-dot{transform:translateX(33px)!important;}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-status{
+ margin:0 0 10px!important;padding:9px 11px!important;border-radius:9px!important;
+ background:#fff2f2!important;color:#b13663!important;font-size:11px!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-bottom{
+ position:fixed!important;z-index:75!important;
+ left:max(14px,calc((100vw - 650px)/2 + 14px))!important;
+ right:max(14px,calc((100vw - 650px)/2 + 14px))!important;
+ bottom:calc(76px + env(safe-area-inset-bottom))!important;
+ display:block!important;margin:0!important;padding:0!important;
+ filter:drop-shadow(0 2px 8px #0002)!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-save{
+ display:block!important;width:100%!important;height:55px!important;min-height:55px!important;
+ border-radius:19px!important;padding:0 16px!important;
+ background:#25262d!important;color:#fff!important;
+ font:750 15px/1.2 system-ui,'Noto Sans KR',sans-serif!important;
+ text-align:center!important;opacity:1!important;box-shadow:0 3px 9px #0002!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-save:disabled{
+ background:#282a32!important;color:#bdc0c8!important;opacity:1!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r623-grid-zoom{
+ bottom:5px!important;left:5px!important;right:auto!important;top:auto!important;
+ width:17px!important;min-width:17px!important;height:17px!important;min-height:17px!important;
+ padding:0!important;border:1px solid #ffffffd9!important;border-radius:4px!important;
+ display:grid!important;place-items:center!important;background:#15141cbe!important;
+ font-size:0!important;line-height:1!important;box-shadow:0 1px 2px #0007!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r623-grid-zoom svg{
+ width:12px!important;height:12px!important;display:block!important;pointer-events:none!important;
+}
+/* 17px visual, 29px touch target, without covering the full tile. */
+#moa-r469-root[data-page="picker"] .moa-r623-grid-zoom::before{content:"";position:absolute;inset:-6px;}
+
+/* Picker-owned enlarged Gallery — native-like 8 tools plus one selection glyph;
+   no call into / replacement of the original Android Gallery host. */
+#moa-r469-root .moa-r623-preview.moa-r621-preview{
+ background:#fff!important;color:#24262d!important;
+ padding:calc(9px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom))!important;
+ gap:10px!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r621-preview-top{
+ display:flex!important;align-items:center!important;gap:9px!important;min-height:49px!important;height:49px!important;
+ padding:0 5px!important;color:#24262d!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r623-preview-index{
+ font:700 14px/1.3 system-ui,'Noto Sans KR',sans-serif!important;color:#25272d!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r623-preview-count{
+ background:#f1e9ed!important;color:#995878!important;font:700 11px/1.3 system-ui,'Noto Sans KR',sans-serif!important;
+ padding:6px 9px!important;border-radius:16px!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r621-preview-exit{
+ flex:none!important;width:34px!important;height:34px!important;border-radius:50%!important;
+ background:#f1f1f4!important;color:#28282d!important;font-size:24px!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-stage{
+ flex:1!important;position:relative!important;min-height:0!important;display:block!important;
+ border-radius:24px!important;background:#050505!important;overflow:hidden!important;touch-action:pan-y!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-media{
+ position:absolute!important;inset:0!important;display:flex!important;align-items:center!important;justify-content:center!important;
+ overflow:hidden!important;background:#060606!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-media>img{
+ width:100%!important;height:100%!important;object-fit:contain!important;pointer-events:none!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-stage.moa-r658-fill .moa-r658-preview-media>img{
+ object-fit:cover!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-media>.moa-r621-preview-player{
+ position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r623-preview-railwrap{
+ position:absolute!important;left:8px!important;right:8px!important;bottom:60px!important;z-index:10!important;
+ padding:4px 2px 0!important;margin:0!important;display:flex!important;flex-direction:column!important;
+ background:linear-gradient(0deg,#171319c0,#17131972 75%,transparent)!important;
+ border-radius:12px!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r623-preview-rail-top{
+ display:none!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r623-preview-rail{
+ height:84px!important;min-height:84px!important;
+ padding:9px 4px 8px!important;margin:0!important;
+ scroll-snap-type:x proximity!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r623-preview-railwrap.is-collapsed .moa-r623-preview-rail{
+ display:none!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-actions{
+ position:absolute!important;left:9px!important;right:9px!important;bottom:9px!important;
+ z-index:15!important;display:grid!important;grid-template-columns:repeat(9,minmax(0,1fr))!important;
+ gap:1px!important;align-items:center!important;
+ border-radius:17px!important;background:#27252cc4!important;backdrop-filter:blur(8px)!important;
+ min-height:47px!important;padding:5px 2px!important;margin:0!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-tool{
+ display:grid!important;place-items:center!important;min-width:0!important;width:100%!important;
+ height:35px!important;padding:4px 0!important;color:#f5f5f6!important;background:transparent!important;
+ border:0!important;border-radius:9px!important;font-size:0!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-tool svg{width:clamp(16px,4.2vw,23px)!important;height:clamp(16px,4.2vw,23px)!important;pointer-events:none!important;}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-tool.is-active{
+ background:#ffffff30!important;color:#fff!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-tool-add{
+ background:#a7507a60!important;color:#fff!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-tool-add.is-selected{
+ background:#d15a90!important;color:#fff!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-info{
+ position:absolute!important;left:9px!important;right:9px!important;bottom:151px!important;z-index:18!important;
+ background:#202025ed!important;color:#fff!important;border-radius:13px!important;
+ padding:14px 12px!important;font:12px/1.55 system-ui,'Noto Sans KR',sans-serif!important;
+ max-height:45%!important;overflow:auto!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-info-exit{float:right!important;color:#fff!important;background:#ffffff20!important;padding:0!important;width:25px!important;height:25px!important;border-radius:50%!important;}
+#moa-r469-root .moa-r623-preview .moa-r625-video-controls{
+ bottom:155px!important;z-index:12!important;
+}
+@media(max-width:340px){
+ #moa-r469-root .moa-r623-preview .moa-r658-preview-actions{left:5px!important;right:5px!important;padding:3px 0!important;}
+ #moa-r469-root .moa-r623-preview .moa-r658-preview-tool{height:30px!important;}
+}
+
+
+/* MOA R665: exact PHOTO/DETAIL date 14px and switch 68x34, scroller below frozen header. */
+#moa-r469-root[data-page="picker"]{
+ display:flex!important;flex-direction:column!important;
+ overflow:hidden!important;overscroll-behavior:none!important;
+ padding:calc(8px + env(safe-area-inset-top)) 0 0!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-screen{
+ display:flex!important;flex-direction:column!important;flex:1 1 auto!important;
+ height:100%!important;min-height:0!important;max-width:650px!important;
+ width:100%!important;margin:0 auto!important;padding:0 15px!important;overflow:hidden!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-header{
+ position:relative!important;top:auto!important;left:auto!important;right:auto!important;
+ flex:0 0 49px!important;height:49px!important;min-height:49px!important;
+ z-index:70!important;display:flex!important;align-items:center!important;flex-wrap:nowrap!important;
+ gap:3px!important;margin:0 0 6px!important;padding:0!important;
+ background:#fff!important;box-shadow:none!important;border:0!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r665-picker-back{
+ flex:0 0 29px!important;min-width:29px!important;width:29px!important;
+ height:34px!important;min-height:34px!important;padding:0!important;
+ background:transparent!important;color:#302a32!important;font:300 25px/1 system-ui!important;
+ border:0!important;display:grid!important;place-items:center!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r539-day-head{
+ display:flex!important;flex:1 1 auto!important;align-items:center!important;
+ min-width:0!important;height:42px!important;min-height:42px!important;
+ overflow:hidden!important;padding:0!important;margin:0!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r619-date-host,
+#moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r619-date-fixed{
+ min-width:0!important;height:42px!important;max-width:100%!important;
+ font:700 clamp(12px,3.3vw,14px)/1.3 system-ui,'Noto Sans KR',sans-serif!important;
+ letter-spacing:-.035em!important;text-align:left!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r539-day-controls{
+ flex:0 0 68px!important;min-width:68px!important;max-width:68px!important;
+ width:68px!important;height:34px!important;min-height:34px!important;
+ display:flex!important;align-items:center!important;justify-content:flex-end!important;
+ margin:0!important;padding:0!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-scope.moa-r483-oval-switch{
+ flex:0 0 68px!important;width:68px!important;min-width:68px!important;
+ max-width:68px!important;height:34px!important;min-height:34px!important;max-height:34px!important;
+ border-radius:99px!important;margin:0!important;display:grid!important;
+ grid-template-columns:repeat(2,1fr)!important;padding:3px!important;
+ background:#f1edf0!important;border:1px solid #e8e0e5!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-scope .moa-r483-thumb{
+ width:calc(50% - 3px)!important;height:26px!important;top:3px!important;left:3px!important;
+ background:#24262e!important;border-radius:99px!important;
+ transition:transform .19s cubic-bezier(.22,.78,.19,1)!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-scope[data-source="all"] .moa-r483-thumb{transform:translateX(100%)!important;}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-scope .moa-r483-toggle-hit{
+ position:relative!important;z-index:2!important;min-width:0!important;min-height:26px!important;
+ width:100%!important;height:26px!important;padding:0!important;border:0!important;
+ background:transparent!important;touch-action:pan-y!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-scroll{
+ flex:1 1 auto!important;min-height:0!important;position:relative!important;
+ width:100%!important;overflow-y:auto!important;overflow-x:hidden!important;
+ touch-action:pan-y!important;overscroll-behavior-y:contain!important;
+ -webkit-overflow-scrolling:touch!important;scrollbar-width:none!important;
+ padding:8px 0 calc(117px + env(safe-area-inset-bottom))!important;
+ margin:0!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-scroll::-webkit-scrollbar{display:none!important;}
+#moa-r469-root[data-page="picker"] .moa-r469-status{display:none!important;}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-bottom{
+ bottom:calc(76px + env(safe-area-inset-bottom))!important;
+ pointer-events:auto!important;
+}
+#moa-r469-root .moa-r665-picker-sheet-backdrop{z-index:10002!important;}
+#moa-r469-root .moa-r665-picker-sheet-backdrop .moa-r621-period-sheet{padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+/* R665 enlarged picker: 8 genuine original action concepts + separate photo-add icon. */
+#moa-r469-root .moa-r623-preview.moa-r621-preview{
+ padding:calc(8px + env(safe-area-inset-top)) 8px calc(8px + env(safe-area-inset-bottom))!important;
+ gap:7px!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r621-preview-top{
+ min-height:49px!important;height:49px!important;padding:0 7px!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r623-preview-index{
+ font:700 clamp(12px,3.3vw,14px)/1.3 system-ui,'Noto Sans KR',sans-serif!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-stage{
+ border-radius:21px!important;isolation:isolate!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r623-preview-railwrap{
+ bottom:55px!important;left:4px!important;right:4px!important;
+ background:linear-gradient(0deg,#171419bd,#17141966 65%,transparent)!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r623-preview-rail{
+ height:78px!important;min-height:78px!important;scroll-snap-type:x proximity!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-actions{
+ min-height:45px!important;bottom:6px!important;left:6px!important;right:6px!important;
+ border-radius:17px!important;background:#242228c8!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r658-preview-tool{height:35px!important;}
+#moa-r469-root .moa-r623-preview .moa-r665-bookmark-save{
+ display:block!important;width:100%!important;min-height:39px!important;
+ padding:9px 10px!important;margin-top:8px!important;border-radius:10px!important;
+ background:#b55a84!important;color:#fff!important;font:650 12px/1.25 system-ui!important;
+}
+#moa-r469-root .moa-r623-preview.moa-r665-immersive{
+ padding:0!important;gap:0!important;background:#050505!important;
+}
+#moa-r469-root .moa-r623-preview.moa-r665-immersive .moa-r621-preview-top{
+ position:absolute!important;left:8px!important;right:8px!important;top:calc(7px + env(safe-area-inset-top))!important;
+ z-index:19!important;background:#17151b66!important;border-radius:16px!important;color:#fff!important;
+}
+#moa-r469-root .moa-r623-preview.moa-r665-immersive .moa-r623-preview-index{color:#fff!important;}
+#moa-r469-root .moa-r623-preview.moa-r665-immersive .moa-r658-preview-stage{border-radius:0!important;height:100%!important;}
+#moa-r469-root .moa-r623-preview .moa-r665-video-mute{
+ border-radius:7px!important;min-width:28px!important;color:#fff!important;background:#ffffff22!important;
+}
+#moa-r469-root .moa-r623-preview .moa-r665-native-video-fallback{
+ color:#fff!important;border-radius:7px!important;background:#a2527c!important;
+ font-size:10px!important;padding:3px 6px!important;white-space:nowrap!important;
+}
+
+/* R667 precise user requested sizing — ONLY main calendar title font changes.
+   Keep original period button and all JS year/month wheel + swipe listeners. */
+html #moa-r469-root[data-page="calendar"] .moa-r479-period strong {
+ font-size:clamp(12px,3.3vw,14px)!important;
+ line-height:1.3!important;letter-spacing:-.035em!important;
+}
+/* R667 photo-add: zero back arrow; exactly TWO same-size oval switches. */
+#moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r665-picker-back{display:none!important;}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-header {
+ gap:5px!important;min-height:49px!important;height:49px!important;
+ padding:0!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r539-day-head{
+ min-width:0!important;flex:1 1 auto!important;padding:0!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r619-date-fixed{
+ font-size:clamp(11px,3.2vw,14px)!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r667-picker-controls{
+ flex:0 0 141px!important;width:141px!important;min-width:141px!important;
+ max-width:141px!important;height:34px!important;min-height:34px!important;
+ gap:5px!important;display:flex!important;align-items:center!important;
+ margin:0!important;justify-content:flex-end!important;padding:0!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r667-picker-controls .moa-r665-picker-scope{
+ width:68px!important;height:34px!important;min-height:34px!important;
+ max-height:34px!important;flex:0 0 68px!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r667-today-pill {
+ box-sizing:border-box!important;position:relative!important;flex:0 0 68px!important;
+ width:68px!important;min-width:68px!important;max-width:68px!important;
+ min-height:34px!important;height:34px!important;max-height:34px!important;
+ display:flex!important;align-items:center!important;justify-content:flex-end!important;
+ background:#f1edf0!important;border:1px solid #e8e0e5!important;border-radius:99px!important;
+ padding:0 9px!important;color:#363139!important;box-shadow:none!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r667-today-pill .moa-r667-today-dot {
+ position:absolute!important;left:3px!important;top:3px!important;width:26px!important;
+ height:26px!important;background:#24262e!important;border-radius:99px!important;
+ transition:transform .17s ease!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r667-today-pulse .moa-r667-today-dot{
+ transform:translateX(4px)!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r667-today-pill svg {
+ width:17px!important;height:17px!important;pointer-events:none!important;
+}
+/* Match the user-approved blank today strip exactly: 29px high / 10px radius. */
+#moa-r469-root[data-page="picker"] .moa-r658-picker-bottom {
+ bottom:calc(78px + env(safe-area-inset-bottom))!important;
+ margin:0!important;filter:none!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r658-picker-save {
+ box-sizing:border-box!important;height:29px!important;min-height:29px!important;
+ max-height:29px!important;border-radius:10px!important;padding:0 10px!important;
+ font-size:12px!important;line-height:28px!important;font-weight:650!important;
+ box-shadow:none!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r665-picker-scroll {
+ padding-bottom:calc(84px + env(safe-area-inset-bottom))!important;
+}
+#moa-r469-root[data-page="picker"] .moa-r667-gps-result{
+ position:fixed;bottom:calc(113px + env(safe-area-inset-bottom));left:15px;right:15px;
+ z-index:100;color:#302b31;font-size:12px;max-height:20vh;overflow:auto;
+ background:#fff;border-radius:12px;box-shadow:0 2px 10px #0002;
+}
+
+/* R671 — one exact header geometry for calendar, PHOTO/detail and PHOTO ADD.
+   Original PHOTO native owner code + the original PHOTO CSS are untouched. */
+html #moa-r469-root[data-page="calendar"] .moa-r479-calendar-toolbar{
+  flex:0 0 49px!important;min-height:49px!important;height:49px!important;
+  margin:0 16px 6px!important;padding:0!important;
+  align-items:center!important;justify-content:space-between!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r479-period{
+  flex:1 1 auto!important;min-width:0!important;max-width:calc(100% - 125px)!important;
+  height:42px!important;min-height:42px!important;margin:0!important;padding:0!important;
+  justify-content:flex-start!important;align-items:center!important;border:0!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r479-period strong{
+  font:700 clamp(12px,3.3vw,14px)/1.3 system-ui,'Noto Sans KR',sans-serif!important;
+  letter-spacing:-.035em!important;margin:0!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r479-right-stack{
+  flex:0 0 68px!important;width:68px!important;height:34px!important;
+  min-height:34px!important;max-height:34px!important;
+  margin:0 52px 0 0!important;align-self:center!important;
+  display:flex!important;align-items:center!important;justify-content:flex-end!important;
+}
+html #moa-r469-root[data-page="calendar"] .moa-r479-right-stack .moa-r483-photo-source{
+  flex:0 0 68px!important;width:68px!important;height:34px!important;min-height:34px!important;
+  max-height:34px!important;margin:0!important;
+}
+/* PHOTO ADD root begins at same y as PHOTO/detail: no duplicate top padding. */
+html #moa-r469-root[data-page="picker"]{
+  padding:calc(10px + env(safe-area-inset-top)) 0 0!important;
+}
+html #moa-r469-root[data-page="picker"] .moa-r665-picker-screen{
+  padding:0 16px!important;
+}
+html #moa-r469-root[data-page="picker"] .moa-r665-picker-header{
+  flex:0 0 49px!important;min-height:49px!important;height:49px!important;
+  margin:0 0 6px!important;padding:0!important;gap:3px!important;
+}
+html #moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r619-date-fixed{
+  font:700 clamp(12px,3.3vw,14px)/1.3 system-ui,'Noto Sans KR',sans-serif!important;
+}
+html #moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r667-picker-controls{
+  flex:0 0 120px!important;width:120px!important;min-width:120px!important;
+  max-width:120px!important;gap:4px!important;height:34px!important;min-height:34px!important;
+}
+html #moa-r469-root[data-page="picker"] .moa-r667-picker-controls .moa-r665-picker-scope{
+  flex:0 0 68px!important;width:68px!important;height:34px!important;min-height:34px!important;
+}
+/* Small oval TODAY button replaces the unnecessary calendar glyph. */
+html #moa-r469-root[data-page="picker"] .moa-r667-today-pill{
+  flex:0 0 48px!important;width:48px!important;min-width:48px!important;
+  max-width:48px!important;height:34px!important;min-height:34px!important;
+  background:transparent!important;border:0!important;padding:0!important;
+  display:grid!important;place-items:center!important;position:relative!important;
+}
+html #moa-r469-root[data-page="picker"] .moa-r667-today-pill::before{
+  content:""!important;width:44px!important;height:19px!important;
+  display:block!important;border-radius:100px!important;
+  background:#f1edf0!important;border:1px solid #ddd5db!important;
+}
+html #moa-r469-root[data-page="picker"] .moa-r667-today-pill .moa-r667-today-dot{
+  position:absolute!important;left:5px!important;top:9px!important;
+  width:16px!important;height:16px!important;border-radius:50%!important;
+  background:#25262d!important;transition:transform .17s ease!important;
+}
+html #moa-r469-root[data-page="picker"] .moa-r667-today-pulse .moa-r667-today-dot{
+  transform:translateX(23px)!important;
+}
+html #moa-r469-root[data-page="picker"] .moa-r667-today-pill svg{display:none!important;}
+
+/* R671 physical header Y anchor: original PHOTO/detail uses an 8px root inset.
+   The R669 picker used 10px and the calendar used 0px: both jump on mode change. */
+html #moa-r469-root[data-page="calendar"],
+html #moa-r469-root[data-page="picker"]{
+ padding-top:calc(8px + env(safe-area-inset-top))!important;
+}
+
+/* R675 — EXACT non-floating calendar-style 40px in-flow lower dock.
+ * The calendar's .moa-r487-today-dock sits directly on the tabbar.  PHOTO ADD
+ * must use the SAME flex-column dock, not fixed bottom:78px (which produced
+ * the visible white gap and let photo tiles scroll behind the save bar). */
+html body #moa-r469-root[data-page="picker"]{
+  padding-bottom:0!important;overflow:hidden!important;
+  display:flex!important;flex-direction:column!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r665-picker-screen{
+  display:flex!important;flex:1 1 auto!important;flex-direction:column!important;
+  min-height:0!important;height:100%!important;overflow:hidden!important;
+  padding-bottom:0!important;margin-bottom:0!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r665-picker-scroll{
+  flex:1 1 auto!important;min-height:0!important;
+  margin:0!important;padding-bottom:8px!important;
+  overflow-y:auto!important;overscroll-behavior-y:contain!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r658-picker-bottom{
+  position:relative!important;inset:auto!important;left:auto!important;right:auto!important;
+  top:auto!important;bottom:auto!important;
+  z-index:75!important;box-sizing:border-box!important;
+  display:flex!important;align-items:center!important;justify-content:stretch!important;
+  flex:0 0 40px!important;height:40px!important;min-height:40px!important;
+  width:calc(100% + 32px)!important;max-width:none!important;
+  margin:0 -16px!important;padding:3px 7px!important;
+  background:#fff!important;border:0!important;box-shadow:none!important;filter:none!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r658-picker-save{
+  flex:1 1 auto!important;width:100%!important;
+  display:block!important;height:33px!important;min-height:33px!important;max-height:33px!important;
+  padding:0!important;margin:0!important;border-radius:12px!important;
+  box-sizing:border-box!important;font-size:12px!important;line-height:32px!important;
+  box-shadow:none!important;
+}
+/* Use the PHOTO/DETAIL existing 68x34 first-party oval switch class, do not
+ * scale a separate switch. TODAY is a tiny independent tap target beside it. */
+html body #moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r667-picker-controls{
+  flex:0 0 106px!important;width:106px!important;min-width:106px!important;max-width:106px!important;
+  height:34px!important;gap:4px!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r667-picker-controls .moa-r665-picker-scope{
+  flex:0 0 68px!important;width:68px!important;min-width:68px!important;
+  max-width:68px!important;height:34px!important;min-height:34px!important;max-height:34px!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r667-today-pill{
+  flex:0 0 34px!important;width:34px!important;min-width:34px!important;
+  max-width:34px!important;height:34px!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r667-today-pill::before{
+  width:29px!important;height:16px!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r667-today-pill .moa-r667-today-dot{
+  width:12px!important;height:12px!important;top:11px!important;left:4px!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r667-today-pulse .moa-r667-today-dot{
+  transform:translateX(12px)!important;
+}
+
+/* R677: 23414.mp4 02:29-02:54 picker scope was visibly oversized.
+   The existing PHOTO/calendar switch is 68x40 TOUCH with 44x19 VISUAL.
+   This applies only to photo-add; never modify original PHOTO/calendar CSS. */
+html body #moa-r469-root[data-page="picker"] .moa-r665-picker-header .moa-r667-picker-controls{
+ flex:0 0 106px!important;width:106px!important;min-width:106px!important;
+ max-width:106px!important;height:40px!important;min-height:40px!important;
+ align-items:center!important;gap:4px!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r667-picker-controls .moa-r665-picker-scope{
+ flex:0 0 68px!important;width:68px!important;min-width:68px!important;max-width:68px!important;
+ height:40px!important;min-height:40px!important;max-height:40px!important;
+ padding:0!important;border:0!important;background:transparent!important;
+ position:relative!important;box-shadow:none!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r665-picker-scope::before{
+ content:""!important;display:block!important;position:absolute!important;z-index:0!important;
+ width:44px!important;height:19px!important;left:calc(50% - 22px)!important;
+ top:calc(50% - 9.5px)!important;border-radius:100px!important;
+ background:var(--moa-r491-track,#f1edf0)!important;
+ border:1px solid var(--moa-r491-track-border,#e8e0e5)!important;
+ box-sizing:border-box!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r665-picker-scope .moa-r483-thumb{
+ width:18px!important;min-width:18px!important;height:15px!important;min-height:15px!important;
+ top:calc(50% - 7.5px)!important;left:calc(50% - 19px)!important;
+ background:var(--moa-r491-accent,#bb648d)!important;border-radius:100px!important;
+ transform:translateX(0)!important;transition:transform .18s ease!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r665-picker-scope[data-source="all"] .moa-r483-thumb{
+ transform:translateX(20px)!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r665-picker-scope .moa-r483-toggle-hit{
+ height:40px!important;min-height:40px!important;max-height:40px!important;
+ border:0!important;background:transparent!important;color:transparent!important;font-size:0!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r667-today-pill{
+ height:40px!important;min-height:40px!important;max-height:40px!important;
+ background:transparent!important;border:0!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r667-today-pill::before{
+ width:28px!important;height:16px!important;left:3px!important;top:12px!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r667-today-pill .moa-r667-today-dot{
+ width:12px!important;height:12px!important;top:14px!important;left:4px!important;
+}
+
+/* R679: share PHOTO's x=17px date anchor while preserving the original y/font/gesture.
+   Only PHOTO-ADD scope; main PHOTO and DETAIL CSS remain immutable. */
+html body #moa-r469-root[data-page="picker"] .moa-r665-picker-screen{
+ padding-left:17px!important;padding-right:17px!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r658-picker-bottom{
+ width:calc(100% + 34px)!important;margin-left:-17px!important;margin-right:-17px!important;
+}
+
+/* R679: calendar's rendered date label had x=16px on 390 CSS viewport,
+   while PHOTO and picker were x=17px. Align only this 1px glyph anchor. */
+html #moa-r469-root[data-page="calendar"] .moa-r479-period strong{
+ transform:translateX(1px)!important;
+}
+/* R681 — PHOTO/DETAIL are the only canonical layout owners.
+   Reuse exact class structure and selected original switch DOM. 
+   This sheet ONLY affects calendar and photo-add, never PHOTO/DETAIL. */
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header,
+html body #moa-r469-root[data-page="picker"] .moa-r681-header{
+ box-sizing:border-box!important;display:flex!important;align-items:center!important;
+ justify-content:space-between!important;flex-wrap:nowrap!important;
+ position:relative!important;top:auto!important;left:auto!important;right:auto!important;
+ height:49px!important;min-height:49px!important;max-height:49px!important;
+ margin:0 0 6px!important;padding-top:0!important;padding-bottom:0!important;
+ gap:4px!important;background:var(--moa-r491-bg,#fff)!important;
+ border:0!important;box-shadow:none!important;transform:none!important;
+}
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header{
+ padding-left:17px!important;padding-right:17px!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r681-header{
+ padding-left:0!important;padding-right:0!important;
+}
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header .moa-r539-day-head,
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r539-day-head{
+ box-sizing:border-box!important;flex:1 1 auto!important;min-width:0!important;
+ display:flex!important;align-items:center!important;
+ height:42px!important;min-height:42px!important;margin:0!important;padding:0!important;
+ overflow:hidden!important;
+}
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header .moa-r619-date-host,
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r619-date-host{
+ flex:1 1 auto!important;min-width:0!important;max-width:100%!important;
+ height:42px!important;display:flex!important;align-items:center!important;
+ padding:0!important;margin:0!important;
+}
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header .moa-r619-date-fixed,
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r619-date-fixed{
+ min-width:0!important;max-width:100%!important;
+ height:42px!important;min-height:42px!important;
+ display:flex!important;align-items:center!important;
+ font-family:var(--moa-r681-date-font-family,system-ui,'Noto Sans KR',sans-serif)!important;
+ font-size:var(--moa-r681-date-size,14px)!important;
+ font-weight:var(--moa-r681-date-weight,700)!important;
+ line-height:var(--moa-r681-date-line,1.3)!important;
+ letter-spacing:var(--moa-r681-date-spacing,-.035em)!important;
+ white-space:nowrap!important;text-align:left!important;
+ padding:0!important;margin:0!important;
+ transform:none!important;
+}
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header .moa-r479-period strong{
+ font:inherit!important;font-weight:inherit!important;letter-spacing:inherit!important;
+ transform:none!important;margin:0!important;padding:0!important;
+}
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header .moa-r539-day-controls,
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r539-day-controls{
+ display:flex!important;align-items:center!important;justify-content:flex-end!important;
+ flex:0 0 106px!important;width:106px!important;min-width:106px!important;
+ max-width:106px!important;height:40px!important;min-height:40px!important;
+ gap:4px!important;margin:0!important;padding:0!important;
+}
+html body #moa-r469-root[data-page="calendar"] .moa-r681-settings-placeholder{
+ display:block!important;flex:0 0 34px!important;width:34px!important;
+ height:34px!important;visibility:hidden!important;pointer-events:none!important;
+}
+/* Canonical PHOTO/DETAIL r483Pill source, not the previous 68x34 extra skin. */
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header .moa-r483-oval-switch,
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r483-oval-switch{
+ position:relative!important;display:grid!important;grid-template-columns:1fr 1fr!important;
+ flex:0 0 68px!important;width:68px!important;min-width:68px!important;
+ max-width:68px!important;height:40px!important;min-height:40px!important;
+ max-height:40px!important;padding:0!important;margin:0!important;
+ background:transparent!important;border:0!important;border-radius:0!important;
+ box-shadow:none!important;
+}
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header .moa-r483-oval-switch::before,
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r483-oval-switch::before{
+ content:""!important;position:absolute!important;z-index:0!important;
+ box-sizing:border-box!important;left:12px!important;top:10.5px!important;
+ width:44px!important;height:19px!important;border-radius:99px!important;
+ background:var(--moa-r491-track,#f1edf0)!important;
+ border:1px solid var(--moa-r491-track-border,#e8e0e5)!important;
+}
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header .moa-r483-thumb,
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r483-thumb{
+ position:absolute!important;z-index:1!important;left:15px!important;top:12.5px!important;
+ width:18px!important;height:15px!important;min-width:18px!important;min-height:15px!important;
+ border-radius:99px!important;background:var(--moa-r491-accent,#bb648d)!important;
+ transform:translateX(0)!important;transition:transform .18s ease!important;
+}
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header .moa-r483-oval-switch[data-source="automatic"] .moa-r483-thumb,
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r483-oval-switch[data-source="all"] .moa-r483-thumb{
+ transform:translateX(20px)!important;
+}
+html body #moa-r469-root[data-page="calendar"] .moa-r681-header .moa-r483-toggle-hit,
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r483-toggle-hit{
+ position:relative!important;z-index:2!important;box-sizing:border-box!important;
+ width:100%!important;min-width:0!important;height:40px!important;
+ min-height:40px!important;max-height:40px!important;padding:0!important;
+ margin:0!important;border:0!important;background:transparent!important;
+ font-size:0!important;color:transparent!important;
+}
+/* Today occupies PHOTO/DETAIL SETTINGS position: real calendar-day symbol,
+   no second switch, no decorative track or moving thumb. */
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r667-today-pill{
+ position:relative!important;box-sizing:border-box!important;
+ flex:0 0 34px!important;width:34px!important;min-width:34px!important;
+ max-width:34px!important;height:34px!important;min-height:34px!important;
+ max-height:34px!important;display:grid!important;place-items:center!important;
+ border:0!important;border-radius:8px!important;background:transparent!important;
+ color:#35333a!important;padding:0!important;margin:0!important;box-shadow:none!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r667-today-pill::before,
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r667-today-dot{
+ display:none!important;content:none!important;
+}
+html body #moa-r469-root[data-page="picker"] .moa-r681-header .moa-r667-today-pill svg.moa-r681-today-symbol{
+ display:block!important;width:19px!important;height:19px!important;pointer-events:none!important;
+}
