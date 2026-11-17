@@ -1,0 +1,59 @@
+name: MOA R689 isolated video-only native DEX17 QA
+on:
+  push:
+    branches: [feature/moa-r689-r688-video-only-20261117]
+    paths:
+      - 'experiments/moa-r689/**'
+      - '.github/workflows/moa-r689-native-video-only.yml'
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK 35
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile exact user R683 Golden class17 baseline, then R689 only
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa689/baseSrc /tmp/moa689/baseClasses /tmp/moa689/newClasses /tmp/moa689/baseDex /tmp/moa689/newDex build/moa-r689
+          git fetch -q origin refs/heads/golden/moa-r463-user-approved-20261113
+          git show FETCH_HEAD:experiments/moa-r391/MoaR391SessionPersistProvider.java > /tmp/moa689/baseSrc/MoaR391SessionPersistProvider.java
+          javac -encoding UTF-8 --release 8 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa689/baseClasses /tmp/moa689/baseSrc/MoaR391SessionPersistProvider.java
+          find /tmp/moa689/baseClasses -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa689/baseDex
+          javac -encoding UTF-8 --release 8 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa689/newClasses experiments/moa-r689/MoaR391SessionPersistProvider.java
+          find /tmp/moa689/newClasses -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa689/newDex
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,base64,zlib
+          out=Path('build/moa-r689')
+          baseline=Path('/tmp/moa689/baseDex/classes.dex').read_bytes()
+          patch=Path('/tmp/moa689/newDex/classes.dex').read_bytes()
+          digest=lambda x:hashlib.sha256(x).hexdigest()
+          assert digest(baseline)=='2e41f108d2e20f604c6cebe3692157cd9d52ca4c87576df0cbf5b80b301b4492', 'R683 classes17 baseline byte parity failed!'
+          for marker in [b'r689SyncGalleryVideoUX',b'volumeBubble',b'volumeRail',b'r689AudioDay']:
+              assert marker in patch, marker
+          assert b'moa_r685_gallery_fast_stage_v1' not in patch
+          (out/'classes17.dex.z.b64').write_text(base64.b64encode(zlib.compress(patch,9)).decode()+'\n')
+          (out/'compiled.json').write_text(json.dumps({'r683_classes17_exact':True,'baseline_sha256':digest(baseline),'candidate_sha256':digest(patch),
+             'candidate_size':len(patch),'jdk':'17/--release 8','sdk':35,'classes6_native_gallery_modified':False,
+             'audio_policy':'per diary day, initial muted','inline_photo_controls':'scale 0.68; fullscreen 1.0','volume_auto_hide_ms':4000,
+             'physical_samsung_test':'NOT_PERFORMED'},indent=2))
+          print((out/'compiled.json').read_text())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R689-VIDEO-ONLY-DEX17-JDK17
+          path: build/moa-r689/
