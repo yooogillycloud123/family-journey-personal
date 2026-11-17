@@ -1,0 +1,14 @@
+/* MOA R689: only the diary story editor is collapsible. Keep adjacent
+   QuickRecord and voice disclosure panels fully independent. */
+#moa-r469-root .moa-r689-story-toggle{
+ width:100%;display:flex;align-items:center;justify-content:space-between;
+ font:inherit;font-size:14px;font-weight:650;color:var(--moa-r491-ink,#3a3237);
+ padding:0;margin:0;background:transparent;border:0;text-align:left;
+ cursor:pointer;min-height:28px;
+}
+#moa-r469-root .moa-r689-story-arrow{font-size:20px;font-weight:500;line-height:1;color:inherit;}
+#moa-r469-root .moa-r469-story.moa-r689-story-folded .moa-r469-text,
+#moa-r469-root .moa-r469-story.moa-r689-story-folded .moa-r469-story-footer{
+ display:none!important;
+}
+#moa-r469-root .moa-r469-story.moa-r689-story-folded{min-height:0!important;}
