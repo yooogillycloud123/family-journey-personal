@@ -1,0 +1,9 @@
+{
+  "dex_sha256": "13e7633b3a390459432e96e44c411c6c9dae4ca0d9c1ffce303523e32bc53628",
+  "dex_size": 37064,
+  "sourceSha256": "15d501437b26d697a10f0fb60cf7adbc2ea06fcfb64dc3da71661148d87a58ef",
+  "compile": "PASS",
+  "androidSDK": 35,
+  "hardware": "NOT_TESTED",
+  "APKSigner": "NOT_PRESENT_IN_CI"
+}
