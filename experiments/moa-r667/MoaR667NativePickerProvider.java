@@ -207,7 +207,7 @@ public final class MoaR667NativePickerProvider extends ContentProvider
     private final Handler handler=new Handler(Looper.getMainLooper());
     private int index=0,loadEpoch=0;
     private boolean fast=false,railShown=true,fill=false,done=false;
-    private String coverId="",bookmarkId="";
+    private String coverId="",bookmarkId="",mapId="";
     private LinearLayout column;
     private FrameLayout stage;
     private ImageView image;
@@ -332,7 +332,7 @@ public final class MoaR667NativePickerProvider extends ContentProvider
       addTool(bar,"↗","공유",this::share);
       addTool(bar,"⌖","촬영 시간과 위치",this::info);
       addTool(bar,"▧","지도 열기",this::openMap);
-      addTool(bar,"♧","네이버 저장 요청",()->{bookmarkId=media.get(index).id;tip("돌아간 뒤 네이버 위치 저장을 연결합니다");});
+      addTool(bar,"♧","네이버 지도 저장",()->{bookmarkId=media.get(index).id;exit();});
       railButton=addTool(bar,"▥","필름스트립 펼치기 또는 접기",()->{
         railShown=!railShown;thumbsScroll.setVisibility(railShown?View.VISIBLE:View.GONE);
       });
@@ -440,9 +440,8 @@ public final class MoaR667NativePickerProvider extends ContentProvider
       new AlertDialog.Builder(this).setTitle("사진 정보").setMessage(message).setPositiveButton("확인",null).show();
     }
     private void openMap(){
-      // The original Naver bridge is not re-used or overridden.
-      // Request original app's location action after returning to PHOTO-ADD.
-      bookmarkId=media.get(index).id;tip("목록으로 돌아가 촬영 위치 정보를 확인합니다");
+      // Return the map action to the existing independent photo-add GPS bridge.
+      mapId=media.get(index).id;exit();
     }
     private void exit(){
       if(done)return;done=true;
@@ -451,7 +450,7 @@ public final class MoaR667NativePickerProvider extends ContentProvider
         JSONArray selected=new JSONArray();
         for(String s:chosen)selected.put(s);
         result.put("selected",selected);result.put("index",index);
-        result.put("coverId",coverId);result.put("bookmarkId",bookmarkId);
+        result.put("coverId",coverId);result.put("bookmarkId",bookmarkId);result.put("mapId",mapId);
         complete(result);
       }catch(Exception ignored){}
       finish();
