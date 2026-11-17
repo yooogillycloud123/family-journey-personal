@@ -151,7 +151,7 @@ public final class MoaR667NativePickerProvider extends ContentProvider implement
     WebView w=findWeb(a.getWindow().getDecorView());
     if(w==null){
       // Bounded first-boot bridge setup only. Never reload WebView nor touch PHOTO native owner.
-      if(attempt<14) MAIN.postDelayed(()->attach(a,attempt+1),110L);
+      if(attempt<48) MAIN.postDelayed(()->attach(a,attempt+1),125L);
       return;
     }
     // No repeated addJavascriptInterface or WebView reload while original native PHOTO stays live.
