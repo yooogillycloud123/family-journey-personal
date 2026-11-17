@@ -4,7 +4,7 @@ on:
     branches:
       - feature/moa-r679-video23414-exact-native-20261117
     paths:
-      - .github/workflows/moa-r679-native-picker-dex.yml
+      - .github/workflows/moa-r677-native-picker-dex.yml
   workflow_dispatch:
 permissions:
   contents: write
