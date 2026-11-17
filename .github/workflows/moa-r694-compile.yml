@@ -1,0 +1,70 @@
+name: MOA R694 native multi-delete + per-surface order DEX17 DEX19 compile
+on:
+  push:
+    branches: [feature/moa-r694-multiselect-gallery-actions-cover-first-20261117]
+    paths: ['experiments/moa-r694/**','.github/workflows/moa-r694-compile.yml']
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - name: Android SDK35
+        run: |
+          set -euo pipefail
+          S="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$S" --licenses >/dev/null || true
+          "$S" "platforms;android-35" "build-tools;35.0.0"
+      - name: Verify all source hashes, JS syntax, compile native source as incremental DEX17/19
+        run: |
+          set -euo pipefail
+          mkdir -p build/moa-r694/ /tmp/rs694/classes17 /tmp/rs694/classes19 /tmp/rs694/dex17 /tmp/rs694/dex19
+          python3 - <<'PY'
+          import hashlib
+          from pathlib import Path
+          files={
+           'MoaR391SessionPersistProvider.java':'a53d2f19b2f352e311bc8530590b048654e7b0545fb11c4015a750eb7241c843',
+           'MoaR675PickerGalleryDeck.java':'12efb4600bce59f442317da2cb3dcdd85178bbe9a8510ef25ade17632e599336',
+           'MoaR667NativePickerProvider.java':'09fb02aeb8fbb7b8d4cb299c8e0f8e17263be3c8ff589a9b764d0d4f5e2c5b8f',
+           'moa-r694-vertical-calendar.js':'b52ca05d0d40015cd04f850ea21d9156050ab2a35d89fb9bb7966e3c0a0f43de',
+           'moa-r694-media-tools.js':'e9bb93e3824820ac950455a1fb7206df6d072ec7facabb13ea2f5260fcdd0b28',
+           'moa-r694-media-tools.css':'6fff9510fb32fdeed72f72cf799e9a6f343ef89298afdf2d827b5587daf54047',
+          }
+          for name,expected in files.items():
+           actual=hashlib.sha256((Path('experiments/moa-r694')/name).read_bytes()).hexdigest()
+           assert actual==expected,(name,actual,expected)
+          print("ALL R694 SOURCE HASHES VERIFIED",len(files))
+          PY
+          node --check experiments/moa-r694/moa-r694-vertical-calendar.js
+          node --check experiments/moa-r694/moa-r694-media-tools.js
+          javac -encoding UTF-8 --release 8 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/rs694/classes17 experiments/moa-r694/MoaR391SessionPersistProvider.java
+          find /tmp/rs694/classes17 -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/rs694/dex17
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/rs694/classes19 experiments/moa-r694/MoaR675PickerGalleryDeck.java experiments/moa-r694/MoaR667NativePickerProvider.java
+          find /tmp/rs694/classes19 -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/rs694/dex19
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,zlib,base64,json
+          out=Path('build/moa-r694')
+          data={}
+          for idx in ['17','19']:
+            b=Path(f'/tmp/rs694/dex{idx}/classes.dex').read_bytes()
+            assert b.startswith(b'dex\n')
+            assert len(b)<180000
+            if idx=='17':
+              for symbol in [b'r694OpenDeletePicker',b'r694ApplyOrder',b'r691InlinePhoto',b'r689SyncGalleryVideoUX']:
+                assert symbol in b,symbol
+            else:
+              assert b'r694PickerOrder' in b and b'R694-DISTINCT-NATIVE-ONE-SWIPE-CACHED-RAIL' in b
+            (out/f'classes{idx}.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+            data[idx]={'sha256':hashlib.sha256(b).hexdigest(),'size':len(b)}
+          (out/'compile_qa.json').write_text(json.dumps({'compiler':'JDK17','android_sdk':'35','min_api':29,'original_gallery_classes6_unchanged':True,'dex':data,'device_test':'NOT_PERFORMED'},indent=2))
+          print((out/'compile_qa.json').read_text())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R694-NATIVE-DEX17-DEX19
+          path: build/moa-r694/
