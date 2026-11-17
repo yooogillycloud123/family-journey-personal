@@ -31,7 +31,7 @@ jobs:
             "r483Pill(r619PickerScope", "moa-r539-day-chrome moa-r479-calendar-toolbar",
             "moa-r539-day-chrome moa-r665-picker-header", "moa-r681-today-symbol",
             "window.__moaR681PickerPortReady=true", "window.MoaR681NativePicker",
-            "s.page==='calendar'", "r681InstallLegacySync", "r681CapturePhotoDetailTypography"
+            "s?.page==='calendar'", "r681InstallLegacySync", "r681CapturePhotoDetailTypography"
           ])assert.ok(js.includes(fragment), 'missing '+fragment);
           for(const fragment of ["moa-r681-header", "moa-r681-today-symbol",
             "moa-r681-settings-placeholder", "moa-r681-date-spacing",
