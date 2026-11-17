@@ -1,0 +1,62 @@
+name: MOA R685 native fast-stage persistent ActionDeck DEX verify
+on:
+  push:
+    branches: [feature/moa-r685-persist-fast-gallery-20261117]
+    paths:
+      - '.github/workflows/moa-r685-persistent-fast-stage.yml'
+      - 'experiments/moa-r685/**'
+permissions:
+  contents: write
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile original R463 deck with minimal persisted preference
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa685/c17 /tmp/moa685/c19 /tmp/moa685/d17 /tmp/moa685/d19 build/moa-r685
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/c17 experiments/moa-r685/MoaR391SessionPersistProvider.java
+          find /tmp/moa685/c17 -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa685/d17
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/c19 experiments/moa-r685/MoaR675PickerGalleryDeck.java experiments/moa-r685/MoaR667NativePickerProvider.java
+          find /tmp/moa685/c19 -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa685/d19
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,zlib,hashlib,json
+          root=Path('build/moa-r685'); info={}
+          for n,p in [('17',Path('/tmp/moa685/d17/classes.dex')),('19',Path('/tmp/moa685/d19/classes.dex'))]:
+              b=p.read_bytes();assert b.startswith(b'dex\n'),n
+              assert b'r685FastWanted' in b and b'r685StoreFast' in b and b'r685RestoreFast' in b,n
+              if n=='17':assert b'MoaR391SessionPersistProvider' in b and b'MoaNativeGallery' in b
+              if n=='19':assert b'MoaR675PickerGalleryDeck' in b and b'MoaR667NativePickerProvider' in b and b'R685-DISTINCT-NATIVE-ONE-SWIPE-CACHED-RAIL' in b
+              (root/f'classes{n}.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+              info[n]={'size':len(b),'sha256':hashlib.sha256(b).hexdigest()}
+          (root/'compile_qa.json').write_text(json.dumps({'compiled':True,'sdk':'35','min_api':29,'persistent_fast_preference':'SharedPreferences commit','native_gallery_media_classes6_modified':False,'dex':info,'device_test':'NOT_PERFORMED'},indent=2))
+          print((root/'compile_qa.json').read_text())
+          PY
+      - name: Commit only compiled DEX (compressed base64), never any signer or photo
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build/moa-r685/classes17.dex.z.b64 build/moa-r685/classes19.dex.z.b64 build/moa-r685/compile_qa.json
+          git commit -m "MOA R685: SDK35 verified DEX17/19 only (unsigned)" || exit 0
+          git push
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R685-DEX17-19-ANDROID-SDK35
+          path: build/moa-r685/
