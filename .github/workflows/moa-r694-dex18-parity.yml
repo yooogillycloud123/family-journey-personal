@@ -1,4 +1,4 @@
-name: MOA R694 Source Provenance: original native inline DEX18 parity
+name: 'MOA R694 Source Provenance - original native inline DEX18 parity'
 on:
   push:
     branches: [feature/moa-r694-multiselect-gallery-actions-cover-first-20261117]
