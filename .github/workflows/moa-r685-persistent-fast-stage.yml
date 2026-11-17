@@ -46,6 +46,51 @@ jobs:
           (root/'compile_qa.json').write_text(json.dumps({'compiled':True,'sdk':'35','min_api':29,'persistent_fast_preference':'SharedPreferences commit','native_gallery_media_classes6_modified':False,'dex':info,'device_test':'NOT_PERFORMED'},indent=2))
           print((root/'compile_qa.json').read_text())
           PY
+      - name: Recompile source-equivalent R683 baseline DEX for exact binary parity gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa685/base17src /tmp/moa685/base19src /tmp/moa685/base17class /tmp/moa685/base19class /tmp/moa685/base17dex /tmp/moa685/base19dex
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path('experiments/moa-r685')
+          s=(base/'MoaR391SessionPersistProvider.java').read_text()
+          s=s.replace('  // R685: persistent USER preference, separate from temporary native stage cleanup.\n  private static final String GALLERY_FAST_PREFS="moa_r685_gallery_fast_stage_v1";\n','')
+          start=s.index('  // R685: Auto-cleanup on gallery close must NOT overwrite the user preference.\n')
+          end=s.index('  // Simple canvas strokes avoid device-font-dependent emoji/icon spacing.',start)
+          s=s[:start]+s[end:]
+          s=s.replace('if(entry.fastSwipeEnabled){r685StoreFast(a,false);r463DisableFastSwipe(entry);return;}','if(entry.fastSwipeEnabled){r463DisableFastSwipe(entry);return;}')
+          s=s.replace('        r685StoreFast(a,true);\n','')
+          s=s.replace('      r685RestoreFast(a,entry);\n','')
+          assert 'r685Fast' not in s and 'r685RestoreFast' not in s and len(s)>74000
+          Path('/tmp/moa685/base17src/MoaR391SessionPersistProvider.java').write_text(s)
+          t=(base/'MoaR675PickerGalleryDeck.java').read_text()
+          t=t.replace('  // Cross-gallery user-selected fast-stage setting, distinct from temporary cleanup.\n  private static final String GALLERY_FAST_PREFS="moa_r685_gallery_fast_stage_v1";\n','')
+          start=t.index('  // Never save OFF when a Gallery Activity closes; retain only explicit user changes.\n')
+          end=t.index('  // Simple canvas strokes avoid device-font-dependent emoji/icon spacing.',start)
+          t=t[:start]+t[end:]
+          t=t.replace('if(entry.fastSwipeEnabled){r685StoreFast(a,false);r463DisableFastSwipe(entry);return;}','if(entry.fastSwipeEnabled){r463DisableFastSwipe(entry);return;}')
+          t=t.replace('        r685StoreFast(a,true);\n','')
+          t=t.replace('      r685RestoreFast(a,entry);\n','')
+          assert len(t)==73436,'Original R683 picker deck source must match exact byte length'
+          Path('/tmp/moa685/base19src/MoaR675PickerGalleryDeck.java').write_text(t)
+          u=(base/'MoaR667NativePickerProvider.java').read_text().replace('R685-DISTINCT-NATIVE-ONE-SWIPE-CACHED-RAIL','R683-DISTINCT-NATIVE-ONE-SWIPE-CACHED-RAIL')
+          assert len(u)==24427
+          Path('/tmp/moa685/base19src/MoaR667NativePickerProvider.java').write_text(u)
+          PY
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/base17class /tmp/moa685/base17src/MoaR391SessionPersistProvider.java
+          find /tmp/moa685/base17class -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa685/base17dex
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/moa685/base19class /tmp/moa685/base19src/MoaR675PickerGalleryDeck.java /tmp/moa685/base19src/MoaR667NativePickerProvider.java
+          find /tmp/moa685/base19class -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/moa685/base19dex
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,zlib,hashlib,json
+          p=Path('build/moa-r685')
+          for n in ['17','19']:
+            b=Path(f'/tmp/moa685/base{n}dex/classes.dex').read_bytes()
+            (p/f'baseline{n}.dex.z.b64').write_text(base64.b64encode(zlib.compress(b,9)).decode()+'\n')
+            print(f'BASELINE_{n}_DEX_SHA256=',hashlib.sha256(b).hexdigest(),'SIZE=',len(b))
+          PY
       - name: Commit only compiled DEX (compressed base64), never any signer or photo
         shell: bash
         run: |
