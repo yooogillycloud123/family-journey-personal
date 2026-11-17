@@ -1,0 +1,53 @@
+name: MOA R691 original-native PHOTO trash DEX17 compile
+on:
+  push:
+    branches: [feature/moa-r691-diary-media-exclude-20261117]
+    paths: ['experiments/moa-r691/**','.github/workflows/moa-r691-diary-remove.yml']
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK35
+        run: |
+          set -euo pipefail
+          S="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$S" --licenses >/dev/null || true
+          "$S" "platforms;android-35" "build-tools;35.0.0"
+      - name: JDK17 release8 original R689 baseline exact + R691 native patch
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa691/baseClasses /tmp/moa691/newClasses /tmp/moa691/baseDex /tmp/moa691/newDex build/moa-r691
+          JAVAC="$JAVA_HOME/bin/javac"
+          D8="$ANDROID_HOME/build-tools/35.0.0/d8"
+          LIB="$ANDROID_HOME/platforms/android-35/android.jar"
+          "$JAVAC" -encoding UTF-8 --release 8 -cp "$LIB" -d /tmp/moa691/baseClasses experiments/moa-r689/MoaR391SessionPersistProvider.java
+          find /tmp/moa691/baseClasses -name '*.class' -print0 | xargs -0 "$D8" --min-api 29 --lib "$LIB" --output /tmp/moa691/baseDex
+          "$JAVAC" -encoding UTF-8 --release 8 -cp "$LIB" -d /tmp/moa691/newClasses experiments/moa-r691/MoaR391SessionPersistProvider.java
+          find /tmp/moa691/newClasses -name '*.class' -print0 | xargs -0 "$D8" --min-api 29 --lib "$LIB" --output /tmp/moa691/newDex
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,zlib,base64,json
+          p=Path('build/moa-r691')
+          baseline=Path('/tmp/moa691/baseDex/classes.dex').read_bytes()
+          candidate=Path('/tmp/moa691/newDex/classes.dex').read_bytes()
+          sha=lambda b:hashlib.sha256(b).hexdigest()
+          assert sha(baseline)=='166998fe71e2797bc73d1a1c5415a029fcb1b8287e9cff457ea8ca959ad5ed8e','R689 native DEX baseline mismatch'
+          for marker in [b'r691RemoveCurrentPhoto',b'r691SyncDeleteAction',b'R691TrashGlyph',b'r689SyncGalleryVideoUX']:
+              assert marker in candidate,marker
+          assert b'moa.gallery.action.remove.diary.only.r691' in candidate
+          (p/'classes17.dex.z.b64').write_text(base64.b64encode(zlib.compress(candidate,9)).decode()+'\n')
+          (p/'native_compile_qa.json').write_text(json.dumps({'sdk':35,'javac':'release 8','original_r689_dex17_identical':True,'sha256_original':sha(baseline),'sha256_candidate':sha(candidate),'candidate_bytes':len(candidate),'original_classes6_engine_modified':False,'device_test':'NOT_PERFORMED'},indent=2))
+          print((p/'native_compile_qa.json').read_text())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R691-PHOTO-TRASH-DEX17
+          path: build/moa-r691/
