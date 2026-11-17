@@ -1,0 +1,58 @@
+name: MOA R687 original native deck additive video QA
+on:
+  push:
+    branches: [feature/moa-r687-r683-golden-six-ui-fixes-20261117]
+    paths:
+      - '.github/workflows/moa-r687-ux-native-qa.yml'
+      - 'experiments/moa-r687/**'
+permissions:
+  contents: write
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK35 tools
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: R685 baseline and R687 candidate native DEX17 compile
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/r687/old/classes /tmp/r687/new/classes /tmp/r687/old/dex /tmp/r687/new/dex build/moa-r687
+          javac -encoding UTF-8 --release 8 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/r687/old/classes experiments/moa-r685/MoaR391SessionPersistProvider.java
+          find /tmp/r687/old/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r687/old/dex
+          javac -encoding UTF-8 --release 8 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d /tmp/r687/new/classes experiments/moa-r687/MoaR391SessionPersistProvider.java
+          find /tmp/r687/new/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output /tmp/r687/new/dex
+          python3 - <<'PY'
+          import hashlib,base64,zlib,json
+          from pathlib import Path
+          out=Path('build/moa-r687'); baseline=Path('/tmp/r687/old/dex/classes.dex').read_bytes();new=Path('/tmp/r687/new/dex/classes.dex').read_bytes()
+          sha=lambda b:hashlib.sha256(b).hexdigest()
+          assert sha(baseline)=='26bfacf3478c54a34fb37ebe19a9159a15e86e1d848cf33084636939985e3d25','R685 DEX17 reproduction differs!'
+          assert new.startswith(b'dex\n') and b'r687SyncVideoButtonsAndDaySound' in new and b'r685StoreFast' in new
+          (out/'classes17.dex.z.b64').write_text(base64.b64encode(zlib.compress(new,9)).decode()+'\n')
+          (out/'compare.json').write_text(json.dumps({'R685_original_sha256':sha(baseline),'R687_candidate_sha256':sha(new),
+             'original_mute_method':'reflection only','original_classes6':'NOT_MODIFIED',
+             'gallery_engine_changed':False,'device_runtime':'NOT_TESTED'},indent=2))
+          print((out/'compare.json').read_text())
+          PY
+      - name: Preserve only safe DEX and QA
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f build/moa-r687/classes17.dex.z.b64 build/moa-r687/compare.json
+          git commit -m "MOA R687: compile isolated native video UX DEX17 (no signer)" || true
+          git push
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R687-native-DEX17-qa
+          path: build/moa-r687/
