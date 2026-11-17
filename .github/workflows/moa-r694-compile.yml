@@ -29,8 +29,8 @@ jobs:
            'MoaR391SessionPersistProvider.java':'a2e48fb18c583181330005676ba34d18b3362c8114610e3de2bd85ef75a36994',
            'MoaR675PickerGalleryDeck.java':'12efb4600bce59f442317da2cb3dcdd85178bbe9a8510ef25ade17632e599336',
            'MoaR667NativePickerProvider.java':'09fb02aeb8fbb7b8d4cb299c8e0f8e17263be3c8ff589a9b764d0d4f5e2c5b8f',
-           'moa-r694-vertical-calendar.js':'b52ca05d0d40015cd04f850ea21d9156050ab2a35d89fb9bb7966e3c0a0f43de',
-           'moa-r694-media-tools.js':'e9bb93e3824820ac950455a1fb7206df6d072ec7facabb13ea2f5260fcdd0b28',
+           'moa-r694-vertical-calendar.js':'c9cf6359696f05303c4c84e4c4bf4221317e83210fd37658ff4fd0a3e395fb6e',
+           'moa-r694-media-tools.js':'5e3eb2f036613150e44d5757dde269e27e47a931dd416c49a4b84b154b82d06b',
            'moa-r694-media-tools.css':'6fff9510fb32fdeed72f72cf799e9a6f343ef89298afdf2d827b5587daf54047',
           }
           for name,expected in files.items():
