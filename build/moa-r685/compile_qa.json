@@ -6,12 +6,12 @@
   "native_gallery_media_classes6_modified": false,
   "dex": {
     "17": {
-      "size": 66036,
-      "sha256": "db78c458731166d6ce95f4486f226c1dab1782a3b576b26515e8824832d3342e"
+      "size": 65696,
+      "sha256": "26bfacf3478c54a34fb37ebe19a9159a15e86e1d848cf33084636939985e3d25"
     },
     "19": {
-      "size": 83424,
-      "sha256": "a6f4a95fbecf48f8595be79b1bdf9b937fe658229425539e8287a878724b6237"
+      "size": 83024,
+      "sha256": "50bf5b03109342e20a52dd4665df3a2b6d1e57b8973587b555c53839508e2a0b"
     }
   },
   "device_test": "NOT_PERFORMED"
