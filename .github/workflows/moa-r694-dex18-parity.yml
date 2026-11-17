@@ -29,6 +29,7 @@ jobs:
             feature/moa-r584-r582-r567-rail-quickrecord-rebind-20261115
             feature/moa-r604-r567-entry-handshake-r602-hotupdate-source-20261115
             feature/moa-r605-r567-native-attach-ack-r602-live-playlist-20261115
+            golden/moa-r611-user-device-approved-onehand-naver-native-gallery-20261115
           )
           for i in "${!BRANCHES[@]}"; do
             B="${BRANCHES[$i]}"
@@ -42,7 +43,7 @@ jobs:
           import hashlib,json,base64,zlib
           from pathlib import Path
           checks=[]
-          names=['570','572','584','604','605']
+          names=['570','572','584','604','605','611']
           TARGET='f54d15c61b00343b3d11b8950a462ddbb4839cd7ec57e7082901d1392d7c2b6a'
           for i,b in enumerate(names):
             raw=Path(f'/tmp/moa694/{i}/dex/classes.dex').read_bytes()
