@@ -50,4 +50,6 @@ jobs:
         if: always()
         with:
           name: MOA-R691-PHOTO-TRASH-DEX17
-          path: build/moa-r691/
+          path: |
+            build/moa-r691/
+            experiments/moa-r691/MoaR391SessionPersistProvider.java
