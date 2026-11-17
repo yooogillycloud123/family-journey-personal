@@ -76,6 +76,7 @@ jobs:
           assert __import__('hashlib').sha256(t.encode()).hexdigest()=='7be5db169f289db108f99b147ea3e11b2944c7487b10ab4d353a70bb7d2c6e3f','Original R683 picker deck exact source SHA'
           Path('/tmp/moa685/base19src/MoaR675PickerGalleryDeck.java').write_text(t)
           u=(base/'MoaR667NativePickerProvider.java').read_text().replace('R685-DISTINCT-NATIVE-ONE-SWIPE-CACHED-RAIL','R683-DISTINCT-NATIVE-ONE-SWIPE-CACHED-RAIL')
+          if not u.endswith('\n'):u+='\n'
           assert len(u)==24427
           assert __import__('hashlib').sha256(u.encode()).hexdigest()=='a628810122a36341e2d70dfcf3eb30c894193f74352128463ff22c5f6699f5fa'
           Path('/tmp/moa685/base19src/MoaR667NativePickerProvider.java').write_text(u)
