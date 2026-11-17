@@ -1,0 +1,73 @@
+name: MOA R697 R695-base non-destructive native multiselect regression build
+on:
+  push:
+    branches: [feature/moa-r697-r695-safe-native-multi-remove-20261117]
+    paths:
+      - "experiments/moa-r697/**"
+      - ".github/workflows/moa-r697-repair-dex.yml"
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - name: Android SDK35
+        run: |
+          set -euo pipefail
+          S="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$S" --licenses >/dev/null || true
+          "$S" "platforms;android-35" "build-tools;35.0.0"
+      - name: Exact source integrity and JS syntax
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from hashlib import sha256
+          base=Path('experiments/moa-r697')
+          files={
+            'MoaR391SessionPersistProvider.java':'66a529d9cfd3057daa525433b1dced15cb8aa476d7cb8dd7344ab299effba2a7',
+            'MoaR675PickerGalleryDeck.java':'12efb4600bce59f442317da2cb3dcdd85178bbe9a8510ef25ade17632e599336',
+            'MoaR667NativePickerProvider.java':'a9138b7a36cb56c7d152724dbd7719a13aee67a8f4214a01d8562ab3f8c62a08',
+            'moa-r697-vertical-calendar.js':'5ba30a606b7e943d25aeeac9c8703b7013b79e04f9a7dff5c179a7ef0e726a69',
+            'moa-r697-media-tools.js':'558f670bc28247942f41578fd33bfcbf80813082562af589fce4a802b3e6f021',
+            'moa-r697-media-tools.css':'6fff9510fb32fdeed72f72cf799e9a6f343ef89298afdf2d827b5587daf54047'}
+          for f,expected in files.items():
+            actual=sha256((base/f).read_bytes()).hexdigest()
+            assert actual==expected,(f,actual,expected)
+          print('SIX EXACT SOURCE SHA256 PASS')
+          PY
+          node --check experiments/moa-r697/moa-r697-vertical-calendar.js
+          node --check experiments/moa-r697/moa-r697-media-tools.js
+      - name: Android SDK35 compile isolated DEX17 and DEX19
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa697/c17 /tmp/moa697/c19 /tmp/moa697/d17 /tmp/moa697/d19 build/moa-r697
+          LIB="$ANDROID_HOME/platforms/android-35/android.jar"
+          D8="$ANDROID_HOME/build-tools/35.0.0/d8"
+          javac -encoding UTF-8 --release 8 -cp "$LIB" -d /tmp/moa697/c17 experiments/moa-r697/MoaR391SessionPersistProvider.java
+          find /tmp/moa697/c17 -name '*.class' -print0 | xargs -0 "$D8" --min-api 29 --lib "$LIB" --output /tmp/moa697/d17
+          javac -encoding UTF-8 -source 17 -target 17 -cp "$LIB" -d /tmp/moa697/c19 experiments/moa-r697/MoaR675PickerGalleryDeck.java experiments/moa-r697/MoaR667NativePickerProvider.java
+          find /tmp/moa697/c19 -name '*.class' -print0 | xargs -0 "$D8" --min-api 29 --lib "$LIB" --output /tmp/moa697/d19
+          python3 - <<'PY'
+          import hashlib,json,zlib,base64
+          from pathlib import Path
+          root=Path('build/moa-r697'); report={}
+          for num in [17,19]:
+            data=Path(f'/tmp/moa697/d{num}/classes.dex').read_bytes()
+            assert data.startswith(b'dex\n')
+            assert len(data)<180000
+            for marker in ([b'r694OpenDeletePicker',b'R697_NATIVE_MULTI_SELECTOR',b'r694SavedOrder',b'r689SyncGalleryVideoUX'] if num==17 else [b'r694PickerOrder',b'R697-DISTINCT']):
+              assert marker in data,marker
+            (root/f'classes{num}.dex.z.b64').write_text(base64.b64encode(zlib.compress(data,9)).decode()+'\n')
+            report[num]={'sha256':hashlib.sha256(data).hexdigest(),'size_bytes':len(data)}
+          (root/'compile_qa.json').write_text(json.dumps({'source_gate':'six SHA exact','sdk':35,'javac17':'release 8','java17_compile':True,'dex':report,'physical_galaxy_test':'NOT_PERFORMED'},indent=2))
+          print((root/'compile_qa.json').read_text())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R697-NATIVE-SAFE-MULTISELECT-DEX17-19
+          path: build/moa-r697/
