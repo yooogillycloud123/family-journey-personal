@@ -185,7 +185,12 @@ public final class MoaR667NativePickerProvider extends ContentProvider implement
                 inbound.postMessage(new WebMessage(result.toString()));
               }catch(Throwable error){
                 android.util.Log.e("MOA_R681_PICKER","PORT_COMMAND_ERROR",error);
-                try{inbound.postMessage(new WebMessage("{\\"type\\":\\"OPEN_ACK\\",\\"ok\\":false,\\"reason\\":\\"native error\\"}"));}
+                try{
+                  JSONObject fail=new JSONObject();
+                  fail.put("type","OPEN_ACK");fail.put("ok",false);
+                  fail.put("reason","native error");
+                  inbound.postMessage(new WebMessage(fail.toString()));
+                }
                 catch(Throwable ignored){}
               }
             });
