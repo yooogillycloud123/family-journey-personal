@@ -1,0 +1,60 @@
+name: MOA R694 Source Provenance: original native inline DEX18 parity
+on:
+  push:
+    branches: [feature/moa-r694-multiselect-gallery-actions-cover-first-20261117]
+    paths: ['.github/workflows/moa-r694-dex18-parity.yml']
+permissions:
+  contents: read
+jobs:
+  provenance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - name: SDK35
+        run: |
+          set -euo pipefail
+          S="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$S" --licenses >/dev/null || true
+          "$S" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile historic native PHOTO-card branches and compare with exact shipped R691 DEX18
+        run: |
+          set -euo pipefail
+          mkdir -p build/moa-r694-parity
+          BRANCHES=(
+            feature/moa-r570-r567-entry-photo-favorites-reorder-safe-20261114
+            feature/moa-r572-r570-compact-dock-rail-flash-fast-toast-20261114
+            feature/moa-r584-r582-r567-rail-quickrecord-rebind-20261115
+            feature/moa-r604-r567-entry-handshake-r602-hotupdate-source-20261115
+            feature/moa-r605-r567-native-attach-ack-r602-live-playlist-20261115
+          )
+          for i in "${!BRANCHES[@]}"; do
+            B="${BRANCHES[$i]}"
+            git fetch -q origin "refs/heads/$B"
+            mkdir -p "/tmp/moa694/$i/classes" "/tmp/moa694/$i/dex"
+            git show FETCH_HEAD:experiments/moa-r507/MoaR507InlineGalleryProvider.java > "/tmp/moa694/$i/MoaR507InlineGalleryProvider.java"
+            javac -encoding UTF-8 -source 17 -target 17 -cp "$ANDROID_HOME/platforms/android-35/android.jar" -d "/tmp/moa694/$i/classes" "/tmp/moa694/$i/MoaR507InlineGalleryProvider.java"
+            find "/tmp/moa694/$i/classes" -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" --output "/tmp/moa694/$i/dex"
+          done
+          python3 - <<'PY'
+          import hashlib,json,base64,zlib
+          from pathlib import Path
+          checks=[]
+          names=['570','572','584','604','605']
+          TARGET='f54d15c61b00343b3d11b8950a462ddbb4839cd7ec57e7082901d1392d7c2b6a'
+          for i,b in enumerate(names):
+            raw=Path(f'/tmp/moa694/{i}/dex/classes.dex').read_bytes()
+            sha=hashlib.sha256(raw).hexdigest()
+            checks.append({'branch':b,'size':len(raw),'sha256':sha,'shipped_R691_classes18_exact':sha==TARGET})
+            if sha==TARGET:
+              Path('build/moa-r694-parity/source_MATCH.java').write_bytes(Path(f'/tmp/moa694/{i}/MoaR507InlineGalleryProvider.java').read_bytes())
+          Path('build/moa-r694-parity/compile_sources.json').write_text(json.dumps(checks,indent=2))
+          print(json.dumps(checks,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R694-DEX18-HISTORICAL-SOURCE-COMPARE
+          path: build/moa-r694-parity/
