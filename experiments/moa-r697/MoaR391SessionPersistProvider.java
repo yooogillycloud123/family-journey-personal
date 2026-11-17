@@ -1829,4 +1829,3 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   @Override public int delete(Uri u,String selection,String[] args){return 0;}
   @Override public int update(Uri u,ContentValues values,String selection,String[] args){return 0;}
 }
-}
