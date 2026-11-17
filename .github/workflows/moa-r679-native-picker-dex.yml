@@ -59,6 +59,7 @@ jobs:
           mkdir -p build/moa-r679/official_sdk
           cp "$B/aapt" "$B/aapt2" "$B/zipalign" build/moa-r679/official_sdk/
           cp "$B/lib/apksigner.jar" build/moa-r679/official_sdk/
+          cp "$B/lib64/libc++.so" build/moa-r679/official_sdk/
           sha256sum build/moa-r679/official_sdk/* > build/moa-r679/official_sdk/SHA256SUMS
       - uses: actions/upload-artifact@v4
         if: always()
