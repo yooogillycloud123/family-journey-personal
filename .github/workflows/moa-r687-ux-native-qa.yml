@@ -55,4 +55,6 @@ jobs:
         if: always()
         with:
           name: MOA-R687-native-DEX17-qa
-          path: build/moa-r687/
+          path: |
+            build/moa-r687/
+            experiments/moa-r687/MoaR391SessionPersistProvider.java
