@@ -26,7 +26,7 @@ const mediaForDay=(day,mode)=>{
 };
 function activeContext(){
  const p=window.MoaR469SimpleDiary?.readOnlyStatus?.();
- if(p?.active&&p.page==='day'&&validDay(p.date))return {day:p.date,mode:'curated',owner:'photo'};
+ if(p?.active&&p.page==='day'&&validDay(p.date))return {day:p.date,mode:p.source==='automatic'?'automatic':'curated',owner:'photo'};
  const d=st();if(d?.open&&d.page==='day'&&validDay(d.date))
   return {day:d.date,mode:d.mode==='automatic'?'automatic':'curated',owner:'detail'};
  return null;
@@ -86,7 +86,11 @@ function open(context,items,initial){
  if(popup||busy)return false;
  if(!context||!validDay(context.day))return false;
  const available=new Set(mediaForDay(context.day,context.mode).map(x=>x.id));
- const records=Array.isArray(items)&&items.length?items.map(String).filter(x=>available.has(x)):[...available];
+ // Batch selection must show ALL media belonging to this diary day, even if
+ // the open native rail was narrowed to a subset (or its cached list is stale).
+ // Preserve its order first, append other visible diary media once.
+ const incoming=Array.isArray(items)?items.map(String).filter(id=>available.has(id)):[];
+ const records=[...new Set([...incoming,...available])];
  if(!records.length)return false;
  const selected=new Set(available.has(String(initial))?[String(initial)]:[]);
  const shade=document.createElement('div');shade.className='moa-r694-shade';shade.id='moa-r694-media-selector';
