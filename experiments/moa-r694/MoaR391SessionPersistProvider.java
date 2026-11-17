@@ -597,7 +597,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     View r691TrashAction;LinearLayout r691Capsule;
     View r694CoverAction;
     String r694Profile="";String r694Applied="";
-    boolean r694ProfileRequested=false;
+    boolean r694ProfileRequested=false;long r694LastProfileAt=0L;
     StageScrub stageScrub;
     boolean fastSwipeEnabled=false;
     // R689: Gallery-only VIDEO UX state. Never modify MediaPlayer/TextureView source.
@@ -1217,7 +1217,10 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     e.r694Applied="";r694ApplyOrder(a,e,profile,inline);
   }
   private static void r694CheckProfile(Activity a,GalleryActions e){
-    if(e.r694ProfileRequested)return;e.r694ProfileRequested=true;
+    long now=SystemClock.elapsedRealtime();
+    if(e.r694ProfileRequested&&now-e.r694LastProfileAt<850L)return;
+    if(e.r694ProfileRequested&&!"pending_inline".equals(e.r694Profile))return;
+    e.r694ProfileRequested=true;e.r694LastProfileAt=now;
     final WebView web=findOwnWeb(a.getWindow().getDecorView());if(web==null)return;
     String js="(function(){try{var p=window.MoaR469SimpleDiary?.readOnlyStatus?.();"+
       "if(p?.active&&p.page==='day'){return window.__moaR539AdvancedActive?.()?'photo_full':'pending_inline';}"+
