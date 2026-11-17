@@ -1830,6 +1830,18 @@ async function r619CommitPicked(button){
   // opens from refreshed index after returning, never reinitialize/replace engine.
  }catch(e){button.disabled=false;button.textContent='다시 추가';r619PickerStatus('사진·영상 추가 실패 · 일기를 삭제하지 않았어요: '+String(e));}
 }
+function r681CapturePhotoDetailTypography(frame){
+ requestAnimationFrame(()=>{
+  const source=frame.querySelector('.moa-r619-date-fixed');
+  if(!source?.isConnected)return;
+  const css=getComputedStyle(source),root=document.documentElement;
+  root.style.setProperty('--moa-r681-date-font-family',css.fontFamily);
+  root.style.setProperty('--moa-r681-date-size',css.fontSize);
+  root.style.setProperty('--moa-r681-date-weight',css.fontWeight);
+  root.style.setProperty('--moa-r681-date-line',css.lineHeight);
+  root.style.setProperty('--moa-r681-date-spacing',css.letterSpacing);
+ });
+}
 function r539DayChrome(mode,day,onPhoto,onDetail,onSettings){
  const frame=elem('div','moa-r539-day-chrome');
  const title=elem('header','moa-r539-day-head');title.append(r619DateRail(day,mode));
@@ -1844,7 +1856,9 @@ function r539DayChrome(mode,day,onPhoto,onDetail,onSettings){
  // R615 visual only; original photo/detail settings handler is untouched.
  settings.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h9m4 0h5M3 17h4m4 0h10"/><circle cx="14" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>';
  settings.setAttribute('aria-label','일기 보기 설정 및 관리');settings.title='일기 보기 설정';
- controls.append(switcher,settings);frame.append(title,controls);return frame;
+ controls.append(switcher,settings);frame.append(title,controls);
+ r681CapturePhotoDetailTypography(frame);
+ return frame;
 }
 function r621EnterPhotoSettings(){
  if(!ui.open||ui.page!=='day')return;
@@ -1920,6 +1934,12 @@ function r681InstallLegacySync(){
   if(event.target?.closest?.('[data-tab],.bottom-nav,.tab-button,[role="tab"]'))
    sync();
  },true);
+ const root=diaryRoot();
+ if(root&&typeof MutationObserver==='function'){
+  new MutationObserver(()=>r495SyncLegacyRoot()).observe(root,{
+   attributes:true,attributeFilter:['hidden','class','style']
+  });
+ }
 }
 function addMode(){
  r681InstallLegacySync();
