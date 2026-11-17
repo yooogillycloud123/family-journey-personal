@@ -64,6 +64,7 @@ public final class MoaR667NativePickerProvider extends ContentProvider
   private static WeakReference<Activity> sourceActivity = new WeakReference<>(null);
   private static WeakReference<WebView> installedWeb = new WeakReference<>(null);
   private Application app;
+  private boolean reloadCheckPending=false;
 
   private static WebView findWeb(View v) {
     if (v instanceof WebView) return (WebView) v;
@@ -90,9 +91,35 @@ public final class MoaR667NativePickerProvider extends ContentProvider
     if(installedWeb.get()!=web) {
       web.addJavascriptInterface(new NativeBridge(a,web), "MoaR667NativePicker");
       installedWeb=new WeakReference<>(web);
+      ensureBridgeAvailableBeforePicker(a,web);
     }
     sourceWeb=new WeakReference<>(web);
     sourceActivity=new WeakReference<>(a);
+  }
+  // addJavascriptInterface requires the NEXT page load, never a hot injection.
+  // If this is the harmless CALENDAR (not native PHOTO day), do ONE bounded
+  // automatic cache refresh on upgrade, preserving IndexedDB/cookies/user data.
+  // Do not reload when the active original PHOTO Gallery could be mounted.
+  private void ensureBridgeAvailableBeforePicker(Activity a,WebView web) {
+    if(reloadCheckPending)return;
+    android.content.SharedPreferences prefs=a.getSharedPreferences("moa_r667_bridge",0);
+    if(prefs.getBoolean("safe_calendar_reload_done",false))return;
+    reloadCheckPending=true;
+    MAIN.postDelayed(()->{
+      if(a.isFinishing()||a.isDestroyed()||web.getParent()==null){reloadCheckPending=false;return;}
+      final String url=web.getUrl();
+      if(url==null||!url.startsWith("https://familyjourney.local")){reloadCheckPending=false;return;}
+      try{
+        web.evaluateJavascript("(function(){var r=document.getElementById('moa-r469-root');return r&&!r.hidden?(r.dataset.page||''):'hidden';})()",state->{
+          if("\"calendar\"".equals(state)&&!a.isFinishing()&&!a.isDestroyed()){
+            prefs.edit().putBoolean("safe_calendar_reload_done",true).apply();
+            web.clearCache(true); // WebView RESOURCE cache, NEVER app data or IndexedDB.
+            web.reload(); // Only calendar, never PHOTO day or live native video.
+          }
+          reloadCheckPending=false;
+        });
+      }catch(Exception ignored){reloadCheckPending=false;}
+    },880L);
   }
   @Override public boolean onCreate() {
     if(getContext()!=null && getContext().getApplicationContext() instanceof Application) {
