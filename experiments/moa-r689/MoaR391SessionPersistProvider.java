@@ -600,7 +600,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     String r689AudioDay="";
     boolean r689UserSound=false;
     Button r689MuteHooked=null;
-    android.widget.SeekBar r689VolumeHooked=null;
+    View r689VolumeHooked=null;
     long r689VolumeHideAt=0L;
     boolean r689Adjusting=false;
     final View compactCard;
@@ -1084,12 +1084,12 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         // for every subsequent clip (the first unmute already showed it).
         e.r689VolumeHideAt=SystemClock.elapsedRealtime();
       }
-      Object rowObj=r439Field(c,"volumeRow").get(g);
-      Object seekObj=r439Field(c,"mediaVolumeSeek").get(g);
+      Object rowObj=r439Field(c,"volumeBubble").get(g);
+      Object seekObj=r439Field(c,"volumeRail").get(g);
       if(rowObj instanceof View){
         final View row=(View)rowObj;
-        if(seekObj instanceof android.widget.SeekBar){
-          android.widget.SeekBar seek=(android.widget.SeekBar)seekObj;
+        if(seekObj instanceof View){
+          View seek=(View)seekObj;
           if(e.r689VolumeHooked!=seek){
             e.r689VolumeHooked=seek;
             seek.setOnTouchListener((v,event)->{
@@ -1106,12 +1106,8 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
                   e.r689VolumeHideAt=SystemClock.elapsedRealtime()+4000L;
                   break;
               }
-              return false; // leave original SeekBar volume change listener intact
+              return false; // original VerticalMediaVolume.onTouchEvent retains volume control
             });
-          }
-          if(!seek.isPressed()&&e.r689Adjusting){
-            e.r689Adjusting=false;
-            e.r689VolumeHideAt=SystemClock.elapsedRealtime()+4000L;
           }
         }
         if(!muted&&prepared&&row.getVisibility()==View.VISIBLE&&e.r689VolumeHideAt==0L&&!e.r689Adjusting)
