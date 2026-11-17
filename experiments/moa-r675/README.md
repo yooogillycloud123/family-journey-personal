@@ -1,0 +1,7 @@
+# MOA R675 — same original MoaNativeGallery engine in independent photo-add Activity (2026-11-17)
+
+**Not an approximation:** native picker Activity instantiates the **EXACT already installed class6.dex** `com.juhyeon.familyjourney.MoaNativeGallery` via reflection and original `open(String,int,String)` API, sharing code, but NOT sharing instance/lifecycle with main PHOTO/detail Gallery. New DEX19 includes only separate Provider/Activity and a strictly isolated copy of the original R463 native Gallery ActionDeck; it adds selected-photo "+" as an extra tool. No changes to any of the first 18 DEX and original QuickRecord.
+
+Source in this branch: `experiments/moa-r675/MoaR667NativePickerProvider.java`, `MoaR675PickerGalleryDeck.java`, `moa-r675-vertical-calendar.js`, `moa-r675-photo-picker.css`, `index-r675.html`. Full signed release details are recorded in main handoff. No signing secrets or personal media in source. Gallery engine itself stays in immutable, user-installed original classes6 DEX; don't compile or override it.
+
+Not-yet-physically-verified: this separate Activity's R463 action deck/GPS integration on Galaxy, original video frame return path, black-frame prewarm effectiveness. Do not declare R675 Golden before phone checks.
