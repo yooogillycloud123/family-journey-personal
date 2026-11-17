@@ -52,7 +52,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add build/moa-r685/classes17.dex.z.b64 build/moa-r685/classes19.dex.z.b64 build/moa-r685/compile_qa.json
+          git add -f build/moa-r685/classes17.dex.z.b64 build/moa-r685/classes19.dex.z.b64 build/moa-r685/compile_qa.json
           git commit -m "MOA R685: SDK35 verified DEX17/19 only (unsigned)" || exit 0
           git push
       - uses: actions/upload-artifact@v4
