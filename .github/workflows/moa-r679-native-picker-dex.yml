@@ -1,0 +1,67 @@
+name: MOA R679 original gallery native picker DEX (no signing material)
+on:
+  push:
+    branches:
+      - feature/moa-r679-video23414-exact-native-20261117
+    paths:
+      - .github/workflows/moa-r679-native-picker-dex.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Ensure SDK35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: Compile original-gallery picker classes only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa677/classes /tmp/moa677/dex build/moa-r679
+          javac -encoding UTF-8 -source 17 -target 17             -cp "$ANDROID_HOME/platforms/android-35/android.jar"             -d /tmp/moa677/classes             experiments/moa-r677/MoaR675PickerGalleryDeck.java             experiments/moa-r677/MoaR667NativePickerProvider.java             2>&1 | tee build/moa-r679/compile.log
+          find /tmp/moa677/classes -type f -name '*.class' -print0 |             xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29               --lib "$ANDROID_HOME/platforms/android-35/android.jar"               --output /tmp/moa677/dex 2>&1 | tee -a build/moa-r679/compile.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import zlib,base64,hashlib,json
+          d=Path('/tmp/moa677/dex/classes.dex').read_bytes()
+          assert d[:4]==bytes([100,101,120,10])
+          for marker in (b'MoaNativeGallery',b'MoaR675PickerGalleryDeck',b'MoaR667NativePickerProvider'):
+              assert marker in d, marker
+          out=Path('build/moa-r679')
+          (out/'classes19.dex.z.b64').write_text(base64.b64encode(zlib.compress(d,9)).decode()+chr(10))
+          (out/'verify.json').write_text(json.dumps(dict(
+              bytes=len(d),sha256=hashlib.sha256(d).hexdigest(),
+              source='R677 native picker fullscreen only; original DEX1..18 untouched',
+              handset_test='UNTESTED'),indent=2)+chr(10))
+          print((out/'verify.json').read_text())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R679-ISOLATED-DEX
+          path: build/moa-r679/
+      - name: Bundle official Android SDK35 APK inspection tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          B="$ANDROID_HOME/build-tools/35.0.0"
+          mkdir -p build/moa-r679/official_sdk
+          cp "$B/aapt" "$B/aapt2" "$B/zipalign" build/moa-r679/official_sdk/
+          cp "$B/lib/apksigner.jar" build/moa-r679/official_sdk/
+          sha256sum build/moa-r679/official_sdk/* > build/moa-r679/official_sdk/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R679-DEX-AND-OFFICIAL-SDK35
+          path: build/moa-r679/
