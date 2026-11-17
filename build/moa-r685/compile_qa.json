@@ -1,0 +1,18 @@
+{
+  "compiled": true,
+  "sdk": "35",
+  "min_api": 29,
+  "persistent_fast_preference": "SharedPreferences commit",
+  "native_gallery_media_classes6_modified": false,
+  "dex": {
+    "17": {
+      "size": 66036,
+      "sha256": "db78c458731166d6ce95f4486f226c1dab1782a3b576b26515e8824832d3342e"
+    },
+    "19": {
+      "size": 83424,
+      "sha256": "a6f4a95fbecf48f8595be79b1bdf9b937fe658229425539e8287a878724b6237"
+    }
+  },
+  "device_test": "NOT_PERFORMED"
+}
