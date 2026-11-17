@@ -2248,3 +2248,306 @@ function r472MediaSelected(index){
  r472UpdatePager();r472LazyPhotos();
 }
 function r472UpdatePager(){
+ // Black video standby only. The original native player/stream is untouched.
+ view?.classList.toggle('moa-r572-video-active',!!ui.media[ui.idx]&&isVideo(ui.media[ui.idx]));
+ const dots=$('.moa-r469-pager',view);if(!dots)return;
+ dots.replaceChildren();const count=ui.media.length;if(!count)return;
+ const range=count<=9?Array.from({length:count},(_,i)=>i):Array.from({length:7},(_,i)=>Math.max(0,Math.min(count-7,ui.idx-3))+i);
+ for(const i of range){const dot=btn('',()=>changeMedia(i),'moa-r469-dot'+(i===ui.idx?' active':''));dot.setAttribute('aria-label',`${i+1}번째 사진`);dots.append(dot)}
+ const star=$('.moa-r503-cover-star',view),m=dayMedia(ui.idx);
+ window.__moaR507CoverId=String(getState()?.covers?.[ui.source]?.[ui.date]||'');
+ if(star){const active=!!m&&String(getState()?.covers?.[ui.source]?.[ui.date]||'')===String(m.id);
+  star.textContent=active?'★':'☆';star.classList.toggle('active',active);
+  star.setAttribute('aria-pressed',String(active));star.disabled=!m;
+ }
+ const fast=$('[data-op="fast"]',view);if(fast)fast.classList.toggle('active',ui.fast);
+ if(ui.rail)renderRail();
+}
+function r472LazyPhotos(){
+ const strip=$('.moa-r472-track',view);if(!strip)return;
+ const files=[];
+ for(let i=Math.max(0,ui.idx-1);i<=Math.min(ui.media.length-1,ui.idx+1);i++){
+  const frame=strip.children[i];const img=frame?.querySelector('img[data-id]');
+  if(img&&!img.dataset.fullLoaded)files.push(img);
+ }
+ if(files.length)fillImages(files,true);
+}
+function renderMedia(){
+ const stage=$('.moa-r469-stage-media',view);if(!stage)return;
+ stage.replaceChildren();const medias=ui.media;ui.requestGeneration++;
+ if(!medias.length){stage.append(elem('div','moa-r469-empty','사진을 추가하면 여기에 표시돼요.'));r472UpdatePager();return;}
+ const track=elem('div','moa-r472-track');
+ track.classList.toggle('is-fast',ui.fast);track.setAttribute('aria-label','좌우로 사진·영상을 넘기는 갤러리');
+ let pendingScroll=0,settleTimer=0;
+ track.addEventListener('scroll',()=>{
+  clearTimeout(settleTimer);
+  if(ui.fast)settleTimer=setTimeout(()=>{
+   if(!track.isConnected)return;const w=track.clientWidth||1;const at=Math.round(track.scrollLeft/w)*w;
+   if(Math.abs(track.scrollLeft-at)>1)track.scrollTo({left:at,behavior:'smooth'});
+  },170);
+  if(pendingScroll)return;
+  pendingScroll=requestAnimationFrame(()=>{pendingScroll=0;
+   const width=track.clientWidth||1;const next=Math.max(0,Math.min(medias.length-1,Math.round(track.scrollLeft/width)));
+   r472MediaSelected(next);
+  });
+ },{passive:true});
+ track.addEventListener('click',e=>{
+  if(e.target.closest('button,video,input'))return;
+  if(e.target.closest('.moa-r472-slide')){ui.tools=!ui.tools;toggleTools();}
+ });
+ medias.forEach((m,i)=>{
+  const slide=elem('div','moa-r472-slide');slide.dataset.idx=String(i);if(isVideo(m))slide.classList.add('moa-r531-video-slide');
+  const image=elem('img');image.alt='';image.dataset.id=String(m.id);image.loading='lazy';
+  slide.append(image);
+  if(isVideo(m)){
+   const play=btn('▶',()=>r499OpenOriginalGallery(m),'moa-r469-video-play');play.setAttribute('aria-label','영상 재생');slide.append(play);
+   const bar=elem('div','moa-r499-video-controls');
+   const launch=btn('▶',()=>r499OpenOriginalGallery(m),'moa-r499-video-play');launch.setAttribute('aria-label','영상 재생·일시정지');
+   const native=btn('⛶',()=>nativePost('diaryPlayVideo',{id:String(m.id)}),'moa-r499-video-native');native.setAttribute('aria-label','기존 갤러리 영상 제어·음량·캡처 열기');
+   bar.append(launch,native);slide.append(bar);
+  }
+  track.append(slide);
+ });
+ stage.append(track);
+ requestAnimationFrame(()=>{if(!track.isConnected)return;track.scrollLeft=ui.idx*(track.clientWidth||1);r472LazyPhotos()});
+ r472UpdatePager();
+}
+function changeMedia(i,origin='stage'){if(!ui.media.length)return;
+ const track=$('.moa-r472-track',view);if(!track)return;
+ const to=Math.max(0,Math.min(ui.media.length-1,i));
+ track.scrollTo({left:to*(track.clientWidth||1),behavior:origin==='rail'?'auto':Math.abs(to-ui.idx)>2?'auto':'smooth'});
+ if(origin==='rail')r499RailOrigin=true;try{r472MediaSelected(to)}finally{r499RailOrigin=false}
+}
+
+function toggleTools(){const t=$('.moa-r469-tools',view);if(t)t.hidden=!ui.tools;}
+function toggleRail(){const r=$('.moa-r469-rail',view),b=$('.moa-r469-rail-toggle',view);if(r)r.hidden=!ui.rail;if(b){b.setAttribute('aria-expanded',String(ui.rail));b.setAttribute('aria-label',ui.rail?'사진 목록 접기':'사진 목록 펼치기')}if(ui.rail)renderRail();}
+let r499RailSync=0,r499RailOrigin=false;
+function renderRail(){const r=$('.moa-r469-rail',view);if(!r||!ui.rail)return;
+ // Never recreate children during a fling; DOM replacement previously cancelled inertia and selection.
+ if(r.children.length!==ui.media.length||[...r.children].some((x,i)=>x.dataset.id!==String(ui.media[i]?.id))){
+  r.replaceChildren();const imgs=[];
+  ui.media.forEach((m,i)=>{const tile=elem('div','moa-r469-rail-item');tile.dataset.id=String(m.id);
+   const select=btn('',()=>changeMedia(i),'moa-r503-rail-select');select.setAttribute('aria-label',`${i+1}번째 사진·영상 보기`);
+   const img=elem('img');img.dataset.id=String(m.id);select.append(img);
+   if(isVideo(m))select.append(elem('small','','▶'));
+   const star=btn('☆',()=>saveCover(m.id),'moa-r503-rail-star');star.setAttribute('aria-label',`${i+1}번째 사진을 달력 대표로 지정`);
+   star.setAttribute('aria-pressed','false');star.title='달력 대표 지정';
+   tile.append(select,star);r.append(tile);imgs.push(img)});
+  fillImages(imgs);
+  if(!r.dataset.synced){r.dataset.synced='1';let nextFrame=0;
+   r.addEventListener('scroll',()=>{if(r499RailSync||nextFrame)return;nextFrame=requestAnimationFrame(()=>{nextFrame=0;if(!ui.rail||!ui.open)return;
+    const center=r.scrollLeft+r.clientWidth/2,items=[...r.children];if(!items.length)return;
+    let index=0,dist=Infinity;items.forEach((x,i)=>{const d=Math.abs(x.offsetLeft+x.offsetWidth/2-center);if(d<dist){dist=d;index=i}});
+    if(index!==ui.idx)changeMedia(index,'rail');
+   })},{passive:true});
+  }
+ }
+ for(const [i,x] of [...r.children].entries()){
+  x.classList.toggle('active',i===ui.idx);
+  const cover=x.querySelector('.moa-r503-rail-star');if(cover){
+   const selected=String(getState()?.covers?.[ui.source]?.[ui.date]||'')===String(ui.media[i]?.id);
+   cover.classList.toggle('active',selected);cover.textContent=selected?'★':'☆';cover.setAttribute('aria-pressed',String(selected));
+  }
+ }
+ if(!r.dataset.lastIndex||Number(r.dataset.lastIndex)!==ui.idx){r.dataset.lastIndex=String(ui.idx);
+  r499RailSync+=Number(!r499RailOrigin);const x=r.children[ui.idx];if(x&&!r499RailOrigin){const center=x.offsetLeft+x.offsetWidth/2-r.clientWidth/2;
+    r.scrollTo({left:Math.max(0,center),behavior:'auto'});}
+  if(!r499RailOrigin)requestAnimationFrame(()=>{r499RailSync=Math.max(0,r499RailSync-1)});
+ }
+}
+
+// R691: Exact detailed-diary R56 semantics for PHOTO. This is ONLY a diary
+// association exclusion (with tombstone and undo via existing DETAIL editor).
+// Never call Android MediaStore.delete, never delete a file, original image,
+// video, M4A, note, GPS, Naver bookmark, or any other day's data.
+let r691ExcludeBusy=false;
+async function r691ExcludeMedia(day,id){
+ id=String(id||'');
+ if(r691ExcludeBusy||!ui.open||ui.page!=='day'||ui.date!==day||!valid(day)||!safeMedia(id)||
+    !ui.media.some(m=>String(m.id)===id))return false;
+ if(ui.dirty){notify('먼저 작성 중인 오늘의 이야기 글을 저장해 주세요.');return false;}
+ if(!confirm('선택한 '+(id.startsWith('v')?'영상':'사진')+' 한 개만 이 날짜 일기에서 제외할까요?\n원본 파일과 글·음성·바로기록은 그대로 보존됩니다.'))return false;
+ r691ExcludeBusy=true;
+ try{
+  const owner=getState(),table=ui.source==='automatic'?'entries':'curated';
+  if(!owner)return false;
+  const d=await db();let updated=null;
+  try{await new Promise((resolve,reject)=>{
+   const tx=d.transaction(table,'readwrite'),store=tx.objectStore(table);
+   const req=store.get(day);
+   req.onsuccess=()=>{
+    const prev=req.result||{day,selectionMode:table==='curated'?'manual':'automatic',photoIds:[],moments:[],activities:{}};
+    // Preserve moments intact: on restoration the original associated note is recovered.
+    updated={...prev,day,photoIds:(prev.photoIds||[]).map(String).filter(x=>x!==id),
+      removedMediaIds:[...new Set([...(prev.removedMediaIds||[]).map(String),id])],updatedAt:Date.now()};
+    store.put(updated);
+   };req.onerror=()=>{try{tx.abort()}catch(_){}};
+   tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||Error('WRITE_FAILED'));
+   tx.onabort=()=>reject(tx.error||Error('WRITE_ABORTED'));
+  });}finally{d.close();}
+  const verified=await stored(table,day);
+  if(!verified||(verified.photoIds||[]).map(String).includes(id)||
+     !(verified.removedMediaIds||[]).map(String).includes(id))throw Error('EXCLUDE_READBACK_FAILED');
+  (table==='curated'?owner.curatedEntries:owner.entries)?.set(day,verified);
+  if(owner.date===day)owner.selection?.delete?.(id);
+  // The representative image must no longer point at an excluded item.
+  const covers=owner.covers;
+  if(covers?.[ui.source]?.[day]===id){
+    const patched={...covers,[ui.source]:{...covers[ui.source]}};
+    delete patched[ui.source][day];
+    await persist('meta',coverKey,patched);owner.covers=patched;
+  }
+  // Close ONLY the original current-day inline player before replacing its
+  // playlist. Don't modify new-gallery/fullscreen controls or global navigation.
+  window.__moaR567ProgrammaticCloseUntil=Date.now()+2600;
+  r507StopInline();
+  const priorIndex=ui.idx;
+  ui.media=mediaFor(day);ui.idx=Math.min(Math.max(0,priorIndex),Math.max(0,ui.media.length-1));
+  ui.info=false;ui.dirty=false;
+  r527BeginDay();
+  // Force a legitimate same-day DOM paint after successful IndexedDB ACK.
+  view.dataset.r661PhotoDay='';render();
+  notify('일기에서 '+(id.startsWith('v')?'영상':'사진')+' 1개를 제외했어요 · 원본 파일은 그대로입니다. 상세형에서 다시 표시할 수 있어요.');
+  return true;
+ }catch(e){notify('사진·영상 제외 실패: '+String(e));return false;}
+ finally{r691ExcludeBusy=false;}
+}
+// Native action deck transmits the actual current native Gallery media ID.
+// Date/day/media checks reject stale callbacks, arbitrary ID injection and
+// duplicate taps; only trusted same-app UI can request exclusion.
+window.__moaR691RemoveDiaryMedia=(day,id)=>r691ExcludeMedia(String(day||''),String(id||''));
+
+async function onAction(e){const op=e.target.closest('button[data-op]')?.dataset.op,m=dayMedia(ui.idx);if(!op||!m)return;
+ if(op==='remove'){await r691ExcludeMedia(ui.date,String(m.id));return;}
+ if(op==='fast'){ui.fast=!ui.fast;const track=$('.moa-r472-track',view);if(track)track.classList.toggle('is-fast',ui.fast);r472UpdatePager();notify(ui.fast?'빠른 연속 넘기기 ON':'한 장씩 넘기기 OFF');return}
+ if(op==='share'){if(!nativePost(isVideo(m)?'diaryShareVideo':'sharePhoto',{id:String(m.id)}))notify('Android 공유 기능을 연결할 수 없습니다.');return}
+ if(op==='cover'){await saveCover(m.id);return}
+ if(op==='geo'){r503OpenNaverLocation(m);return;}
+ if(op==='info'){const pane=$('.moa-r469-info',view);if(!pane)return;ui.info=!ui.info;pane.hidden=!ui.info;if(ui.info){pane.replaceChildren(elem('p','',`촬영: ${new Date(Number(m.t)||Date.now()).toLocaleString('ko-KR')}`));try{window.FamilyJourneyDiaryGeo?.attach?.(pane,String(m.id))}catch(e){}}return;}
+}
+
+function r503OpenNaverLocation(media){
+ const pane=$('.moa-r469-info',view);if(!pane||!media)return;
+ pane.hidden=false;pane.replaceChildren();ui.info=true;
+ if(typeof window.FamilyJourneyDiaryGeo?.attach!=='function'){
+  pane.textContent='원본 GPS 위치 기능을 사용할 수 없습니다.';return;
+ }
+ const mediaId=String(media.id);let finished=false;
+ const findNativeMap=()=>{
+  if(finished||!pane.isConnected||String(dayMedia(ui.idx)?.id)!==mediaId)return false;
+  const b=[...pane.querySelectorAll('button')].find(x=>x.textContent?.trim()==='네이버지도');
+  if(b){finished=true;observer.disconnect();b.click();return true}
+  if(/촬영 위치 정보 없음|bridge_unavailable/.test(pane.textContent||'')){
+   finished=true;observer.disconnect();return true;
+  }
+  return false;
+ };
+ const observer=new MutationObserver(findNativeMap);observer.observe(pane,{childList:true,subtree:true});
+ try{window.FamilyJourneyDiaryGeo.attach(pane,mediaId);}catch(e){observer.disconnect();pane.textContent='GPS 위치 확인 중 오류가 발생했습니다.';return;}
+ findNativeMap();setTimeout(()=>{if(!finished){finished=true;observer.disconnect();}},6000);
+}
+async function saveCover(id){const s=getState();if(!s?.covers)return;const covers=s.covers;const source=ui.source;const old=covers[source]?.[ui.date];if(!covers[source])covers[source]={};covers[source][ui.date]=String(id);
+ try{await persist('meta',coverKey,covers);window.__moaR507CoverId=String(id);
+  // The next native Gallery session MUST consume a reordered cover-first list;
+  // only an explicit cover change may deliberately reopen the current gallery.
+  if(ui.open&&ui.page==='day'&&ui.date&&ui.media.some(x=>String(x.id)===String(id))){
+   window.__moaR567ProgrammaticCloseUntil=Date.now()+2600;
+   r507StopInline();ui.media=mediaFor(ui.date);ui.idx=0;r527BeginDay();render();
+  }else r472UpdatePager();
+  notify('대표 사진이 첫 번째로 설정됐습니다. · 원본 촬영순은 유지됩니다.');}catch(e){if(old===undefined)delete covers[source][ui.date];else covers[source][ui.date]=old;notify('대표 사진 저장 실패: '+String(e))}}
+async function saveStory(){const s=getState();if(!s)return;const textarea=$('.moa-r469-text',view);if(!textarea)return;const text=textarea.value.trim(),day=ui.date;
+ try{const table=s.curatedEntries?.has(day)?'curated':s.entries?.has(day)?'entries':'curated';const updated=await mergeDiaryBody(day,text,table);(table==='curated'?s.curatedEntries:s.entries).set(day,updated);ui.dirty=false;notify('기존 일기 저장소에 저장했습니다. 바로기록·시간대별 기록은 보존됩니다.');}
+ catch(e){notify('저장 실패: '+String(e))}
+}
+
+function r499OpenOriginalGallery(media){
+ if(!media)return;
+ if(isVideo(media)){if(!nativePost('diaryPlayVideo',{id:String(media.id)}))playInlineVideo(media);return;}
+ const list=ui.media.filter(p=>!isVideo(p)&&safeMedia(p.id));
+ const index=list.findIndex(p=>String(p.id)===String(media.id));
+ const owner=window.FamilyJourneyNaver?.openFullGallery;
+ if(typeof owner==='function'&&index>=0){owner(list.map(p=>String(p.id)),index,dateLabel(ui.date));return}
+ notify('사진 확대를 열 수 없습니다. 원본 사진 갤러리에서 확인해 주세요.');
+}
+function parseVoices(){let list=[];try{list=JSON.parse(window.MoaLocalAudio?.list?.(ui.date)||'[]')}catch(e){}
+ return (Array.isArray(list)?list:[]).filter(x=>/^[A-Za-z0-9_-]{8,90}\.m4a$/.test(String(x?.id||''))).sort((a,b)=>(Number(a.time)||0)-(Number(b.time)||0));}
+function r613VoiceTime(seconds){const n=Math.max(0,Math.floor(Number(seconds)||0));return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')}
+function r613ToggleVoice(){ui.voiceExpanded=!ui.voiceExpanded;const panel=$('.moa-r613-voice-list',view),button=$('.moa-r613-voice-toggle',view);if(panel)panel.hidden=!ui.voiceExpanded;if(button)button.setAttribute('aria-expanded',String(ui.voiceExpanded));refreshVoices();}
+function refreshVoices(){
+ ui.clips=parseVoices();ui.clip=Math.max(0,Math.min(ui.clips.length-1,ui.clip));
+ const toggle=$('.moa-r613-voice-toggle',view),list=$('.moa-r613-voice-list',view);
+ if(toggle){toggle.textContent=`음성기록 · ${ui.clips.length}개`;toggle.setAttribute('aria-expanded',String(ui.voiceExpanded));}
+ if(!list)return;list.hidden=!ui.voiceExpanded;if(!ui.voiceExpanded)return;
+ // Preserve playing original control objects on no-data-change refresh.
+ const signature=ui.date+':'+ui.clips.map(x=>String(x.id)).join('|');
+ if(list.dataset.signature===signature){window.MoaVoicePlaybackUI?.updatePlayback?.();return;}
+ list.dataset.signature=signature;list.replaceChildren();
+ if(!ui.clips.length){list.append(elem('p','moa-r613-voice-empty','이 날짜에 저장된 음성이 없습니다.'));return;}
+ const state=getState(),entry=state?.curatedEntries?.get(ui.date)||state?.entries?.get(ui.date);
+ for(const [index,clip] of ui.clips.entries()){
+  const id=String(clip.id),note=window.MoaVoicePlaybackUI?.metaFor?.(ui.date,id)||{};
+  const title=String(note.title||`녹음 ${index+1}`);
+  const transcript=String(note.transcript||note.autoTranscript||note.captureNote||
+    (entry?.moments||[]).find(m=>(m.voiceIds||[]).includes(id))?.note||'').trim();
+  const row=elem('article','moa-r613-voice-card');
+  row.append(elem('strong','moa-r613-voice-title',title),elem('small','moa-r613-voice-date',new Date(Number(clip.time)||Date.now()).toLocaleTimeString('ko-KR',{hour:'numeric',minute:'2-digit'})));
+  // Original audio PlaybackUI is the sole authority for playback/pause,
+  // native elapsed time and total length. Do not add a second HTML player.
+  const play=btn('▶ 00:00 / --:--',()=>window.MoaVoicePlaybackUI?.play?.(ui.date,id,play),'moa-r613-voice-play');
+  play.dataset.moaAudioPlay=ui.date+'/'+id;play.dataset.moaAudioTitle=title;play.dataset.moaAudioCompact='true';
+  play.setAttribute('aria-label',title+' 재생 및 일시정지');
+  row.append(play);
+  const remaining=elem('small','moa-r613-voice-remaining','남은 --:--');remaining.dataset.moaVoiceRemaining=id;row.append(remaining);
+  row.append(elem('p','moa-r613-voice-transcript',transcript||'이 녹음에 저장된 텍스트가 없습니다.'));
+  list.append(row);
+ }
+ window.MoaVoicePlaybackUI?.updatePlayback?.();
+}
+// Display only: the actual time comes from ORIGINAL native PlaybackUI's
+// per-file elapsed/total rendering, never a guessed file-size duration.
+function r613SyncVoiceRemaining(){
+ if(!ui.open||ui.page!=='day'||!ui.voiceExpanded||!view||document.hidden)return;
+ const list=$('.moa-r613-voice-list',view);if(!list||list.hidden)return;
+ for(const card of list.querySelectorAll('.moa-r613-voice-card')){
+  const button=card.querySelector('.moa-r613-voice-play'),rem=card.querySelector('.moa-r613-voice-remaining');
+  if(!button||!rem)return;
+  const result=button.textContent.match(/(\d{2,}:\d{2})\s*\/\s*(\d{2,}:\d{2})/);
+  if(!result){rem.textContent='남은 --:--';continue;}
+  const sec=v=>v.split(':').map(Number).reduce((a,b)=>a*60+b,0);
+  rem.textContent='남은 '+r613VoiceTime(Math.max(0,sec(result[2])-sec(result[1])));
+ }
+}
+window.setInterval(r613SyncVoiceRemaining,500);
+window.addEventListener('moa:voice-meta-changed',e=>{if(e.detail?.day===ui.date&&ui.open&&ui.page==='day'){const list=$('.moa-r613-voice-list',view);if(list)delete list.dataset.signature;refreshVoices();}});
+function openNativeRecorder(){const s=getState();if(!s)return;window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;
+ // Existing voice host accepts only S.page==='day'; call the *original* day navigation
+ // so all original record-save side-effects, UID and data ownership remain intact.
+ if(s.page!=='day'||s.date!==ui.date){s.mode='curated';window.FamilyJourneyDiary?.selectDay?.(ui.date)}
+ const result=window.MoaVoiceDiaryNative?.open?.();if(!result){notify('기존 녹음 화면 연결이 준비되지 않았습니다.');return}
+ const check=()=>{if(!ui.open)return;if(document.getElementById('moa-r149-voice-modal')){setTimeout(check,1200);return;}refreshVoices()};setTimeout(check,1300);
+}
+function playInlineVideo(media){
+ const slide=$(`.moa-r472-slide[data-idx="${ui.idx}"]`,view);if(!slide||!isVideo(media))return;
+ const old=slide.querySelector('video');if(old){old.paused?old.play().catch(()=>{}):old.pause();return;}
+ window.MoaVoicePlaybackUI?.stop?.();ui.audioPlaying=false;
+ const video=elem('video','moa-r469-inline-video');video.controls=true;video.playsInline=true;video.preload='metadata';
+ video.poster=slide.querySelector('img')?.src||'';
+ // Android WebView must be allowed to read the MediaStore URI. On devices that reject it,
+ // original native playback stays a user-visible explicit fallback, not a false success.
+ video.src=`content://media/external/video/media/${String(media.id).slice(1)}`;
+ video.onerror=()=>{
+  video.pause();video.removeAttribute('src');video.load();video.remove();
+  notify('이 기기에서 화면 내 영상 열기가 제한되어 있습니다. 원본 재생기를 사용할 수 있습니다.');
+  if(!slide.querySelector('.moa-r469-native-fallback'))slide.append(btn('원본 재생기로 보기',()=>nativePost('diaryPlayVideo',{id:media.id}),'moa-r469-native-fallback'));
+ };
+ slide.querySelector('.moa-r469-video-play')?.remove();slide.append(video);
+ video.addEventListener('play',()=>{const b=slide.querySelector('.moa-r499-video-play');if(b)b.textContent='Ⅱ'});video.addEventListener('pause',()=>{const b=slide.querySelector('.moa-r499-video-play');if(b)b.textContent='▶'});video.play().catch(()=>{video.controls=true});
+}
+
+const originalAudioEvent=window.__moaNativeAudioEvent;
+if(typeof originalAudioEvent==='function'){window.__moaNativeAudioEvent=function(evt){originalAudioEvent.apply(this,arguments);if(!ui.open||ui.page!=='day')return;const event=String(evt?.event||'');if(['record_saved','delete','transcribe_result'].includes(event)){const panel=$('.moa-r613-voice-list',view);if(panel)delete panel.dataset.signature;setTimeout(refreshVoices,250);}else if(event.startsWith('play_'))window.MoaVoicePlaybackUI?.updatePlayback?.();};}
+// Native R570 save gate: exact CURRENT photo id, not merely same day/GPS.
+window.__moaR570CurrentMediaId=()=>ui.open&&ui.page==='day'?String(dayMedia(ui.idx)?.id||''):'';
+window.MoaR469SimpleDiary={openAdvancedGallery:()=>window.__moaR531ShowAdvanced?.(),openCalendar:()=>open('calendar'),openDay:d=>open('day',d),setCoverNative:id=>{if(ui.open&&ui.page==='day'&&ui.media.some(m=>String(m.id)===String(id)))saveCover(id)},home:()=>ui.open?(ui.page==='day'?goBack():true):false,close,readOnlyStatus:()=>({active:ui.open,page:ui.page,date:ui.date,mediaCount:ui.media.length,voiceCount:ui.clips.length,dirty:ui.dirty})};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
