@@ -998,3 +998,424 @@ public final class MoaR675PickerGalleryDeck extends ContentProvider {
     GalleryGlyph glyph=new GalleryGlyph(a,isMap);
     button.addView(glyph,new LinearLayout.LayoutParams(dpx(a,21),dpx(a,21)));
     button.setOnClickListener(v->{if(button.isEnabled())callback.run();});
+    return new GalleryActionButton(button,glyph);
+  }
+  private static void r439RemoveBar(Activity a){
+    GalleryActions entry=GALLERY_BARS.remove(a);
+    if(entry==null)return;
+    r463DisableFastSwipe(entry);
+    try{
+      if(entry.lower.getParent()==entry.host&&entry.lower.getLayoutParams() instanceof FrameLayout.LayoutParams){
+        FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)entry.lower.getLayoutParams();
+        if(lp.bottomMargin==entry.oldBottomMargin+entry.reservedHeight){
+          lp.bottomMargin=entry.oldBottomMargin;entry.lower.setLayoutParams(lp);
+        }
+      }
+      // R451 checkbox lives in the independent compact toggle; it is removed
+      // together with the toggle. Original info's children remain untouched.
+      if(entry.info!=null&&entry.info.getLayoutParams() instanceof FrameLayout.LayoutParams){
+        FrameLayout.LayoutParams infoLp=(FrameLayout.LayoutParams)entry.info.getLayoutParams();
+        if(infoLp.topMargin!=entry.originalInfoTop){infoLp.topMargin=entry.originalInfoTop;entry.info.setLayoutParams(infoLp);}
+        entry.info.setVisibility(View.VISIBLE); // restore untouched original metadata behavior
+      }
+      if(entry.toggle.getParent() instanceof ViewGroup)((ViewGroup)entry.toggle.getParent()).removeView(entry.toggle);
+      if(entry.root.getParent() instanceof ViewGroup)((ViewGroup)entry.root.getParent()).removeView(entry.root);
+    }catch(Throwable ignored){}
+  }
+  private static void r439UpdateGalleryBar(Activity a,GalleryActions entry){
+    if(entry==null)return;
+    try{
+      if(entry.host.getParent()==null||entry.root.getParent()!=entry.host){r439RemoveBar(a);return;}
+      Object open=r439Field(entry.gallery.getClass(),"open").get(entry.gallery);
+      if(!Boolean.TRUE.equals(open)){r439RemoveBar(a);return;}
+      boolean chrome=r439Field(entry.gallery.getClass(),"chromeVisible").getBoolean(entry.gallery);
+      boolean visible=chrome&&entry.lower.getVisibility()==View.VISIBLE;
+      if(entry.root.getVisibility()!=(visible?View.VISIBLE:View.GONE))
+        entry.root.setVisibility(visible?View.VISIBLE:View.GONE);
+      Object pinObj=r439Field(entry.gallery.getClass(),"r225Naver").get(entry.gallery);
+      boolean mapActive=pinObj instanceof View&&((View)pinObj).getVisibility()==View.VISIBLE;
+      if(entry.mapEnabled!=mapActive){
+        entry.mapEnabled=mapActive;entry.mapButton.setEnabled(mapActive);entry.mapGlyph.setEnabled(mapActive);
+        entry.mapGlyph.invalidate();
+        entry.mapButton.setContentDescription(mapActive?"촬영 장소 네이버 지도 열기":"GPS 위치가 없는 사진 · 지도 이용 불가");
+      }
+      r443UpdateTopInfo(a,entry,chrome);
+      if(entry.fastSwipeEnabled&&(entry.stageScrub==null||!entry.stageScrub.attached())){
+        r463DisableFastSwipe(entry); // fail closed if native stage was rebuilt
+      }
+      FrameLayout.LayoutParams lower=(FrameLayout.LayoutParams)entry.lower.getLayoutParams();
+      int want=entry.oldBottomMargin+entry.reservedHeight;
+      if(lower.bottomMargin!=want){lower.bottomMargin=want;entry.lower.setLayoutParams(lower);}
+    }catch(Throwable t){Log.w(TAG,"GALLERY_BAR_REFRESH_"+t.getClass().getSimpleName());}
+  }
+  // R694: picker-only order is independent of PHOTO/DETAIL fullscreen settings.
+  // Reparent original four Views WITHOUT replacing click handlers or Gallery.
+  private static void r694PickerOrder(Activity a,GalleryActions e){
+    if(e.r694Row==null||e.r694Row.getChildCount()!=4)return;
+    java.util.LinkedHashMap<String,View> map=new java.util.LinkedHashMap<>();
+    for(int i=0;i<4;i++){
+      View v=e.r694Row.getChildAt(i);String tag=String.valueOf(v.getTag());
+      if(tag.equals("moa.gallery.action.share"))map.put("share",v);
+      else if(tag.equals("moa.gallery.action.map"))map.put("map",v);
+      else if(tag.equals("moa.gallery.action.info.r459"))map.put("info",v);
+      else if(tag.equals("moa.gallery.action.faststage.r463"))map.put("fast",v);
+    }
+    if(map.size()!=4)return;
+    String saved=a.getSharedPreferences("moa.r694.picker.actions",0).getString("order","");
+    java.util.ArrayList<String> ids=new java.util.ArrayList<>();
+    if(!saved.isEmpty())for(String v:saved.split(","))if(map.containsKey(v)&&!ids.contains(v))ids.add(v);
+    for(String v:new String[]{"share","map","info","fast"})if(!ids.contains(v))ids.add(v);
+    for(String id:ids){View v=map.get(id);if(v.getParent()==e.r694Row)e.r694Row.removeView(v);}
+    for(String id:ids){View v=map.get(id);
+      e.r694Row.addView(v,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
+      v.setOnLongClickListener(x->{r694PickerOrderDialog(a,e);return true;});
+    }
+  }
+  private static void r694PickerOrderDialog(Activity a,GalleryActions e){
+    if(e.r694Row==null||a.isFinishing())return;
+    String saved=a.getSharedPreferences("moa.r694.picker.actions",0).getString("order","share,map,info,fast");
+    java.util.ArrayList<String> ids=new java.util.ArrayList<>();
+    for(String x:saved.split(","))if((x.equals("share")||x.equals("map")||x.equals("info")||x.equals("fast"))&&!ids.contains(x))ids.add(x);
+    for(String x:new String[]{"share","map","info","fast"})if(!ids.contains(x))ids.add(x);
+    String[] labels=new String[ids.size()];
+    for(int i=0;i<ids.size();i++){
+      String role=ids.get(i);String name=role.equals("share")?"공유":role.equals("map")?"네이버 지도":role.equals("info")?"촬영 정보":"연속 넘기기";
+      labels[i]=(i+1)+". "+name;
+    }
+    final int[] chosen={0};
+    new android.app.AlertDialog.Builder(a).setTitle("사진 추가 갤러리 아이콘 순서")
+      .setSingleChoiceItems(labels,0,(d,p)->chosen[0]=p)
+      .setPositiveButton("왼쪽으로",(d,k)->r694MovePicker(a,e,ids,chosen[0],-1))
+      .setNeutralButton("오른쪽으로",(d,k)->r694MovePicker(a,e,ids,chosen[0],1))
+      .setNegativeButton("닫기",null).show();
+  }
+  private static void r694MovePicker(Activity a,GalleryActions e,java.util.ArrayList<String> ids,int at,int delta){
+    int dest=at+delta;if(at<0||dest<0||at>=ids.size()||dest>=ids.size())return;
+    java.util.Collections.swap(ids,at,dest);
+    a.getSharedPreferences("moa.r694.picker.actions",0).edit().putString("order",android.text.TextUtils.join(",",ids)).apply();
+    r694PickerOrder(a,e);
+  }
+  private static void ensureGalleryBottomBar(Activity a){
+    if(!valid(a))return;
+    try{
+      Object g=r439Gallery(a);
+      GalleryActions old=GALLERY_BARS.get(a);
+      if(g==null){if(old!=null)r439RemoveBar(a);return;}
+      Object opened=r439Field(g.getClass(),"open").get(g);
+      if(!Boolean.TRUE.equals(opened)){if(old!=null)r439RemoveBar(a);return;}
+      Object hostObj=r439Field(g.getClass(),"host").get(g);
+      Object lowerObj=r439Field(g.getClass(),"lowerControls").get(g);
+      if(!(hostObj instanceof FrameLayout)||!(lowerObj instanceof LinearLayout))return;
+      FrameLayout host=(FrameLayout)hostObj;LinearLayout lower=(LinearLayout)lowerObj;
+      if(host.getParent()==null||lower.getParent()!=host||host.getContext()!=a)return;
+      if(old!=null){
+        if(old.gallery==g&&old.host==host&&old.lower==lower){r439UpdateGalleryBar(a,old);return;}
+        r439RemoveBar(a);
+      }
+      if(!(lower.getLayoutParams() instanceof FrameLayout.LayoutParams))return;
+      int reserved=dpx(a,GALLERY_BAR_DP);
+      FrameLayout.LayoutParams lowerLp=(FrameLayout.LayoutParams)lower.getLayoutParams();
+      int initial=lowerLp.bottomMargin;
+      FrameLayout overlay=new FrameLayout(a);overlay.setTag("moa.gallery.action.deck.r443");
+      overlay.setBackgroundColor(0x00000000);overlay.setClipChildren(false);
+      LinearLayout capsule=new LinearLayout(a);capsule.setGravity(Gravity.CENTER);capsule.setOrientation(LinearLayout.HORIZONTAL);
+      GradientDrawable bg=new GradientDrawable();bg.setColor(0xf5222326);bg.setCornerRadius(dpx(a,22));
+      bg.setStroke(dpx(a,.6f),0x66494a4d);capsule.setBackground(bg);
+      // Extensibility: new action specs can be appended to THIS row only.
+      // Existing thumbnail rail/video seek/play/mute/capture layouts stay untouched.
+      GalleryActionButton share=r439Action(a,"share","공유",false,()->r443ShareKeepGallery(a,g));
+      GalleryActionButton map=r439Action(a,"map","지도",true,()->r439Call(g,"r225OpenNaver"));
+      // Third icon-only action toggles the ORIGINAL compact capture-info card.
+      // The lower pin remains GPS/navigation. This simple fold-map glyph is
+      // informational and must never trigger navigation.
+      LinearLayout infoAction=new LinearLayout(a);infoAction.setGravity(Gravity.CENTER);
+      infoAction.setMinimumHeight(dpx(a,42));infoAction.setClickable(true);infoAction.setFocusable(true);
+      infoAction.setTag("moa.gallery.action.info.r459");
+      infoAction.setContentDescription("촬영 시간과 주소 펼치기");
+      GradientDrawable infoRippleMask=new GradientDrawable();infoRippleMask.setColor(0xffffffff);
+      infoRippleMask.setCornerRadius(dpx(a,18));
+      infoAction.setBackground(new RippleDrawable(ColorStateList.valueOf(0x44ffffff),null,infoRippleMask));
+      GalleryFoldMapGlyph folded=new GalleryFoldMapGlyph(a);
+      // 25dp canvas produces an actual ~20dp white folded map mark, matching
+      // the neighboring original 21dp Gallery Share/Map icons.
+      infoAction.addView(folded,new LinearLayout.LayoutParams(dpx(a,21),dpx(a,21)));
+      // Shared 50dp footer / existing swipe rail remain untouched; only the
+      // flexible capsule grows from two actions to three.
+      capsule.addView(share.touch,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
+      capsule.addView(map.touch,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
+      capsule.addView(infoAction,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
+      // R463 action #4: opt-in upper-stage fast filmstrip physics, default OFF.
+      LinearLayout fastAction=new LinearLayout(a);fastAction.setGravity(Gravity.CENTER);
+      fastAction.setClickable(true);fastAction.setFocusable(true);
+      fastAction.setMinimumHeight(dpx(a,42));fastAction.setTag("moa.gallery.action.faststage.r463");
+      fastAction.setContentDescription("상단 빠른 연속 넘기기 켜기");
+      GradientDrawable fastMask=new GradientDrawable();fastMask.setColor(0xffffffff);fastMask.setCornerRadius(dpx(a,18));
+      fastAction.setBackground(new RippleDrawable(ColorStateList.valueOf(0x44ffffff),null,fastMask));
+      GalleryFastSwipeGlyph fastGlyph=new GalleryFastSwipeGlyph(a);
+      fastAction.addView(fastGlyph,new LinearLayout.LayoutParams(dpx(a,21),dpx(a,21)));
+      capsule.addView(fastAction,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
+      int count=4, width=Math.min(Math.max(dpx(a,120),host.getWidth()-dpx(a,30)),dpx(a,20+count*65));
+      FrameLayout.LayoutParams capParams=new FrameLayout.LayoutParams(width,dpx(a,42),Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+      capParams.bottomMargin=dpx(a,3);
+      overlay.addView(capsule,capParams);
+      FrameLayout.LayoutParams deckParams=new FrameLayout.LayoutParams(-1,reserved,Gravity.BOTTOM);
+      host.addView(overlay,deckParams);
+      lowerLp.bottomMargin=initial+reserved;lower.setLayoutParams(lowerLp);
+      // R443: top metadata no longer sits permanently over the photo/video.
+      // We keep its existing date, resolved address, and original NAVER pin.
+      LinearLayout info=null;int infoOldTop=0;
+      Object infoObj=r439Field(g.getClass(),"r225Info").get(g);
+      if(infoObj instanceof LinearLayout && ((View)infoObj).getParent()==host){
+        info=(LinearLayout)infoObj;
+        if(info.getLayoutParams() instanceof FrameLayout.LayoutParams){
+          FrameLayout.LayoutParams ilp=(FrameLayout.LayoutParams)info.getLayoutParams();
+          infoOldTop=ilp.topMargin; // R451: source metadata stays unmodified / hidden.
+        }
+      }
+      // Upper container now holds ONLY the expanded metadata. The original
+      // upper folded-map icon has been rehomed into the third bottom action.
+      FrameLayout toggle=new FrameLayout(a);
+      toggle.setTag("moa.gallery.top.compact.info.r459");
+      toggle.setClickable(false);toggle.setFocusable(false);
+      toggle.setContentDescription("촬영 시간과 주소 정보 패널");
+      LinearLayout card=new LinearLayout(a);card.setOrientation(LinearLayout.VERTICAL);
+      card.setPadding(dpx(a,11),dpx(a,7),dpx(a,11),dpx(a,7));
+      GradientDrawable cardBg=new GradientDrawable();cardBg.setColor(0xcc1b1d22);
+      cardBg.setCornerRadius(dpx(a,13));
+      cardBg.setStroke(dpx(a,.6f),0x555b6069);
+      card.setBackground(cardBg);card.setVisibility(View.GONE);
+      FrameLayout.LayoutParams cardLp=new FrameLayout.LayoutParams(-1,-2,Gravity.TOP);
+      toggle.addView(card,cardLp);
+      float factor=host.getWidth()<dpx(a,345)?0.92f:1f;
+      TextView time=r451CompactText(a,11.3f*factor,0xfff6f6f7,1);
+      TextView address=r451CompactText(a,10.5f*factor,0xffdee1e5,2);
+      time.setText("촬영 시간 확인 중…");address.setText("위치 확인 중…");
+      card.addView(time,new LinearLayout.LayoutParams(-1,dpx(a,20)));
+      LinearLayout.LayoutParams addrLp=new LinearLayout.LayoutParams(-1,-2);
+      addrLp.topMargin=dpx(a,2);card.addView(address,addrLp);
+      // No duplicate upper Naver map button. The bottom GPS action remains.
+      CheckBox always=new CheckBox(a);always.setText("기본 표시");
+      always.setTextSize(10.7f*factor);always.setTextColor(0xffdadde3);
+      always.setButtonTintList(ColorStateList.valueOf(0xffd3a4c2));
+      always.setPadding(0,0,0,0);
+      always.setMinHeight(0);always.setMinimumHeight(0);
+      always.setContentDescription("갤러리 시작 시 촬영 시간과 주소 기본 표시");
+      boolean auto=a.getSharedPreferences(GALLERY_INFO_PREFS,0).getBoolean("show_on_open",false);
+      always.setChecked(auto);
+      LinearLayout.LayoutParams cbLp=new LinearLayout.LayoutParams(-1,dpx(a,26));
+      cbLp.topMargin=dpx(a,2);card.addView(always,cbLp);
+      int w=Math.max(dpx(a,180),Math.min(dpx(a,322),host.getWidth()-dpx(a,24)));
+      FrameLayout.LayoutParams topLp=new FrameLayout.LayoutParams(w,-2,Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+      topLp.topMargin=r447TopToggleY(a,host);
+      host.addView(toggle,topLp);toggle.setElevation(dpx(a,24));toggle.bringToFront();
+      GalleryActions entry=new GalleryActions(g,host,lower,overlay,map.touch,map.glyph,info,toggle,always,
+        folded,infoAction,card,time,address,fastAction,fastGlyph,infoOldTop,initial,reserved);
+      entry.infoExpanded=auto;
+      entry.r694Row=capsule;
+      // No top-tap listener. Both expand and collapse originate from the
+      // SAME third icon in the footer, unless '기본 표시' is checked (pinned).
+      infoAction.setOnClickListener(v->{
+        if(entry.infoExpanded&&entry.autoShow.isChecked()){
+          infoAction.setContentDescription("기본 표시 체크를 해제해야 촬영정보를 접을 수 있습니다");
+          return;
+        }
+        entry.infoExpanded=!entry.infoExpanded;
+        r443UpdateTopInfo(a,entry,true);
+      });
+      fastAction.setOnClickListener(v->{
+        if(entry.fastSwipeEnabled){r463DisableFastSwipe(entry);return;}
+        if(!r463EnableFastSwipe(a,entry)){
+          fastAction.setContentDescription("상단 빠른 연속 넘기기를 사용할 수 없습니다");
+          return;
+        }
+        entry.fastSwipeEnabled=true;
+        fastAction.setSelected(true);
+        fastGlyph.setActive(true);
+        fastAction.setContentDescription("상단 빠른 연속 넘기기 켜짐. 눌러서 끄기");
+      });
+      always.setOnCheckedChangeListener((buttonView,checked)->{
+        a.getSharedPreferences(GALLERY_INFO_PREFS,0).edit().putBoolean("show_on_open",checked).apply();
+        // Checking changes the DEFAULT for future Gallery opens; do not
+        // prematurely close the current expanded card.
+      });
+      GALLERY_BARS.put(a,entry);
+      r694PickerOrder(a,entry);
+      r439UpdateGalleryBar(a,entry);
+      // Re-anchor the existing video volume bubble to its original mute button
+      // after moving the entire ORIGINAL lowerControls block up, not its children.
+      host.post(()->{try{Method m=g.getClass().getDeclaredMethod("anchorVolumeBubble");m.setAccessible(true);m.invoke(g);}catch(Throwable ignored){}});
+      Log.i(TAG,"GALLERY_ACTION_DECK_ATTACHED");
+    }catch(Throwable t){
+      long now=SystemClock.elapsedRealtime();
+      if(now-galleryLastLogAt>3500L){galleryLastLogAt=now;
+        Log.w(TAG,"GALLERY_BAR_ATTACH_"+t.getClass().getSimpleName());}
+    }
+  }
+
+  private static void repairGalleryOwner(Activity a){
+    if(!valid(a))return;
+    long now=SystemClock.elapsedRealtime();
+    Long oldAt=GALLERY_REPAIR_AT.get(a);
+    if(oldAt!=null&&now-oldAt<900L)return;
+    GALLERY_REPAIR_AT.put(a,now);
+    try{
+      WebView own=findOwnWeb(a.getWindow().getDecorView());
+      if(own==null||own.getUrl()==null||!own.getUrl().startsWith("https://familyjourney.local/"))return;
+      Class<?> c=Class.forName("com.juhyeon.familyjourney.MoaMomentAudioHostActivity");
+      if(!c.isInstance(a))return;
+      Field host=c.getDeclaredField("web");host.setAccessible(true);
+      Field trusted=c.getDeclaredField("trustedPage");trusted.setAccessible(true);
+      Object previous=host.get(a);
+      boolean wasTrusted=trusted.getBoolean(a);
+      if(previous!=own||!wasTrusted){
+        host.set(a,own);trusted.setBoolean(a,true);
+        Log.i(TAG,previous!=own?"GALLERY_WEBVIEW_OWNER_REPAIRED":"GALLERY_OWN_ORIGIN_TRUST_REFRESHED");
+      }
+    }catch(Throwable t){Log.w(TAG,"GALLERY_OWNER_REPAIR_CHECK_"+t.getClass().getSimpleName());}
+  }
+  private static void monitor(Activity a,int id){
+    if(!valid(a) || MONITORS.get(a)==null || MONITORS.get(a)!=id)return;
+    Run r=RUNS.get(a);
+    compactNaverChrome(a);
+    repairGalleryOwner(a);
+    ensureGalleryBottomBar(a);
+    try{
+      // A living foreground/background HostActivity shares one no-network
+      // heartbeat that only refreshes the existing controller expiry.
+      if(r==null || r.finished){
+        WebView own=findOwnWeb(a.getWindow().getDecorView());
+        if(own!=null){
+          own.evaluateJavascript("(function(){try{return window.__moaR411Rearm&&window.__moaR411Rearm.pending===true?'YES':'NO'}catch(e){return 'NO'}})()",value->{
+            if(!valid(a)||!String.valueOf(value).contains("YES"))return;
+            Run old=RUNS.get(a);
+            if(old!=null&&!old.finished)return;
+            long at=REARM_AT.containsKey(a)?REARM_AT.get(a):0L;
+            long tick=SystemClock.elapsedRealtime();
+            if(tick-at<REARM_COOLDOWN_MS)return;
+            REARM_AT.put(a,tick);
+            Run nr=new Run(a);RUNS.put(a,nr);
+            UI.post(()->startRearmWithFrozenScreen(a,nr));
+          });
+        }
+      }
+    }catch(Throwable t){Log.w(TAG,"MONITOR_NO_STATE_"+t.getClass().getSimpleName());}
+    UI.postDelayed(()->monitor(a,id),400L);
+  }
+  private static void stage(Run r,String value){
+    Log.i(TAG,value);
+    try{r.activity.getSharedPreferences("moa_r419_visual_stage",0).edit()
+      .putString("last",value).putLong("at_elapsed_ms",SystemClock.elapsedRealtime()).apply();}
+    catch(Throwable ignored){}
+  }
+  private static JSONObject status(Class<?> controller) throws Exception {
+    return new JSONObject(String.valueOf(controller.getMethod("statusJson").invoke(null)));
+  }
+  private static void invoke(Class<?> controller,String name,Activity a) throws Exception {
+    Method method=controller.getDeclaredMethod(name,Activity.class);
+    method.setAccessible(true);method.invoke(null,a);
+  }
+  private static void hide(Class<?> controller,Activity a) throws Exception {
+    Method method=controller.getDeclaredMethod("setHidden",Activity.class,boolean.class);
+    method.setAccessible(true);method.invoke(null,a,Boolean.TRUE);
+  }
+  private static void closeOnlyOurBrowser(Run r){
+    if(!r.ownedBrowser)return;
+    try{Class.forName(CTRL).getMethod("dispose").invoke(null);}
+    catch(Throwable ignored){}
+    r.ownedBrowser=false;
+  }
+  private static void finish(Run r,boolean good){
+    if(r.finished)return;
+    r.finished=true;++r.epoch;
+    if(!good)closeOnlyOurBrowser(r); // no stray unmasked WebView
+    if(good)compactNaverChrome(r.activity); // keep first visible render untouched
+    removeWindowMask(r);
+    removeCover(r);
+    if(r.frozenUi!=null){try{r.frozenUi.recycle();}catch(Throwable ignored){}r.frozenUi=null;}
+    stage(r,good?"STOP_VISIBLE_HIDE_COMPLETE":"STOP_VISIBLE_HIDE_FAILED");
+  }
+  private static void releaseWhenAppReady(Run r,int epoch,int attempt){
+    if(r.finished||r.epoch!=epoch)return;
+    if(!valid(r.activity)){finish(r,false);return;}
+    if(attempt>=30){stage(r,"SPLASH_WAIT_TIMEOUT");finish(r,true);return;}
+    WebView w=findOwnWeb(r.activity.getWindow().getDecorView());
+    if(w==null){UI.postDelayed(()->releaseWhenAppReady(r,epoch,attempt+1),140L);return;}
+    try{
+      w.evaluateJavascript("(function(){try{return document.readyState==='complete'&&document.getElementById('app')&&!document.getElementById('moa-launch')?'READY':'WAIT'}catch(e){return 'WAIT'}})()",value->{
+        if(r.finished||r.epoch!=epoch)return;
+        if(value!=null&&value.contains("READY")){
+          stage(r,"FIRST_PARTY_SPLASH_FINISHED");
+          UI.postDelayed(()->finish(r,true),60L);
+        }else UI.postDelayed(()->releaseWhenAppReady(r,epoch,attempt+1),140L);
+      });
+    }catch(Throwable t){UI.postDelayed(()->releaseWhenAppReady(r,epoch,attempt+1),140L);}
+  }
+  private static void stepHide(Run r,int epoch){
+    if(r.finished||r.epoch!=epoch)return;
+    if(!valid(r.activity)){finish(r,false);return;}
+    long elapsed=SystemClock.elapsedRealtime()-r.startedAt;
+    if(elapsed<VISIBLE_LAYOUT_MS){UI.postDelayed(()->stepHide(r,epoch),VISIBLE_LAYOUT_MS-elapsed);return;}
+    try{
+      Class<?> c=Class.forName(CTRL);
+      JSONObject before=status(c);
+      if(!before.optBoolean("running",false)){stage(r,"HIDE_ABORT_NOT_RUNNING");finish(r,false);return;}
+      // Exactly the user-proven PC map visible -> '모아로' path. Never wait for DOM readiness.
+      hide(c,r.activity);
+      JSONObject after=status(c);
+      if(after.optBoolean("running",false)&&after.optBoolean("hidden",false)){
+        stage(r,"HIDE_CONFIRMED");
+        // For cold launch wait until the *actual* HTML splash (#moa-launch)
+        // is gone. Otherwise R415 flips between two differently aligned logos.
+        // For explicit rearm, the frozen exact pixels must be released promptly.
+        if(r.fromRearm)UI.postDelayed(()->finish(r,true),60L);
+        else UI.postDelayed(()->releaseWhenAppReady(r,epoch,0),90L);
+      }else{
+        stage(r,"HIDE_NOT_CONFIRMED");finish(r,false);
+      }
+    }catch(Throwable t){stage(r,"HIDE_EXCEPTION_"+t.getClass().getSimpleName());finish(r,false);}
+  }
+  private static void begin(Run r){
+    if(r.attempted||r.finished||!valid(r.activity))return;
+    r.attempted=true;
+    // A single top application-panel mask: no second in-content root overlay to
+    // produce vertical jumping during the splash-to-app content layout.
+    if(!attachWindowMask(r)){
+      stage(r,"MASK_UNAVAILABLE_ABORT");finish(r,false);
+    }
+  }
+  private static void openOriginalBehindMask(Run r){
+    if(r.finished||r.openStarted||!r.maskDrawn||!valid(r.activity))return;
+    r.openStarted=true;
+    try{
+      Class<?> c=Class.forName(CTRL);
+      stage(r,"CLOSE_REQUESTED");
+      // Same implementation as pressing '웹창 종료' (control('stop') calls dispose()).
+      c.getMethod("dispose").invoke(null);
+      stage(r,"CLOSE_FINISHED");
+      c.getMethod("onHostResumed",Activity.class).invoke(null,r.activity);
+      // Same implementation as pressing '네이버 PC 지도 열기' from a stopped controller.
+      invoke(c,"start",r.activity);
+      JSONObject after=status(c);
+      if(!after.optBoolean("running",false)){
+        stage(r,"VISIBLE_START_NOT_RUNNING_"+after.optString("state","unknown"));
+        finish(r,false);return;
+      }
+      r.ownedBrowser=true;
+      compactNaverChrome(r.activity); // fold dark header before the first visible browser frame
+      r.startedAt=SystemClock.elapsedRealtime();
+      if(r.cover!=null){r.cover.bringToFront();r.cover.invalidate();}
+      stage(r,"VISIBLE_STARTED_MASKED");
+      // No fragile URL/DOM/mode preference gates: short manual visible period alone worked on the user's phone.
+      final int epoch=++r.epoch;
+      UI.postDelayed(()->stepHide(r,epoch),VISIBLE_LAYOUT_MS);
+    }catch(Throwable t){stage(r,"BEGIN_EXCEPTION_"+t.getClass().getSimpleName());finish(r,false);}
+  }
+  // This class is a compile-time isolated copy of the exact original R463
+  // toolbar code, NOT a registered provider. No global Activity hooks.
+  @Override public boolean onCreate(){return true;}
+  @Override public Cursor query(Uri u,String[] projection,String selection,String[] args,String sort){return null;}
+  @Override public String getType(Uri u){return null;}
+  @Override public Uri insert(Uri u,ContentValues values){return null;}
+  @Override public int delete(Uri u,String selection,String[] args){return 0;}
+  @Override public int update(Uri u,ContentValues values,String selection,String[] args){return 0;}
+}
