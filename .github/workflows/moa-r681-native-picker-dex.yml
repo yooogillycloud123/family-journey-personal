@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/moa677/classes /tmp/moa677/dex build/moa-r681
-          javac -encoding UTF-8 -source 17 -target 17             -cp "$ANDROID_HOME/platforms/android-35/android.jar"             -d /tmp/moa677/classes             experiments/moa-r677/MoaR675PickerGalleryDeck.java             experiments/moa-r677/MoaR667NativePickerProvider.java             2>&1 | tee build/moa-r681/compile.log
+          javac -encoding UTF-8 -source 17 -target 17             -cp "$ANDROID_HOME/platforms/android-35/android.jar"             -d /tmp/moa677/classes             experiments/moa-r677/MoaR675PickerGalleryDeck.java             experiments/moa-r681/MoaR667NativePickerProvider.java             2>&1 | tee build/moa-r681/compile.log
           find /tmp/moa677/classes -type f -name '*.class' -print0 |             xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29               --lib "$ANDROID_HOME/platforms/android-35/android.jar"               --output /tmp/moa677/dex 2>&1 | tee -a build/moa-r681/compile.log
           python3 - <<'PY'
           from pathlib import Path
