@@ -35,15 +35,15 @@ jobs:
           from pathlib import Path
           import zlib,base64,hashlib,json
           d=Path('/tmp/moa677/dex/classes.dex').read_bytes()
-          assert d[:4]==b'dex\\n'
+          assert d[:4]==bytes([100,101,120,10])
           for marker in (b'MoaNativeGallery',b'MoaR675PickerGalleryDeck',b'MoaR667NativePickerProvider'):
               assert marker in d, marker
           out=Path('build/moa-r677')
-          (out/'classes19.dex.z.b64').write_text(base64.b64encode(zlib.compress(d,9)).decode()+'\\n')
+          (out/'classes19.dex.z.b64').write_text(base64.b64encode(zlib.compress(d,9)).decode()+chr(10))
           (out/'verify.json').write_text(json.dumps(dict(
               bytes=len(d),sha256=hashlib.sha256(d).hexdigest(),
               source='R677 native picker fullscreen only; original DEX1..18 untouched',
-              handset_test='UNTESTED'),indent=2)+'\\n')
+              handset_test='UNTESTED'),indent=2)+chr(10))
           print((out/'verify.json').read_text())
           PY
       - uses: actions/upload-artifact@v4
