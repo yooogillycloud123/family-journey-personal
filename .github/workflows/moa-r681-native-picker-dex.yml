@@ -2,10 +2,9 @@ name: MOA R681 original gallery native picker DEX (no signing material)
 on:
   push:
     branches:
-      - feature/moa-r681-video23414-exact-native-20261117
+      - feature/moa-r681-23428-31-header-bridge-20261117
     paths:
       - .github/workflows/moa-r681-native-picker-dex.yml
-      - experiments/moa-r681/MoaR667NativePickerProvider.java
       - experiments/moa-r681/MoaR667NativePickerProvider.java
   workflow_dispatch:
 permissions:
