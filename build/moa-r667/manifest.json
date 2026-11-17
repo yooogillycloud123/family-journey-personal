@@ -1,7 +1,7 @@
 {
-  "dex_sha256": "13e7633b3a390459432e96e44c411c6c9dae4ca0d9c1ffce303523e32bc53628",
-  "dex_size": 37064,
-  "sourceSha256": "15d501437b26d697a10f0fb60cf7adbc2ea06fcfb64dc3da71661148d87a58ef",
+  "dex_sha256": "69ed8bb7a8fc37efe8a819271c78822315f9850780f9640c77a12cd8fcca0aaa",
+  "dex_size": 39124,
+  "sourceSha256": "4396c84c4f7f6761d332023b8eda3dbf5b6cbbf64c93c3e79ec8082e31c18151",
   "compile": "PASS",
   "androidSDK": 35,
   "hardware": "NOT_TESTED",
