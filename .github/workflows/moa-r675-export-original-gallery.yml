@@ -1,0 +1,31 @@
+name: MOA R675 export original exact native Gallery sources
+on:
+  push:
+    branches: [feature/moa-r675-reuse-exact-native-gallery-20261117]
+    paths: ['.github/workflows/moa-r675-export-original-gallery.yml']
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: golden/moa-r463-user-approved-20261113
+          path: golden463
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/moa-r203-compact-center-pill-native-inertia-fling-20261109
+          path: golden203
+      - name: Collect source references
+        run: |
+          mkdir -p export
+          cp golden463/experiments/moa-r391/MoaR391SessionPersistProvider.java export/R463_GalleryActionDeck.java
+          cp golden203/experiments/moa-r175/MoaNativeGallery.java export/R203_original_NativeGallery.java
+          cp golden203/experiments/moa-r175/MoaMomentAudioHostActivity_native_unified_gallery.java.txt export/R203_original_HostGallery.java
+          sha256sum export/* > export/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R675-ORIGINAL-GALLERY-SOURCES
+          path: export/
+          retention-days: 7
