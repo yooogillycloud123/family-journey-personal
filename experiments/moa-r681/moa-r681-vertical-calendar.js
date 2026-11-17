@@ -573,7 +573,7 @@ function r495SyncLegacyRoot(){
  // The stale original calendar must remain suppressed across ALL tab changes,
  // including My Map, Record and Settings -> Diary, not only PHOTO/DETAIL flips.
  // Legitimate original DETAIL day remains visible once its owner takes over.
- if(s?.open&&!root.hidden&&(ui.open||r679DetailHandoff||s.page==='calendar'))
+ if(ui.open||r679DetailHandoff||s?.page==='calendar')
   root.dataset.moaUnifiedPage='calendar';
  else delete root.dataset.moaUnifiedPage;
 }
