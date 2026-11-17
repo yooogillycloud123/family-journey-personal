@@ -1,0 +1,60 @@
+name: MOA R667 isolated native picker DEX (no signing secrets)
+on:
+  push:
+    branches: [feature/moa-r667-independent-native-photo-picker-20261117]
+    paths:
+      - "experiments/moa-r667/MoaR667NativePickerProvider.java"
+      - ".github/workflows/moa-r667-native-picker.yml"
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: SDK35 and D8 compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+          mkdir -p /tmp/moa667/classes /tmp/moa667/dex build/moa-r667
+          javac -encoding UTF-8 -source 17 -target 17 \
+            -cp "$ANDROID_HOME/platforms/android-35/android.jar" \
+            -d /tmp/moa667/classes experiments/moa-r667/MoaR667NativePickerProvider.java \
+            2>&1 | tee build/moa-r667/compile.log
+          find /tmp/moa667/classes -name '*.class' -print0 | \
+            xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" \
+            --min-api 29 --lib "$ANDROID_HOME/platforms/android-35/android.jar" \
+            --output /tmp/moa667/dex
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,zlib,hashlib,json
+          dex=Path('/tmp/moa667/dex/classes.dex').read_bytes()
+          assert dex[:8] in [b'dex\n035\0',b'dex\n039\0',b'dex\n040\0',b'dex\n041\0'],dex[:8]
+          for name in [b'MoaR667NativePickerProvider',b'NativePickerActivity',b'MoaR667NativePicker',b'content://media/external']:
+              assert name in dex,name
+          out=Path('build/moa-r667')
+          (out/'classes19.dex.z.b64').write_text(base64.b64encode(zlib.compress(dex,9)).decode('ascii'))
+          (out/'manifest.json').write_text(json.dumps({'dex_sha256':hashlib.sha256(dex).hexdigest(),'dex_size':len(dex),'sourceSha256':hashlib.sha256(Path('experiments/moa-r667/MoaR667NativePickerProvider.java').read_bytes()).hexdigest(),'compile':'PASS','androidSDK':35,'hardware':'NOT_TESTED','APKSigner':'NOT_PRESENT_IN_CI'},indent=2))
+          print('MOA_R667_NATIVE_DEX_COMPILE=PASS',len(dex),hashlib.sha256(dex).hexdigest())
+          PY
+      - name: Commit portable DEX to feature branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f build/moa-r667/classes19.dex.z.b64 build/moa-r667/manifest.json build/moa-r667/compile.log
+          git commit -m "ci(MOA R667): compile fully isolated native picker DEX" || true
+          git push origin HEAD:feature/moa-r667-independent-native-photo-picker-20261117
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R667-NATIVE-PICKER-DEX
+          path: |
+            build/moa-r667/*
+          retention-days: 14
