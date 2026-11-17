@@ -58,6 +58,40 @@ import java.util.concurrent.Executors;
 public final class MoaR667NativePickerProvider extends ContentProvider implements Application.ActivityLifecycleCallbacks {
   private static final Handler MAIN=new Handler(Looper.getMainLooper());
   private static String requestJson,resultJson;
+  private static final java.util.concurrent.atomic.AtomicInteger PICKER_REQUEST=new java.util.concurrent.atomic.AtomicInteger();
+  private static volatile Bitmap startupBitmap;
+  private static volatile String startupId="";
+  private static String requestedInitialId(String json){
+    try{
+      JSONObject request=new JSONObject(json);JSONArray items=request.optJSONArray("items");
+      int idx=Math.max(0,Math.min(items.length()-1,request.optInt("index",0)));
+      return items.optJSONObject(idx).optString("id","");
+    }catch(Throwable e){return "";}
+  }
+  // Decode BEFORE leaving the existing photo-add grid, so the new native
+  // Activity need not expose its black root during a 2300px decode.
+  private static Bitmap originalQualityFirstFrame(Activity a,String id){
+    try{
+      if(a==null||id==null||!id.matches("v?[0-9]{1,18}"))return null;
+      boolean video=id.startsWith("v");String numeric=video?id.substring(1):id;
+      android.net.Uri target=android.content.ContentUris.withAppendedId(
+        video?android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI:
+          android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,Long.parseLong(numeric));
+      if(video)return a.getContentResolver().loadThumbnail(target,new Size(640,640),null);
+      if(android.os.Build.VERSION.SDK_INT>=28){
+        return android.graphics.ImageDecoder.decodeBitmap(
+          android.graphics.ImageDecoder.createSource(a.getContentResolver(),target),
+          (decoder,info,source)->{
+            int width=Math.max(1,info.getSize().getWidth());
+            int height=Math.max(1,info.getSize().getHeight());int sample=1;
+            while(width/sample>2300||height/sample>2300)sample*=2;
+            decoder.setTargetSampleSize(sample);
+            decoder.setAllocator(android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE);
+          });
+      }
+    }catch(Throwable t){android.util.Log.w("MOA_R679_ORIGINAL","SOURCE_PRIME_"+t.getClass().getSimpleName());}
+    return null;
+  }
   private static final java.util.concurrent.ExecutorService PHOTO_WARMER=
     java.util.concurrent.Executors.newSingleThreadExecutor();
   // Only a bounded, advisory original-gallery image cache warm. No calls to
@@ -136,11 +170,26 @@ public final class MoaR667NativePickerProvider extends ContentProvider implement
       try{if(new JSONObject(json).optJSONArray("items")==null)return false;}catch(Exception e){return false;}
       Activity a=owner.get();WebView w=browser.get();if(!host(a)||w==null)return false;
       sourceActivity=new WeakReference<>(a);sourceWeb=new WeakReference<>(w);requestJson=json;resultJson=null;
-      MAIN.post(()->{
+      final int generation=PICKER_REQUEST.incrementAndGet();
+      startupBitmap=null;startupId="";
+      final String firstId=requestedInitialId(json);
+      final java.util.concurrent.atomic.AtomicBoolean launched=new java.util.concurrent.atomic.AtomicBoolean();
+      final Runnable launch=()->{
+        if(generation!=PICKER_REQUEST.get()||!launched.compareAndSet(false,true))return;
         if(a.isFinishing()||a.isDestroyed())return;
-        try{a.startActivity(new Intent(a,NativePickerActivity.class));}
+        try{a.startActivity(new Intent(a,NativePickerActivity.class));a.overridePendingTransition(0,0);}
         catch(Exception ex){w.evaluateJavascript("window.__moaR667NativePickerError&&window.__moaR667NativePickerError('native activity error')",null);}
-      });return true;
+      };
+      PHOTO_WARMER.execute(()->{
+        Bitmap prime=originalQualityFirstFrame(a,firstId);
+        if(generation==PICKER_REQUEST.get()&&prime!=null){
+          startupId=firstId;startupBitmap=prime;
+          android.util.Log.i("MOA_R679_ORIGINAL","SOURCE_PRIMED "+prime.getWidth()+"x"+prime.getHeight());
+        }
+        MAIN.post(launch);
+      });
+      MAIN.postDelayed(launch,1100L);
+      return true;
     }
   }
   private static void finishWith(JSONObject result){resultJson=result.toString();}
@@ -179,7 +228,7 @@ public final class MoaR667NativePickerProvider extends ContentProvider implement
     private final Handler ui=new Handler(Looper.getMainLooper());
     private final java.util.ArrayList<String> ids=new java.util.ArrayList<>();
     private final java.util.LinkedHashSet<String> chosen=new java.util.LinkedHashSet<>();
-    private boolean done=false, opened=false;
+    private boolean done=false, opened=false, nativeOpenInitiated=false;
     private int fallbackIndex=0;
     private android.widget.FrameLayout selectTouch;
     private SelectGlyph selectGlyph;
@@ -195,8 +244,14 @@ public final class MoaR667NativePickerProvider extends ContentProvider implement
             opened=true;
             // EXACT original R463 provider code; updates existing action deck
             // only in this isolated photo ADD Activity, not the live PHOTO host.
-            MoaR675PickerGalleryDeck.attachPicker(NativePickerActivity.this);
-            ensureSelectAction();
+            // Original R463 bar computes its width from Gallery.host.getWidth();
+            // don't freeze it at the wrong 120dp during a zero-width prelayout.
+            Object stage=field(unifiedGallery,"host");
+            if(stage instanceof FrameLayout && ((FrameLayout)stage).isAttachedToWindow()
+              && ((FrameLayout)stage).getWidth()>=dp(240)){
+              MoaR675PickerGalleryDeck.attachPicker(NativePickerActivity.this);
+              ensureSelectAction();
+            }
             if(selectGlyph!=null)selectGlyph.invalidate();
           }
         }
@@ -204,6 +259,35 @@ public final class MoaR667NativePickerProvider extends ContentProvider implement
       ui.postDelayed(this,190L);
     }};
     private int dp(float v){return Math.round(getResources().getDisplayMetrics().density*v);}
+    // Cache on the exact ORIGINAL LruCache of the existing class6 gallery.
+    private void originalOpenWithPrimedFrame(java.lang.reflect.Method open,String packed,String day){
+      if(nativeOpenInitiated||done)return;
+      nativeOpenInitiated=true;
+      try{
+        Bitmap ready=startupBitmap;String id=startupId;
+        if(ready!=null&&id!=null&&id.equals(ids.get(fallbackIndex))){
+          java.lang.reflect.Field cache=unifiedGallery.getClass().getDeclaredField(
+            id.startsWith("v")?"posters":"full");cache.setAccessible(true);
+          Object target=cache.get(unifiedGallery);
+          if(target instanceof android.util.LruCache){
+            ((android.util.LruCache)target).put(id,ready);
+            android.util.Log.i("MOA_R679_ORIGINAL","INJECT_ORIGINAL_CACHE "+ready.getWidth()+"x"+ready.getHeight());
+          }
+        }else{android.util.Log.w("MOA_R679_ORIGINAL","SOURCE_NOT_READY_OPEN_ORIGINAL");}
+        startupBitmap=null;startupId="";
+        if(!Boolean.TRUE.equals(open.invoke(unifiedGallery,packed,fallbackIndex,day))){
+          reason="ORIGINAL_GALLERY_OPEN_FALSE";
+          Toast.makeText(this,"원본 갤러리가 사진을 열지 못했습니다",Toast.LENGTH_LONG).show();
+          finishWithSelection();return;
+        }
+        opened=true;reason="ORIGINAL_CLASS6_GALLERY_OPEN_TRUE";
+        ui.postDelayed(monitor,85L);
+      }catch(Throwable e){
+        reason="ORIGINAL_GALLERY_OPEN_EXCEPTION_"+e.getClass().getSimpleName();
+        android.util.Log.e("MOA_R679_ORIGINAL",reason,e);
+        finishWithSelection();
+      }
+    }
     private boolean validId(String s){return s!=null&&s.matches("v?[0-9]{1,18}");}
     private String currentId(){
       int idx=fallbackIndex;
@@ -216,7 +300,7 @@ public final class MoaR667NativePickerProvider extends ContentProvider implement
     }
     @Override public void onCreate(Bundle saved){
       super.onCreate(saved);
-      // R677: original PHOTO Gallery is immersive. The separate picker must not
+      // R679: preserve full black native window across Activity transition; never
       // reveal clock/Wi-Fi/battery on entry, as actually recorded at 03:40.
       // Do not alter global app system-bar policy or original Gallery owner.
       getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -259,14 +343,7 @@ public final class MoaR667NativePickerProvider extends ContentProvider implement
         nativeIndex=type.getDeclaredField("index");nativeIndex.setAccessible(true);
         java.lang.reflect.Method open=type.getMethod("open",String.class,int.class,String.class);
         String day=reqDate();
-        if(!Boolean.TRUE.equals(open.invoke(unifiedGallery,packed.toString(),fallbackIndex,day))){
-          reason="ORIGINAL_GALLERY_OPEN_FALSE";
-          android.widget.Toast.makeText(this,"원본 갤러리가 사진을 열지 못했습니다",android.widget.Toast.LENGTH_LONG).show();
-          finishWithSelection();return;
-        }
-        opened=true;reason="ORIGINAL_CLASS6_GALLERY_OPEN_TRUE";
-        // Let original provider's host+lowerControls finish native layout first.
-        ui.postDelayed(monitor,85L);
+        originalOpenWithPrimedFrame(open,packed.toString(),day);
       }catch(Throwable e){
         reason="ORIGINAL_GALLERY_REFLECTION_"+e.getClass().getSimpleName();
         android.util.Log.e("MOA_R675_EXACT_PICKER",reason,e);
@@ -353,7 +430,7 @@ public final class MoaR667NativePickerProvider extends ContentProvider implement
       }catch(Exception ignored){}
       try{MoaR675PickerGalleryDeck.detachPicker(this);}catch(Throwable ignored){}
       try{if(unifiedGallery!=null&&nativeClose!=null)nativeClose.invoke(unifiedGallery);}catch(Throwable ignored){}
-      finish();
+      finish();overridePendingTransition(0,0);
     }
     @Override public void onBackPressed(){finishWithSelection();}
     @Override protected void onDestroy(){
