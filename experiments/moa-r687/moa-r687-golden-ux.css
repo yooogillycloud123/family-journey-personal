@@ -1,0 +1,45 @@
+/* MOA R687 user Golden additive UX: scope outside original native Gallery. */
+#cta[hidden],#tabbar[hidden],#top[hidden],#player[hidden]{display:none!important}
+/* The video-creation Next/Previous CTA must never follow back to ordinary tabs. */
+body:has(#tabbar:not([hidden])) #cta{display:none!important}
+#moa-r687-aux-today[hidden]{display:none!important}
+#moa-r687-aux-today{position:fixed;left:0;right:0;z-index:19;box-sizing:border-box;
+ width:100%;height:40px;min-height:40px;padding:3px 7px;background:#fff;display:flex;align-items:center;pointer-events:auto}
+#moa-r687-aux-today .moa-r687-today-action{display:block;width:100%;min-height:33px;height:33px;
+ padding:0;margin:0;border:0;border-radius:12px;background:#24262e;color:transparent;font-size:0;box-shadow:none}
+#moa-r687-aux-today .moa-r687-today-action:active{opacity:.86}
+/* Existing pink draggable native/overlay shortcut stays exactly intact. */
+section.page[data-page="settings"] > ul.rows{display:flex!important;flex-direction:column;gap:0}
+section.page[data-page="settings"] > ul.rows > .moa-r687-row-folded{display:none!important}
+section.page[data-page="settings"] > ul.rows > li.moa-r687-settings-group{display:block!important;
+ margin:8px 0 0!important;padding:0!important;list-style:none!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.moa-r687-settings-toggle{border:1px solid #ece8ee;background:#fff;border-radius:14px;width:100%;
+ min-height:54px;padding:10px 15px;display:grid;grid-template-columns:1fr 18px;align-items:center;gap:1px 8px;text-align:left;color:#252631}
+.moa-r687-settings-name{grid-row:1;font-size:14px;line-height:20px;font-weight:700;letter-spacing:-.02em}
+.moa-r687-settings-count{grid-column:1;font-size:11px;line-height:15px;color:#817e87}
+.moa-r687-settings-arrow{grid-column:2;grid-row:1 / span 2;font-size:19px;text-align:center;color:#76727d}
+.moa-r687-settings-toggle[aria-expanded="true"] .moa-r687-settings-arrow{transform:rotate(180deg)}
+section.page[data-page="settings"] .moa-r687-switch{display:flex;align-items:center;justify-content:center;width:51px;height:32px;flex:none}
+section.page[data-page="settings"] .moa-r687-switch input{appearance:none;-webkit-appearance:none;position:relative;
+ border:1px solid #cfd0d6;width:49px;height:28px;border-radius:99px;background:#ebeaf0;transition:background .15s}
+section.page[data-page="settings"] .moa-r687-switch input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;
+ border-radius:100%;background:#292b34;transition:transform .15s}
+section.page[data-page="settings"] .moa-r687-switch input:checked{background:#f3dce5;border-color:#d9bec9}
+section.page[data-page="settings"] .moa-r687-switch input:checked::after{transform:translateX(20px);background:#b4517f}
+section.page[data-page="settings"] .moa-r687-section-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;
+ min-height:52px;padding:9px 15px;border:1px solid #ebe7ed;border-radius:14px;background:#fff;
+ color:#292b33;font-size:14px;font-weight:700;letter-spacing:-.02em;text-align:left}
+section.page[data-page="settings"] .section[data-moa-r687-section="yes"]>.section-title{display:none!important}
+section.page[data-page="settings"] .section.moa-r687-section-collapsed>*:not(.moa-r687-section-toggle){display:none!important}
+/* Today's Story header is initially open; collapse only the text editor and its save footer.
+   QuickRecord and Voice are independently retained and never changed. */
+#moa-r469-root .moa-r687-story-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;
+ background:transparent;border:0;padding:0 0 8px;text-align:left;font:700 14px/1.4 system-ui,'Noto Sans KR',sans-serif;color:#34313a}
+#moa-r469-root .moa-r687-story-arrow{font-size:19px;color:#757079;line-height:1}
+#moa-r469-root .moa-r687-story-collapsed>.moa-r469-text,
+#moa-r469-root .moa-r687-story-collapsed>.moa-r469-story-footer{display:none!important}
+
+section.page[data-page="settings"] li[hidden],section.page[data-page="settings"] .section[hidden]{display:none!important}
+
+/* Fallback for old wizard state if native diary is already visible. */
+body:has(#moa-r469-root:not([hidden])) #cta{display:none!important}
