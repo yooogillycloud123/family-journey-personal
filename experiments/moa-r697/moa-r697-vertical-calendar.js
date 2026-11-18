@@ -673,7 +673,11 @@ async function stored(table,key){const d=await db();try{return await new Promise
   // No original PHOTO native owner, media store or QuickRecord path is touched.
   let rendered=false;
   const current=()=>token===r592OpenToken&&ui.open&&ui.page===page&&(page!=='day'||ui.date===day)&&view&&!view.hidden;
-  const paint=()=>{if(rendered||!current())return;rendered=true;render();};
+  const paint=()=>{if(rendered||!current())return;rendered=true;
+   if(page==='calendar'&&view.dataset.page==='calendar'&&r483Feed?.isConnected&&
+      view.dataset.r699Month===r483MonthKey(month))r699ReconcileVisibleCalendar();
+   else render();
+  };
   const fallback=setTimeout(paint,2800);
   const read=page==='day'?r592HydrateDay(day):r592HydrateMonth(month);
   Promise.resolve(read).then(()=>{
@@ -840,11 +844,60 @@ async function r475RefreshFamily(){
  }catch(e){console.debug('R475 family read-only unavailable',String(e))}
 }
 const r472Cache=new Map();
+// R699: cache ONLY tiny rendered calendar covers.  No original media duplicated.
+const R699_COVER_KEY='moa.r699.calendar.thumbs.v1';
+const r699CoverRows=new Map();
+let r699CoverReady=false,r699CoverSaving=0,r699CoverLoading=false;
+function r699MediaStamp(id){
+ const rec=getState()?.byId?.get(String(id));
+ return Number.isFinite(Number(rec?.t))?Number(rec.t):0;
+}
+async function r699WarmCalendarCovers(){
+ if(r699CoverReady||r699CoverLoading||!getState()?.byId?.size)return;
+ r699CoverLoading=true;
+ try{
+  const saved=await stored('meta',R699_COVER_KEY);
+  if(!saved||saved.version!==1||!Array.isArray(saved.items)){r699CoverReady=true;return;}
+  for(const row of saved.items){
+   if(!safeMedia(row?.id)||!r699MediaStamp(row.id)||r699MediaStamp(row.id)!==Number(row.t))continue;
+   if(typeof row.data!=='string'||!row.data.startsWith('data:image/')||row.data.length>125000)continue;
+   const id=String(row.id);r699CoverRows.set(id,{id,t:Number(row.t),data:row.data});
+   if(!r472Cache.has('260:'+id))r472Cache.set('260:'+id,row.data);
+  }
+  r699CoverReady=true;
+  for(const img of view?.querySelectorAll('.moa-r483-month img[data-id]')||[]){
+   const cached=r472Cached(img.dataset.id,260);
+   if(cached&&!img.classList.contains('moa-r472-image-ready'))r472Paint(img,cached);
+  }
+ }catch(e){console.debug('R699 calendar thumbnail cache unavailable',String(e));r699CoverReady=true;}
+ finally{r699CoverLoading=false;}
+}
+function r699SaveCalendarCovers(){
+ if(r699CoverSaving)return;
+ r699CoverSaving=setTimeout(async()=>{r699CoverSaving=0;
+  try{
+   const items=[...r699CoverRows.values()].filter(r=>r699MediaStamp(r.id)===r.t);
+   await persist('meta',R699_COVER_KEY,{version:1,items,savedAt:Date.now()});
+  }catch(e){console.debug('R699 calendar cache write skipped',String(e));}
+ },1600);
+}
+function r699RememberCalendarCover(id,data){
+ if(typeof data!=='string'||data.length>125000||!data.startsWith('data:image/'))return;
+ const stamp=r699MediaStamp(id);if(!stamp)return;
+ const key=String(id);r699CoverRows.delete(key);r699CoverRows.set(key,{id:key,t:stamp,data});
+ let length=0;for(const x of r699CoverRows.values())length+=x.data.length;
+ while((length>2300000||r699CoverRows.size>48)&&r699CoverRows.size){
+  const first=r699CoverRows.keys().next().value;
+  length-=r699CoverRows.get(first).data.length;r699CoverRows.delete(first);
+ }
+ r699SaveCalendarCovers();
+}
 let r472ThumbRetryTimer=0;
 function r472Cached(id,size){return r472Cache.get(size+':'+id)||r472Cache.get('400:'+id)||r472Cache.get('250:'+id)||r472Cache.get('130:'+id)||null;}
 function r472Store(id,size,data){if(typeof data!=='string'||!data.startsWith('data:image/'))return;
  const key=size+':'+id;r472Cache.delete(key);r472Cache.set(key,data);
  while(r472Cache.size>22)r472Cache.delete(r472Cache.keys().next().value);
+ if(size===260)r699RememberCalendarCover(id,data);
 }
 function r472Paint(node,src){if(!node?.isConnected||!src?.startsWith('data:image/'))return;
  if(node.closest('.moa-r621-preview-frame')){
@@ -1922,13 +1975,51 @@ function r475DecorateDetail(){
  },()=>{},()=>root.querySelector('.moa-r191-day-menu-trigger')?.click());
  top.insertAdjacentElement('afterend',chrome);
 }
+// R699 incremental MediaStore/diary reconciliation; never reset the month feed.
+function r699ReconcileVisibleCalendar(){
+ if(!ui.open||ui.page!=='calendar'||!view||view.hidden||!r483Feed?.isConnected)return false;
+ const state=getState();if(!state||state.load)return false;
+ let changed=false;const feedBox=r483Feed.getBoundingClientRect();
+ for(const section of r483Feed.querySelectorAll(':scope > .moa-r483-month')){
+  const bounds=section.getBoundingClientRect();
+  if(bounds.bottom<feedBox.top-180||bounds.top>feedBox.bottom+180)continue;
+  for(const tile of section.querySelectorAll('.moa-r469-date[data-day]')){
+   const d=tile.dataset.day,cover=mainCover(d,mediaFor(d));
+   const id=cover?String(cover.id):'',old=tile.querySelector(':scope > img[data-id]');
+   if(String(old?.dataset.id||'')!==id){
+    const next=id?document.createElement('img'):null;
+    if(next){
+     next.dataset.id=id;next.alt='';next.draggable=false;
+     const cached=r472Cached(id,260);
+     if(cached){next.src=cached;next.classList.add('moa-r472-image-ready')}
+     tile.insertBefore(next,tile.firstChild);
+    }
+    old?.remove();changed=true;
+   }
+   const mark=tile.querySelector(':scope > .moa-r469-video-mark');
+   if(cover&&isVideo(cover)&&!mark){
+    const video=elem('span','moa-r469-video-mark','▶');
+    const dayNum=tile.querySelector('.moa-r469-day-number');
+    tile.insertBefore(video,dayNum);changed=true;
+   }else if((!cover||!isVideo(cover))&&mark){mark.remove();changed=true;}
+   const record=tile.querySelector(':scope > .moa-r469-record-mark');
+   if(state.curatedEntries?.has(d)&&!record){tile.append(elem('span','moa-r469-record-mark','•'));changed=true;}
+   else if(!state.curatedEntries?.has(d)&&record){record.remove();changed=true;}
+   tile.classList.toggle('selected',d===ui.selected);
+  }
+ }
+ if(changed)r472RefreshVisibleThumbs();
+ return changed;
+}
 function addMode(){
  const s=getState(),root=diaryRoot();r495SyncLegacyRoot();r495InstallBackHandlers();r495InstallScrollSetting();
  if(!s?.open||!root||root.hidden){r475ExitUntilHidden=false;return;}
  if(ui.open&&ui.page==='calendar'&&!s.load){
   const key=[s.curatedEntries?.size||0,s.entries?.size||0,s.byDay?.size||0,s.byVideoDay?.size||0].join(':');
   if(key!==r475LastDataKey&&!r475CalendarRefreshPending){r475LastDataKey=key;r475CalendarRefreshPending=true;
-   setTimeout(()=>{r475CalendarRefreshPending=false;if(ui.open&&ui.page==='calendar'&&!ui.dirty)render()},240);
+   setTimeout(()=>{r475CalendarRefreshPending=false;
+    if(ui.open&&ui.page==='calendar'&&!ui.dirty)r699ReconcileVisibleCalendar();
+   },240);
   }
  }
  if(s.page==='day'&&!ui.open){r475DecorateDetail();return;}
@@ -2137,6 +2228,7 @@ function r483HandleScroll(){
 }
 function renderMonth(){
  if(!getState())return;
+ view.dataset.r699Month=r483MonthKey(ui.month);
  r483ImageObserver?.disconnect();r483ImageObserver=null;r483Feed=null;r483ExtendBusy=false;
  const toolbar=elem('div','moa-r479-calendar-toolbar');
  const period=btn('',r479PeriodSheet,'moa-r479-period');period.append(elem('strong','',`${ui.month.getFullYear()}년 ${ui.month.getMonth()+1}월`));period.setAttribute('aria-label','연도와 월 선택');period.title='연도·월 선택';toolbar.append(period);
@@ -2158,6 +2250,7 @@ function renderMonth(){
  todayAction.setAttribute('aria-label','오늘 날짜의 달력으로 이동');todayDock.append(todayAction);view.append(todayDock);
  r483ImageObserver=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting)r483FetchMonth(entry.target)},{root:feed,rootMargin:'240px 0px'});
  for(const section of feed.children)r483ImageObserver.observe(section);
+ r699WarmCalendarCovers();
  feed.addEventListener('scroll',()=>{if(r483OnScroll)return;r483OnScroll=requestAnimationFrame(()=>{r483OnScroll=0;r483HandleScroll()})},{passive:true});
  requestAnimationFrame(()=>{
   if(!feed.isConnected)return;
@@ -2557,5 +2650,9 @@ if(typeof originalAudioEvent==='function'){window.__moaNativeAudioEvent=function
 // Native R570 save gate: exact CURRENT photo id, not merely same day/GPS.
 window.__moaR570CurrentMediaId=()=>ui.open&&ui.page==='day'?String(dayMedia(ui.idx)?.id||''):'';
 window.MoaR469SimpleDiary={openAdvancedGallery:()=>window.__moaR531ShowAdvanced?.(),openCalendar:()=>open('calendar'),openDay:d=>open('day',d),setCoverNative:id=>{if(ui.open&&ui.page==='day'&&ui.media.some(m=>String(m.id)===String(id)))saveCover(id)},home:()=>ui.open?(ui.page==='day'?goBack():true):false,close,readOnlyStatus:()=>({active:ui.open,page:ui.page,date:ui.date,source:ui.source,mediaCount:ui.media.length,voiceCount:ui.clips.length,dirty:ui.dirty})};
+window.setInterval(()=>{
+ if(!ui.open||ui.page!=='calendar'||document.hidden)return;
+ r699WarmCalendarCovers();r699ReconcileVisibleCalendar();
+},1250);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
