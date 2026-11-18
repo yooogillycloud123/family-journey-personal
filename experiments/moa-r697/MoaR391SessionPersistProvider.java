@@ -609,6 +609,9 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     long r689VolumeHideAt=0L;
     int r699SystemVolume=-1;
     int r699SystemVolumeMax=-1;
+    // R701: restore host Activity's original key routing on Gallery close.
+    boolean r701VolumeStreamBound=false;
+    int r701PreviousVolumeStream=Integer.MIN_VALUE;
     boolean r689Adjusting=false;
     final View compactCard;
     final TextView compactTime;
@@ -1012,6 +1015,12 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     if(entry==null)return;
     r463DisableFastSwipe(entry);
     try{
+      if(entry.r701VolumeStreamBound){
+        a.setVolumeControlStream(entry.r701PreviousVolumeStream);
+        entry.r701VolumeStreamBound=false;
+      }
+    }catch(Throwable ignored){}
+    try{
       if(entry.lower.getParent()==entry.host&&entry.lower.getLayoutParams() instanceof FrameLayout.LayoutParams){
         FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)entry.lower.getLayoutParams();
         if(lp.bottomMargin==entry.oldBottomMargin+entry.reservedHeight){
@@ -1051,6 +1060,53 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         slider.postInvalidateOnAnimation();
       }
     }catch(Throwable ignored){}
+  }
+  // R701: One Galaxy/OneUI volume panel, no duplicated MOA volume rail.
+  // A MediaPlayer's own mute may stay active while Android media volume rises,
+  // so synchronise the *player mute* on a real system-stream volume increase.
+  // Never set the global music level to zero to mute just the MOA video.
+  private static void r701HideNativeVolumeBubble(Object gallery,Class<?> galleryClass){
+    try{
+      Object view=r439Field(galleryClass,"volumeBubble").get(gallery);
+      if(view instanceof View&&((View)view).getVisibility()!=View.GONE)
+        ((View)view).setVisibility(View.GONE);
+    }catch(Throwable ignored){}
+  }
+  private static void r701OpenGalaxySystemVolume(Activity a){
+    try{
+      AudioManager audio=r699Audio(a);
+      if(audio!=null){
+        audio.adjustStreamVolume(AudioManager.STREAM_MUSIC,
+            AudioManager.ADJUST_SAME,AudioManager.FLAG_SHOW_UI);
+      }
+    }catch(Throwable t){Log.w(TAG,"R701_SYSTEM_VOLUME_UI_"+t.getClass().getSimpleName());}
+  }
+  private static boolean r701ApplyGalaxyVolumeUnified(Activity a,GalleryActions e,
+      Object gallery,Class<?> galleryClass,boolean prepared,boolean muted){
+    try{
+      if(!e.r701VolumeStreamBound){
+        e.r701PreviousVolumeStream=a.getVolumeControlStream();
+        a.setVolumeControlStream(AudioManager.STREAM_MUSIC);
+        e.r701VolumeStreamBound=true;
+      }
+      final AudioManager audio=r699Audio(a);
+      final int actual=r699MusicLevel(audio);
+      final int previous=e.r699SystemVolume;
+      if(actual>=0&&previous>=0&&actual>previous&&muted&&prepared){
+        // Galaxy side key / Bluetooth/system stream volume has risen.
+        // Unmute player-local mute, preserving the actual system volume.
+        final Method toggle=galleryClass.getDeclaredMethod("toggleMute");
+        toggle.setAccessible(true);toggle.invoke(gallery);
+        if(r699MusicLevel(audio)!=actual){
+          audio.setStreamVolume(AudioManager.STREAM_MUSIC,actual,0);
+        }
+        muted=r439Field(galleryClass,"muted").getBoolean(gallery);
+        if(!muted){e.r689UserSound=true;e.r689VolumeHideAt=0L;}
+      }
+      if(actual>=0)e.r699SystemVolume=actual;
+    }catch(Throwable t){Log.w(TAG,"R701_HARDWARE_VOLUME_SYNC_"+t.getClass().getSimpleName());}
+    r701HideNativeVolumeBubble(gallery,galleryClass);
+    return muted;
   }
   // R689: The ONLY new native behavior. Original classes6.dex Gallery is preserved.
   // Sound choice is MEMORY-ONLY for one gallery/day; fresh new day/gallery muted.
@@ -1097,8 +1153,10 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
               }
               boolean muted=r439Field(c,"muted").getBoolean(g);
               e.r689UserSound=!muted;
-              e.r689VolumeHideAt=muted?0L:SystemClock.elapsedRealtime()+4000L;
+              e.r689VolumeHideAt=0L;
               e.r689Adjusting=false;
+              r701HideNativeVolumeBubble(g,c);
+              r701OpenGalaxySystemVolume(a);
             }catch(Throwable err){Log.w(TAG,"R689_MUTE_CLICK_"+err.getClass().getSimpleName());}
           });
         }
@@ -1113,48 +1171,21 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       boolean prepared=r439Field(c,"prepared").getBoolean(g);
       boolean muted=r439Field(c,"muted").getBoolean(g);
       Object player=r439Field(c,"media").get(g);
+      // Detect real Galaxy volume increase before cross-media mute logic.
+      muted=r701ApplyGalaxyVolumeUnified(a,e,g,c,prepared,muted);
       if(e.r689UserSound&&muted&&prepared&&player instanceof MediaPlayer){
         Method click=c.getDeclaredMethod("toggleMute");click.setAccessible(true);click.invoke(g);
         muted=r439Field(c,"muted").getBoolean(g);
-        // The user's last unmute is remembered; no volume popup required
-        // for every subsequent clip (the first unmute already showed it).
-        e.r689VolumeHideAt=SystemClock.elapsedRealtime();
+        // Preserve user sound choice across videos; no additional popup.
+        e.r689VolumeHideAt=0L;
+        r701HideNativeVolumeBubble(g,c);
       }
       Object rowObj=r439Field(c,"volumeBubble").get(g);
-      Object seekObj=r439Field(c,"volumeRail").get(g);
       if(rowObj instanceof View){
-        final View row=(View)rowObj;
-        if(seekObj instanceof View){
-          View seek=(View)seekObj;
-          r699RepaintSystemVolume(a,e,seek);
-          if(e.r689VolumeHooked!=seek){
-            e.r689VolumeHooked=seek;
-            seek.setOnTouchListener((v,event)->{
-              switch(event.getActionMasked()){
-                case MotionEvent.ACTION_DOWN:
-                case MotionEvent.ACTION_MOVE:
-                  e.r689Adjusting=true;
-                  e.r689VolumeHideAt=0L;
-                  row.setVisibility(View.VISIBLE);
-                  break;
-                case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                  e.r689Adjusting=false;
-                  e.r689VolumeHideAt=SystemClock.elapsedRealtime()+4000L;
-                  UI.post(()->r699RepaintSystemVolume(a,e,v));
-                  break;
-              }
-              return false; // original VerticalMediaVolume.onTouchEvent retains volume control
-            });
-          }
-        }
-        if(!muted&&prepared&&row.getVisibility()==View.VISIBLE&&e.r689VolumeHideAt==0L&&!e.r689Adjusting)
-          e.r689VolumeHideAt=SystemClock.elapsedRealtime()+4000L;
-        if(!muted&&prepared&&!e.r689Adjusting&&e.r689VolumeHideAt>0L
-             &&SystemClock.elapsedRealtime()>=e.r689VolumeHideAt&&row.getVisibility()!=View.GONE){
-          row.setVisibility(View.GONE);
-        }
-        if(muted){e.r689VolumeHideAt=0L;e.r689Adjusting=false;}
+        // Galaxy SystemUI owns the only visible media volume panel.
+        // The original MOA vertical seekbar stays invisible.
+        View ownBubble=(View)rowObj;
+        if(ownBubble.getVisibility()!=View.GONE)ownBubble.setVisibility(View.GONE);
       }
     }catch(Throwable ignored){
       // Video UI polish is always fail-open; never kill native Gallery rendering.
