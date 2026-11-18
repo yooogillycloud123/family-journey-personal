@@ -42,7 +42,7 @@ jobs:
           from pathlib import Path
           p=Path('build/moa-r699/classes17.dex')
           b=p.read_bytes()
-          assert b.startswith(b'dex\\n') and len(b)<220000
+          assert b.startswith(b'dex\n') and len(b)<220000
           for token in (b'r699RepaintSystemVolume',b'r689SyncGalleryVideoUX',b'R697_NATIVE_MULTI_SELECTOR'):
             assert token in b,token
           Path('build/moa-r699/CI_RESULT.json').write_text(json.dumps({
