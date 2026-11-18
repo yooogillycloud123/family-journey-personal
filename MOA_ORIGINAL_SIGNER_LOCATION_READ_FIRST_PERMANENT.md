@@ -31,4 +31,4 @@
 
 ## 4. 2026-11-18 R699 대응
 
-사용자가 요구한 Galaxy 측면 음량/모아 음소거 동기화, 사진 추가 후 달력 전체 버퍼링·재렌더 억제 소스 수정은 `feature/moa-r699-system-volume-calendar-incremental-20261118` 브랜치. 이전 응답의 "원본 서명키가 없어 APK를 못 만든다"는 주장은 Library 확인을 누락한 잘못된 판단이다. **원본 키는 개인 Library에 존재한다.** 다만 R699 **서명 APK가 제작·실기기 검증 완료되었다는 뜻은 아님**. 실제 최신 산출물 확인 후 기존 R697에서 안전하게 후속 처리한다.
+사용자가 요구한 Galaxy 측면 음량/모아 음소거 동기화, 사진 추가 후 달력 전체 버퍼링·재렌더 억제 소스 수정은 `feature/moa-r699-system-volume-calendar-incremental-20261118` 브랜치. 이전 응답의 "원본 서명키가 없어 APK를 못 만든다"는 주장은 Library 확인을 누락한 잘못된 판단이다. **원본 키는 개인 Library에 존재한다.** **2026-11-18 서명키 복구 후 R699 원본서명 APK(versionCode 699) 및 R700 정확 R697 기능 복구 APK(versionCode 700)를 실제 제작했고, 두 파일의 APKv2 내용 digest/동일 인증서/DEX/ZIP 검증 PASS.** 사용자 실기기 설치·동작과 공식 Android aapt/apksigner 별도 검사 미완료이므로 R699은 베타이고 실기기 Golden이 아니다. 상세 내용은 `MOA_R699_R700_ORIGINAL_SIGNED_RELEASE_HANDOFF_20261118.md`를 읽는다. 두 APK와 QA ZIP은 개인 Library `/모아_프로젝트_근거_20261103/R699_GALAXY_VOLUME_CALENDAR_R700_RECOVERY_20261118/`에 있다. R700 설치할 가능성 때문에 다음 code >=701.
