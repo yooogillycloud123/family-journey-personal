@@ -1,0 +1,60 @@
+name: MOA R699 isolated native volume + calendar regression compile
+on:
+  push:
+    branches: [feature/moa-r699-system-volume-calendar-incremental-20261118]
+    paths:
+      - "experiments/moa-r697/MoaR391SessionPersistProvider.java"
+      - "experiments/moa-r697/moa-r697-vertical-calendar.js"
+      - ".github/workflows/moa-r699-video-calendar-compile.yml"
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - name: Android SDK 35
+        run: |
+          set -euo pipefail
+          S="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$S" --licenses >/dev/null || true
+          "$S" "platforms;android-35" "build-tools;35.0.0"
+      - name: Original Gallery boundary + calendar JS static gates
+        run: |
+          set -euo pipefail
+          node --check experiments/moa-r697/moa-r697-vertical-calendar.js
+          grep -q "r699ReconcileVisibleCalendar" experiments/moa-r697/moa-r697-vertical-calendar.js
+          grep -q "r699RepaintSystemVolume" experiments/moa-r697/MoaR391SessionPersistProvider.java
+          grep -q "STREAM_MUSIC" experiments/moa-r697/MoaR391SessionPersistProvider.java
+      - name: Native DEX17 compile
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa699/classes /tmp/moa699/dex build/moa-r699
+          LIB="$ANDROID_HOME/platforms/android-35/android.jar"
+          javac -encoding UTF-8 --release 8 -cp "$LIB" -d /tmp/moa699/classes experiments/moa-r697/MoaR391SessionPersistProvider.java
+          find /tmp/moa699/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$LIB" --output /tmp/moa699/dex
+          cp /tmp/moa699/dex/classes.dex build/moa-r699/classes17.dex
+          sha256sum build/moa-r699/classes17.dex | tee build/moa-r699/SHA256SUMS.txt
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          p=Path('build/moa-r699/classes17.dex')
+          b=p.read_bytes()
+          assert b.startswith(b'dex\\n') and len(b)<220000
+          for token in (b'r699RepaintSystemVolume',b'r689SyncGalleryVideoUX',b'R697_NATIVE_MULTI_SELECTOR'):
+            assert token in b,token
+          Path('build/moa-r699/CI_RESULT.json').write_text(json.dumps({
+            'dex17_sha256': hashlib.sha256(b).hexdigest(),
+            'source':'experiments/moa-r697/MoaR391SessionPersistProvider.java',
+            'original_gallery_classes6':'UNMODIFIED_NOT_RECOMPILED',
+            'physical_galaxy_test':'NOT_PERFORMED',
+            'original_signed_update_apk':'NOT_BUILT_NO_PRIVATE_SIGNER'
+          },indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R699-NATIVE-DEX17-COMPILE-QA
+          path: build/moa-r699
