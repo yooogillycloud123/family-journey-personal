@@ -31,6 +31,7 @@ import android.widget.TextView;
 import android.widget.CheckBox;
 import android.widget.Button;
 import android.media.MediaPlayer;
+import android.media.AudioManager;
 import android.graphics.drawable.GradientDrawable;
 import android.view.WindowInsets;
 import android.text.TextUtils;
@@ -606,6 +607,8 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     Button r689MuteHooked=null;
     View r689VolumeHooked=null;
     long r689VolumeHideAt=0L;
+    int r699SystemVolume=-1;
+    int r699SystemVolumeMax=-1;
     boolean r689Adjusting=false;
     final View compactCard;
     final TextView compactTime;
@@ -1026,6 +1029,29 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       if(entry.root.getParent() instanceof ViewGroup)((ViewGroup)entry.root.getParent()).removeView(entry.root);
     }catch(Throwable ignored){}
   }
+  // R699: Android media stream is the one volume authority.
+  // The original VerticalMediaVolume already reads system getStreamVolume
+  // and setStreamVolume. Redraw it when Galaxy hardware volume keys change.
+  private static AudioManager r699Audio(Activity a){
+    try{Object service=a.getSystemService(Activity.AUDIO_SERVICE);
+      return service instanceof AudioManager?(AudioManager)service:null;
+    }catch(Throwable ignored){return null;}
+  }
+  private static int r699MusicLevel(AudioManager am){
+    if(am==null)return -1;
+    try{return am.getStreamVolume(AudioManager.STREAM_MUSIC);}catch(Throwable ignored){return -1;}
+  }
+  private static void r699RepaintSystemVolume(Activity a,GalleryActions e,View slider){
+    final AudioManager am=r699Audio(a);if(am==null||slider==null)return;
+    try{
+      final int level=am.getStreamVolume(AudioManager.STREAM_MUSIC);
+      final int max=am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+      if(level!=e.r699SystemVolume||max!=e.r699SystemVolumeMax){
+        e.r699SystemVolume=level;e.r699SystemVolumeMax=max;
+        slider.postInvalidateOnAnimation();
+      }
+    }catch(Throwable ignored){}
+  }
   // R689: The ONLY new native behavior. Original classes6.dex Gallery is preserved.
   // Sound choice is MEMORY-ONLY for one gallery/day; fresh new day/gallery muted.
   // Volume bubble remains visible during touch adjustment, otherwise closes 4s
@@ -1060,9 +1086,15 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
           // content description and native video engine remain synchronized.
           mute.setOnClickListener(v->{
             try{
+              final AudioManager system=r699Audio(a);
+              final int before=r699MusicLevel(system);
               Method click=c.getDeclaredMethod("toggleMute");
               click.setAccessible(true);
               click.invoke(g);
+              // Gallery mute must not secretly boost system media volume.
+              if(system!=null&&before>=0&&r699MusicLevel(system)!=before){
+                system.setStreamVolume(AudioManager.STREAM_MUSIC,before,0);
+              }
               boolean muted=r439Field(c,"muted").getBoolean(g);
               e.r689UserSound=!muted;
               e.r689VolumeHideAt=muted?0L:SystemClock.elapsedRealtime()+4000L;
@@ -1094,6 +1126,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         final View row=(View)rowObj;
         if(seekObj instanceof View){
           View seek=(View)seekObj;
+          r699RepaintSystemVolume(a,e,seek);
           if(e.r689VolumeHooked!=seek){
             e.r689VolumeHooked=seek;
             seek.setOnTouchListener((v,event)->{
@@ -1108,6 +1141,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
                 case MotionEvent.ACTION_CANCEL:
                   e.r689Adjusting=false;
                   e.r689VolumeHideAt=SystemClock.elapsedRealtime()+4000L;
+                  UI.post(()->r699RepaintSystemVolume(a,e,v));
                   break;
               }
               return false; // original VerticalMediaVolume.onTouchEvent retains volume control
