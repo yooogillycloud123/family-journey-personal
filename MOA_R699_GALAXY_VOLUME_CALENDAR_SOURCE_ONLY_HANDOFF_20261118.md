@@ -1,0 +1,13 @@
+# MOA R699 SOURCE-ONLY handoff — 2026-11-18
+
+**THIS IS NOT AN INSTALLED APK RELEASE.** User requested (1) Samsung side keys + native Gallery's mute/volume rail use one STREAM_MUSIC level; (2) stop full calendar repaint/thumb rebuffer every media index refresh or diary reopen.
+
+- Latest user-accepted R697 APK SHA256: `67a8892c661e38ea9ec4227baa6ecb053bfe612ef874594e6fdf1b250820328e`. Frozen R683 Golden unchanged.
+- Development isolated branch `feature/moa-r699-system-volume-calendar-incremental-20261118` branched from exact R697 source, no main changes.
+- Changed only `experiments/moa-r697/MoaR391SessionPersistProvider.java` and `experiments/moa-r697/moa-r697-vertical-calendar.js`. Note on APK packaging: this JS keeps the existing asset name `moa-r697-vertical-calendar.js` to avoid modifying web index.
+- Java: read Android `AudioManager.STREAM_MUSIC`, repaint existing original `VerticalMediaVolume` when hardware/media stream changes (existing original Gallery class6 owns seek/AudioManager audio). Preserve stream level on mute toggle if Gallery side-effect boosts it. No Gallery decoder, player, focus or MediaStore rewrite.
+- JS: only reconcile changed visible date cover/video/diary indicator; preserve existing 4-month DOM/scroll and small thumbnails; bounded IndexedDB meta cache of 260px covers capped 48 items/2.3MB. Android background MediaStore rescan itself is NOT removed.
+- Android SDK35 Java17 compiler/DEX17 isolated build succeeded: [R699 CI SUCCESS](https://github.com/yooogillycloud123/family-journey-personal/actions/runs/44259284642). Node JS syntax PASS. Local mock targeted calendar update PASS. These do not prove Galaxy physical behavior.
+- Current R697 APK native engine classes6, native PHOTO host classes18, photos, originals, DB, Naver, QuickRecord/voice remain untouched. **No APK update built, no phone install**, because this context has only signed final APK/certificate and no matching private signing key. Cannot modify APK and preserve same signer. Do NOT offer debug APK as an upgrade.
+- Build follow-up: obtain *original trusted signing environment* (do not publish private keys), reproduce R699 classes17 DEX plus patched JS, Manifest versionCode >=699 and Settings version metadata, sign with original certificate and verify APK v2/CRC/DEX; prepare higher-code exact R697-functional recovery, then Samsung real-device volume/thumbnail/multi-delete regression tests. R698 is R695-functional, not R697 restore.
+- Private local source/QA artifact: `MOA_R699_VOLUME_CALENDAR_SOURCE_PATCH_QA_ONLY_20261118.zip`, SHA256 `53256d0a803a8c4d71822dc219df9beecd0a68c0409a4431682acf2bec752efb`.
