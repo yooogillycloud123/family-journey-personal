@@ -1085,7 +1085,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       Object gallery,Class<?> galleryClass,boolean prepared,boolean muted){
     try{
       if(!e.r701VolumeStreamBound){
-        e.r701PreviousVolumeStream=a.getVolumeControlStream();
+        e.r701PreviousVolumeStream=a.getWindow().getVolumeControlStream();
         a.setVolumeControlStream(AudioManager.STREAM_MUSIC);
         e.r701VolumeStreamBound=true;
       }
