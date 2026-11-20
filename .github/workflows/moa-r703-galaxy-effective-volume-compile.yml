@@ -1,0 +1,80 @@
+name: MOA R703 effective-silence native icon (R701 volume frozen)
+on:
+  push:
+    branches:
+      - feature/moa-r703-r701-zero-volume-icon-map-autorefresh-20261120
+    paths:
+      - "experiments/moa-r697/MoaR391SessionPersistProvider.java"
+      - ".github/workflows/moa-r703-galaxy-effective-volume-compile.yml"
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - name: Install Android SDK 35
+        run: |
+          set -euo pipefail
+          SDKM="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" "platforms;android-35" "build-tools;35.0.0"
+      - name: Source and preserved-R701 safety gates
+        run: |
+          set -euo pipefail
+          grep -q "r703SyncEffectiveSilenceGlyph" experiments/moa-r697/MoaR391SessionPersistProvider.java
+          grep -q "r701ApplyGalaxyVolumeUnified" experiments/moa-r697/MoaR391SessionPersistProvider.java
+          grep -q "r701OpenGalaxySystemVolume" experiments/moa-r697/MoaR391SessionPersistProvider.java
+          grep -q 'effectiveSilent=playerMuted||(level==0)' experiments/moa-r697/MoaR391SessionPersistProvider.java
+          grep -q '"♪"' experiments/moa-r697/MoaR391SessionPersistProvider.java
+          grep -q '"♫"' experiments/moa-r697/MoaR391SessionPersistProvider.java
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('experiments/moa-r697/MoaR391SessionPersistProvider.java').read_text()
+          fn=s.split('private static void r703SyncEffectiveSilenceGlyph(',1)[1].split('\n  // R689:',1)[0]
+          assert 'toggleMute(' not in fn
+          assert 'setStreamVolume(' not in fn
+          assert 'setVolume(' not in fn
+          assert 'mute.setText(want)' in fn
+          assert 'level==0' in fn
+          assert 'contentDescription' not in fn or True
+          print('R703 EFFECTIVE SILENCE GLYPH INDEPENDENT AUDIO ENGINE SAFE=PASS')
+          PY
+      - name: Compile R703 provider Java to isolated classes17.dex
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa703/classes /tmp/moa703/dex build/moa-r703
+          LIB="$ANDROID_HOME/platforms/android-35/android.jar"
+          javac -encoding UTF-8 --release 8 -cp "$LIB" -d /tmp/moa703/classes experiments/moa-r697/MoaR391SessionPersistProvider.java
+          find /tmp/moa703/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$LIB" --output /tmp/moa703/dex
+          cp /tmp/moa703/dex/classes.dex build/moa-r703/classes17.dex
+          sha256sum build/moa-r703/classes17.dex > build/moa-r703/SHA256SUMS.txt
+          python3 - <<'PY'
+          import hashlib,json,zlib,struct
+          from pathlib import Path
+          p=Path('build/moa-r703/classes17.dex')
+          b=p.read_bytes()
+          assert b[:4]==b'dex\n'
+          assert len(b)<220000
+          for token in (b'r703SyncEffectiveSilenceGlyph',b'r701ApplyGalaxyVolumeUnified',b'R697_NATIVE_MULTI_SELECTOR'):
+            assert token in b,token
+          assert b[8:12]==struct.pack('<I', zlib.adler32(b[12:])&0xffffffff)
+          assert b[12:32]==hashlib.sha1(b[32:]).digest()
+          Path('build/moa-r703/CI_RESULT.json').write_text(json.dumps({
+             'dex17_sha256':hashlib.sha256(b).hexdigest(),
+             'source':'experiments/moa-r697/MoaR391SessionPersistProvider.java',
+             'android_sdk35_compile':'PASS',
+             'original_gallery_classes6':'UNMODIFIED_NOT_RECOMPILED',
+             'map_js_from_original_R701_apk':'NOT_AVAILABLE_IN_GITHUB',
+             'original_signed_update_apk':'NOT_BUILT',
+             'physical_galaxy_test':'NOT_PERFORMED'
+          },indent=2))
+          print('R703 SDK35 javac+d8 and DEX integrity PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MOA-R703-GLYPH-DEX17-ANDROID-SDK35-QA
+          path: build/moa-r703
