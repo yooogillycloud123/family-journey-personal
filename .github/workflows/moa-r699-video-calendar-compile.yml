@@ -1,11 +1,11 @@
-name: MOA R701 OneUI single native system volume compile
+name: MOA R703 OneUI zero volume icon and map-delta integration compile
 on:
   push:
-    branches: [feature/moa-r701-oneui-system-volume-single-panel-20261118]
+    branches: [feature/moa-r703-map-auto-gps-volumezero-20261120]
     paths:
       - "experiments/moa-r697/MoaR391SessionPersistProvider.java"
       - "experiments/moa-r697/moa-r697-vertical-calendar.js"
-      - ".github/workflows/moa-r701-video-calendar-compile.yml"
+      - ".github/workflows/moa-r703-video-calendar-compile.yml"
 permissions:
   contents: write
 jobs:
@@ -28,25 +28,26 @@ jobs:
           grep -q "r699ReconcileVisibleCalendar" experiments/moa-r697/moa-r697-vertical-calendar.js
           grep -q "r701ApplyGalaxyVolumeUnified" experiments/moa-r697/MoaR391SessionPersistProvider.java
           grep -q "r701OpenGalaxySystemVolume" experiments/moa-r697/MoaR391SessionPersistProvider.java
+          grep -q "r703SyncEffectiveMuteIcon" experiments/moa-r697/MoaR391SessionPersistProvider.java
           grep -q "STREAM_MUSIC" experiments/moa-r697/MoaR391SessionPersistProvider.java
       - name: Native DEX17 compile
         run: |
           set -euo pipefail
-          mkdir -p /tmp/moa701/classes /tmp/moa701/dex build/moa-r701
+          mkdir -p /tmp/moa703/classes /tmp/moa703/dex build/moa-r703
           LIB="$ANDROID_HOME/platforms/android-35/android.jar"
-          javac -encoding UTF-8 --release 8 -cp "$LIB" -d /tmp/moa701/classes experiments/moa-r697/MoaR391SessionPersistProvider.java
-          find /tmp/moa701/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$LIB" --output /tmp/moa701/dex
-          cp /tmp/moa701/dex/classes.dex build/moa-r701/classes17.dex
-          sha256sum build/moa-r701/classes17.dex | tee build/moa-r701/SHA256SUMS.txt
+          javac -encoding UTF-8 --release 8 -cp "$LIB" -d /tmp/moa703/classes experiments/moa-r697/MoaR391SessionPersistProvider.java
+          find /tmp/moa703/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$LIB" --output /tmp/moa703/dex
+          cp /tmp/moa703/dex/classes.dex build/moa-r703/classes17.dex
+          sha256sum build/moa-r703/classes17.dex | tee build/moa-r703/SHA256SUMS.txt
           python3 - <<'PY'
           import hashlib, json
           from pathlib import Path
-          p=Path('build/moa-r701/classes17.dex')
+          p=Path('build/moa-r703/classes17.dex')
           b=p.read_bytes()
           assert b.startswith(b'dex\n') and len(b)<220000
-          for token in (b'r701ApplyGalaxyVolumeUnified',b'r701OpenGalaxySystemVolume',b'R697_NATIVE_MULTI_SELECTOR'):
+          for token in (b'r701ApplyGalaxyVolumeUnified',b'r703SyncEffectiveMuteIcon',b'R697_NATIVE_MULTI_SELECTOR'):
             assert token in b,token
-          Path('build/moa-r701/CI_RESULT.json').write_text(json.dumps({
+          Path('build/moa-r703/CI_RESULT.json').write_text(json.dumps({
             'dex17_sha256': hashlib.sha256(b).hexdigest(),
             'source':'experiments/moa-r697/MoaR391SessionPersistProvider.java',
             'original_gallery_classes6':'UNMODIFIED_NOT_RECOMPILED',
@@ -59,11 +60,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          mkdir -p build/moa-r701
-          base64 -w 76 build/moa-r701/classes17.dex > build/moa-r701/classes17.dex.b64
+          mkdir -p build/moa-r703
+          base64 -w 76 build/moa-r703/classes17.dex > build/moa-r703/classes17.dex.b64
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f build/moa-r701/classes17.dex.b64 build/moa-r701/SHA256SUMS.txt build/moa-r701/CI_RESULT.json
+          git add -f build/moa-r703/classes17.dex.b64 build/moa-r703/SHA256SUMS.txt build/moa-r703/CI_RESULT.json
           if ! git diff --cached --quiet; then
             git commit -m "CI: publish isolated R701 compiled DEX17 base64 (no APK signing secrets)"
             git push origin "HEAD:${GITHUB_REF_NAME}"
@@ -71,5 +72,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MOA-R701-NATIVE-DEX17-COMPILE-QA
-          path: build/moa-r701
+          name: MOA-R703-NATIVE-DEX17-COMPILE-QA
+          path: build/moa-r703
