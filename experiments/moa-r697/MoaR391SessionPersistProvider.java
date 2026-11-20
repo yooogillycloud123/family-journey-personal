@@ -1108,6 +1108,33 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     r701HideNativeVolumeBubble(gallery,galleryClass);
     return muted;
   }
+  // R703: reflect effective silence (player-local mute OR real Galaxy music
+  // stream level zero) in the EXISTING R209 native speaker glyph only.
+  // Important: the original custom-drawn Button uses invisible text markers
+  // ♪ (slashed Samsung-style speaker) and ♫ (normal speaker).
+  // Never invoke toggleMute or setStreamVolume just to update the picture.
+  private static void r703SyncEffectiveSilenceGlyph(Activity a,Object gallery,
+      Class<?> galleryClass,boolean playerMuted){
+    try{
+      Object muteObj=r439Field(galleryClass,"mute").get(gallery);
+      if(!(muteObj instanceof Button))return;
+      Button mute=(Button)muteObj;
+      String oldText=String.valueOf(mute.getText());
+      // If the native Gallery icon contract ever changes, fail open, preserving
+      // the current custom-drawn icon rather than replacing it with an emoji.
+      if(!"♪".equals(oldText)&&!"♫".equals(oldText))return;
+      int level=r699MusicLevel(r699Audio(a));
+      boolean effectiveSilent=playerMuted||(level==0);
+      String want=effectiveSilent?"♪":"♫";
+      if(!want.equals(oldText)){mute.setText(want);mute.invalidate();}
+      String description=effectiveSilent?"동영상 소리 켜기":"동영상 소리 끄기";
+      if(!description.contentEquals(mute.getContentDescription()))
+        mute.setContentDescription(description);
+    }catch(Throwable ignored){
+      // Presentation is fail-open; video playback and the user volume level
+      // are NEVER changed in this code path.
+    }
+  }
   // R689: The ONLY new native behavior. Original classes6.dex Gallery is preserved.
   // Sound choice is MEMORY-ONLY for one gallery/day; fresh new day/gallery muted.
   // Volume bubble remains visible during touch adjustment, otherwise closes 4s
@@ -1157,6 +1184,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
               e.r689Adjusting=false;
               r701HideNativeVolumeBubble(g,c);
               r701OpenGalaxySystemVolume(a);
+              r703SyncEffectiveSilenceGlyph(a,g,c,muted);
             }catch(Throwable err){Log.w(TAG,"R689_MUTE_CLICK_"+err.getClass().getSimpleName());}
           });
         }
@@ -1180,6 +1208,9 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         e.r689VolumeHideAt=0L;
         r701HideNativeVolumeBubble(g,c);
       }
+      // R703: observable effective volume==0 affects only speaker icon;
+      // R701 side-key routing, MediaPlayer mute and replay remain untouched.
+      r703SyncEffectiveSilenceGlyph(a,g,c,muted);
       Object rowObj=r439Field(c,"volumeBubble").get(g);
       if(rowObj instanceof View){
         // Galaxy SystemUI owns the only visible media volume panel.
