@@ -61,7 +61,7 @@ jobs:
           import hashlib,json,zlib,struct
           from pathlib import Path
           dex=Path('build/moa-r705/classes17.dex').read_bytes()
-          assert dex[:4]==b'dex\\n',dex[:8]
+          assert dex[:4]==b'dex\n',dex[:8]
           assert len(dex)<220000
           for token in (b'r705JumpBoundary',b'R705EdgeGlyph',
                         b'r703SyncEffectiveSilenceGlyph',b'r701ApplyGalaxyVolumeUnified'):
