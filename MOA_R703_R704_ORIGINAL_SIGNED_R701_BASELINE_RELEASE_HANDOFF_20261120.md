@@ -11,12 +11,12 @@
 
 - `MOA_R703_R701_SAFE_ZERO_VOLUME_ICON_GPS_AUTO_REFRESH_ORIGINAL_SIGNED_BETA.apk`
   - package `com.juhyeon.familyjournea`, versionCode **703**
-  - SHA-256 `9117395663ede860d33551544ccef37cfec736a48b52eae4aaf49c552afd796e`, 9,814,737 bytes
+  - SHA-256 `5cd3d68c4485a739869daa8b64152c9945232656a9171365ec2a42442744827b`, 9,814,953 bytes
 - `MOA_R704_EXACT_R701_FUNCTIONAL_ORIGINAL_SIGNED_RECOVERY.apk`
   - same package, versionCode **704 >703**
   - SHA-256 `97cf4b0269494e1fa20c0ee32782f05bbddbab97ecce68033a51c1465e44ba5b`, 9,804,137 bytes
 - `MOA_R703_R704_R701_BASELINE_SOURCE_QA_FULL_20261120.zip`
-  - SHA-256 `773e4c71a958ab1dfc6fa38b7f520e801fa694341846a3e7ce50543c0e18c1ff`, 22,003,436 bytes; 22 files
+  - SHA-256 `3e67f2256d88813549ebce5a945c007a39a76ae4600785791b831694ea95901d`, 22,004,305 bytes; 22 files
   - includes both APKs, immutable R701 source APK backup, changed actual Java/JS source, exact unified diffs, CI source/DEX, QA JSON/tests, Korean install/recovery instructions, individual checksums
 - Original **R701** baseline APK SHA-256 `1a655d25cc81cf97aa6d16c124fb8214c44da55a479fc5d4f5e439bf36e12b6c`, code 701. User reported physical success specifically for Galaxy volume integration.
 
@@ -40,6 +40,9 @@
 3. If ANY regression, **update-install R704** (code 704 >703) for exact R701 functionality while preserving app data. **R702 is NOT R701 recovery** (it is exact R697-function). R701 code701 cannot normally downgrade-install over R703.
 4. After R704 is installed, future update candidates must be code **>=705**, with higher-code exact R701 recovery; check actual installed version before choosing.
 5. Do not call R703 Golden before owner verifies on Galaxy; static PASS != physical pass.
+
+### Final release hardening
+- R703 native.js adds bounded asynchronous photo-update coalescing so camera/import GPS events arriving during a previous map build do not discard the latest revision; isolated Node burst test PASS. This is still not physical Galaxy QA.
 
 ### Remaining caution
 Real Samsung S26 Ultra Android 17 behavior, native MediaStore permission/timing, stale pending fingerprint delivery, foreign EXIF location, full gallery regression and update-install with persisted real data require owner testing. There is now a real signed APK pair; if device tests find failures, use the preserved R701-based source+full QA ZIP to issue code705+ without modifying protected R701 behavior.
