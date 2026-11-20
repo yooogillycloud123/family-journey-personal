@@ -612,6 +612,12 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     // R701: restore host Activity's original key routing on Gallery close.
     boolean r701VolumeStreamBound=false;
     int r701PreviousVolumeStream=Integer.MIN_VALUE;
+    // R703: presentation-only silence indicator; do not alter native MediaPlayer mute.
+    String r703NativeMutedGlyph=null;
+    String r703NativeAudibleGlyph=null;
+    CharSequence r703NativeMutedAccessibility=null;
+    CharSequence r703NativeAudibleAccessibility=null;
+    boolean r703SystemZeroGlyphShown=false;
     boolean r689Adjusting=false;
     final View compactCard;
     final TextView compactTime;
@@ -1108,6 +1114,52 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     r701HideNativeVolumeBubble(gallery,galleryClass);
     return muted;
   }
+  // R703: display effective silence (native muted OR actual music stream 0)
+  // without toggling the video MediaPlayer, setting global volume or replacing
+  // original Gallery glyph artwork. Capture BOTH glyphs from Gallery's own
+  // original Button state, then only substitute the muted glyph while stream=0.
+  private static void r703ReconcileEffectiveMuteGlyph(Activity a,GalleryActions e,
+      Object gallery,Class<?> galleryClass,boolean localMuted){
+    try{
+      Object source=r439Field(galleryClass,"mute").get(gallery);
+      if(!(source instanceof Button))return;
+      final Button icon=(Button)source;
+      final int music=r699MusicLevel(r699Audio(a));
+      if(music<0)return; // fail open: cannot determine real stream status
+      final String raw=String.valueOf(icon.getText());
+      final CharSequence description=icon.getContentDescription();
+      if(localMuted){
+        // The native Gallery has already written the true muted state.
+        if(raw!=null&&!raw.isEmpty()&&!e.r703SystemZeroGlyphShown){
+          e.r703NativeMutedGlyph=raw;
+          e.r703NativeMutedAccessibility=description;
+        }
+        e.r703SystemZeroGlyphShown=false;
+        return;
+      }
+      if(!e.r703SystemZeroGlyphShown&&raw!=null&&!raw.isEmpty()){
+        // Store Gallery's exact native unmuted symbol before overriding.
+        e.r703NativeAudibleGlyph=raw;
+        e.r703NativeAudibleAccessibility=description;
+      }
+      if(music==0){
+        if(e.r703NativeMutedGlyph!=null&&
+            !e.r703NativeMutedGlyph.equals(String.valueOf(icon.getText()))){
+          icon.setText(e.r703NativeMutedGlyph);
+          if(e.r703NativeMutedAccessibility!=null)
+            icon.setContentDescription(e.r703NativeMutedAccessibility);
+        }
+        e.r703SystemZeroGlyphShown=e.r703NativeMutedGlyph!=null;
+      }else if(e.r703SystemZeroGlyphShown){
+        if(e.r703NativeAudibleGlyph!=null){
+          icon.setText(e.r703NativeAudibleGlyph);
+          if(e.r703NativeAudibleAccessibility!=null)
+            icon.setContentDescription(e.r703NativeAudibleAccessibility);
+        }
+        e.r703SystemZeroGlyphShown=false;
+      }
+    }catch(Throwable t){Log.w(TAG,"R703_EFFECTIVE_MUTE_GLYPH_"+t.getClass().getSimpleName());}
+  }
   // R689: The ONLY new native behavior. Original classes6.dex Gallery is preserved.
   // Sound choice is MEMORY-ONLY for one gallery/day; fresh new day/gallery muted.
   // Volume bubble remains visible during touch adjustment, otherwise closes 4s
@@ -1180,6 +1232,9 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         e.r689VolumeHideAt=0L;
         r701HideNativeVolumeBubble(g,c);
       }
+      // R703: Actual media stream volume 0 must LOOK muted even if player-local
+      // mute is false. Presentation only: R701 audible behavior remains intact.
+      r703ReconcileEffectiveMuteGlyph(a,e,g,c,muted);
       Object rowObj=r439Field(c,"volumeBubble").get(g);
       if(rowObj instanceof View){
         // Galaxy SystemUI owns the only visible media volume panel.
