@@ -1,13 +1,13 @@
-name: MOA R701 OneUI single native system volume compile
+name: MOA R703 effective mute icon preserving R701 OneUI volume — isolated SDK35 compile
 on:
   push:
-    branches: [feature/moa-r701-oneui-system-volume-single-panel-20261118]
+    branches: [feature/moa-r703-volume-zero-icon-map-auto-20261120]
     paths:
       - "experiments/moa-r697/MoaR391SessionPersistProvider.java"
       - "experiments/moa-r697/moa-r697-vertical-calendar.js"
-      - ".github/workflows/moa-r701-video-calendar-compile.yml"
+      - ".github/workflows/moa-r699-video-calendar-compile.yml"
 permissions:
-  contents: write
+  contents: read
 jobs:
   compile:
     runs-on: ubuntu-latest
@@ -21,55 +21,46 @@ jobs:
           S="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)"
           yes | "$S" --licenses >/dev/null || true
           "$S" "platforms;android-35" "build-tools;35.0.0"
-      - name: Original Gallery boundary + calendar JS static gates
+      - name: R701 preservation and R703 effective mute source gates
         run: |
           set -euo pipefail
           node --check experiments/moa-r697/moa-r697-vertical-calendar.js
           grep -q "r699ReconcileVisibleCalendar" experiments/moa-r697/moa-r697-vertical-calendar.js
           grep -q "r701ApplyGalaxyVolumeUnified" experiments/moa-r697/MoaR391SessionPersistProvider.java
           grep -q "r701OpenGalaxySystemVolume" experiments/moa-r697/MoaR391SessionPersistProvider.java
-          grep -q "STREAM_MUSIC" experiments/moa-r697/MoaR391SessionPersistProvider.java
-      - name: Native DEX17 compile
+          grep -q "r703ReconcileEffectiveMuteGlyph" experiments/moa-r697/MoaR391SessionPersistProvider.java
+          grep -q 'if(music==0)' experiments/moa-r697/MoaR391SessionPersistProvider.java
+          ! grep -q 'r703.*setStreamVolume' experiments/moa-r697/MoaR391SessionPersistProvider.java
+      - name: Compile Android source to standalone DEX17 (no signing keys or APK)
         run: |
           set -euo pipefail
-          mkdir -p /tmp/moa701/classes /tmp/moa701/dex build/moa-r701
+          mkdir -p /tmp/moa703/classes /tmp/moa703/dex build/moa-r703
           LIB="$ANDROID_HOME/platforms/android-35/android.jar"
-          javac -encoding UTF-8 --release 8 -cp "$LIB" -d /tmp/moa701/classes experiments/moa-r697/MoaR391SessionPersistProvider.java
-          find /tmp/moa701/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$LIB" --output /tmp/moa701/dex
-          cp /tmp/moa701/dex/classes.dex build/moa-r701/classes17.dex
-          sha256sum build/moa-r701/classes17.dex | tee build/moa-r701/SHA256SUMS.txt
+          javac -encoding UTF-8 --release 8 -cp "$LIB" -d /tmp/moa703/classes experiments/moa-r697/MoaR391SessionPersistProvider.java
+          find /tmp/moa703/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$LIB" --output /tmp/moa703/dex
+          cp /tmp/moa703/dex/classes.dex build/moa-r703/classes17.dex
+          sha256sum build/moa-r703/classes17.dex | tee build/moa-r703/SHA256SUMS.txt
           python3 - <<'PY'
-          import hashlib, json
           from pathlib import Path
-          p=Path('build/moa-r701/classes17.dex')
+          import hashlib,json
+          p=Path("build/moa-r703/classes17.dex")
           b=p.read_bytes()
           assert b.startswith(b'dex\n') and len(b)<220000
-          for token in (b'r701ApplyGalaxyVolumeUnified',b'r701OpenGalaxySystemVolume',b'R697_NATIVE_MULTI_SELECTOR'):
-            assert token in b,token
-          Path('build/moa-r701/CI_RESULT.json').write_text(json.dumps({
-            'dex17_sha256': hashlib.sha256(b).hexdigest(),
-            'source':'experiments/moa-r697/MoaR391SessionPersistProvider.java',
-            'original_gallery_classes6':'UNMODIFIED_NOT_RECOMPILED',
-            'physical_galaxy_test':'NOT_PERFORMED',
-            'original_signed_update_apk':'BUILT_LOCALLY_ONLY_PRIVATE_SIGNER_NEVER_IN_CI'
+          for x in (b'r701ApplyGalaxyVolumeUnified',b'r703ReconcileEffectiveMuteGlyph',b'R697_NATIVE_MULTI_SELECTOR'):
+            assert x in b,x
+          Path("build/moa-r703/CI_RESULT.json").write_text(json.dumps({
+            "source":"experiments/moa-r697/MoaR391SessionPersistProvider.java",
+            "classes17_sha256":hashlib.sha256(b).hexdigest(),
+            "compilation":"PASS",
+            "map_asset_change":"NOT_YET_IMPLEMENTED_NEEDS_REAL_R701_ASSETS",
+            "signed_update_apk":"NOT_BUILT",
+            "original_classes6_gallery":"UNMODIFIED",
+            "original_signing_key":"PRIVATE_LIBRARY_NOT_USED_IN_GITHUB_ACTIONS",
+            "device_test":"NOT_PERFORMED"
           },indent=2))
           PY
-      - name: Export compiled DEX17 as UTF-8 base64 on isolated branch (NO signing material)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          mkdir -p build/moa-r701
-          base64 -w 76 build/moa-r701/classes17.dex > build/moa-r701/classes17.dex.b64
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f build/moa-r701/classes17.dex.b64 build/moa-r701/SHA256SUMS.txt build/moa-r701/CI_RESULT.json
-          if ! git diff --cached --quiet; then
-            git commit -m "CI: publish isolated R701 compiled DEX17 base64 (no APK signing secrets)"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MOA-R701-NATIVE-DEX17-COMPILE-QA
-          path: build/moa-r701
+          name: MOA-R703-MUTE-ICON-DEX17-SOURCE-QA-ONLY
+          path: build/moa-r703
