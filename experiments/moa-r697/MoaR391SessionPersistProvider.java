@@ -1737,12 +1737,175 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       }
     }catch(Throwable t){Log.w(TAG,"GALLERY_OWNER_REPAIR_CHECK_"+t.getClass().getSimpleName());}
   }
+  // R703 MAP DELTA: never interfere with R701 player/Gallery code or native rescan.
+  private static final java.util.concurrent.ExecutorService R703_MAP_BG =
+      java.util.concurrent.Executors.newSingleThreadExecutor();
+  private static final java.util.concurrent.atomic.AtomicBoolean R703_MAP_BUSY =
+      new java.util.concurrent.atomic.AtomicBoolean(false);
+  private static final java.util.Map<Activity,Long> R703_MAP_TICKS =
+      new java.util.WeakHashMap<Activity,Long>();
+  private static final String R703_MAP_SEEN="moa-r703-mediastore-seen.v1.json";
+  private static final String R703_MAP_CACHE="fj-private-exif-meta-v1.json";
+  private static final String R703_MAP_PREF="fj-private-exif-cache";
+  private static long r703LatestSaved(java.io.File file){
+    try{return Long.parseLong(new String(java.nio.file.Files.readAllBytes(file.toPath()),
+      java.nio.charset.StandardCharsets.UTF_8).trim());}catch(Throwable ignored){return 0L;}
+  }
+  private static void r703MapCheck(Activity a){
+    if(!valid(a)||a.isFinishing())return;
+    WebView web=findOwnWeb(a.getWindow().getDecorView());
+    if(web==null)return;
+    final long tick=SystemClock.elapsedRealtime();
+    final Long previous=R703_MAP_TICKS.get(a);
+    if(previous!=null&&tick-previous<12500L)return;
+    // Require the *actual R701 map* to be initialized, not a diary-only startup.
+    web.evaluateJavascript("(function(){return !!(window.__photoMap&&window.__moaR703MapChunksBegin)})()",value->{
+      if(!"true".equals(value)||!valid(a)||R703_MAP_BUSY.get())return;
+      R703_MAP_TICKS.put(a,SystemClock.elapsedRealtime());
+      if(R703_MAP_BUSY.compareAndSet(false,true))
+        R703_MAP_BG.execute(()->{try{r703IndexChangedGps(a,web);}catch(Throwable e){
+          Log.w(TAG,"R703_MAP_CHECK_"+e.getClass().getSimpleName());
+        }finally{R703_MAP_BUSY.set(false);}});
+    });
+  }
+  private static void r703Atomic(java.io.File dest,String data)throws Exception{
+    java.io.File tmp=new java.io.File(dest.getParentFile(),dest.getName()+".r703-pending");
+    java.nio.file.Files.write(tmp.toPath(),data.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    java.nio.file.Files.move(tmp.toPath(),dest.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+  }
+  private static long r703ExifEpoch(android.media.ExifInterface exif,long fallback,Activity a){
+    try{
+      java.lang.reflect.Method m=a.getClass().getDeclaredMethod(
+          "photoTime",android.media.ExifInterface.class,long.class);
+      m.setAccessible(true);Object result=m.invoke(null,exif,fallback);
+      return ((Number)result).longValue();
+    }catch(Throwable ignored){return fallback;}
+  }
+  private static org.json.JSONObject r703PhotoGps(Activity a,String id,long dateTakenMs){
+    try{
+      android.net.Uri uri=android.content.ContentUris.withAppendedId(
+          android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,Long.parseLong(id));
+      if(android.os.Build.VERSION.SDK_INT>=29 &&
+          a.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION)==
+            android.content.pm.PackageManager.PERMISSION_GRANTED){
+        try{uri=android.provider.MediaStore.setRequireOriginal(uri);}catch(Throwable ignored){}
+      }
+      try(java.io.InputStream in=a.getContentResolver().openInputStream(uri)){
+        if(in==null)return null;
+        android.media.ExifInterface exif=new android.media.ExifInterface(in);
+        float[] ll=new float[2];
+        if(!exif.getLatLong(ll)||!Float.isFinite(ll[0])||!Float.isFinite(ll[1]) ||
+            Math.abs(ll[0])>90||Math.abs(ll[1])>180)return null;
+        org.json.JSONObject out=new org.json.JSONObject();
+        out.put("id",id);out.put("lat",ll[0]);out.put("lon",ll[1]);
+        out.put("t",r703ExifEpoch(exif,dateTakenMs/1000L,a));out.put("kind","photo");
+        return out;
+      }
+    }catch(Throwable ignored){return null;}
+  }
+  private static void r703IndexChangedGps(Activity a,WebView web)throws Exception{
+    if(!valid(a))return;
+    java.io.File cache=new java.io.File(a.getFilesDir(),R703_MAP_CACHE);
+    if(!cache.isFile()||cache.length()>16000000L)return;
+    org.json.JSONArray photos=new org.json.JSONArray(new String(
+        java.nio.file.Files.readAllBytes(cache.toPath()),java.nio.charset.StandardCharsets.UTF_8));
+    java.io.File seenFile=new java.io.File(a.getFilesDir(),R703_MAP_SEEN);
+    org.json.JSONObject before=new org.json.JSONObject();
+    final boolean hasSeen=seenFile.isFile()&&seenFile.length()<10000000L;
+    if(hasSeen)before=new org.json.JSONObject(new String(
+      java.nio.file.Files.readAllBytes(seenFile.toPath()),java.nio.charset.StandardCharsets.UTF_8));
+    java.util.Map<String,org.json.JSONObject> gps=new java.util.LinkedHashMap<>();
+    for(int i=0;i<photos.length();i++){
+      org.json.JSONObject p=photos.optJSONObject(i);
+      if(p!=null&&p.has("id")&&p.has("lat")&&p.has("lon"))
+        gps.put(p.optString("id"),p);
+    }
+    android.content.SharedPreferences sp=a.getSharedPreferences(R703_MAP_PREF,0);
+    String oldFP=sp.getString("fingerprint","");
+    long oldMax=0L;try{oldMax=Long.parseLong(oldFP.substring(oldFP.lastIndexOf('|')+1));}
+    catch(Throwable ignored){}
+    org.json.JSONObject current=new org.json.JSONObject();
+    java.util.HashSet<String> present=new java.util.HashSet<>();
+    java.util.ArrayList<String> changed=new java.util.ArrayList<>();
+    java.util.HashMap<String,Long> taken=new java.util.HashMap<>();
+    android.net.Uri collection=android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+    String[] cols={android.provider.MediaStore.Images.Media._ID,
+       android.provider.MediaStore.Images.Media.DATE_MODIFIED,
+       android.provider.MediaStore.Images.Media.DATE_TAKEN};
+    long latest=0L;int total=0;
+    try(android.database.Cursor cur=a.getContentResolver().query(
+        collection,cols,null,null,android.provider.MediaStore.Images.Media.DATE_MODIFIED+" DESC")){
+      if(cur==null)return;
+      while(cur.moveToNext()){
+        String id=String.valueOf(cur.getLong(0));
+        long mod=cur.isNull(1)?0L:cur.getLong(1);
+        long date=cur.isNull(2)?System.currentTimeMillis():cur.getLong(2);
+        if(total==0)latest=mod;
+        total++;present.add(id);current.put(id,mod);
+        if(hasSeen){
+          if(!before.has(id)||before.optLong(id,-1L)!=mod){changed.add(id);taken.put(id,date);}
+        }else if(mod>oldMax){changed.add(id);taken.put(id,date);}
+      }
+    }
+    String nowFP=total+"|"+latest;
+    // First baseline is already handled by the original R701 native scanner.
+    // Seed all IDs so a later single-photo addition requires only ONE EXIF read.
+    if(!hasSeen && oldFP.equals(nowFP)){
+      r703Atomic(seenFile,current.toString());return;
+    }
+    for(String id:changed){
+      org.json.JSONObject fresh=r703PhotoGps(a,id,taken.get(id));
+      if(fresh==null)gps.remove(id);else gps.put(id,fresh);
+    }
+    java.util.ArrayList<String> gone=new java.util.ArrayList<>();
+    for(String id:gps.keySet())if(!present.contains(id))gone.add(id);
+    for(String id:gone)gps.remove(id);
+    boolean gpsChanged=false;
+    if(!gone.isEmpty())gpsChanged=true;
+    if(!gpsChanged)for(String id:changed){
+      org.json.JSONObject old=null;
+      for(int i=0;i<photos.length();i++){
+        org.json.JSONObject p=photos.optJSONObject(i);
+        if(p!=null&&id.equals(p.optString("id"))){old=p;break;}
+      }
+      org.json.JSONObject fresh=gps.get(id);
+      if((old==null)!=(fresh==null)||
+         (old!=null&&fresh!=null&&!old.toString().equals(fresh.toString()))){
+        gpsChanged=true;break;
+      }
+    }
+    org.json.JSONArray updated=new org.json.JSONArray();
+    for(org.json.JSONObject p:gps.values())updated.put(p);
+    // Both updates are PRIVATE and local to MOA: no media, diary or cookies deleted.
+    if(gpsChanged)r703Atomic(cache,updated.toString());
+    r703Atomic(seenFile,current.toString());
+    sp.edit().putString("fingerprint",nowFP).apply();
+    if(!gpsChanged)return;
+    final String payload=updated.toString(),fp=nowFP;
+    UI.post(()->{
+      if(!valid(a)||a.isFinishing()||web!=findOwnWeb(a.getWindow().getDecorView()))return;
+      try{
+        web.evaluateJavascript("window.__moaR703MapChunksBegin&&window.__moaR703MapChunksBegin("+
+          org.json.JSONObject.quote(fp)+")",null);
+        for(int at=0;at<payload.length();at+=12000){
+          String slice=payload.substring(at,Math.min(payload.length(),at+12000));
+          web.evaluateJavascript("window.__moaR703MapChunksAppend&&window.__moaR703MapChunksAppend("+
+            org.json.JSONObject.quote(slice)+")",null);
+        }
+        web.evaluateJavascript("window.__moaR703MapChunksEnd&&window.__moaR703MapChunksEnd()",null);
+        Log.i(TAG,"R703_MAP_GPS_INCREMENTAL_APPLIED changedMedia="+changed.size()+
+          " gps="+updated.length());
+      }catch(Throwable e){Log.w(TAG,"R703_MAP_DELTA_DISPATCH_"+e.getClass().getSimpleName());}
+    });
+  }
+
   private static void monitor(Activity a,int id){
     if(!valid(a) || MONITORS.get(a)==null || MONITORS.get(a)!=id)return;
     Run r=RUNS.get(a);
     compactNaverChrome(a);
     repairGalleryOwner(a);
     ensureGalleryBottomBar(a);
+    r703MapCheck(a);
     try{
       // A living foreground/background HostActivity shares one no-network
       // heartbeat that only refreshes the existing controller expiry.
