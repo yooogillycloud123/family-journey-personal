@@ -2053,6 +2053,9 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
           Run r=RUNS.get(a);
           if(r!=null&&!r.attempted&&!r.finished)UI.postDelayed(()->begin(r),55L);
           if(valid(a)){
+            // Camera/app foreground return must not wait for the periodic map poll.
+            R703_MAP_TICKS.remove(a);
+            UI.postDelayed(()->r703MapCheck(a),1500L);
             attachChromeObserver(a);
             UI.postDelayed(()->compactNaverChrome(a),140L);
             UI.postDelayed(()->repairGalleryOwner(a),1200L);
