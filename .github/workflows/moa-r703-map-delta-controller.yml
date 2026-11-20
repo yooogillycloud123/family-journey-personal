@@ -1,0 +1,28 @@
+name: MOA R703 map delta controller WIP QA
+
+on:
+  push:
+    branches:
+      - feature/moa-r703-map-incremental-refresh-wip-20261120
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  controller-only:
+    name: Isolated JS unit tests (NOT R701 APK or Android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check original source/controller boundaries
+        shell: bash
+        run: |
+          test -f experiments/moa-r703/moa-r703-map-delta-refresh-controller.js
+          test -f experiments/moa-r703/test-map-delta-refresh-controller.js
+          node --check experiments/moa-r703/moa-r703-map-delta-refresh-controller.js
+          node --check experiments/moa-r703/test-map-delta-refresh-controller.js
+      - name: Run map-only controller tests
+        shell: bash
+        run: node experiments/moa-r703/test-map-delta-refresh-controller.js
