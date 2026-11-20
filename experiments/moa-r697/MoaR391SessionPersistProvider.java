@@ -597,6 +597,8 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     final GalleryFastSwipeGlyph fastGlyph;
     View r691TrashAction;LinearLayout r691Capsule;
     View r694CoverAction;
+    // R705: separate fullscreen PHOTO/DETAIL edge buttons, never inline PHOTO.
+    View r705FirstAction;View r705LastAction;
     String r694Profile="";String r694Applied="";
     boolean r694ProfileRequested=false;long r694LastProfileAt=0L;
     StageScrub stageScrub;
@@ -1246,9 +1248,11 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       {"expand","moa.gallery.card.advanced.r535"},
       {"trash","moa.gallery.action.remove.diary.only.r691"}
     }:new String[][]{
+      {"first","moa.gallery.action.first.r705"},
       {"share","moa.gallery.action.share"},{"naver","moa.gallery.action.map"},
       {"info","moa.gallery.action.info.r459"},{"fast","moa.gallery.action.faststage.r463"},
-      {"cover","moa.gallery.action.cover.r694"},{"trash","moa.gallery.action.remove.diary.only.r691"}
+      {"cover","moa.gallery.action.cover.r694"},{"trash","moa.gallery.action.remove.diary.only.r691"},
+      {"last","moa.gallery.action.last.r705"}
     };
     for(String[] d:defs){View v=r694ChildByTag(row,d[1]);if(v!=null)a.put(d[0],v);}
     return a;
@@ -1258,7 +1262,8 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       case "naver":return "네이버 지도";case "info":return "촬영 정보";
       case "fast":return "연속 넘기기";case "favorite":return "네이버 저장";
       case "rail":return "사진 목록";case "expand":return "전체 화면";
-      case "trash":return "일기에서 제외";default:return role;}
+      case "trash":return "일기에서 제외";case "first":return "첫 사진으로";
+      case "last":return "마지막 사진으로";default:return role;}
   }
   private static java.util.ArrayList<String> r694SavedOrder(Activity a,String profile,java.util.LinkedHashMap<String,View> actions){
     String raw=a.getSharedPreferences(r694Prefs(profile),0).getString("order","");
@@ -1266,15 +1271,18 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       raw=a.getSharedPreferences("moa.r570.photo.actions",0).getString("order","");
     java.util.ArrayList<String> names=new java.util.ArrayList<>();
     if(raw.length()>0)for(String key:raw.split(","))if(actions.containsKey(key)&&!names.contains(key))names.add(key);
-    // Migration: add newly registered icons without discarding old user order.
-    for(String key:actions.keySet())if(!names.contains(key))names.add(key);
+    // R705: preserve existing six-icon custom order; append only two new edge
+    // roles at opposite ends. An explicit saved eight-icon order remains intact.
+    if(!R694_INLINE.equals(profile)&&actions.containsKey("first")&&!names.contains("first"))names.add(0,"first");
+    for(String key:actions.keySet())if(!"last".equals(key)&&!names.contains(key))names.add(key);
+    if(actions.containsKey("last")&&!names.contains("last"))names.add("last");
     return names;
   }
   private static void r694ApplyOrder(Activity a,GalleryActions e,String profile,boolean inline){
     LinearLayout row=e.r691Capsule;
     if(row==null||row.getParent()==null)return;
     java.util.LinkedHashMap<String,View> actions=r694Actions(e,inline);
-    if(actions.size()!=(inline?9:6))return; // fail closed, never remove a missing control
+    if(actions.size()!=(inline?9:8))return; // fail closed, never remove a missing control
     java.util.ArrayList<String> order=r694SavedOrder(a,profile,actions);
     String signature=profile+":"+android.text.TextUtils.join(",",order);
     if(signature.equals(e.r694Applied)){
@@ -1300,7 +1308,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   }
   private static void r694OrderDialog(Activity a,GalleryActions e,String profile,boolean inline){
     java.util.LinkedHashMap<String,View> actions=r694Actions(e,inline);
-    if(actions.size()!=(inline?9:6)||a.isFinishing())return;
+    if(actions.size()!=(inline?9:8)||a.isFinishing())return;
     java.util.ArrayList<String> order=r694SavedOrder(a,profile,actions);
     String[] labels=new String[order.size()];
     for(int i=0;i<order.size();i++)labels[i]=(i+1)+". "+r694Label(order.get(i));
@@ -1464,7 +1472,89 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     e.r691Capsule.addView(cover,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
     e.r694CoverAction=cover;e.r694Applied="";
   }
-  // R691: show trash ONLY while original Gallery is embedded as PHOTO diary card.
+
+  // R705: direct first/last destination through the protected original native
+  // R203 GalleryRail renderer. Zero velocity + exact integer index completes
+  // without crossing intermediate photos, and shares filmstrip/video lifecycle.
+  // It NEVER reloads the diary, mutates the playlist, or closes the Gallery.
+  private static void r705JumpBoundary(Activity a,GalleryActions e,boolean last){
+    if(e==null||e.gallery==null||a.isFinishing()||r691InlinePhoto(a,e))return;
+    if(!"photo_full".equals(e.r694Profile)&&!"detail_full".equals(e.r694Profile))return;
+    try{
+      Object g=e.gallery;Class<?> c=g.getClass();
+      if(!r439Field(c,"open").getBoolean(g))return;
+      Object all=r439Field(c,"ids").get(g);
+      if(!(all instanceof java.util.List))return;
+      int size=((java.util.List<?>)all).size();if(size<2)return;
+      int target=last?size-1:0;
+      int current=r439Field(c,"index").getInt(g);
+      if(current<0||current>=size||target==current)return;
+      Method release=c.getDeclaredMethod("r203ReleaseWithVelocity",float.class,float.class,float.class);
+      release.setAccessible(true);
+      release.invoke(g,(float)target,0f,1f);
+      r705UpdateEdgeState(a,e);
+    }catch(Throwable t){
+      Log.w(TAG,"R705_EDGE_JUMP_"+t.getClass().getSimpleName());
+    }
+  }
+  // Native strokes: simple first (|<<) and last (>>|) symbols.
+  private static final class R705EdgeGlyph extends View{
+    private final Paint pen=new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final boolean last;
+    R705EdgeGlyph(Activity a,boolean last){super(a);this.last=last;setWillNotDraw(false);}
+    @Override protected void onDraw(Canvas c){
+      super.onDraw(c);
+      float scale=Math.min(getWidth(),getHeight())/26f;
+      c.save();c.translate((getWidth()-26*scale)*.5f,(getHeight()-26*scale)*.5f);c.scale(scale,scale);
+      pen.setColor(isEnabled()?0xffebedf0:0xff777984);pen.setStrokeWidth(2.1f);
+      pen.setStyle(Paint.Style.STROKE);pen.setStrokeCap(Paint.Cap.ROUND);
+      pen.setStrokeJoin(Paint.Join.ROUND);
+      float edge=last?23f:3f;c.drawLine(edge,5f,edge,21f,pen);
+      for(int i=0;i<2;i++){
+        float x=last?4f+i*8f:22f-i*8f,p=last?x+6f:x-6f;
+        c.drawLine(x,6f,p,13f,pen);c.drawLine(p,13f,x,20f,pen);
+      }
+      c.restore();
+    }
+  }
+  private static LinearLayout r705EdgeAction(Activity a,boolean last){
+    LinearLayout button=new LinearLayout(a);
+    button.setGravity(Gravity.CENTER);button.setClickable(true);button.setFocusable(true);
+    button.setMinimumHeight(dpx(a,42));
+    button.setTag(last?"moa.gallery.action.last.r705":"moa.gallery.action.first.r705");
+    button.setContentDescription(last?"마지막 사진으로 즉시 이동":"첫 사진으로 즉시 이동");
+    GradientDrawable mask=new GradientDrawable();mask.setColor(0xffffffff);
+    mask.setCornerRadius(dpx(a,18));
+    button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x44ffffff),null,mask));
+    button.addView(new R705EdgeGlyph(a,last),new LinearLayout.LayoutParams(dpx(a,21),dpx(a,21)));
+    return button;
+  }
+  private static void r705SetEdgeVisible(GalleryActions e,boolean show){
+    int v=show?View.VISIBLE:View.GONE;
+    if(e.r705FirstAction!=null&&e.r705FirstAction.getVisibility()!=v)e.r705FirstAction.setVisibility(v);
+    if(e.r705LastAction!=null&&e.r705LastAction.getVisibility()!=v)e.r705LastAction.setVisibility(v);
+  }
+  private static void r705UpdateEdgeState(Activity a,GalleryActions e){
+    if(e.r705FirstAction==null||e.r705LastAction==null)return;
+    boolean shown=!r691InlinePhoto(a,e)&&
+      ("photo_full".equals(e.r694Profile)||"detail_full".equals(e.r694Profile));
+    int position=-1,count=0;
+    try{
+      Object all=r439Field(e.gallery.getClass(),"ids").get(e.gallery);
+      if(all instanceof java.util.List)count=((java.util.List<?>)all).size();
+      position=r439Field(e.gallery.getClass(),"index").getInt(e.gallery);
+    }catch(Throwable ignored){}
+    e.r705FirstAction.setEnabled(shown&&count>1&&position>0&&position<count);
+    e.r705LastAction.setEnabled(shown&&count>1&&position>=0&&position<count-1);
+    for(View action:new View[]{e.r705FirstAction,e.r705LastAction}){
+      if(action instanceof ViewGroup){ViewGroup group=(ViewGroup)action;
+        for(int i=0;i<group.getChildCount();i++){
+          View glyph=group.getChildAt(i);glyph.setEnabled(action.isEnabled());glyph.invalidate();
+        }
+      }
+    }
+  }
+  // R691: original PHOTO/DETAIL diary-only trash remains unchanged.
   // The expanded original fullscreen gallery retains its existing four icons.
   private static boolean r691InlinePhoto(Activity a,GalleryActions e){
     try{
@@ -1480,18 +1570,21 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     // uses the 9 native icons and separate user-customizable order preference.
     if(e.r691TrashAction.getVisibility()!=View.VISIBLE)e.r691TrashAction.setVisibility(View.VISIBLE);
     if(show){
+      r705SetEdgeVisible(e,false);
       if(e.r691Capsule.getChildCount()>=9)r694ApplyOrder(a,e,R694_INLINE,true);
       return;
     }
     r694CheckProfile(a,e);
     String profile=e.r694Profile;
     if(!"photo_full".equals(profile)&&!"detail_full".equals(profile)){
+      r705SetEdgeVisible(e,false);
       e.r691TrashAction.setVisibility(View.GONE);return; // early native mount, not yet expanded
     }
+    r705SetEdgeVisible(e,true);
     r694EnsureFullscreenCover(a,e);
     r694ApplyOrder(a,e,profile,false);
     FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)e.r691Capsule.getLayoutParams();
-    int width=Math.min(Math.max(dpx(a,120),e.host.getWidth()-dpx(a,30)),dpx(a,20+6*55));
+    int width=Math.min(Math.max(dpx(a,120),e.host.getWidth()-dpx(a,12)),dpx(a,20+8*52));
     if(lp.width!=width){lp.width=width;e.r691Capsule.setLayoutParams(lp);}
   }
   private static void r691RemoveCurrentPhoto(Activity a,Object gallery,GalleryActions entry){
@@ -1541,6 +1634,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       }
       r443UpdateTopInfo(a,entry,chrome);
       r691SyncDeleteAction(a,entry);
+      r705UpdateEdgeState(a,entry);
       r689SyncGalleryVideoUX(a,entry);
       if(entry.fastSwipeEnabled&&(entry.stageScrub==null||!entry.stageScrub.attached())){
         r463DisableFastSwipe(entry); // fail closed if native stage was rebuilt
@@ -1596,6 +1690,8 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       infoAction.addView(folded,new LinearLayout.LayoutParams(dpx(a,21),dpx(a,21)));
       // Shared 50dp footer / existing swipe rail remain untouched; only the
       // flexible capsule grows from two actions to three.
+      LinearLayout firstJump=r705EdgeAction(a,false);firstJump.setVisibility(View.GONE);
+      capsule.addView(firstJump,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
       capsule.addView(share.touch,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
       capsule.addView(map.touch,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
       capsule.addView(infoAction,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
@@ -1618,6 +1714,8 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       trash.setBackground(new RippleDrawable(ColorStateList.valueOf(0x44ffffff),null,trashMask));
       trash.addView(new R691TrashGlyph(a),new LinearLayout.LayoutParams(dpx(a,21),dpx(a,21)));
       trash.setVisibility(View.GONE);capsule.addView(trash,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
+      LinearLayout lastJump=r705EdgeAction(a,true);lastJump.setVisibility(View.GONE);
+      capsule.addView(lastJump,new LinearLayout.LayoutParams(0,dpx(a,42),1f));
       int count=4, width=Math.min(Math.max(dpx(a,120),host.getWidth()-dpx(a,30)),dpx(a,20+count*65));
       FrameLayout.LayoutParams capParams=new FrameLayout.LayoutParams(width,dpx(a,42),Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
       capParams.bottomMargin=dpx(a,3);
@@ -1676,6 +1774,9 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         folded,infoAction,card,time,address,fastAction,fastGlyph,infoOldTop,initial,reserved);
       entry.infoExpanded=auto;
       entry.r691TrashAction=trash;entry.r691Capsule=capsule;
+      entry.r705FirstAction=firstJump;entry.r705LastAction=lastJump;
+      firstJump.setOnClickListener(v->r705JumpBoundary(a,entry,false));
+      lastJump.setOnClickListener(v->r705JumpBoundary(a,entry,true));
       trash.setOnClickListener(v->r694OpenDeletePicker(a,entry));
       // No top-tap listener. Both expand and collapse originate from the
       // SAME third icon in the footer, unless '기본 표시' is checked (pinned).
