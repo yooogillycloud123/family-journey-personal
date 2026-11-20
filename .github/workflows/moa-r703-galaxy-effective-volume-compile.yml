@@ -50,6 +50,7 @@ jobs:
           javac -encoding UTF-8 --release 8 -cp "$LIB" -d /tmp/moa703/classes experiments/moa-r697/MoaR391SessionPersistProvider.java
           find /tmp/moa703/classes -name '*.class' -print0 | xargs -0 "$ANDROID_HOME/build-tools/35.0.0/d8" --min-api 29 --lib "$LIB" --output /tmp/moa703/dex
           cp /tmp/moa703/dex/classes.dex build/moa-r703/classes17.dex
+          cp experiments/moa-r697/MoaR391SessionPersistProvider.java build/moa-r703/MoaR391SessionPersistProvider.java
           sha256sum build/moa-r703/classes17.dex > build/moa-r703/SHA256SUMS.txt
           python3 - <<'PY'
           import hashlib,json,zlib,struct
