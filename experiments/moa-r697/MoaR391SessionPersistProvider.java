@@ -609,6 +609,11 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     long r689VolumeHideAt=0L;
     int r699SystemVolume=-1;
     int r699SystemVolumeMax=-1;
+    // R703 effective silence is local player mute OR Galaxy media volume == 0.
+    // These are different states: a zero-volume icon MUST NOT mute the MediaPlayer.
+    String r703NativeMutedLabel=null;
+    String r703NativeSoundLabel=null;
+    boolean r703VolumeZeroVisual=false;
     // R701: restore host Activity's original key routing on Gallery close.
     boolean r701VolumeStreamBound=false;
     int r701PreviousVolumeStream=Integer.MIN_VALUE;
@@ -1108,6 +1113,44 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     r701HideNativeVolumeBubble(gallery,galleryClass);
     return muted;
   }
+  // R703: synchronize only the speaker ICON, never alter the global volume
+  // or the MediaPlayer for a visual-only zero-volume transition.
+  private static void r703SyncEffectiveMuteIcon(Activity a,GalleryActions e,
+      Button mute,boolean locallyMuted){
+    if(mute==null)return;
+    try{
+      final int systemLevel=r699MusicLevel(r699Audio(a));
+      if(systemLevel<0)return; // fail-open when stream state unavailable
+      final String nativeText=String.valueOf(mute.getText());
+      if(!e.r703VolumeZeroVisual){
+        if(locallyMuted&&nativeText.length()>0)
+          e.r703NativeMutedLabel=nativeText;
+        else if(!locallyMuted&&nativeText.length()>0)
+          e.r703NativeSoundLabel=nativeText;
+      }
+      if(systemLevel==0&&!locallyMuted){
+        // The player is ready and NOT locally muted, but Galaxy media output
+        // is inaudible. Display the native muted icon while preserving playback.
+        if(!e.r703VolumeZeroVisual&&nativeText.length()>0)
+          e.r703NativeSoundLabel=nativeText;
+        final String silent=(e.r703NativeMutedLabel!=null
+            ?e.r703NativeMutedLabel:"🔇");
+        if(!silent.contentEquals(mute.getText()))mute.setText(silent);
+        mute.setContentDescription("미디어 음량 0 · 소리 꺼짐");
+        e.r703VolumeZeroVisual=true;
+      }else{
+        // Samsung VOL+ from 0 restores the native original SOUND icon; do
+        // not toggle player mute just to change the visual state.
+        if(e.r703VolumeZeroVisual){
+          final String original=locallyMuted?e.r703NativeMutedLabel:e.r703NativeSoundLabel;
+          if(original!=null&&!original.contentEquals(mute.getText()))
+            mute.setText(original);
+          e.r703VolumeZeroVisual=false;
+        }
+        mute.setContentDescription(locallyMuted?"소리 꺼짐 · 소리 켜기":"소리 켜짐 · 음소거");
+      }
+    }catch(Throwable ignored){/* Never obstruct native playback or gallery. */}
+  }
   // R689: The ONLY new native behavior. Original classes6.dex Gallery is preserved.
   // Sound choice is MEMORY-ONLY for one gallery/day; fresh new day/gallery muted.
   // Volume bubble remains visible during touch adjustment, otherwise closes 4s
@@ -1138,6 +1181,9 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         if(mute.getScaleY()!=iconScale)mute.setScaleY(iconScale);
         if(e.r689MuteHooked!=mute){
           e.r689MuteHooked=mute;
+          e.r703NativeMutedLabel=null;
+          e.r703NativeSoundLabel=null;
+          e.r703VolumeZeroVisual=false;
           // Preserve the original toggleMute() so volume, icon, accessibility
           // content description and native video engine remain synchronized.
           mute.setOnClickListener(v->{
@@ -1180,6 +1226,8 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
         e.r689VolumeHideAt=0L;
         r701HideNativeVolumeBubble(g,c);
       }
+      if(muteObj instanceof Button)
+        r703SyncEffectiveMuteIcon(a,e,(Button)muteObj,muted);
       Object rowObj=r439Field(c,"volumeBubble").get(g);
       if(rowObj instanceof View){
         // Galaxy SystemUI owns the only visible media volume panel.
