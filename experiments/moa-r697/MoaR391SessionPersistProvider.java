@@ -601,6 +601,10 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     View r705FirstAction;View r705LastAction;
     String r694Profile="";String r694Applied="";
     boolean r694ProfileRequested=false;long r694LastProfileAt=0L;
+    Object r707ProfileIds;
+    String r707FirstId="",r707LastId="",r707Day="";
+    int r707Count=-1,r707Epoch=0,r707MapToken=0;
+    boolean r707EarlierWindow=false,r707LaterWindow=false,r707JumpPending=false;
     StageScrub stageScrub;
     boolean fastSwipeEnabled=false;
     // R689: Gallery-only VIDEO UX state. Never modify MediaPlayer/TextureView source.
@@ -1230,6 +1234,13 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // DETAIL fullscreen. No Gallery core or MediaStore deletion changes.
   private static final String R694_INLINE="photo_inline";
   private static boolean r694Inline(Activity a,GalleryActions e){return r691InlinePhoto(a,e);}
+  private static final String R707_MAP="map_full";
+  private static boolean r707Fullscreen(String profile){
+    return R707_MAP.equals(profile)||"photo_full".equals(profile)||"detail_full".equals(profile);
+  }
+  private static int r707ActionCount(GalleryActions e,boolean inline){
+    return inline?9:(R707_MAP.equals(e.r694Profile)?6:8);
+  }
   private static String r694Prefs(String profile){return "moa.r694.gallery.order."+profile;}
   private static View r694ChildByTag(LinearLayout row,String tag){
     for(int i=0;i<row.getChildCount();i++){
@@ -1254,7 +1265,11 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
       {"cover","moa.gallery.action.cover.r694"},{"trash","moa.gallery.action.remove.diary.only.r691"},
       {"last","moa.gallery.action.last.r705"}
     };
-    for(String[] d:defs){View v=r694ChildByTag(row,d[1]);if(v!=null)a.put(d[0],v);}
+    boolean map=!inline&&R707_MAP.equals(e.r694Profile);
+    for(String[] d:defs){
+      if(map&&("cover".equals(d[0])||"trash".equals(d[0])))continue;
+      View v=r694ChildByTag(row,d[1]);if(v!=null)a.put(d[0],v);
+    }
     return a;
   }
   private static String r694Label(String role){
@@ -1282,7 +1297,7 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     LinearLayout row=e.r691Capsule;
     if(row==null||row.getParent()==null)return;
     java.util.LinkedHashMap<String,View> actions=r694Actions(e,inline);
-    if(actions.size()!=(inline?9:8))return; // fail closed, never remove a missing control
+    if(actions.size()!=r707ActionCount(e,inline))return; // fail closed, never remove a missing control
     java.util.ArrayList<String> order=r694SavedOrder(a,profile,actions);
     String signature=profile+":"+android.text.TextUtils.join(",",order);
     if(signature.equals(e.r694Applied)){
@@ -1308,12 +1323,12 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   }
   private static void r694OrderDialog(Activity a,GalleryActions e,String profile,boolean inline){
     java.util.LinkedHashMap<String,View> actions=r694Actions(e,inline);
-    if(actions.size()!=(inline?9:8)||a.isFinishing())return;
+    if(actions.size()!=r707ActionCount(e,inline)||a.isFinishing())return;
     java.util.ArrayList<String> order=r694SavedOrder(a,profile,actions);
     String[] labels=new String[order.size()];
     for(int i=0;i<order.size();i++)labels[i]=(i+1)+". "+r694Label(order.get(i));
     final int[] chosen={0};
-    String title=inline?"사진형 아이콘 순서":profile.equals("detail_full")?"상세형 전체화면 아이콘 순서":"사진형 전체화면 아이콘 순서";
+    String title=inline?"사진형 아이콘 순서":R707_MAP.equals(profile)?"나의 지도 아이콘 순서":profile.equals("detail_full")?"상세형 전체화면 아이콘 순서":"사진형 전체화면 아이콘 순서";
     new android.app.AlertDialog.Builder(a)
       .setTitle(title).setSingleChoiceItems(labels,0,(dialog,which)->chosen[0]=which)
       .setPositiveButton("왼쪽으로",(dialog,which)->r694MoveOrder(a,e,profile,inline,order,chosen[0],-1))
@@ -1328,19 +1343,53 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     e.r694Applied="";r694ApplyOrder(a,e,profile,inline);
   }
   private static void r694CheckProfile(Activity a,GalleryActions e){
+    // A reused native Gallery can receive another playlist before its old
+    // WebView callback returns. Only inspect its count, endpoints and diary day.
+    try{
+      Class<?> type=e.gallery.getClass();
+      Object all=r439Field(type,"ids").get(e.gallery);if(!(all instanceof java.util.List))return;
+      java.util.List<?> ids=(java.util.List<?>)all;int n=ids.size();
+      String first=n==0?"":String.valueOf(ids.get(0));
+      String last=n==0?"":String.valueOf(ids.get(n-1));
+      String day=String.valueOf(r439Field(type,"currentDay").get(e.gallery));
+      if(all!=e.r707ProfileIds||n!=e.r707Count||!first.equals(e.r707FirstId)||
+         !last.equals(e.r707LastId)||!day.equals(e.r707Day)){
+        e.r707ProfileIds=all;e.r707Count=n;e.r707FirstId=first;e.r707LastId=last;e.r707Day=day;
+        e.r707Epoch++;e.r694Profile="";e.r694Applied="";e.r694ProfileRequested=false;
+        e.r707MapToken=0;e.r707EarlierWindow=false;e.r707LaterWindow=false;e.r707JumpPending=false;
+      }
+    }catch(Exception ignored){return;}
     long now=SystemClock.elapsedRealtime();
-    if(e.r694ProfileRequested&&now-e.r694LastProfileAt<850L)return;
-    if(e.r694ProfileRequested&&!"pending_inline".equals(e.r694Profile))return;
-    e.r694ProfileRequested=true;e.r694LastProfileAt=now;
+    if(e.r694ProfileRequested&&(now-e.r694LastProfileAt<850L||r707Fullscreen(e.r694Profile)))return;
     final WebView web=findOwnWeb(a.getWindow().getDecorView());if(web==null)return;
-    String js="(function(){try{var p=window.MoaR469SimpleDiary?.readOnlyStatus?.();"+
+    e.r694ProfileRequested=true;e.r694LastProfileAt=now;final int epoch=++e.r707Epoch;
+    String js="(function(){try{var map=window.__moaR707MapGallery?.profile?.("+e.r707Count+","+
+      org.json.JSONObject.quote(e.r707FirstId)+","+org.json.JSONObject.quote(e.r707LastId)+");if(map)return map;"+
+      "var p=window.MoaR469SimpleDiary?.readOnlyStatus?.();"+
       "if(p?.active&&p.page==='day'){return window.__moaR539AdvancedActive?.()?'photo_full':'pending_inline';}"+
       "var d=window.FamilyJourneyDiary?.state;return d?.open&&d.page==='day'?'detail_full':'pending_inline';"+
-      "}catch(e){return 'photo_full'}})()";
-    web.evaluateJavascript(js,raw->{if(e.host.getParent()==null)return;
-      String profile=raw!=null&&raw.contains("detail_full")?"detail_full":raw!=null&&raw.contains("photo_full")?"photo_full":"pending_inline";
+      "}catch(e){return 'pending_inline'}})()";
+    web.evaluateJavascript(js,raw->{
+      if(e.r707Epoch!=epoch||e.host.getParent()==null||GALLERY_BARS.get(a)!=e)return;
+      String profile="pending_inline";
+      try{
+        Object decoded=new org.json.JSONTokener(raw==null?"null":raw).nextValue();
+        if(decoded instanceof String){
+          String value=(String)decoded;
+          if(value.startsWith("map_full/")){
+            String[] parts=value.split("/");
+            if(parts.length==4){
+              int token=Integer.parseInt(parts[1]);
+              if(token>0){
+                profile=R707_MAP;e.r707MapToken=token;
+                e.r707EarlierWindow="1".equals(parts[2]);e.r707LaterWindow="1".equals(parts[3]);
+              }
+            }
+          }else if("detail_full".equals(value)||"photo_full".equals(value)){profile=value;}
+        }
+      }catch(org.json.JSONException|NumberFormatException ignored){}
       if(!profile.equals(e.r694Profile)){e.r694Profile=profile;e.r694Applied="";}
-      if(!"pending_inline".equals(profile))r691SyncDeleteAction(a,e);
+      if(r707Fullscreen(profile)){r691SyncDeleteAction(a,e);r705UpdateEdgeState(a,e);}
     });
   }
   private static void r694SetCover(Activity a,GalleryActions e){
@@ -1479,16 +1528,29 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   // It NEVER reloads the diary, mutates the playlist, or closes the Gallery.
   private static void r705JumpBoundary(Activity a,GalleryActions e,boolean last){
     if(e==null||e.gallery==null||a.isFinishing()||r691InlinePhoto(a,e))return;
-    if(!"photo_full".equals(e.r694Profile)&&!"detail_full".equals(e.r694Profile))return;
+    if(!r707Fullscreen(e.r694Profile)||e.r707JumpPending)return;
     try{
       Object g=e.gallery;Class<?> c=g.getClass();
       if(!r439Field(c,"open").getBoolean(g))return;
       Object all=r439Field(c,"ids").get(g);
       if(!(all instanceof java.util.List))return;
-      int size=((java.util.List<?>)all).size();if(size<2)return;
+      int size=((java.util.List<?>)all).size();if(size<1)return;
       int target=last?size-1:0;
       int current=r439Field(c,"index").getInt(g);
-      if(current<0||current>=size||target==current)return;
+      if(current<0||current>=size)return;
+      if(R707_MAP.equals(e.r694Profile)&&(last?e.r707LaterWindow:e.r707EarlierWindow)){
+        WebView web=findOwnWeb(a.getWindow().getDecorView());if(web==null)return;
+        e.r707JumpPending=true;final int token=e.r707MapToken;
+        web.evaluateJavascript("window.__moaR707MapGallery?.jump?.("+token+","+last+")",raw->{
+          if(e.host.getParent()==null||GALLERY_BARS.get(a)!=e||e.r707MapToken!=token)return;
+          e.r707JumpPending=false;
+          // The native open may have reused the same host. Rebind the range.
+          e.r694ProfileRequested=false;
+          r694CheckProfile(a,e);
+        });
+        return;
+      }
+      if(target==current)return;
       Method release=c.getDeclaredMethod("r203ReleaseWithVelocity",float.class,float.class,float.class);
       release.setAccessible(true);
       release.invoke(g,(float)target,0f,1f);
@@ -1536,16 +1598,17 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
   }
   private static void r705UpdateEdgeState(Activity a,GalleryActions e){
     if(e.r705FirstAction==null||e.r705LastAction==null)return;
-    boolean shown=!r691InlinePhoto(a,e)&&
-      ("photo_full".equals(e.r694Profile)||"detail_full".equals(e.r694Profile));
+    boolean shown=!r691InlinePhoto(a,e)&&r707Fullscreen(e.r694Profile);
     int position=-1,count=0;
     try{
       Object all=r439Field(e.gallery.getClass(),"ids").get(e.gallery);
       if(all instanceof java.util.List)count=((java.util.List<?>)all).size();
       position=r439Field(e.gallery.getClass(),"index").getInt(e.gallery);
     }catch(Throwable ignored){}
-    e.r705FirstAction.setEnabled(shown&&count>1&&position>0&&position<count);
-    e.r705LastAction.setEnabled(shown&&count>1&&position>=0&&position<count-1);
+    boolean valid=shown&&count>0&&position>=0&&position<count;
+    boolean map=R707_MAP.equals(e.r694Profile);
+    e.r705FirstAction.setEnabled(valid&&(position>0||(map&&e.r707EarlierWindow)));
+    e.r705LastAction.setEnabled(valid&&(position<count-1||(map&&e.r707LaterWindow)));
     for(View action:new View[]{e.r705FirstAction,e.r705LastAction}){
       if(action instanceof ViewGroup){ViewGroup group=(ViewGroup)action;
         for(int i=0;i<group.getChildCount();i++){
@@ -1568,23 +1631,25 @@ public final class MoaR391SessionPersistProvider extends ContentProvider {
     boolean show=r691InlinePhoto(a,e);
     // Expanded PHOTO/DETAIL now also offer diary-only trash. In-line mode
     // uses the 9 native icons and separate user-customizable order preference.
-    if(e.r691TrashAction.getVisibility()!=View.VISIBLE)e.r691TrashAction.setVisibility(View.VISIBLE);
     if(show){
+      if(e.r691TrashAction.getVisibility()!=View.VISIBLE)e.r691TrashAction.setVisibility(View.VISIBLE);
       r705SetEdgeVisible(e,false);
       if(e.r691Capsule.getChildCount()>=9)r694ApplyOrder(a,e,R694_INLINE,true);
       return;
     }
     r694CheckProfile(a,e);
     String profile=e.r694Profile;
-    if(!"photo_full".equals(profile)&&!"detail_full".equals(profile)){
-      r705SetEdgeVisible(e,false);
-      e.r691TrashAction.setVisibility(View.GONE);return; // early native mount, not yet expanded
-    }
-    r705SetEdgeVisible(e,true);
-    r694EnsureFullscreenCover(a,e);
+    boolean full=r707Fullscreen(profile),diary=full&&!R707_MAP.equals(profile);
+    int diaryVisibility=diary?View.VISIBLE:View.GONE;
+    if(e.r691TrashAction.getVisibility()!=diaryVisibility)e.r691TrashAction.setVisibility(diaryVisibility);
+    if(e.r694CoverAction!=null&&e.r694CoverAction.getVisibility()!=diaryVisibility)
+      e.r694CoverAction.setVisibility(diaryVisibility);
+    r705SetEdgeVisible(e,full);
+    if(!full)return;
+    if(diary)r694EnsureFullscreenCover(a,e);
     r694ApplyOrder(a,e,profile,false);
     FrameLayout.LayoutParams lp=(FrameLayout.LayoutParams)e.r691Capsule.getLayoutParams();
-    int width=Math.min(Math.max(dpx(a,120),e.host.getWidth()-dpx(a,12)),dpx(a,20+8*52));
+    int width=Math.min(Math.max(dpx(a,120),e.host.getWidth()-dpx(a,12)),dpx(a,20+r707ActionCount(e,false)*52));
     if(lp.width!=width){lp.width=width;e.r691Capsule.setLayoutParams(lp);}
   }
   private static void r691RemoveCurrentPhoto(Activity a,Object gallery,GalleryActions entry){
