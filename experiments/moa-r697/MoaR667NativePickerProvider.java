@@ -162,7 +162,16 @@ public final class MoaR667NativePickerProvider extends ContentProvider implement
   public static final class Bridge {
     final WeakReference<Activity> owner;final WeakReference<WebView> browser;
     Bridge(Activity a,WebView w){owner=new WeakReference<>(a);browser=new WeakReference<>(w);}
-    @JavascriptInterface public String version(){return "R697-DISTINCT-NATIVE-ONE-SWIPE-CACHED-RAIL";}
+    @JavascriptInterface public String version(){
+      Activity activity=owner.get();
+      if(activity==null)return "";
+      try{
+        String pkg=activity.getPackageName();
+        long code=activity.getPackageManager().getPackageInfo(pkg,0).getLongVersionCode();
+        if(code<1)return "";
+        return "R"+code+"-DISTINCT-NATIVE-ONE-SWIPE-CACHED-RAIL";
+      }catch(android.content.pm.PackageManager.NameNotFoundException ex){return "";}
+    }
     @JavascriptInterface public void primePhoto(String id){
       Activity a=owner.get();if(host(a))primeOriginalGallery(a,id);
     }

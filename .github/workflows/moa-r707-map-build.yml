@@ -34,7 +34,7 @@ jobs:
             cls=${pair#*:}
             tmp="$RUNNER_TEMP/moa-$num"
             mkdir -p "$tmp/classes" "$tmp/dex"
-            javac --release 8 -encoding UTF-8 -cp "$sdk" -d "$tmp/classes" "experiments/moa-r697/$cls.java"
+            javac --release 8 -encoding UTF-8 -sourcepath experiments/moa-r697 -cp "$sdk" -d "$tmp/classes" "experiments/moa-r697/$cls.java"
             find "$tmp/classes" -name '*.class' -print0 | xargs -0 "$d8" --min-api 29 --lib "$sdk" --output "$tmp/dex"
             cp "$tmp/dex/classes.dex" "build/native/classes$num.dex"
           done
