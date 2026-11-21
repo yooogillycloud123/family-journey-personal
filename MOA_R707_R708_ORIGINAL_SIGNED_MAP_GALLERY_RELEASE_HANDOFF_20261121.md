@@ -1,3 +1,5 @@
+> **2026-11-21 POST-RELEASE GOLDEN LOCK (USER-DESIGNATED, NOT PHYSICAL PASS):** After the signed R707/R708 BETA release, the user explicitly ordered **R707 to be saved as the latest Golden**. The exact signed R707 APK (code707, SHA256 `b72856150410491b87cd01c3ecbe1a3178e2d1a6488fdf4494d06afcf50fb200`) is now immutable **USER_DESIGNATED_GOLDEN / STATIC_VERIFIED**. Full Galaxy on-device QA was NOT reported; the original paragraph below saying 'not Golden until physical PASS' is superseded only as to user-designated freeze, NOT as to physical PASS. Golden snapshot, baseline R705, R708 R705-functional fallback, full QA, prompt and hash manifest are in PRIVATE Library `/모아_프로젝트_근거_20261103/GOLDEN_R707_USER_DESIGNATED_STATIC_VERIFIED_20261121/`. Next feature APK >=709 must ship higher-code >=710 **exact R707 Golden-function recovery**. R708 recovers R705, not the complete R707. Read [R707 user Golden lock](MOA_R707_GOLDEN_LOCK_AND_NEW_CHAT_20261121.md) and [new-chat prompt](MOA_NEW_CHAT_RESUME_R707_GOLDEN_20261121.txt) first.
+
 # MOA R707 / R708 — Native Map Gallery first/last + live installed version (2026-11-21)
 
 ## STATUS — ACTUALLY BUILT AND ORIGINAL-SIGNED
