@@ -1,0 +1,65 @@
+name: MOA map gallery and installed version
+on:
+  push:
+    branches: [feature/moa-r707-map-gallery-installed-version-20261121]
+    paths:
+      - 'experiments/moa-r697/MoaR391SessionPersistProvider.java'
+      - 'experiments/moa-r697/MoaR667NativePickerProvider.java'
+      - '.github/workflows/moa-r707-map-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile Android SDK 35 provider and version bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="$ANDROID_HOME/platforms/android-35/android.jar"
+          d8="$ANDROID_HOME/build-tools/35.0.0/d8"
+          if [[ ! -r "$sdk" || ! -x "$d8" ]]; then
+            manager=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)
+            "$manager" "platforms;android-35" "build-tools;35.0.0"
+          fi
+          mkdir -p build/native
+          for pair in "17:MoaR391SessionPersistProvider" "19:MoaR667NativePickerProvider"; do
+            num=${pair%%:*}
+            cls=${pair#*:}
+            tmp="$RUNNER_TEMP/moa-$num"
+            mkdir -p "$tmp/classes" "$tmp/dex"
+            javac --release 8 -encoding UTF-8 -cp "$sdk" -d "$tmp/classes" "experiments/moa-r697/$cls.java"
+            find "$tmp/classes" -name '*.class' -print0 | xargs -0 "$d8" --min-api 29 --lib "$sdk" --output "$tmp/dex"
+            cp "$tmp/dex/classes.dex" "build/native/classes$num.dex"
+          done
+          (cd build/native && sha256sum *.dex > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R707-SDK35-native
+          path: build/native
+      - name: Prepare open-source DEX comparison tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/qa-tools
+          cat > "$RUNNER_TEMP/moa-tools.xml" <<'XML'
+          <project xmlns="http://maven.apache.org/POM/4.0.0">
+          <modelVersion>4.0.0</modelVersion><groupId>moa.qa</groupId><artifactId>dex-check</artifactId><version>1</version>
+          <dependencies>
+          <dependency><groupId>org.smali</groupId><artifactId>smali</artifactId><version>2.5.2</version></dependency>
+          <dependency><groupId>org.smali</groupId><artifactId>baksmali</artifactId><version>2.5.2</version></dependency>
+          </dependencies></project>
+          XML
+          mvn -B -q -f "$RUNNER_TEMP/moa-tools.xml" org.apache.maven.plugins:maven-dependency-plugin:3.6.1:copy-dependencies -DincludeScope=runtime "-DoutputDirectory=$PWD/build/qa-tools"
+          (cd build/qa-tools && sha256sum *.jar > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R707-DEX-comparison-tools
+          path: build/qa-tools
+          retention-days: 7
