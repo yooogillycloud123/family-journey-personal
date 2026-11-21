@@ -1,3 +1,5 @@
+> **2026-11-21 후속 배포.** 이 문서에서 빌드한 DEX로 원본 서명 R705 APK 및 R706 복구 APK 제작과 정적 검증을 완료했다. 아래는 서명 전 소스 단계의 작업 기록이다. [설치 파일과 최신 검증 결과](MOA_R705_R706_R703_ORIGINAL_SIGNED_GALLERY_FIRST_LAST_RELEASE_HANDOFF_20261121.md)
+
 # MOA R705 — fullscreen Gallery first/last instant jump / R703 preservation (2026-11-21)
 
 ## Real status: SOURCE + isolated DEX17 built, ORIGINAL-SIGNED INSTALLABLE APK NOT BUILT
