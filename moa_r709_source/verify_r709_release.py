@@ -22,7 +22,6 @@ def dex_integrity(data):
     return True
 
 def read_manifest(binary):
-    sys.path.insert(0,'/tmp/moa_r707_diagnosis/QA')
     import axml
     return axml.read_nodes(binary)
 
