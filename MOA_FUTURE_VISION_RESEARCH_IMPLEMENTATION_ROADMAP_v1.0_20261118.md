@@ -1,3 +1,5 @@
+> **2026-11-24 NEW BOOKSHELF/PHOTOBOOK GLOBAL RESEARCH ADDENDUM (DESIGN-ONLY):** This 2026-11-18 roadmap predates R707. Its R697 'current' release notes are **historical**, not latest. Current exact R707 user-designated immutable Golden and physical-QA status must be taken from [R707 Golden Lock](MOA_R707_GOLDEN_LOCK_AND_NEW_CHAT_20261121.md) and [MOA_READ_FIRST_NEW_CHAT](MOA_READ_FIRST_NEW_CHAT.md). New detailed [MOA Global Family Memory/BookShelf Research](MOA_GLOBAL_FAMILY_MEMORY_RESEARCH_20261124.md) surveys 17+ mobile/web services, GitHub licensing and new read-only sidecar book architecture. It **refines and can prioritize the original Phase 4 photo-book idea**, but does not implement or change any APK, data or existing tabs. User may subsequently authorize an independent 8-12 page bookshelf PoC; candidate APK code>=709 plus higher exact-R707-function recovery and physical QA gates remain required.
+
 # 모아(MOA) 미래 발전 비전·구현 로드맵 v1.0 — 2026-11-18
 
 > **상태: 제안·조사·설계만 기록. 새 APK/기능 구현/기존 데이터 수정 없음.** 2026-11-17 사용자 실기기 성공한 **R697**을 계속 최신 동결 기준으로 보호한다. 사용자 별도 기능 구현 명령 전에는 개발·빌드·설치하지 않는다. 본 파일은 제품 로드맵이지 실제 구현/검증 완료 보고서가 아니다.
