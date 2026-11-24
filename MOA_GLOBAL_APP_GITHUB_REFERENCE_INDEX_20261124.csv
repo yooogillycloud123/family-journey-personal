@@ -1,0 +1,45 @@
+type,name,platform,verified_feature,MOA_priority,source_url,license_status,evidence_type
+Commercial,FamilyAlbum,iOS Android Web,family sharing; monthly photobook,P1 growth book,https://help.family-album.com/hc/en-us/articles/360038267214-What-is-FamilyAlbum,,Official help
+Commercial,Chatbooks,iOS Android Web,monthly printed Monthbooks,P1 recurring bookshelf,https://help.chatbooks.com/en/articles/7862697-how-do-monthbooks-work,,Official help
+Commercial,Remento,Web,voice to stories and book QR,P3 audio QR,https://www.remento.co/,,Official
+Commercial,Polarsteps,iOS Android,route and travel print book,P2 travel map chapter,https://support.polarsteps.com/hc/en-us/articles/24005113311634-What-is-a-Travel-Book,,Official help
+Commercial,Once Upon,iOS Android Web,book auto layout collaboration,P2 page editor,https://onceupon.photo/,,Official
+Commercial,Day One,iOS Android (printing iOS only),multimodal diary printing,P1 diary to book,https://dayoneapp.com/book-printing/,,Official
+Commercial,Qeepsake,iOS Android,family prompts milestones book,P4 growth prompts,https://help.qeepsake.com/article/116-how-does-qeepsake-work,,Official help
+Commercial,Tinybeans,iOS,private growth albums,P4 family access,https://apps.apple.com/us/app/tinybeans-private-family-album/id521633042,,App Store
+Commercial,23snaps,iOS,private family album,QA text in print,https://apps.apple.com/us/app/23snaps-private-family-album/id526481189,,App Store
+Commercial,Journi Print,iOS Android,AI trip photo-book map,P2 map book,https://www.journiapp.com/p/pb/fpb/,,Official
+Commercial,Storyworth,Web Email Phone,guided stories and memoir,P5 oral history,https://help.storyworth.com/en_US/getting-started/what-products-does-storyworth-offer,,Official help
+Commercial,CEWE,iOS Android desktop,print photo book smart layout,P3 print presets,https://www.cewe.co.uk/mobile-app.html,,Official
+Commercial,Popsa,iOS Android,automatic photobook layout,P2 auto layout,https://popsa.com/technology/,,Official
+Commercial,Mixbook,iOS only app Nov 2026,AI stories design print,P2 editorial templates,https://help.mixbook.com/hc/en-us/articles/61128856784665-Which-devices-support-the-Mixbook-app,,Official help
+Commercial,Shutterfly,Web mobile,autofill and customizable books,P2 manual override,https://support.shutterfly.com/s/article/personalizing-a-photo-book,,Official help
+Commercial,1 Second Everyday,iOS Android,1-second video diary,P5 motion book,https://apps.apple.com/us/app/1-second-everyday-video-diary/id587823548,,App Store
+Commercial,Albumbook,iOS,bookshelves pages embedded videos,P1 shelf reader,https://apps.apple.com/us/app/albumbook-photo-album-book/id853360967,,App Store
+Commercial,Dots Memories,iOS,printed and digital voice QR book,P3 multimedia QR,https://apps.apple.com/us/app/dots-memories-your-story/id6449039420,,App Store
+Commercial,Project Life,iOS,scrapbook grid designs,P2 editor,https://apps.apple.com/us/app/project-life/id915861546,,App Store
+Commercial,Chapters Korea,Web,travel books video QR,P3 local print,https://chapters.kr/,,Official
+Commercial,Momoalbum Korea,iOS Android Web,family collaborative photos date sort,P4 collaboration,https://www.momoalbum.com/,,Official
+OpenSource,StPageFlip,JavaScript,touch flipbook reader,P1 reader,https://github.com/Nodlik/StPageFlip,MIT,GitHub
+OpenSource,react-pageflip,React,flipbook wrapper,P1 optional,https://github.com/Nodlik/react-pageflip,MIT,GitHub
+OpenSource,Paged.js,JavaScript,paged media print layout,P3 PDF,https://github.com/pagedjs/pagedjs,MIT,GitHub
+OpenSource,pdf-lib,JavaScript,create/edit PDF,P3 PDF,https://github.com/Hopding/pdf-lib,MIT,GitHub
+OpenSource,react-pdf renderer,React,React-to-PDF,P3 optional,https://github.com/diegomura/react-pdf,MIT,GitHub
+OpenSource,Fabric.js,JavaScript,canvas WYSIWYG editor,P2 page editor,https://github.com/fabricjs/fabric.js,MIT,GitHub
+OpenSource,GraphicMeat PhotoBooks,Swift macOS iOS,print PDF layout model,P2 architecture,https://github.com/GraphicMeat/PhotoBooks,VERIFY,GitHub
+OpenSource,Photo-Book-Studio,Desktop Web,local-first photo book PDF,P2 architecture,https://github.com/oiahoon/Photo-Book-Studio,VERIFY,GitHub
+OpenSource,slop-photo-album,Tauri Python,local-first auto-layout PDF,P2 photo curation,https://github.com/meigo/slop-photo-album,VERIFY,GitHub
+OpenSource,Picture Book,Web Windows,picture book authoring,P2 narrative,https://github.com/agammann/picture-book,MIT,GitHub
+OpenSource,Kaydo 0815memories,Web PWA,family memories journals scrapbooks,P4 privacy reference,https://github.com/Gnadi/0815memories,MIT,GitHub
+OpenSource,BebeMoment,Web PWA Android,selfhosted family journal,P4 auth backup,https://github.com/svrforum/BebeMoment,AGPL-3.0-only,GitHub
+OpenSource,Immich,iOS Android server,selfhosted photos face search,P4 backend reference,https://github.com/immich-app/immich,AGPL-3.0,GitHub
+OpenSource,Ente,iOS Android server,E2EE family photo sharing,P4 E2EE reference,https://github.com/ente/ente,AGPL-3.0,GitHub
+OpenSource,Nextcloud Memories,Web Android client,timeline map cloud photos,P4 index,https://github.com/pulsejet/memories,AGPL-3.0,GitHub
+OpenSource,LibrePhotos,Web self-hosted,image face semantic search,P5 search,https://github.com/LibrePhotos/librephotos,MIT,GitHub
+OpenSource,PhotoPrism,Web self-hosted,photo management ML,P5 index,https://github.com/photoprism/photoprism,AGPL-3.0,GitHub
+OpenSource,Glimm,iOS,local-first photo voice context journal,P4 iOS adapter,https://github.com/qyinm/glimm,MIT,GitHub
+SDK,Android MediaStore,Android,local media metadata access,P0 Android provider,https://developer.android.com/training/data-storage/shared/media,SDK,Official
+SDK,Apple PhotosUI,iOS,PhotoKit/PhotosPicker assets,P4 iOS provider,https://developer.apple.com/documentation/photosui,SDK,Official
+SDK,Android PdfDocument,Android,native PDF page rendering,P3 PDF,https://developer.android.com/reference/android/graphics/pdf/PdfDocument,SDK,Official
+SDK,Media3 Transformer,Android,transform video story exports,P5 movie,https://developer.android.com/media/implement/editing-app,SDK,Official
+UserSample,FamilyAlbum split APK metadata,Android zip,base plus arm64 ko xxhdpi,Research only,local-user-provided,proprietary,User attachment
