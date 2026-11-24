@@ -1,0 +1,13 @@
+[MOA 가족 메모리 OS · 모아 책장/포토북 세계 조사 인계 2026-11-24]
+
+이 프로젝트의 사용자 지정 최신 골든은 R707(원본 불변, SHA256 b72856150410491b87cd01c3ecbe1a3178e2d1a6488fdf4494d06afcf50fb200)이다. 사용자 Galaxy 실기기 전체 PASS는 아직 명시적으로 문서화되지 않았다. 원본 APK/데이터/네이버/지도/음량/네이티브 갤러리/원장 불변.
+
+어떤 소스 분석·개발보다 먼저 GitHub yooogillycloud123/workexcel-devbridge main AA_AirPods_FINAL_READ_FIRST_v1.0_20261005.md 전체→yooogillycloud123/family-journey-personal main MOA_READ_FIRST_NEW_CHAT.md→MOA_R707_GOLDEN_LOCK_AND_NEW_CHAT_20261121.md→MOA_FUTURE_VISION_RESEARCH_IMPLEMENTATION_ROADMAP_v1.0_20261118.md→신규 MOA_GLOBAL_FAMILY_MEMORY_RESEARCH_20261124.md 순서로 읽는다. AA 앱을 수정하지 않는다.
+
+본 신규 보고서는 조사와 제품 설계만 완료했다. 실제 포토북 기능은 기존 R707에 탑재되어 있지 않다. 사업 벤치마크 FamilyAlbum(2026-05 3천만명), Journi Print(사진 GPS로 자동 지도 포토북), Day One(일기 책 인쇄/PDF), Remento(원본 음성 QR), Mixbook(자동+자유편집), Polarsteps(여행책), Storyworth, Qeepsake, Chatbooks, Tinybeans, 1SE, CEWE 등과 GitHub StPageFlip(MIT), Paged.js(MIT), pdfme(MIT), react-pdf(MIT), Konva(MIT), meigo/slop-photo-album(MIT), davidcjw/life-journal(MIT), Immich/Ente/Nextcloud Memories(AGPL) 등을 조사했다. 상세 링크·채택 여부·설계 JSON·인쇄 300PPI/bleed/QR/보안/테스트는 최신 보고서에 있다.
+
+차세대 핵심: 현재 일기/사진/영상/음성/GPS 원장을 읽기만 하여 별도 BookProject DB를 만들고 [책장]→[자동 책 초안]→[페이지 넘김]→[편집]→[고해상도 PDF 인쇄]→[오디오/비디오 QR]→[태블릿/PC/아이폰]으로 확장한다. 원본을 여러 권에 참조하되 중복 저장하지 않고, Live 책과 확정 출판 Revision을 구별한다. 아이 얼굴/사진/음성은 외부 공개 저장소에 업로드하지 말고 자동 AI 전송은 기본 OFF. 사진 누락 시 조용히 인쇄하거나 책 원장에서 원본을 삭제하지 말라.
+
+현재 사용자는 자료 수집/설계를 요청했으며 기능 실제 제작을 별도로 지시할 때까지 R707 APK 수정 불필요. 신규 APK 제작 지시 시 feature 브랜치/원본 서명/코드>=709/더 높은 코드의 exact-R707-Golden 복구본을 한 세트로 만들고 기존 앱 삭제/데이터 초기화 금지. R708은 R705 기능 복구이지 R707 전체 복구가 아니다. 일반 ChatGPT 채팅에서도 APK 빌드 가능, Work 필수 아님.
+
+우선 구현 후보 A0~A1: 기존 일기 원장 READ ONLY → 기간 선택 → 사진·본문 연결 8~12쪽 포토북 초안 → 책장 표지/책 열람 → 재시작 후 저장/복원. 이후 자유편집/출력으로 단계 확장. 사용자가 나중에 요구하면 Golden/출력/가족 QA 별도 확인.
