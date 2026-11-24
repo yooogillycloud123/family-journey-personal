@@ -20,11 +20,14 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - name: Install SDK35 build tools
+      - name: Use the runner Android SDK35 build tools
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT}}"
+          if [ ! -f "$SDK_ROOT/platforms/android-35/android.jar" ] || [ ! -f "$SDK_ROOT/build-tools/35.0.0/d8" ]; then
+            sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          fi
+          test -f "$SDK_ROOT/platforms/android-35/android.jar"
+          test -f "$SDK_ROOT/build-tools/35.0.0/d8"
       - name: Compile Java and classes20.dex
         run: |
           set -euo pipefail
