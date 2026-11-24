@@ -1,0 +1,55 @@
+name: MOA R709 Android SDK35 preview-only additive DEX
+on:
+  push:
+    branches:
+      - feature/moa-r709-exact-media-preview-r707-golden-20261125
+    paths:
+      - 'moa_r709_source/**'
+      - '.github/workflows/moa-r709-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install SDK35 build tools
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Compile Java and classes20.dex
+        run: |
+          set -euo pipefail
+          mkdir -p build/r709/classes build/r709/dex
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT}}"
+          JAVAROOT="$SDK_ROOT/platforms/android-35/android.jar"
+          javac -source 8 -target 8 -Xlint:all -cp "$JAVAROOT" -d build/r709/classes moa_r709_source/MoaR709PreviewProvider.java
+          jar cf build/r709/r709-preview.jar -C build/r709/classes .
+          "$SDK_ROOT/build-tools/35.0.0/d8" --min-api 29 --lib "$JAVAROOT" --output build/r709/dex build/r709/r709-preview.jar
+          test -s build/r709/dex/classes.dex
+          cp build/r709/dex/classes.dex build/r709/classes20.dex
+          sha256sum build/r709/classes20.dex
+          test "$(find build/r709/dex -name 'classes*.dex' | wc -l)" -eq 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r709-preview-classes20-sdk35
+          path: build/r709/classes20.dex
+          if-no-files-found: error
+      - name: Check in public compiled DEX base64 for reproducible local signing
+        run: |
+          set -euo pipefail
+          mkdir -p moa_r709_source/compiled
+          base64 -w0 build/r709/classes20.dex > moa_r709_source/compiled/classes20.dex.b64
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add moa_r709_source/compiled/classes20.dex.b64
+          git commit -m 'Build R709 preview-only classes20 dex (SDK35)' || exit 0
+          git push origin HEAD:feature/moa-r709-exact-media-preview-r707-golden-20261125
