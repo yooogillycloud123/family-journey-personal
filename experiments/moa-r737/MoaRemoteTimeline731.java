@@ -63,7 +63,8 @@ public final class MoaRemoteTimeline731 {
     private static MoaDiskCache737 disk;
     private static String diskPeer="";
     private static final ScheduledThreadPoolExecutor WARM=new ScheduledThreadPoolExecutor(1);
-    static {WARM.setRemoveOnCancelPolicy(true);WARM.scheduleWithFixedDelay(()->{
+    private static final ScheduledExecutorService SWEEP=Executors.newSingleThreadScheduledExecutor();
+    static {WARM.setRemoveOnCancelPolicy(true);SWEEP.scheduleWithFixedDelay(()->{
         try{Object p=owner;JSONObject c=config(p);String k=c.optString("pin")+":"+c.optString("token");Field f=Class.forName(ROOT).getDeclaredField("clientAllowed");f.setAccessible(true);
             synchronized(MoaRemoteTimeline731.class){if(disk!=null){if(!f.getBoolean(null)||!allowed(p,c.optString("pin"))||!k.equals(diskPeer)){disk.reset();diskPeer="";cancelWarm();}else disk.prune();}}
         }catch(Exception ex){synchronized(MoaRemoteTimeline731.class){if(disk!=null)disk.reset();diskPeer="";cancelWarm();}}
