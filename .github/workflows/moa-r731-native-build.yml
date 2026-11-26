@@ -63,7 +63,7 @@ jobs:
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add experiments/moa-r731/build
+          git add -f experiments/moa-r731/build
           git commit -m 'R731 Android DEX compile outputs; not release'
           git push origin HEAD:feature/moa-r731-remote-native-timeline-20261126
       - uses: actions/upload-artifact@v4
