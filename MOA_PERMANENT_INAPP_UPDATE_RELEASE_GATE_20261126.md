@@ -9,3 +9,8 @@
 5. 긴급 복구 APK는 높은 code로 별도 보관하되 기본 인앱 최신 채널로 자동 활성화하지 않는다. 명시적 복구 요청 시에만 활성화한다. 베타는 실기기 PASS로 오인하지 않는다. Golden은 사용자가 승인하기 전 승격하지 않는다.
 6. 결과 답변에는 인앱 배포 검증 상태, 실제 최신 버전, CI/커밋 근거, 직접 APK 대체 링크(가능할 때), 실기기 미검증을 명시한다. 배포 불가 시 정확한 실패 지점과 아직 Rxxx가 최신임을 공개한다. 새 채팅에서 이 파일을 읽기 전 신규 APK를 배포하지 않는다.
 7. R725 실제 오류: 스마트폰 허브 시작 직후 TLS 보안 연결 실패/지문 검증·핸드셰이크 오류. R727 원본 서명 수정 후보 SHA256 133e53c10a6009518349d4dde79467e195444166e8ec9c462e78338415ac80bc, 10697156B, 19 host tests PASS, 실기기 PENDING. R728 exact-R725 recovery SHA256 671ef592285db6b22faf45ffb41f0c77aabcd2136a86cd54589c0c74ecaa50da, 자동 배포 금지. Library /에어팟안드로이드/MOA_R727_R728_20261126/. R727 배포 staging commit 50171f583320f94aa6804c7560cb56d16d8eb0f6; 실제 활성화는 branch/CI 재검증 필요.
+
+## R727 실제 활성화 검증 완료 (2026-11-26)
+- CI 45765680087 completed / success: https://github.com/yooogillycloud123/family-journey-personal/actions/runs/45765680087
+- 배포 브랜치 HEAD bba3729f9f92366d2d2b9ace62047c2f428de75b, latest.json 실제 versionCode 727 / published true / SHA256 및 bytes 일치.
+- 실제 android/releases/moa-r727.apk tree blob 8649d4c37e3536db3f368999db9d0cac1c356cb9, 10697156 bytes 일치. staging 제거 완료. R728 자동 활성화 없음. 기기 내 업데이트 UI 및 동기화 물리 검증은 아직 PENDING.
