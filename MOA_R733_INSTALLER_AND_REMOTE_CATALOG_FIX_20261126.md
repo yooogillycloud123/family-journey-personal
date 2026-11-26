@@ -5,3 +5,5 @@
 - R733 original-signed APK SHA256 a2b4452d92a6db3cac3d1a746124b897dfe24aa93c140565e00b42e3c3a8206c, 10722916 bytes, Git blob be4c97ddb0057dd80dc54a447e303b630019c0e3. R731 대비 Manifest, assets/web/moa-r711-mailbox.js, classes24.dex만 변경. R734 exact-R729 functional recovery SHA256 8c07d4cc6b4a154800b92c786116565daae7fea09aa1e7a02d346009a85dfe2c, 자동 배포 금지. 다음 신규 후보 >=735.
 - Library /에어팟안드로이드/MOA_R733_R734_20261126/. Native source branch feature/moa-r733-catalog-installer-fix-20261126. 실제 채널 latest R733 published=true, CI 45772371259 SUCCESS. 공용 URL 검증은 별도 기록. 
 - 실기기 확인: 양쪽 R733 설치, 폰 허브 실행 상태 확인, 기존 등록 유지, 태블릿 원격 달력 지금 갱신. 새 상태에서 원격 일기 사진·영상/음성 수 및 오류 확인, 달력 실제 표시, 갤러리 실기기 확인. 앱 삭제/데이터 초기화/불필요 재등록 금지. GOLDEN_RELEASE_GATE_NO_FALSE_LATEST 적용.
+- 실제 외부 검증 45772425889 SUCCESS, 2026-11-26 16:03:03 KST 기존 URL/nonce/immutable HTTP 200 R733; APK 실제 전체 다운로드 10722916 bytes/SHA256 일치. https://github.com/yooogillycloud123/family-journey-personal/blob/moa-update-channel/android/verification/r733-public-endpoint.json
+- R733 베타 사용자 설치 및 원격 갤러리 physical pending. R731→R733 설치 성공 시 이전 버전의 마지막 EBADF 가능; 이후 updater 재검증 필수.
