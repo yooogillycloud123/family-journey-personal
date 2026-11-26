@@ -5,7 +5,7 @@ def file(n,name):
  a=list((root/str(n)).rglob(name+'.smali'));assert len(a)==1,(n,name,a);return a[0]
 def edit(p,fn):p.write_text(fn(p.read_text()))
 def method(s,name,fn):
- pattern=r'(?ms)^\.method [^\n]* '+re.escape(name)+r'\n.*?^\.end method'
+ pattern=r'(?ms)^\.method (?:[^\n]+ )?'+re.escape(name)+r'\n.*?^\.end method'
  s,n=re.subn(pattern,lambda m:fn(m.group()),s);assert n==1,(name,n);return s
 p=file(6,'MoaNativeGallery')
 def gallery(s):
