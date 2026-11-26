@@ -110,7 +110,7 @@ public final class MoaRemoteTimeline731 {
                 warmJob=WARM.schedule(()->{try{Object p=owner;JSONObject cfg=config(p);String token=cfg.getString("token");long gen=generation;MoaDiskCache737 store=disk(ctx,cfg);if(store==null)return;
                     ArrayList<MoaDiskCache737.Fetch> fs=new ArrayList<>();for(Row r:rows)fs.add(raw(r,cfg));
                     for(int n=0;n<rows.size();n++){if(warmEpoch!=ep)return;Row r=rows.get(n);boolean selected=r.id.equals(selectedId);try{warmRow(store,r,ep,p,token,gen,fs.get(n),ADAPT.head(selected,r.size,r.duration),false,selected);}catch(Exception ignored){}}
-                    if(!moving)for(int n=0;n<rows.size();n++){if(warmEpoch!=ep)return;Row r=rows.get(n);boolean selected=r.id.equals(selectedId);try{warmRow(store,r,ep,p,token,gen,fs.get(n),ADAPT.head(selected,r.size,r.duration),true,selected);}catch(Exception ignored){}}
+                    if(!moving)for(int n=0;n<rows.size();n++){if(warmEpoch!=ep)return;Row r=rows.get(n);boolean selected=r.id.equals(selectedId);if(fullSelected&&!selected)continue;try{warmRow(store,r,ep,p,token,gen,fs.get(n),ADAPT.head(selected,r.size,r.duration),true,selected);}catch(Exception ignored){}}
                 }catch(Exception ignored){}},moving?120:250,TimeUnit.MILLISECONDS);
             }
         }catch(Exception ignored){}
