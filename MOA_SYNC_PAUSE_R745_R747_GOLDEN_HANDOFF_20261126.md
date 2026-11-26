@@ -23,3 +23,7 @@
 - R735/737/739/741 누적 최적화(다중 RAM cache, 디스크 cache, 방향/속도 예측, 적응형 선읽기, 원본 범위 묶음, 프레임 손실 기반 부하 조절, 제한된 자동 재시도)는 기존 성공 영상 경로와 함께 보존. 실제 부드러움은 실측 전 보장 금지.
 - 자동 허브 재시작/재탐색, 네트워크 단절 복구, 장시간 발열/배터리, 원격 편집·삭제·공유/대표 변경 및 순간기록 완전 동등성, 지도/음성 실제 기능은 완료 판정하지 말 것. 읽기 전용 원격 미디어, 전체 원본 일괄 복제 금지, 인증/권한 유지. 앱 삭제/데이터 초기화 금지.
 - MOA_R733_REMOTE_GALLERY_PARITY_GATE_20261126.md 및 MOA_PERMANENT_INAPP_UPDATE_RELEASE_GATE_20261126.md 적용. R707 불변. 사용자 재개 전 추가 APK 배포 금지. 이 문서의 최신 상태가 기존 과거 handoff의 PENDING 표현보다 우선.
+
+## 최종 R747 실제 배포 검증 및 중단 상태 (사용자 정정 이후)
+- 배포 CI 45799734923 SUCCESS, 외부 검증 CI 45799820327 SUCCESS. 2026-11-26 19:16:51 KST 기존 exact URL/nonce/immutable HTTP 200 versionCode747, 전체 APK 10773404 bytes SHA256 451e240d713ceacfbcb8ceb4157be7083ddea85e7f3898e49f94dc4b6040eaac 일치. https://github.com/yooogillycloud123/family-journey-personal/blob/moa-update-channel/android/verification/r747-public-endpoint.json
+- 최신 실제 배포 R747. R748 exact-R745 recovery 별도 보존. R747 실기기 사진 화질/갤러리 검증 미완료. R707 원본 Golden 불변. 동기화 추가 개발은 R747 배포에서 사용자 요청대로 중단.
