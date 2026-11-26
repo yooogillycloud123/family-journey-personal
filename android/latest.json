@@ -5,6 +5,6 @@
   "bytes": 10058012,
   "sha256": "80f9b2a8bf9d969e6760eb4b35628815f5f03f71a0edb6eee63b1440bcf37741",
   "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r723.apk",
-  "published": false,
+  "published": true,
   "notes": "R723 LAN 연결 진단, 허브 foreground 유지, 설정 내 GitHub 업데이트. 실제 기기 미검증."
 }
