@@ -1,0 +1,51 @@
+name: MOA R723 exact APK TLS and discovery source audit
+on:
+  push:
+    branches: [feature/moa-r725-r723-tls-discovery-audit-20261126]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify frozen R723 and extract source
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=android/releases/moa-r723.apk
+          echo '80f9b2a8bf9d969e6760eb4b35628815f5f03f71a0edb6eee63b1440bcf37741  android/releases/moa-r723.apk' | sha256sum -c -
+          unzip -tq "$APK"
+          curl -fsSL --retry 2 https://github.com/skylot/jadx/releases/download/v1.5.2/jadx-1.5.2.zip -o /tmp/jadx.zip
+          unzip -q /tmp/jadx.zip -d /tmp/jadx
+          chmod +x /tmp/jadx/bin/jadx
+          /tmp/jadx/bin/jadx -j 2 --no-res --show-bad-code -d /tmp/moa-src "$APK" || true
+          mkdir -p /tmp/moa-audit
+          python - <<'PY'
+          import pathlib,zipfile,re,shutil
+          root=pathlib.Path('/tmp/moa-src/sources')
+          pat=re.compile(r'SSLHandshakeException|X509TrustManager|HostnameVerifier|SSLServerSocket|SSLSocketFactory|NsdManager|TLS 인증 실패|TrustManagerFactory|HttpsURLConnection')
+          for p in root.rglob('*.java'):
+              s=p.read_text(errors='replace')
+              if ('familyjourne' in str(p).lower() or 'moa' in p.name.lower()) and pat.search(s):
+                  print('NATIVE_MATCH',p.relative_to(root))
+                  shutil.copy2(p, pathlib.Path('/tmp/moa-audit')/p.name)
+                  lines=s.splitlines()
+                  for i,l in enumerate(lines):
+                      if pat.search(l):
+                          print(f'{i+1}: '+l[:400])
+          with zipfile.ZipFile('android/releases/moa-r723.apk') as z:
+              for n in z.namelist():
+                  if n.startswith('assets/web/') and n.endswith('.js'):
+                      s=z.read(n).decode(errors='replace')
+                      if 'TLS 인증 실패' in s or '허브 시작' in s or '직접 연결 참가' in s:
+                          print('WEB_MATCH',n)
+                          pathlib.Path('/tmp/moa-audit',pathlib.Path(n).name).write_text(s)
+                          for m in list(re.finditer(r'TLS 인증 실패|허브 시작|직접 연결 참가|이전 연결 복원',s))[:12]:
+                              print(s[max(0,m.start()-250):m.end()+250])
+          assert list(pathlib.Path('/tmp/moa-audit').iterdir()), 'no matching sources'
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R723-TLS-exact-source-audit
+          path: /tmp/moa-audit/
