@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 725,
-  "bytes": 10680707,
-  "sha256": "d7ea50c3577d75b97f0f62a4438950db50407124b1290b4f78b734c772de39d2",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r725.apk",
+  "versionCode": 727,
+  "bytes": 10697156,
+  "sha256": "133e53c10a6009518349d4dde79467e195444166e8ec9c462e78338415ac80bc",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r727.apk",
   "published": true,
-  "notes": "R725 베타: TLS 지문 검증 전용 연결, 최초 QR 등록, 인증된 기기 IP 자동 재탐색. 실기기 미검증. 기존 데이터 유지."
+  "notes": "R727 베타: TLS 허브 자체 연결 및 인증키 호환 개선, QR 연결 이전 실패 수정. 실기기 미검증. 기존 데이터 유지."
 }
