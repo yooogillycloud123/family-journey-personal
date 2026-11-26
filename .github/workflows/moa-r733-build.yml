@@ -53,8 +53,13 @@ jobs:
           old=list(root.rglob('MoaRemoteTimeline731*.smali')); assert old
           for f in old:f.unlink()
           for f in new.rglob('*.smali'):
-              assert f.name.startswith('MoaRemoteTimeline731')
-              target=root/f.relative_to(new);assert not target.exists();target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(f,target)
+              target=root/f.relative_to(new)
+              print('helper', f.relative_to(new), 'exists',target.exists())
+              if target.exists():
+                  assert target.read_bytes()==f.read_bytes(), ('existing shared class differs',str(target))
+                  continue
+              assert f.name.startswith('MoaRemoteTimeline731') or 'ExternalSynthetic' in f.name, f.name
+              target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(f,target)
           p=next(root.rglob('MoaUpdate723.smali'));s=p.read_text()
           start=s.index('    invoke-virtual {v3, v0}, Landroid/content/pm/PackageInstaller$Session;->commit(Landroid/content/IntentSender;)V')
           a=s.index('    if-eqz v7, :cond_162',start)
