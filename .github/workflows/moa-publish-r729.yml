@@ -1,0 +1,61 @@
+name: MOA R729 verified settings QR publication
+on:
+  push:
+    branches: [moa-update-channel]
+    paths: ['.github/workflows/moa-publish-r729.yml', 'android/staging/r729/**']
+permissions:
+  contents: write
+concurrency:
+  group: moa-update-channel
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct exact locally signed APK and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,hashlib,base64,pathlib,zipfile
+          p=pathlib.Path('android/releases')
+          base=(p/'moa-r727.apk').read_bytes()
+          assert hashlib.sha256(base).hexdigest()=='133e53c10a6009518349d4dde79467e195444166e8ec9c462e78338415ac80bc'
+          j=json.loads(pathlib.Path('android/staging/r729/delta.json').read_text())
+          assert j['versionCode']==729
+          out=b''.join(base[s['copy'][0]:s['copy'][1]] if 'copy' in s else base64.b64decode(s['data'],validate=True) for s in j['delta'])
+          assert len(out)==10697484 and hashlib.sha256(out).hexdigest()=='4e9ce60ccaa4fd884729588ee5cacca945358390be7f2edcdbfeec2b7d0f1070'
+          f=p/'moa-r729.apk'
+          f.write_bytes(out)
+          with zipfile.ZipFile(p/'moa-r727.apk') as a,zipfile.ZipFile(f) as b:
+              assert b.testzip() is None and set(a.namelist())==set(b.namelist())
+              assert {n for n in a.namelist() if a.read(n)!=b.read(n)}=={'AndroidManifest.xml','assets/web/moa-r711-mailbox.js'}
+          latest=pathlib.Path('android/latest.json')
+          assert json.loads(latest.read_text())['versionCode']<729
+          PY
+          test "$(git hash-object android/releases/moa-r729.apk)" = 62cf299aa9b3bf02807a5be22194d71be5783ab5
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BT="$(find "$SDK/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 android/releases/moa-r729.apk | tee /tmp/moa-cert
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/moa-cert
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/moa-cert
+          "$BT/aapt2" dump badging android/releases/moa-r729.apk > /tmp/moa-badging
+          grep -F "package: name='com.juhyeon.familyjournea' versionCode='729'" /tmp/moa-badging
+          "$BT/zipalign" -c 4 android/releases/moa-r729.apk
+          python - <<'PY'
+          import json,pathlib
+          p=pathlib.Path('android/latest.json')
+          j={'packageName':'com.juhyeon.familyjournea','signerSha256':'5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15','versionCode':729,'bytes':10697484,'sha256':'4e9ce60ccaa4fd884729588ee5cacca945358390be7f2edcdbfeec2b7d0f1070','apkUrl':'https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r729.apk','published':True,'notes':'R729 베타: 설정 기기 동기화 메뉴 자동 복구 및 QR 등록 진입 개선. 실기기 미검증. 기존 기록 유지.'}
+          p.write_text(json.dumps(j,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Atomically activate verified APK and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r android/staging/r729
+          git add android/latest.json android/releases/moa-r729.apk
+          git commit -m 'Publish exact original-signed MOA R729 settings QR beta'
+          git push origin HEAD:moa-update-channel
