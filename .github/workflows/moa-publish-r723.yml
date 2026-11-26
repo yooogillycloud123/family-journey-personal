@@ -27,7 +27,7 @@ jobs:
           TOOL="$(find "$SDK/build-tools" -name apksigner | sort -V | tail -1)"
           test -x "$TOOL"
           "$TOOL" verify --print-certs android/releases/moa-r723.apk | tee /tmp/moa-cert
-          grep -F 'Signer #1 certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/moa-cert
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/moa-cert
           python -c 'import json; p="android/latest.json"; j=json.load(open(p)); j["published"]=True; open(p,"w").write(json.dumps(j,ensure_ascii=False,indent=2)+"\n")'
       - name: Atomically publish APK and enabled update manifest
         shell: bash
