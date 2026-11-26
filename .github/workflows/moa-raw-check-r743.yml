@@ -1,0 +1,39 @@
+name: MOA R743 raw endpoint verification
+on:
+  push:
+    branches: [moa-update-channel]
+    paths: ['.github/workflows/moa-raw-check-r743.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read actual public endpoint without repository credentials
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p android/verification
+          python - <<'PY'
+          import urllib.request, urllib.error, json, time, hashlib, subprocess
+          base='https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/latest.json'
+          out={}
+          for name,url in [('exact',base),('nonce',base+'?moa_verify='+str(time.time_ns())),('immutable','https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/'+subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()+'/android/latest.json')]:
+              try:
+                  with urllib.request.urlopen(url,timeout=15) as r:
+                      out[name]={'status':r.status,'versionCode':json.load(r)['versionCode'],'headers':{k:v for k,v in r.headers.items() if k.lower() in ('age','cache-control','x-cache','date','etag','x-served-by')}}
+              except Exception as e: out[name]={'error':str(e)}
+          url='https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r743.apk'
+          try:
+              with urllib.request.urlopen(url,timeout=25) as r:
+                  b=r.read(12000000);out['apk']={'status':r.status,'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest()}
+          except Exception as e:out['apk']={'error':str(e)}
+          open('android/verification/r743-public-endpoint.json','w').write(json.dumps(out,indent=2)+'\n')
+          PY
+          cat android/verification/r743-public-endpoint.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add android/verification/r743-public-endpoint.json
+          git commit -m 'Record R743 external raw CDN response'
+          git push origin HEAD:moa-update-channel
