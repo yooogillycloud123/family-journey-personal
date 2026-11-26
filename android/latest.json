@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 729,
-  "bytes": 10697484,
-  "sha256": "4e9ce60ccaa4fd884729588ee5cacca945358390be7f2edcdbfeec2b7d0f1070",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r729.apk",
+  "versionCode": 731,
+  "bytes": 10721824,
+  "sha256": "a4bf00146c22c8ff1eeed82f759326f3b0acf694af7262e51095704acd1fe02c",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r731.apk",
   "published": true,
-  "notes": "R729 베타: 설정 기기 동기화 메뉴 자동 복구 및 QR 등록 진입 개선. 실기기 미검증. 기존 기록 유지."
+  "notes": "R731 베타: 원격 일기 달력·갤러리 연결, 원격 영상/음성 읽기, 지도 및 업데이트 조회 개선. 실기기 미검증 베타. 원본 복제 없음."
 }
