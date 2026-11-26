@@ -14,3 +14,7 @@
 - CI 45765680087 completed / success: https://github.com/yooogillycloud123/family-journey-personal/actions/runs/45765680087
 - 배포 브랜치 HEAD bba3729f9f92366d2d2b9ace62047c2f428de75b, latest.json 실제 versionCode 727 / published true / SHA256 및 bytes 일치.
 - 실제 android/releases/moa-r727.apk tree blob 8649d4c37e3536db3f368999db9d0cac1c356cb9, 10697156 bytes 일치. staging 제거 완료. R728 자동 활성화 없음. 기기 내 업데이트 UI 및 동기화 물리 검증은 아직 PENDING.
+
+## R729 설정 기기등록 회귀 수정 배포 (2026-11-26)
+- 사용자 태블릿 R727 설치 확인, 기기 동기화 메뉴 미표출로 QR 등록 진행 불가 보고. R729는 실제 R727 원본 APK에서 AndroidManifest.xml과 assets/web/moa-r711-mailbox.js만 변경, 178개 항목 및 26개 DEX 동일. 설정 DOM 늦은 생성/재생성 감시, 기존 등록 메뉴 접근, 수동/자동 선택 안내. 원본 서명 동일, APK v2 content digest/RSA, ZIP/DEX/alignment 로컬 검증 PASS. Galaxy 실기기 QR/동기화 미검증. 이번 브라우저 재검증 시 로컬 Chromium navigation policy ERR_BLOCKED_BY_ADMINISTRATOR.
+- 원본 서명 APK R729 SHA256 4e9ce60ccaa4fd884729588ee5cacca945358390be7f2edcdbfeec2b7d0f1070, 10697484 bytes. GitHub 실제 활성화 commit f4cb52fec776472500b9ed2631d83d33c563938f, latest.json versionCode 729/published true, 실제 APK git blob 62cf299aa9b3bf02807a5be22194d71be5783ab5 확인. 워크플로우 성공 경로 활성화 커밋 확인, 별도 run ID/상태 미조회. R730 exact-R727 recovery SHA256 22df7194a4dec71a02c523b41ace704f6457078118649fc6c0b7120792324560, 자동 배포 제외. 두 APK Library /에어팟안드로이드/MOA_R729_R730_20261126/. 다음 설치 후보 >=731. R707 Golden immutable.
