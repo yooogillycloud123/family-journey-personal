@@ -62,8 +62,8 @@ public final class MoaRemoteTimeline731 {
     // Original-byte cache, isolated from MediaStore and from the local gallery.
     private static MoaDiskCache737 disk;
     private static String diskPeer="";
-    private static final ScheduledThreadPoolExecutor WARM=new ScheduledThreadPoolExecutor(1);
-    private static final ScheduledExecutorService SWEEP=Executors.newSingleThreadScheduledExecutor();
+    private static final ScheduledThreadPoolExecutor WARM=new ScheduledThreadPoolExecutor(1,r->{Thread t=new Thread(r,"MOA-warm737");t.setDaemon(true);return t;});
+    private static final ScheduledExecutorService SWEEP=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"MOA-sweep737");t.setDaemon(true);return t;});
     static {WARM.setRemoveOnCancelPolicy(true);SWEEP.scheduleWithFixedDelay(()->{
         try{Object p=owner;JSONObject c=config(p);String k=c.optString("pin")+":"+c.optString("token");Field f=Class.forName(ROOT).getDeclaredField("clientAllowed");f.setAccessible(true);
             synchronized(MoaRemoteTimeline731.class){if(disk!=null){if(!f.getBoolean(null)||!allowed(p,c.optString("pin"))||!k.equals(diskPeer)){disk.reset();diskPeer="";cancelWarm();}else disk.prune();}}
