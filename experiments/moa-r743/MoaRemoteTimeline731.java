@@ -153,13 +153,15 @@ public final class MoaRemoteTimeline731 {
         File tmp=null;
         try{
             // Use a real seekable file, with the exact encoded original; no thumbnail or transcoding.
-            if(row.size>PHOTO_LIMIT||ctx.getCacheDir().getUsableSpace()<row.size+64L*1024*1024)
-                return android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(ctx.getContentResolver(),uri(row.id)),(d,i,src)->photoHeader(d,i,edge));
-            File dir=new File(ctx.getCacheDir(),"moa743-photo-original");if(!dir.exists()&&!dir.mkdirs())throw new IOException("Photo cache unavailable");
+            if(row.size>PHOTO_LIMIT||ctx.getCacheDir().getUsableSpace()<row.size+64L*1024*1024){
+                android.graphics.Bitmap b=android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(ctx.getContentResolver(),uri(row.id)),(d,i,src)->photoHeader(d,i,edge));
+                if(!current(p,row,token)){b.recycle();throw new IOException("Remote revoked");}return b;
+            }
+            File dir=new File(ctx.getCacheDir(),"moa743-photo-original");if(!dir.exists()&&!dir.mkdirs()&&!dir.isDirectory())throw new IOException("Photo cache unavailable");
             File[] leftovers=dir.listFiles();if(leftovers!=null)for(File old:leftovers)if(System.currentTimeMillis()-old.lastModified()>600000L)old.delete();
             tmp=File.createTempFile("original-", ".media",dir);
             try(MediaDataSource in=source(row,ctx);OutputStream out=new BufferedOutputStream(new FileOutputStream(tmp))){
-                byte[] buf=new byte[1024*1024];long at=0;while(at<row.size){if(!current(p,row,token))throw new IOException("Remote revoked");int n=in.readAt(at,buf,0,(int)Math.min(buf.length,row.size-at));if(n<=0)throw new EOFException("Incomplete original photo");out.write(buf,0,n);at+=n;}
+                MoaOriginal743.copy(row.size,(off,buf,n)->in.readAt(off,buf,0,n),out,()->current(p,row,token));
             }
             if(tmp.length()!=row.size||!current(p,row,token))throw new IOException("Original size or permission changed");
             android.graphics.Bitmap b=android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(tmp),(d,i,src)->photoHeader(d,i,edge));
@@ -174,7 +176,7 @@ public final class MoaRemoteTimeline731 {
         catch(Exception e){android.util.Log.w("MOA-Photo","Original decode failed: "+diagnostic(e));return null;}
     }
     private static byte[] webThumb(Row r,JSONObject cfg,int edge)throws Exception{
-        if(edge<=320||r.mime.startsWith("video/"))return thumbBytes(r,cfg);
+        if(edge<=320||r.mime.startsWith("video/")){byte[] data=thumbBytes(r,cfg);if(data.length<=128000)return data;android.graphics.Bitmap b=android.graphics.BitmapFactory.decodeByteArray(data,0,data.length);if(b==null)throw new IOException("Poster decode failed");try{ByteArrayOutputStream out=new ByteArrayOutputStream();b.compress(android.graphics.Bitmap.CompressFormat.JPEG,75,out);if(out.size()>128000)throw new IOException("Poster size limit");return out.toByteArray();}finally{b.recycle();}}
         Activity a=(Activity)field(owner,"active");if(a==null)throw new IOException("Gallery unavailable");
         android.graphics.Bitmap b=photoOriginal(a.getApplicationContext(),r,edge);
         try{ByteArrayOutputStream out=new ByteArrayOutputStream();for(int q:new int[]{90,82,72,60}){out.reset();b.compress(android.graphics.Bitmap.CompressFormat.JPEG,q,out);if(out.size()<=460000)return out.toByteArray();}throw new IOException("Preview size limit");}finally{b.recycle();}
