@@ -86,7 +86,7 @@ jobs:
           a=s.index('.method private r203Present(F)V')
           b=s.index('.end method',a)
           part=s[a:b]
-          matches=re.findall(r'^    iput [vp]\d+, [vp]\d+, Lcom/juhyeon/familyjournea/MoaNativeGallery;->index:I\n',part,re.M)
+          matches=[line for line in part.splitlines(keepends=True) if line.strip().startswith('iput ') and line.strip().endswith('MoaNativeGallery;->index:I')]
           assert len(matches)==1,part
           anchor=matches[0]
           hook='\n    invoke-static/range {p0 .. p0}, Lcom/juhyeon/familyjournea/MoaRemoteTimeline731;->galleryMotion(Ljava/lang/Object;)V\n'
