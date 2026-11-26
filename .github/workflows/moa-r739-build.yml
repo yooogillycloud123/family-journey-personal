@@ -1,0 +1,103 @@
+name: MOA R739 adaptive native gallery optimization
+on:
+  push:
+    branches: [feature/moa-r739-adaptive-gallery-20261126]
+    paths: ['experiments/moa-r739/**','.github/workflows/moa-r739-build.yml']
+concurrency:
+  group: moa-r739-native-gallery-build
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile actual Row and verify production schema
+        shell: bash
+        run: |
+          set -euxo pipefail
+          apk=android/releases/moa-r737.apk
+          echo '77042f91673af9625de510f5408032f6a2b280e9fcada6272a849b3f3917a802  android/releases/moa-r737.apk' | sha256sum -c -
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          android="$sdk/platforms/android-35/android.jar"
+          d8="$(find "$sdk/build-tools" -name d8 | sort -V | tail -1)"
+          mkdir -p /tmp/moa739/classes /tmp/moa739/test /tmp/moa739/dex /tmp/moa739/smali /tmp/moa739/out
+          curl -fsSL --retry 2 https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar -o /tmp/json.jar
+          javac --release 8 -encoding UTF-8 -cp "$android" -d /tmp/moa739/classes experiments/moa-r739/MoaRemoteTimeline731.java experiments/moa-r739/MoaRangeCache735.java experiments/moa-r739/MoaDiskCache737.java experiments/moa-r739/MoaAdaptive739.java
+          javac --release 8 -encoding UTF-8 -cp "/tmp/json.jar:$android:/tmp/moa739/classes" -d /tmp/moa739/test experiments/moa-r739/Catalog733Test.java experiments/moa-r739/Range735Test.java experiments/moa-r739/Disk737Test.java experiments/moa-r739/Adaptive739Test.java
+          java -cp "/tmp/json.jar:$android:/tmp/moa739/classes:/tmp/moa739/test" com.juhyeon.familyjournea.Catalog733Test | tee /tmp/moa739/out/catalog-test.txt
+          java -cp /tmp/moa739/classes:/tmp/moa739/test com.juhyeon.familyjournea.Range735Test | tee /tmp/moa739/out/range-test.txt
+          java -cp /tmp/moa739/classes:/tmp/moa739/test com.juhyeon.familyjournea.Disk737Test | tee /tmp/moa739/out/disk-test.txt
+          java -cp /tmp/moa739/classes:/tmp/moa739/test com.juhyeon.familyjournea.Adaptive739Test | tee /tmp/moa739/out/adaptive-test.txt
+          find /tmp/moa739/classes -name '*.class' -print0 | xargs -0 "$d8" --min-api 29 --lib "$android" --output /tmp/moa739/dex
+          curl -fsSL --retry 2 https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar -o /tmp/apktool.jar
+          cat >/tmp/Disassemble.java <<'JAVA'
+          import java.io.*;import java.nio.file.*;
+          import com.android.tools.smali.dexlib2.Opcodes;
+          import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile;
+          import com.android.tools.smali.baksmali.Baksmali;
+          import com.android.tools.smali.baksmali.BaksmaliOptions;
+          public class Disassemble{public static void main(String[] args)throws Exception{BaksmaliOptions o=new BaksmaliOptions();o.localsDirective=true;Baksmali.disassembleDexFile(new DexBackedDexFile(new Opcodes(26,-1),Files.readAllBytes(Paths.get(args[0])),0),new File(args[1]),2,o);}}
+          JAVA
+          cat >/tmp/Assemble.java <<'JAVA'
+          import brut.androlib.src.SmaliBuilder;
+          import com.android.tools.smali.dexlib2.Opcodes;
+          import com.android.tools.smali.dexlib2.writer.builder.DexBuilder;
+          import com.android.tools.smali.dexlib2.writer.io.FileDataStore;
+          import java.io.*;import java.nio.file.*;
+          public class Assemble{public static void main(String[] args)throws Exception{File root=new File(args[0]);SmaliBuilder b=new SmaliBuilder(root,26);DexBuilder dex=new DexBuilder(new Opcodes(26,-1));try(java.util.stream.Stream<Path> st=Files.walk(root.toPath())){for(Path p:(Iterable<Path>)st.filter(x->x.toString().endsWith(".smali")).sorted()::iterator)b.buildFile(root.toPath().relativize(p).toString(),dex);}dex.writeTo(new FileDataStore(new File(args[1])));}}
+          JAVA
+          javac -cp /tmp/apktool.jar /tmp/Disassemble.java /tmp/Assemble.java
+          unzip -p "$apk" classes24.dex > /tmp/moa739/base.dex
+          java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/moa739/base.dex /tmp/moa739/smali/base
+          java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/moa739/dex/classes.dex /tmp/moa739/smali/new
+          python - <<'PY'
+          from pathlib import Path
+          import re, shutil
+          root=Path('/tmp/moa739/smali/base');new=Path('/tmp/moa739/smali/new')
+          old=list(root.rglob('MoaRemoteTimeline731*.smali'))+list(root.rglob('MoaRangeCache735*.smali'))+list(root.rglob('MoaDiskCache737*.smali')); assert old
+          for f in old:f.unlink()
+          for f in new.rglob('*.smali'):
+              target=root/f.relative_to(new)
+              print('helper', f.relative_to(new), 'exists',target.exists())
+              if target.exists():
+                  assert target.read_bytes()==f.read_bytes(), ('existing shared class differs',str(target))
+                  continue
+              assert f.name.startswith(('MoaRemoteTimeline731','MoaRangeCache735','MoaDiskCache737','MoaAdaptive739')) or 'ExternalSynthetic' in f.name, f.name
+              target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(f,target)
+          # Existing updater and original catalog server remain byte-identical in smali.
+          p=next(root.rglob('MoaUpdate723.smali'));assert 'closeAfterCommit(' in p.read_text()
+          p=next(root.rglob('MoaRemoteTimeline731.smali'));assert 'Lcom/juhyeon/familyjournea/MoaDiskCache737;' in p.read_text() and 'Lcom/juhyeon/familyjournea/MoaAdaptive739;' in p.read_text()
+          Path('/tmp/moa739/out/integration-test.txt').write_text('PASS: R733 installer fix retained; native private disk cache wired to remote timeline. Device parity not verified.\n')
+          PY
+          java -cp /tmp/apktool.jar:/tmp Assemble /tmp/moa739/smali/base /tmp/moa739/out/classes24.dex
+          sha256sum /tmp/moa739/out/classes24.dex
+          unzip -p "$apk" classes6.dex > /tmp/moa739/base6.dex
+          java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/moa739/base6.dex /tmp/moa739/smali/gallery
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=next(Path('/tmp/moa739/smali/gallery').rglob('MoaNativeGallery.smali'))
+          s=p.read_text()
+          old=s
+          assert s.count('->galleryFocus(')==1 and s.count('->galleryClosed(')==1
+          a=s.index('.method private r203Present(F)V')
+          b=s.index('.end method',a)
+          part=s[a:b]
+          anchor='    iput v0, p0, Lcom/juhyeon/familyjournea/MoaNativeGallery;->index:I\n'
+          assert part.count(anchor)==1
+          hook='\n    invoke-static/range {p0 .. p0}, Lcom/juhyeon/familyjournea/MoaRemoteTimeline731;->galleryMotion(Ljava/lang/Object;)V\n'
+          part=part.replace(anchor,anchor+hook)
+          s=s[:a]+part+s[b:]
+          assert s.replace(hook,'')==old
+          p.write_text(s)
+          Path('/tmp/moa739/out/gallery-hook-test.txt').write_text('PASS: only changed-index motion hook added; all original native UI, gestures and playback retained. Device parity pending.\n')
+          PY
+          java -cp /tmp/apktool.jar:/tmp Assemble /tmp/moa739/smali/gallery /tmp/moa739/out/classes6.dex
+          sha256sum /tmp/moa739/out/classes6.dex
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r739-compiled-dex-and-qa
+          path: /tmp/moa739/out/
