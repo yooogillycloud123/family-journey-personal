@@ -1,0 +1,61 @@
+name: MOA R735 verified buffered native gallery beta publication
+on:
+  push:
+    branches: [moa-update-channel]
+    paths: ['.github/workflows/moa-publish-r735.yml', 'android/staging/r735/**']
+permissions:
+  contents: write
+concurrency:
+  group: moa-update-channel
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct exact locally signed APK and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,hashlib,base64,pathlib,zipfile
+          p=pathlib.Path('android/releases')
+          base=(p/'moa-r733.apk').read_bytes()
+          assert hashlib.sha256(base).hexdigest()=='a2b4452d92a6db3cac3d1a746124b897dfe24aa93c140565e00b42e3c3a8206c'
+          j=json.loads(pathlib.Path('android/staging/r735/delta.json').read_text())
+          assert j['versionCode']==735
+          out=b''.join(base[s['copy'][0]:s['copy'][1]] if 'copy' in s else base64.b64decode(s['data'],validate=True) for s in j['delta'])
+          assert len(out)==10733092 and hashlib.sha256(out).hexdigest()=='1a55379b9976f71accd17210e807f8a6062574b1e4435181f7c9506a6127ea86'
+          f=p/'moa-r735.apk'
+          f.write_bytes(out)
+          with zipfile.ZipFile(p/'moa-r733.apk') as a,zipfile.ZipFile(f) as b:
+              assert b.testzip() is None and set(a.namelist())==set(b.namelist())
+              assert {n for n in a.namelist() if a.read(n)!=b.read(n)}=={'AndroidManifest.xml','classes24.dex'}
+          latest=pathlib.Path('android/latest.json')
+          assert json.loads(latest.read_text())['versionCode']<735
+          PY
+          test "$(git hash-object android/releases/moa-r735.apk)" = ba693f27d2468d7582b6137dfc30e9e593839750
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BT="$(find "$SDK/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 android/releases/moa-r735.apk | tee /tmp/moa-cert
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/moa-cert
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/moa-cert
+          "$BT/aapt2" dump badging android/releases/moa-r735.apk > /tmp/moa-badging
+          grep -F "package: name='com.juhyeon.familyjournea' versionCode='735'" /tmp/moa-badging
+          "$BT/zipalign" -c 4 android/releases/moa-r735.apk
+          python - <<'PY'
+          import json,pathlib
+          p=pathlib.Path('android/latest.json')
+          j={'packageName':'com.juhyeon.familyjournea','signerSha256':'5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15','versionCode':735,'bytes':10733092,'sha256':'1a55379b9976f71accd17210e807f8a6062574b1e4435181f7c9506a6127ea86','apkUrl':'https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r735.apk','published':True,'notes':'R735 베타: 원본 갤러리 원격 구간 선읽기·다중 캐시·썸네일 분리 최적화. R733 오류 수정 유지. 실기기 미검증 베타.'}
+          p.write_text(json.dumps(j,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Atomically activate verified APK and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r android/staging/r735
+          git add android/latest.json android/releases/moa-r735.apk
+          git commit -m 'Publish exact original-signed MOA R735 buffered native gallery beta'
+          git push origin HEAD:moa-update-channel
