@@ -57,7 +57,7 @@ public final class MoaRemoteTimeline731 {
         if(!current(p,r,token))throw new IOException("Remote revoked");
         synchronized(THUMB_CACHE){THUMB_CACHE.put(key,new Thumb(b));while(THUMB_CACHE.size()>16){Iterator<String> it=THUMB_CACHE.keySet().iterator();it.next();it.remove();}}return b;
     }
-    private static boolean current(Object p,Row r,String token){try{return owner==p&&allowed(p,r.pin)&&token.equals(config(p).optString("token"))&&stillSame(r);}catch(Exception e){return false;}}
+    private static boolean current(Object p,Row r,String token){try{Field enabled=Class.forName(ROOT).getDeclaredField("clientAllowed");enabled.setAccessible(true);return enabled.getBoolean(null)&&owner==p&&allowed(p,r.pin)&&token.equals(config(p).optString("token"))&&stillSame(r);}catch(Exception e){return false;}}
 
     private static Object call(Object target,String name,Class<?>[] types,Object...args)throws Exception{Method m=target.getClass().getDeclaredMethod(name,types);m.setAccessible(true);return m.invoke(target,args);}
     private static Object field(Object target,String name)throws Exception{Field f=target.getClass().getDeclaredField(name);f.setAccessible(true);return f.get(target);}
