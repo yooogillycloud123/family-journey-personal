@@ -8,3 +8,5 @@
 - R741 APK SHA256 e9c0ca85714a3c45dedf87a2acb8e30a7f735ddec2058039b480498fd7159037, 10756696 bytes, git blob 9294f2e166a9fd207521d00a6b5692d8bb662b25. Original signer SHA256 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15. R742 exact-R739 functional recovery SHA256 ed23f1ccfd95f3d4897878bffd811aee21c2102d3d499020b1ccf2ce711db7dd, manifest only. Recovery 자동 배포 제외. 다음 후보 >=743.
 - Library /에어팟안드로이드/MOA_R741_R742_20261126/; source branch feature/moa-r741-stable-original-gallery-20261126. 실제 인앱 배포 및 외부 URL 검증 별도 기록. 골든 승격 금지.
 - 다음 실제 검증 우선: 기존 QR 연결 유지, 태블릿 기존 달력→기존 갤러리, 로컬 vs 원격 동일 자료 1080p/4K 전환/스크럽/관성 스와이프/음량/HDR, 최초 열기·재열기·네트워크 단절 회복, 장시간 메모리/발열/캐시. 전체 원본 일괄 복제·화질 낮춤 금지. 기기 실제 성능·코덱·Wi-Fi 한계는 숨기지 않음. 기존 기기 등록 및 데이터 삭제/초기화 금지.
+
+- 배포 CI 45785096812 SUCCESS, 외부 검증 CI 45785180312 SUCCESS. 2026-11-26 17:40:48 KST 기존 URL/nonce/immutable HTTP 200 R741; 전체 APK 10756696 bytes SHA256 일치. https://github.com/yooogillycloud123/family-journey-personal/blob/moa-update-channel/android/verification/r741-public-endpoint.json. 실기기 설치/동기화/동일 성능은 PENDING.
