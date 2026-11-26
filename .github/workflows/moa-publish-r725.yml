@@ -1,0 +1,51 @@
+name: MOA original-signed R725 verified publication
+on:
+  push:
+    branches: [moa-update-channel]
+    paths: ['android/staging/r725/**', '.github/workflows/moa-publish-r725.yml']
+permissions:
+  contents: write
+concurrency:
+  group: moa-update-channel
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact locally signed R725 before enabling updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p android/releases
+          test "$(find android/staging/r725 -name 'part-*.b64' | wc -l)" = 16
+          cat android/staging/r725/part-*.b64 | base64 --decode > android/releases/moa-r725.apk
+          echo 'd7ea50c3577d75b97f0f62a4438950db50407124b1290b4f78b734c772de39d2  android/releases/moa-r725.apk' | sha256sum -c -
+          test "$(wc -c < android/releases/moa-r725.apk)" = 10680707
+          test "$(git hash-object android/releases/moa-r725.apk)" = bc2855e15340ea53eea8971d89c6a982f097cf8f
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BT="$(find "$SDK/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 android/releases/moa-r725.apk | tee /tmp/moa-cert
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/moa-cert
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/moa-cert
+          "$BT/aapt2" dump badging android/releases/moa-r725.apk | head -1 | tee /tmp/moa-badging
+          grep -F "package: name='com.juhyeon.familyjournea' versionCode='725'" /tmp/moa-badging
+          python - <<'PY'
+          import zipfile,json,hashlib
+          p='android/releases/moa-r725.apk'
+          with zipfile.ZipFile(p) as z:
+              assert z.testzip() is None
+              assert 'classes25.dex' in z.namelist()
+          j={'packageName':'com.juhyeon.familyjournea','signerSha256':'5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15','versionCode':725,'bytes':10680707,'sha256':'d7ea50c3577d75b97f0f62a4438950db50407124b1290b4f78b734c772de39d2','apkUrl':'https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r725.apk','published':True,'notes':'R725 베타: TLS 지문 검증 전용 연결, 최초 QR 등록, 인증된 기기 IP 자동 재탐색. 실기기 미검증. 기존 데이터 유지.'}
+          with open('android/latest.json','w') as f:json.dump(j,f,ensure_ascii=False,indent=2);f.write('\n')
+          PY
+      - name: Atomically activate verified APK and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r android/staging/r725
+          git add android/latest.json android/releases/moa-r725.apk
+          git commit -m 'Publish exact original-signed MOA R725 TLS QR beta'
+          git push origin HEAD:moa-update-channel
