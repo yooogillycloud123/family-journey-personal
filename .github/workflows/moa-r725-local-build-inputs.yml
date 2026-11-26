@@ -1,0 +1,30 @@
+name: MOA R725 frozen APK and local build tool transfer
+on:
+  push:
+    branches: [feature/moa-r725-r723-tls-discovery-audit-20261126]
+    paths: ['.github/workflows/moa-r725-local-build-inputs.yml']
+permissions:
+  contents: read
+jobs:
+  inputs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/moa-inputs
+          cp android/releases/moa-r723.apk /tmp/moa-inputs/
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BT="$(find "$SDK/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          cp "$BT/lib/apksigner.jar" /tmp/moa-inputs/
+          cp "$BT/lib/d8.jar" /tmp/moa-inputs/
+          cp "$BT/aapt2" /tmp/moa-inputs/
+          cp "$SDK/platforms/android-35/android.jar" /tmp/moa-inputs/
+          curl -fsSL --retry 2 https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar -o /tmp/moa-inputs/apktool.jar
+          sha256sum /tmp/moa-inputs/moa-r723.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOA-R723-local-build-inputs
+          path: /tmp/moa-inputs/
+          compression-level: 1
