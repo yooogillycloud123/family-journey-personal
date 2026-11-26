@@ -1,0 +1,19 @@
+name: MOA R725 QR dependency transfer
+on:
+  push:
+    branches: [feature/moa-r725-r723-tls-discovery-audit-20261126]
+    paths: ['.github/workflows/moa-r725-qr-dependency.yml']
+permissions:
+  contents: read
+jobs:
+  dependency:
+    runs-on: ubuntu-latest
+    steps:
+      - shell: bash
+        run: |
+          curl -fsSL --retry 2 https://repo.maven.apache.org/maven2/com/google/zxing/core/3.5.3/core-3.5.3.jar -o /tmp/zxing-core-3.5.3.jar
+          sha256sum /tmp/zxing-core-3.5.3.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r725-zxing
+          path: /tmp/zxing-core-3.5.3.jar
