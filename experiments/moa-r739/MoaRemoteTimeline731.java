@@ -60,6 +60,7 @@ public final class MoaRemoteTimeline731 {
     private static boolean current(Object p,Row r,String token){try{Field enabled=Class.forName(ROOT).getDeclaredField("clientAllowed");enabled.setAccessible(true);return timelineVisible&&enabled.getBoolean(null)&&owner==p&&allowed(p,r.pin)&&token.equals(config(p).optString("token"))&&stillSame(r);}catch(Exception e){return false;}}
 
     // Original-byte cache, isolated from MediaStore and from the local gallery.
+    private static volatile boolean fullSelected=false,timelineVisible=true;
     private static MoaDiskCache737 disk;
     private static String diskPeer="";
     private static final ScheduledThreadPoolExecutor WARM=new ScheduledThreadPoolExecutor(1,r->{Thread t=new Thread(r,"MOA-warm737");t.setDaemon(true);return t;});
@@ -70,7 +71,7 @@ public final class MoaRemoteTimeline731 {
         }catch(Exception ex){synchronized(MoaRemoteTimeline731.class){if(disk!=null)disk.reset();diskPeer="";cancelWarm();}}
     },15,15,TimeUnit.SECONDS);}
     private static final MoaAdaptive739 ADAPT=new MoaAdaptive739();
-    private static volatile boolean fullSelected=false,timelineVisible=true;
+    
     private static volatile long warmEpoch;private static Future<?> warmJob;private static Object warmGallery;
     private static synchronized void cancelWarm(){warmEpoch++;if(warmJob!=null){warmJob.cancel(false);warmJob=null;}}
     private static synchronized MoaDiskCache737 disk(Context c,JSONObject cfg){
