@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 733,
-  "bytes": 10722916,
-  "sha256": "a2b4452d92a6db3cac3d1a746124b897dfe24aa93c140565e00b42e3c3a8206c",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r733.apk",
+  "versionCode": 735,
+  "bytes": 10733092,
+  "sha256": "1a55379b9976f71accd17210e807f8a6062574b1e4435181f7c9506a6127ea86",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r735.apk",
   "published": true,
-  "notes": "R733 베타: 설치 제출 후 중복 스트림 종료 제거, 실제 날짜 포함 음성 ID 호환, 원격 달력 진단 상태 분리. 실기기 미검증 베타."
+  "notes": "R735 베타: 원본 갤러리 원격 구간 선읽기·다중 캐시·썸네일 분리 최적화. R733 오류 수정 유지. 실기기 미검증 베타."
 }
