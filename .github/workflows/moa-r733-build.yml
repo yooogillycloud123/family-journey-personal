@@ -1,0 +1,79 @@
+name: MOA R733 real catalog schema and installer close regression
+on:
+  push:
+    branches: [feature/moa-r733-catalog-installer-fix-20261126]
+    paths: ['experiments/moa-r733/**','.github/workflows/moa-r733-build.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile actual Row and verify production schema
+        shell: bash
+        run: |
+          set -euxo pipefail
+          apk=android/releases/moa-r731.apk
+          echo 'a4bf00146c22c8ff1eeed82f759326f3b0acf694af7262e51095704acd1fe02c  android/releases/moa-r731.apk' | sha256sum -c -
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          android="$sdk/platforms/android-35/android.jar"
+          d8="$(find "$sdk/build-tools" -name d8 | sort -V | tail -1)"
+          mkdir -p /tmp/moa733/classes /tmp/moa733/test /tmp/moa733/dex /tmp/moa733/smali /tmp/moa733/out
+          curl -fsSL --retry 2 https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar -o /tmp/json.jar
+          javac --release 8 -encoding UTF-8 -cp "$android" -d /tmp/moa733/classes experiments/moa-r733/MoaRemoteTimeline731.java
+          javac --release 8 -encoding UTF-8 -cp "/tmp/json.jar:$android:/tmp/moa733/classes" -d /tmp/moa733/test experiments/moa-r733/Catalog733Test.java
+          java -cp "/tmp/json.jar:$android:/tmp/moa733/classes:/tmp/moa733/test" com.juhyeon.familyjournea.Catalog733Test | tee /tmp/moa733/out/catalog-test.txt
+          find /tmp/moa733/classes -name '*.class' -print0 | xargs -0 "$d8" --min-api 29 --lib "$android" --output /tmp/moa733/dex
+          curl -fsSL --retry 2 https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar -o /tmp/apktool.jar
+          cat >/tmp/Disassemble.java <<'JAVA'
+          import java.io.*;import java.nio.file.*;
+          import com.android.tools.smali.dexlib2.Opcodes;
+          import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile;
+          import com.android.tools.smali.baksmali.Baksmali;
+          import com.android.tools.smali.baksmali.BaksmaliOptions;
+          public class Disassemble{public static void main(String[] args)throws Exception{BaksmaliOptions o=new BaksmaliOptions();o.localsDirective=true;Baksmali.disassembleDexFile(new DexBackedDexFile(new Opcodes(26,-1),Files.readAllBytes(Paths.get(args[0])),0),new File(args[1]),2,o);}}
+          JAVA
+          cat >/tmp/Assemble.java <<'JAVA'
+          import brut.androlib.src.SmaliBuilder;
+          import com.android.tools.smali.dexlib2.Opcodes;
+          import com.android.tools.smali.dexlib2.writer.builder.DexBuilder;
+          import com.android.tools.smali.dexlib2.writer.io.FileDataStore;
+          import java.io.*;import java.nio.file.*;
+          public class Assemble{public static void main(String[] args)throws Exception{File root=new File(args[0]);SmaliBuilder b=new SmaliBuilder(root,26);DexBuilder dex=new DexBuilder(new Opcodes(26,-1));try(java.util.stream.Stream<Path> st=Files.walk(root.toPath())){for(Path p:(Iterable<Path>)st.filter(x->x.toString().endsWith(".smali")).sorted()::iterator)b.buildFile(root.toPath().relativize(p).toString(),dex);}dex.writeTo(new FileDataStore(new File(args[1])));}}
+          JAVA
+          javac -cp /tmp/apktool.jar /tmp/Disassemble.java /tmp/Assemble.java
+          unzip -p "$apk" classes24.dex > /tmp/moa733/base.dex
+          java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/moa733/base.dex /tmp/moa733/smali/base
+          java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/moa733/dex/classes.dex /tmp/moa733/smali/new
+          python - <<'PY'
+          from pathlib import Path
+          import re, shutil
+          root=Path('/tmp/moa733/smali/base');new=Path('/tmp/moa733/smali/new')
+          old=list(root.rglob('MoaRemoteTimeline731*.smali')); assert old
+          for f in old:f.unlink()
+          for f in new.rglob('*.smali'):
+              assert f.name.startswith('MoaRemoteTimeline731')
+              target=root/f.relative_to(new);assert not target.exists();target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(f,target)
+          p=next(root.rglob('MoaUpdate723.smali'));s=p.read_text()
+          start=s.index('    invoke-virtual {v3, v0}, Landroid/content/pm/PackageInstaller$Session;->commit(Landroid/content/IntentSender;)V')
+          a=s.index('    if-eqz v7, :cond_162',start)
+          b=s.index('    :catchall_170',a)
+          old=s[a:b]
+          assert old.count('Ljava/io/OutputStream;->close()V')==1
+          # No stream close/abandon/error propagation after commit. Cleanup errors logged only.
+          replacement='    invoke-static {v4, v3}, Lcom/juhyeon/familyjournea/MoaRemoteTimeline731;->closeAfterCommit(Ljava/io/InputStream;Landroid/content/pm/PackageInstaller$Session;)V\n\n    goto/16 :goto_217\n\n'
+          s=s[:a]+replacement+s[b:]
+          m=s[s.rfind('.method',0,start):s.index('.end method',start)]
+          commit=m.index('->commit(');assert '->fsync(' in m[:commit] and 'Ljava/io/OutputStream;->close()V' in m[:commit]
+          assert 'closeAfterCommit' in m[commit:m.index(':catchall_170',commit+1000) if False else len(m)]
+          assert s.count('closeAfterCommit(')==1
+          p.write_text(s)
+          Path('/tmp/moa733/out/installer-test.txt').write_text('PASS: precommit fsync and single close retained; success path invokes isolated cleanup and returns without second stream close or abandon. Android device install test pending.\n')
+          PY
+          java -cp /tmp/apktool.jar:/tmp Assemble /tmp/moa733/smali/base /tmp/moa733/out/classes24.dex
+          sha256sum /tmp/moa733/out/classes24.dex
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r733-compiled-dex-and-qa
+          path: /tmp/moa733/out/
