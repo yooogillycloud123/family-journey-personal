@@ -5,3 +5,5 @@
 - R745 SHA256 6e9a8b924553c638e2461350b20c19ffa84de11dbe66204f6124921192f1ae31, 10764536 bytes, git blob 394a31c10339647e3ed08c13f6ead4437b5a24ae; signer 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15; R743 대비 Manifest/classes24.dex만 변경, 178/180 entries 동일. 원본 v2 서명/ZIP CRC/DEX integrity PASS. 이번에는 기존 DEX 정확한 명령 패치이며 Android 전체 재컴파일 아님. 실제 기기 갤러리 동작은 PENDING.
 - R746 exact R741 functional recovery SHA256 83ea0c483cd3451b2c10f2dfd5c80d8be9ac483b99a4c91dad6ba46809a6f211, Manifest only; 기존 R741 사진 흐림/달력 공백 한계 포함, 자동 배포 금지. 다음 후보 >=747.
 - Library /에어팟안드로이드/MOA_R745_R746_20261126/; patch745.py/delta/APK. 인앱 배포와 CDN 검증 별도 기록. 사용자 실제 사진/영상 모두 비교 후 성공 판단. 원격 삭제/공유/양방향 편집은 미완료. 앱 삭제/데이터 초기화 금지.
+
+- 배포 CI 45793659036 SUCCESS, 외부 검증 CI 45793751269 SUCCESS. 2026-11-26 18:37:59 KST 기존 URL/nonce/immutable HTTP 200 R745, APK 전체 10764536 bytes SHA256 일치. https://github.com/yooogillycloud123/family-journey-personal/blob/moa-update-channel/android/verification/r745-public-endpoint.json. 실제 R745 갤러리/화질 실기기 확인 PENDING. 수정 Java와 exact DEX patch: feature/moa-r743-original-photo-calendar-20261126/experiments/moa-r745/.
