@@ -7,3 +7,7 @@
 - 한계: 실제 원격 갤러리 확대/스와이프/탐색/음량/가로세로 동작 및 실제 폰/태블릿 미검증. 원격 삭제/대표 사진 변경/외부 공유는 원본 기기에서. 순간기록 첨부 및 curated/automatic 표시 완전 동일성 미확인. 대규모 GPS 읽기 성능 미확인. 읽기 전용 원격 미디어, 양방향 편집 완료 아님.
 - 소스/QA/APK Library /에어팟안드로이드/MOA_R731_WIP_20261126/. 네이티브 브랜치 feature/moa-r731-remote-native-timeline-20261126. 이미 생성된 APK/DEX/QA 먼저 활용. 배포는 실제 moa-update-channel/android/latest.json 및 public endpoint/CI 증거로 별도 확인. R731 베타를 골든 또는 실기기 PASS로 승격 금지. 
 - 실기기 검증: 양쪽 R731, 기존 QR/허브 유지, 스마트폰 공유 허용, 태블릿 수동 '원격 달력 지금 갱신' 또는 자동. 달력→기존 사진형→확대/좌우/영상 탐색→지도/음성. OFF 시 원격 표시 해제 및 기존 로컬 자료 유지. 원격 기기 연결 필요. 앱 삭제/데이터 초기화 금지.
+
+## 실제 배포 검증
+- 배포 CI 45770885296 SUCCESS, 실제 채널 manifest R731 published=true, Git blob 일치. Public CDN verification 45770936769 SUCCESS: 2026-11-26 06:50:11 UTC / 15:50:11 KST, 정확한 기존 URL과 nonce/immutable 모두 HTTP 200 R731, 실제 전체 다운로드 10721824 bytes SHA256 일치. https://github.com/yooogillycloud123/family-journey-personal/blob/moa-update-channel/android/verification/r731-public-endpoint.json
+- 사용자 설치 흐름 및 실제 갤러리 PASS는 아직 PENDING. R731 베타 배포만 검증되었으며 골든 승격 아님.
