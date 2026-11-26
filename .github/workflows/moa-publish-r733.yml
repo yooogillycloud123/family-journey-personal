@@ -1,0 +1,61 @@
+name: MOA R733 verified catalog and installer bugfix beta publication
+on:
+  push:
+    branches: [moa-update-channel]
+    paths: ['.github/workflows/moa-publish-r733.yml', 'android/staging/r733/**']
+permissions:
+  contents: write
+concurrency:
+  group: moa-update-channel
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct exact locally signed APK and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,hashlib,base64,pathlib,zipfile
+          p=pathlib.Path('android/releases')
+          base=(p/'moa-r731.apk').read_bytes()
+          assert hashlib.sha256(base).hexdigest()=='a4bf00146c22c8ff1eeed82f759326f3b0acf694af7262e51095704acd1fe02c'
+          j=json.loads(pathlib.Path('android/staging/r733/delta.json').read_text())
+          assert j['versionCode']==733
+          out=b''.join(base[s['copy'][0]:s['copy'][1]] if 'copy' in s else base64.b64decode(s['data'],validate=True) for s in j['delta'])
+          assert len(out)==10722916 and hashlib.sha256(out).hexdigest()=='a2b4452d92a6db3cac3d1a746124b897dfe24aa93c140565e00b42e3c3a8206c'
+          f=p/'moa-r733.apk'
+          f.write_bytes(out)
+          with zipfile.ZipFile(p/'moa-r731.apk') as a,zipfile.ZipFile(f) as b:
+              assert b.testzip() is None and set(a.namelist())==set(b.namelist())
+              assert {n for n in a.namelist() if a.read(n)!=b.read(n)}=={'AndroidManifest.xml','assets/web/moa-r711-mailbox.js','classes24.dex'}
+          latest=pathlib.Path('android/latest.json')
+          assert json.loads(latest.read_text())['versionCode']<733
+          PY
+          test "$(git hash-object android/releases/moa-r733.apk)" = be4c97ddb0057dd80dc54a447e303b630019c0e3
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BT="$(find "$SDK/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 android/releases/moa-r733.apk | tee /tmp/moa-cert
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/moa-cert
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/moa-cert
+          "$BT/aapt2" dump badging android/releases/moa-r733.apk > /tmp/moa-badging
+          grep -F "package: name='com.juhyeon.familyjournea' versionCode='733'" /tmp/moa-badging
+          "$BT/zipalign" -c 4 android/releases/moa-r733.apk
+          python - <<'PY'
+          import json,pathlib
+          p=pathlib.Path('android/latest.json')
+          j={'packageName':'com.juhyeon.familyjournea','signerSha256':'5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15','versionCode':733,'bytes':10722916,'sha256':'a2b4452d92a6db3cac3d1a746124b897dfe24aa93c140565e00b42e3c3a8206c','apkUrl':'https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r733.apk','published':True,'notes':'R733 베타: 설치 제출 후 중복 스트림 종료 제거, 실제 날짜 포함 음성 ID 호환, 원격 달력 진단 상태 분리. 실기기 미검증 베타.'}
+          p.write_text(json.dumps(j,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Atomically activate verified APK and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r android/staging/r733
+          git add android/latest.json android/releases/moa-r733.apk
+          git commit -m 'Publish exact original-signed MOA R733 remote timeline beta'
+          git push origin HEAD:moa-update-channel
