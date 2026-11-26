@@ -1,0 +1,9 @@
+# R731 원격 일기 달력·원본 갤러리 연결 — 2026-11-26
+사용자 요구: R729 스마트폰 허브/태블릿 QR 성공 후 원격 보관함 32개가 조회되나 달력은 빈 상태. 원격 자료를 기존 달력/사진형/상세형/지도에 연결하고 사진·영상 전체를 태블릿 MediaStore에 복제하지 않음. 기존 네이티브 갤러리 유지. PC 불필요. 기존 연결 및 원본 기록 보존.
+- BASE R729 SHA256 4e9ce60ccaa4fd884729588ee5cacca945358390be7f2edcdbfeec2b7d0f1070. R707 GOLDEN 불변. AA AirPods 별도 프로젝트 변경 없음.
+- R731 원본 서명 베타: a4bf00146c22c8ff1eeed82f759326f3b0acf694af7262e51095704acd1fe02c, 10721824 bytes, Git blob 44a0a9d1f77b80708d54d895f9ebe7b89c992f79. 서명 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15. 기존 180 entries 중 168 동일, 변경 12 entries(Manifest/JS7/DEX4). Native SDK35 D8/smali CI PASS https://github.com/yooogillycloud123/family-journey-personal/actions/runs/45770533710. ZIP CRC, DEX SHA1/Adler32, APK v2 independent verification, JS syntax and mock catalog/thumbnail/GPS/voice/OFF PASS. 실제 기기 기능 검증 PENDING.
+- R732 exact-R729-function recovery: 0e52c263f8dfd138d0b617a753271ae7dabdff9b60f5a19df20fd57c450ef511, 10697484 bytes, Manifest 버전만 변경, 자동 채널 금지. 다음 후보 >=733.
+- 원격 목록을 별도 문자열 가상 ID로 분리, 날짜별 오버레이, 기존 MoaNativeGallery.uri()와 preview URI 연결, TLS range read + read-only same-UID proxy FD. 기존 공유 허용 설정 존중. 메모리 썸네일 제한; 지도 GPS/음성 연결. 원격 음성은 기존 원격 플레이어 사용. R731 updater nonce/no-cache/조회 버전/오류 구분, 원래 다운로드 서명/hash 검증 재사용.
+- 한계: 실제 원격 갤러리 확대/스와이프/탐색/음량/가로세로 동작 및 실제 폰/태블릿 미검증. 원격 삭제/대표 사진 변경/외부 공유는 원본 기기에서. 순간기록 첨부 및 curated/automatic 표시 완전 동일성 미확인. 대규모 GPS 읽기 성능 미확인. 읽기 전용 원격 미디어, 양방향 편집 완료 아님.
+- 소스/QA/APK Library /에어팟안드로이드/MOA_R731_WIP_20261126/. 네이티브 브랜치 feature/moa-r731-remote-native-timeline-20261126. 이미 생성된 APK/DEX/QA 먼저 활용. 배포는 실제 moa-update-channel/android/latest.json 및 public endpoint/CI 증거로 별도 확인. R731 베타를 골든 또는 실기기 PASS로 승격 금지. 
+- 실기기 검증: 양쪽 R731, 기존 QR/허브 유지, 스마트폰 공유 허용, 태블릿 수동 '원격 달력 지금 갱신' 또는 자동. 달력→기존 사진형→확대/좌우/영상 탐색→지도/음성. OFF 시 원격 표시 해제 및 기존 로컬 자료 유지. 원격 기기 연결 필요. 앱 삭제/데이터 초기화 금지.
