@@ -1,0 +1,61 @@
+name: MOA R739 verified adaptive native gallery beta publication
+on:
+  push:
+    branches: [moa-update-channel]
+    paths: ['.github/workflows/moa-publish-r739.yml', 'android/staging/r739/**']
+permissions:
+  contents: write
+concurrency:
+  group: moa-update-channel
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct exact locally signed APK and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,hashlib,base64,pathlib,zipfile
+          p=pathlib.Path('android/releases')
+          base=(p/'moa-r737.apk').read_bytes()
+          assert hashlib.sha256(base).hexdigest()=='77042f91673af9625de510f5408032f6a2b280e9fcada6272a849b3f3917a802'
+          j=json.loads(pathlib.Path('android/staging/r739/delta.json').read_text())
+          assert j['versionCode']==739
+          out=b''.join(base[s['copy'][0]:s['copy'][1]] if 'copy' in s else base64.b64decode(s['data'],validate=True) for s in j['delta'])
+          assert len(out)==10750688 and hashlib.sha256(out).hexdigest()=='53581aff9c6d3e6890c607d7beba29bc2611dbb3cd721f6a0587cd41cab77cbf'
+          f=p/'moa-r739.apk'
+          f.write_bytes(out)
+          with zipfile.ZipFile(p/'moa-r737.apk') as a,zipfile.ZipFile(f) as b:
+              assert b.testzip() is None and set(a.namelist())==set(b.namelist())
+              assert {n for n in a.namelist() if a.read(n)!=b.read(n)}=={'AndroidManifest.xml','classes6.dex','classes24.dex','assets/web/moa-r711-mailbox.js'}
+          latest=pathlib.Path('android/latest.json')
+          assert json.loads(latest.read_text())['versionCode']<739
+          PY
+          test "$(git hash-object android/releases/moa-r739.apk)" = 88eec525b692bbacad41d717d361ac17fc5158bf
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BT="$(find "$SDK/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 android/releases/moa-r739.apk | tee /tmp/moa-cert
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/moa-cert
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/moa-cert
+          "$BT/aapt2" dump badging android/releases/moa-r739.apk > /tmp/moa-badging
+          grep -F "package: name='com.juhyeon.familyjournea' versionCode='739'" /tmp/moa-badging
+          "$BT/zipalign" -c 4 android/releases/moa-r739.apk
+          python - <<'PY'
+          import json,pathlib
+          p=pathlib.Path('android/latest.json')
+          j={'packageName':'com.juhyeon.familyjournea','signerSha256':'5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15','versionCode':739,'bytes':10750688,'sha256':'53581aff9c6d3e6890c607d7beba29bc2611dbb3cd721f6a0587cd41cab77cbf','apkUrl':'https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r739.apk','published':True,'notes':'R739 베타: 실제 연결 속도 적응형 선읽기, 스와이프 방향 예측, 선택 영상 최대 896MiB 전체 준비. 기존 갤러리 유지. 실기기 미검증 베타.'}
+          p.write_text(json.dumps(j,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Atomically activate verified APK and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r android/staging/r739
+          git add android/latest.json android/releases/moa-r739.apk
+          git commit -m 'Publish exact original-signed MOA R739 buffered native gallery beta'
+          git push origin HEAD:moa-update-channel
