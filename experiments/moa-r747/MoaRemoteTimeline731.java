@@ -173,7 +173,12 @@ public final class MoaRemoteTimeline731 {
     }
     // Remote photos are promoted by a separate selected-page worker. Native page jobs
     // must never compete with it or turn a poster into a full-resolution cache entry.
-    public static android.graphics.Bitmap galleryPhoto(Object gallery,String id){return null;}
+    public static android.graphics.Bitmap galleryPhoto(Object gallery,String id){
+        try{if(selectedId(gallery).equals(id))return null;Row r=row(id);Activity a=(Activity)field(gallery,"activity");if(a==null)return null;
+            // Keep original neighboring page preparation; selected original is prioritized independently.
+            return photoOriginal(a.getApplicationContext(),r,2300);
+        }catch(Exception e){return null;}
+    }
     private static final ThreadPoolExecutor SELECT_PHOTO=new ThreadPoolExecutor(2,2,15,TimeUnit.SECONDS,new ArrayBlockingQueue<Runnable>(2),r->{Thread t=new Thread(r,"MOA-photo747");t.setDaemon(true);return t;},new ThreadPoolExecutor.AbortPolicy());
     static{SELECT_PHOTO.allowCoreThreadTimeOut(true);}
     private static final Map<Object,PhotoSelection> SELECTED=new WeakHashMap<>();
@@ -230,12 +235,12 @@ public final class MoaRemoteTimeline731 {
     @SuppressWarnings("unchecked")
     public static void selectedPhoto(Object gallery){
         try{
-            String id=selectedId(gallery);Row r=active.get(id);if(r==null||!r.mime.startsWith("image/")){cancelSelected(gallery);return;}
+            String id=selectedId(gallery);Row r=active.get(id);if(r==null||!r.mime.startsWith("image/")||Boolean.TRUE.equals(field(gallery,"browsingRail"))){cancelSelected(gallery);return;}
             Object p=owner;String token=config(p).getString("token");if(!current(p,r,token)){cancelSelected(gallery);return;}
             android.widget.ImageView image=centerImage(gallery,id);if(image==null)return;
             android.util.LruCache<String,android.graphics.Bitmap> full=(android.util.LruCache<String,android.graphics.Bitmap>)field(gallery,"full");
             android.graphics.Bitmap cached=full.get(id);
-            if(cached!=null&&!cached.isRecycled()){image.setImageBitmap(cached);photoStatus(gallery,null);return;}
+            if(cached!=null&&!cached.isRecycled()){cancelSelected(gallery);image.setImageBitmap(cached);return;}
             PhotoSelection old=SELECTED.get(gallery);if(old!=null&&old.id.equals(id)&&old.allowed())return;
             cancelSelected(gallery);PhotoSelection sel=new PhotoSelection(id,r,p,token);SELECTED.put(gallery,sel);
             Activity activity=(Activity)field(gallery,"activity");Context ctx=activity.getApplicationContext();
