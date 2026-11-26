@@ -1,3 +1,5 @@
+> **최신 사용자 정정 — R747 배포까지 마친 뒤 중단 (2026-11-26):** 사용자가 R747 업데이트까지 명시 요청. 이전 R747 미배포 상태는 역사적 기록이다. 기존 컴파일 CI 45796489841 산출물로 실제 원본서명 R747 APK 제작 및 APKv2 서명/내용 다이제스트/ZIP/DEX 무결성 검증 성공. R747 SHA256 451e240d713ceacfbcb8ceb4157be7083ddea85e7f3898e49f94dc4b6040eaac, 10773404 bytes, git blob 14e16f38123d06d2ad81460bc038dbed70458fcf. R745 대비 Manifest/classes6.dex/classes24.dex만 변경. R748 exact-R745 recovery SHA256 8ac8d077963eedf737d8ced0f9cbab8ef943e4b84a0ebd6c491b4874ab9ef7fc, 자동 배포 제외. 기존 R745 사진 실패 한계 포함. APK/QA/delta Library /에어팟안드로이드/MOA_R747_R748_20261126/. 배포 CI 45799734923 및 외부 검증 결과 아래 최신 추가 기록 확인. R747 실제 사진 화질 및 기존 기능 실기기 검증 미완료. R707 골든 원본 불변. R747 이후 추가 동기화 구현/배포는 사용자 재요청 전 중단, 차기 후보 >=749.
+
 # 모아 동기화 개발 중단 및 골든 인계 — 2026-11-26
 상태: USER_REQUESTED_PAUSE / PARTIAL_PHYSICAL_SUCCESS / PHOTO_QUALITY_FAIL / R747_COMPILED_NOT_RELEASED.
 사용자가 "일단 동기화는 여기까지 기록 골든에 추가해서 기록하놓도록" 명시. 추가 구현/서명/배포는 사용자 재개 요청 전 중단. 이 기록은 R745 또는 R747을 완성 Golden으로 승격하지 않는다. R707 사용자 지정 불변 골든 원본 SHA256 b72856150410491b87cd01c3ecbe1a3178e2d1a6488fdf4494d06afcf50fb200 유지. AA AirPods는 별도 프로젝트, 변경 금지.
