@@ -22,7 +22,7 @@ jobs:
           import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile;
           import com.android.tools.smali.baksmali.Baksmali;
           import com.android.tools.smali.baksmali.BaksmaliOptions;
-          public class Disassemble{public static void main(String[] args)throws Exception{BaksmaliOptions o=new BaksmaliOptions();o.localsDirective=true;if(!Baksmali.disassembleDexFile(new DexBackedDexFile(new Opcodes(26,-1),Files.readAllBytes(Paths.get(args[0])),0),new File(args[1]),2,o))throw new IOException("disassembly failed");}}
+          public class Disassemble{public static void main(String[] args)throws Exception{BaksmaliOptions o=new BaksmaliOptions();o.localsDirective=true;Baksmali.disassembleDexFile(new DexBackedDexFile(new Opcodes(26,-1),Files.readAllBytes(Paths.get(args[0])),0),new File(args[1]),2,o);}}
           JAVA
           javac -cp /tmp/apktool.jar /tmp/Disassemble.java
           mkdir -p /tmp/moa731-dex /tmp/moa731-smali experiments/moa-r731/audit
@@ -34,7 +34,7 @@ jobs:
           from pathlib import Path
           import re
           root=Path('/tmp/moa731-smali');out=Path('experiments/moa-r731/audit')
-          keys={'MoaNativeGallery','MoaPeerProvider','MoaRemote721','MoaRemote721$Client','MoaRemote721$Gallery','MoaRemote721$Item','MoaRemote721$Source','MoaUpdate723','MoaR507InlineGalleryProvider','MoaR709PreviewProvider','MoaR711SyncProvider'}
+          keys={'MoaNativeGallery','MoaPeerProvider','MoaRemote721','MoaRemote721$Client','MoaRemote721$Gallery','MoaRemote721$Item','MoaRemote721$Source','MoaUpdate723','MoaUpdate723$1','MoaUpdate723$ExternalSyntheticLambda0','MoaUpdate723$ExternalSyntheticLambda1','MoaR507InlineGalleryProvider','MoaR709PreviewProvider','MoaR711SyncProvider'}
           for f in root.rglob('*.smali'):
               text=f.read_text()
               if f.stem in keys:
@@ -48,6 +48,6 @@ jobs:
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add experiments/moa-r731/audit
+          git add -f experiments/moa-r731/audit
           git commit -m 'Audit exact R729 remote transport and gallery URI call sites'
           git push origin HEAD:feature/moa-r731-remote-native-timeline-20261126
