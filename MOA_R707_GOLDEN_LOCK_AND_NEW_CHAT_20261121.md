@@ -1,3 +1,5 @@
+> **2026-11-26 사용자 영구 필수 지침 — 모든 MOA 설치용 업데이트는 GitHub 인앱 배포까지 검증해야 완료.** [MOA 인앱 업데이트 영구 배포 Gate](MOA_PERMANENT_INAPP_UPDATE_RELEASE_GATE_20261126.md)를 먼저 읽는다. 기존 moa-update-channel/android/latest.json + 정확한 서명 APK를 원자적 활성화하고 CI SUCCESS/manifest/실제 APK hash 확인. 복구 APK는 자동 최신으로 올리지 않는다. R727은 실기기 미검증 베타이며 R707 Golden 원본은 변경 금지. APK만 제공한 뒤 사용자가 R725 최신 표시에 막히는 오류 재발 금지.
+
 # 모아(MOA) R707 사용자 지정 Golden — 동결·복구·새 채팅 인계 (2026-11-21)
 
 ## 0. 이 문서의 지위
