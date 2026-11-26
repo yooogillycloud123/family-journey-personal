@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 741,
-  "bytes": 10756696,
-  "sha256": "e9c0ca85714a3c45dedf87a2acb8e30a7f735ddec2058039b480498fd7159037",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r741.apk",
+  "versionCode": 743,
+  "bytes": 10764532,
+  "sha256": "0b8cc1b3e6ea7484551559839bc76ba9e8058cb7bf47e51b942b2cdb05be53af",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r743.apk",
   "published": true,
-  "notes": "R741 베타: 원본 최대 4MiB 연속 전송, 일시 오류 재시도 및 실제 재생 프레임 손실 감지. 기존 갤러리 유지. 실기기 미검증 베타."
+  "notes": "R743 베타: 원격 사진 원본 디코딩, 달력 썸네일 묶음 및 스마트폰 대표 사진 연동. R741 영상 유지. 실기기 미검증 베타."
 }
