@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 739,
-  "bytes": 10750688,
-  "sha256": "53581aff9c6d3e6890c607d7beba29bc2611dbb3cd721f6a0587cd41cab77cbf",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r739.apk",
+  "versionCode": 741,
+  "bytes": 10756696,
+  "sha256": "e9c0ca85714a3c45dedf87a2acb8e30a7f735ddec2058039b480498fd7159037",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r741.apk",
   "published": true,
-  "notes": "R739 베타: 실제 연결 속도 적응형 선읽기, 스와이프 방향 예측, 선택 영상 최대 896MiB 전체 준비. 기존 갤러리 유지. 실기기 미검증 베타."
+  "notes": "R741 베타: 원본 최대 4MiB 연속 전송, 일시 오류 재시도 및 실제 재생 프레임 손실 감지. 기존 갤러리 유지. 실기기 미검증 베타."
 }
