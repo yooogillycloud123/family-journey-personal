@@ -1,0 +1,51 @@
+name: MOA original-signed R727 verified publication
+on:
+  push:
+    branches: [moa-update-channel]
+    paths: ['android/staging/r727/**', '.github/workflows/moa-publish-r727.yml']
+permissions:
+  contents: write
+concurrency:
+  group: moa-update-channel
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact locally signed R727 before enabling updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p android/releases
+          test "$(find android/staging/r727 -name 'part-*.b64' | wc -l)" = 16
+          cat android/staging/r727/part-*.b64 | base64 --decode > android/releases/moa-r727.apk
+          echo '133e53c10a6009518349d4dde79467e195444166e8ec9c462e78338415ac80bc  android/releases/moa-r727.apk' | sha256sum -c -
+          test "$(wc -c < android/releases/moa-r727.apk)" = 10697156
+          test "$(git hash-object android/releases/moa-r727.apk)" = 8649d4c37e3536db3f368999db9d0cac1c356cb9
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BT="$(find "$SDK/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 android/releases/moa-r727.apk | tee /tmp/moa-cert
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/moa-cert
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/moa-cert
+          "$BT/aapt2" dump badging android/releases/moa-r727.apk | head -1 | tee /tmp/moa-badging
+          grep -F "package: name='com.juhyeon.familyjournea' versionCode='727'" /tmp/moa-badging
+          python - <<'PY'
+          import zipfile,json,hashlib
+          p='android/releases/moa-r727.apk'
+          with zipfile.ZipFile(p) as z:
+              assert z.testzip() is None
+              assert 'classes26.dex' in z.namelist()
+          j={'packageName':'com.juhyeon.familyjournea','signerSha256':'5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15','versionCode':727,'bytes':10697156,'sha256':'133e53c10a6009518349d4dde79467e195444166e8ec9c462e78338415ac80bc','apkUrl':'https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r727.apk','published':True,'notes':'R727 베타: TLS 허브 자체 연결 및 인증키 호환 개선, QR 연결 이전 실패 수정. 실기기 미검증. 기존 데이터 유지.'}
+          with open('android/latest.json','w') as f:json.dump(j,f,ensure_ascii=False,indent=2);f.write('\n')
+          PY
+      - name: Atomically activate verified APK and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r android/staging/r727
+          git add android/latest.json android/releases/moa-r727.apk
+          git commit -m 'Publish exact original-signed MOA R727 TLS hub compatibility beta'
+          git push origin HEAD:moa-update-channel
