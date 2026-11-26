@@ -1,0 +1,107 @@
+name: MOA R741 stable original media transport and decoder feedback
+on:
+  push:
+    branches: [feature/moa-r741-stable-original-gallery-20261126]
+    paths: ['experiments/moa-r741/**','.github/workflows/moa-r741-build.yml']
+concurrency:
+  group: moa-r741-native-gallery-build
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile actual Row and verify production schema
+        shell: bash
+        run: |
+          set -euxo pipefail
+          apk=android/releases/moa-r739.apk
+          echo '53581aff9c6d3e6890c607d7beba29bc2611dbb3cd721f6a0587cd41cab77cbf  android/releases/moa-r739.apk' | sha256sum -c -
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          android="$sdk/platforms/android-35/android.jar"
+          d8="$(find "$sdk/build-tools" -name d8 | sort -V | tail -1)"
+          mkdir -p /tmp/moa741/classes /tmp/moa741/test /tmp/moa741/dex /tmp/moa741/smali /tmp/moa741/out
+          curl -fsSL --retry 2 https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar -o /tmp/json.jar
+          javac --release 8 -encoding UTF-8 -cp "$android" -d /tmp/moa741/classes experiments/moa-r741/MoaRemoteTimeline731.java experiments/moa-r741/MoaRangeCache735.java experiments/moa-r741/MoaDiskCache737.java experiments/moa-r741/MoaAdaptive739.java experiments/moa-r741/MoaTransport741.java experiments/moa-r741/MoaFeedback741.java
+          javac --release 8 -encoding UTF-8 -cp "/tmp/json.jar:$android:/tmp/moa741/classes" -d /tmp/moa741/test experiments/moa-r741/Catalog733Test.java experiments/moa-r741/Range735Test.java experiments/moa-r741/Disk737Test.java experiments/moa-r741/Adaptive739Test.java experiments/moa-r741/Transport741Test.java
+          java -cp "/tmp/json.jar:$android:/tmp/moa741/classes:/tmp/moa741/test" com.juhyeon.familyjournea.Catalog733Test | tee /tmp/moa741/out/catalog-test.txt
+          java -cp /tmp/moa741/classes:/tmp/moa741/test com.juhyeon.familyjournea.Range735Test | tee /tmp/moa741/out/range-test.txt
+          java -cp /tmp/moa741/classes:/tmp/moa741/test com.juhyeon.familyjournea.Disk737Test | tee /tmp/moa741/out/disk-test.txt
+          java -cp /tmp/moa741/classes:/tmp/moa741/test com.juhyeon.familyjournea.Adaptive739Test | tee /tmp/moa741/out/adaptive-test.txt
+          java -cp /tmp/moa741/classes:/tmp/moa741/test com.juhyeon.familyjournea.Transport741Test | tee /tmp/moa741/out/transport-test.txt
+          find /tmp/moa741/classes -name '*.class' -print0 | xargs -0 "$d8" --min-api 29 --lib "$android" --output /tmp/moa741/dex
+          curl -fsSL --retry 2 https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar -o /tmp/apktool.jar
+          cat >/tmp/Disassemble.java <<'JAVA'
+          import java.io.*;import java.nio.file.*;
+          import com.android.tools.smali.dexlib2.Opcodes;
+          import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile;
+          import com.android.tools.smali.baksmali.Baksmali;
+          import com.android.tools.smali.baksmali.BaksmaliOptions;
+          public class Disassemble{public static void main(String[] args)throws Exception{BaksmaliOptions o=new BaksmaliOptions();o.localsDirective=true;Baksmali.disassembleDexFile(new DexBackedDexFile(new Opcodes(26,-1),Files.readAllBytes(Paths.get(args[0])),0),new File(args[1]),2,o);}}
+          JAVA
+          cat >/tmp/Assemble.java <<'JAVA'
+          import brut.androlib.src.SmaliBuilder;
+          import com.android.tools.smali.dexlib2.Opcodes;
+          import com.android.tools.smali.dexlib2.writer.builder.DexBuilder;
+          import com.android.tools.smali.dexlib2.writer.io.FileDataStore;
+          import java.io.*;import java.nio.file.*;
+          public class Assemble{public static void main(String[] args)throws Exception{File root=new File(args[0]);SmaliBuilder b=new SmaliBuilder(root,26);DexBuilder dex=new DexBuilder(new Opcodes(26,-1));try(java.util.stream.Stream<Path> st=Files.walk(root.toPath())){for(Path p:(Iterable<Path>)st.filter(x->x.toString().endsWith(".smali")).sorted()::iterator)b.buildFile(root.toPath().relativize(p).toString(),dex);}dex.writeTo(new FileDataStore(new File(args[1])));}}
+          JAVA
+          javac -cp /tmp/apktool.jar /tmp/Disassemble.java /tmp/Assemble.java
+          unzip -p "$apk" classes24.dex > /tmp/moa741/base.dex
+          java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/moa741/base.dex /tmp/moa741/smali/base
+          java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/moa741/dex/classes.dex /tmp/moa741/smali/new
+          python - <<'PY'
+          from pathlib import Path
+          import re, shutil
+          root=Path('/tmp/moa741/smali/base');new=Path('/tmp/moa741/smali/new')
+          old=list(root.rglob('MoaRemoteTimeline731*.smali'))+list(root.rglob('MoaRangeCache735*.smali'))+list(root.rglob('MoaDiskCache737*.smali'))+list(root.rglob('MoaAdaptive739*.smali')); assert old
+          for f in old:f.unlink()
+          for f in new.rglob('*.smali'):
+              target=root/f.relative_to(new)
+              print('helper', f.relative_to(new), 'exists',target.exists())
+              if target.exists():
+                  assert target.read_bytes()==f.read_bytes(), ('existing shared class differs',str(target))
+                  continue
+              assert f.name.startswith(('MoaRemoteTimeline731','MoaRangeCache735','MoaDiskCache737','MoaAdaptive739','MoaTransport741','MoaFeedback741')) or 'ExternalSynthetic' in f.name, f.name
+              target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(f,target)
+          # Extend only the validated raw range length cap; same TLS/auth and range validation.
+          p=next(root.rglob('MoaRemote721.smali'))
+          s=p.read_text()
+          a=s.index('.method public static range(');b=s.index('.end method',a)
+          part=s[a:b];assert part.count('const-wide/32 v9, 0x100000')==1
+          s=s[:a]+part.replace('const-wide/32 v9, 0x100000','const-wide/32 v9, 0x400000')+s[b:]
+          p.write_text(s)
+          # R733 installer and all other server code preserved.
+          p=next(root.rglob('MoaUpdate723.smali'));assert 'closeAfterCommit(' in p.read_text()
+          p=next(root.rglob('MoaRemoteTimeline731.smali'));assert 'Lcom/juhyeon/familyjournea/MoaDiskCache737;' in p.read_text() and 'Lcom/juhyeon/familyjournea/MoaAdaptive739;' in p.read_text()
+          Path('/tmp/moa741/out/integration-test.txt').write_text('PASS: R733 installer fix retained; native private disk cache wired to remote timeline. Device parity not verified.\n')
+          PY
+          java -cp /tmp/apktool.jar:/tmp Assemble /tmp/moa741/smali/base /tmp/moa741/out/classes24.dex
+          sha256sum /tmp/moa741/out/classes24.dex
+          unzip -p "$apk" classes6.dex > /tmp/moa741/base6.dex
+          java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/moa741/base6.dex /tmp/moa741/smali/gallery
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=next(Path('/tmp/moa741/smali/gallery').rglob('MoaNativeGallery.smali'))
+          s=p.read_text()
+          old=s
+          assert s.count('->galleryFocus(')==1 and s.count('->galleryClosed(')==1
+          assert s.count('->galleryMotion(')==1
+          pattern=r'(\.method private videoPositionMs\(\)I\n    \.locals \d+\n)'
+          hook='\n    invoke-static/range {p0 .. p0}, Lcom/juhyeon/familyjournea/MoaRemoteTimeline731;->galleryMetrics(Ljava/lang/Object;)V\n'
+          s,n=re.subn(pattern,lambda m:m.group(0)+hook,s)
+          assert n==1 and s.replace(hook,'')==old
+          p.write_text(s)
+          Path('/tmp/moa741/out/gallery-hook-test.txt').write_text('PASS: only one decoder metrics hook added; original native UI, gestures and playback retained. Device parity pending.\n')
+          PY
+          java -cp /tmp/apktool.jar:/tmp Assemble /tmp/moa741/smali/gallery /tmp/moa741/out/classes6.dex
+          sha256sum /tmp/moa741/out/classes6.dex
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r741-compiled-dex-and-qa
+          path: /tmp/moa741/out/
