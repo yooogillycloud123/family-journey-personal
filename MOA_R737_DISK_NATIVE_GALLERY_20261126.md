@@ -5,3 +5,6 @@
 - Android CI 45781570815 SUCCESS; 실제 JVM source original byte equality, cache reuse/LRU bounds, peer isolation, revocation, failed range and cancelled speculative transfer retry, 기존 range tests, mixed catalog 및 smali hook diff PASS. Android 기기 자체 설치/원격 재생·스와이프·4K/HDR 실제 속도와 화질 동등성은 미검증. Wi-Fi/codec 조건에 따라 차이 가능. 전체 원본을 무제한 자동 복제하지 않음.
 - APK R737 SHA256 77042f91673af9625de510f5408032f6a2b280e9fcada6272a849b3f3917a802 10745192 bytes Git blob 5efc381228e57a9d1f0f4df52f29cc161b295363; signer 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15. R738 exact R735 복구 SHA256 184649cccf59da2c728b6bfcb385df3ec7f53fa84c5c403f01613f01a84e2d46; 자동 배포 금지. 다음 >=739.
 - Library /에어팟안드로이드/MOA_R737_R738_20261126/, branch feature/moa-r737-disk-native-gallery-20261126. 실제 인앱 채널 및 외부 검증 별도 확인. R707 Golden 불변, 실기기 동등성 Gate 유지.
+
+- 배포 CI 45781739608 SUCCESS, 외부 검증 CI 45781815548 SUCCESS. 2026-11-26 17:16:53 KST 기존 URL/nonce/immutable HTTP 200 R737; 전체 APK 10745192 bytes SHA256 일치. https://github.com/yooogillycloud123/family-journey-personal/blob/moa-update-channel/android/verification/r737-public-endpoint.json
+- 실기기 설치/동기화/갤러리 성능 PENDING. R737 베타이며 Golden 승격 금지.
