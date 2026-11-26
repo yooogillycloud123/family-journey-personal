@@ -13,3 +13,7 @@
 - APK R735 SHA256 1a55379b9976f71accd17210e807f8a6062574b1e4435181f7c9506a6127ea86, 10733092 bytes, git blob ba693f27d2468d7582b6137dfc30e9e593839750. R733 대비 AndroidManifest.xml/classes24.dex만 변경, 나머지 178개 entry/25 DEX 동일, 기존 signer 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15. R736 exact-R733 기능 복구 SHA256 a9e827902fbf925616f59c8755e69743419ad54e47835a6a25ad5f8b86755182 (version manifest만 변경) 자동 배포 제외. 다음 후보 >=737.
 - 소스 feature/moa-r735-buffered-native-gallery-20261126, Library /에어팟안드로이드/MOA_R735_R736_20261126/. 배포 gate/실제 CDN 검증 별도 기록.
 - 실기기: 양쪽 R735 설치, 기존 허브/QR 등록 유지, 태블릿 원격 달력 갱신 후 같은 날짜/같은 원본을 기존 사진형·상세형 갤러리에서 열고 연속 스와이프, 확대, 영상 탐색, 가로세로, 음량, 장시간 비교. 설치 팝업/원격 목록 상태도 확인. 앱 데이터 초기화 불필요.
+
+## 실제 배포 검증
+- CI 45776086245 SUCCESS, latest.json R735 published=true. 외부 검증 CI 45776161640 SUCCESS, 2026-11-26 16:33:14 KST 기존 URL/nonce/immutable HTTP 200 R735, 전체 APK 다운로드 10733092 bytes SHA256 일치. https://github.com/yooogillycloud123/family-journey-personal/blob/moa-update-channel/android/verification/r735-public-endpoint.json
+- 실제 사용자 기기 설치·동기화·동일 갤러리 품질 및 성능은 PENDING. 골든 승격 아님.
