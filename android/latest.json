@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 727,
-  "bytes": 10697156,
-  "sha256": "133e53c10a6009518349d4dde79467e195444166e8ec9c462e78338415ac80bc",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r727.apk",
+  "versionCode": 729,
+  "bytes": 10697484,
+  "sha256": "4e9ce60ccaa4fd884729588ee5cacca945358390be7f2edcdbfeec2b7d0f1070",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r729.apk",
   "published": true,
-  "notes": "R727 베타: TLS 허브 자체 연결 및 인증키 호환 개선, QR 연결 이전 실패 수정. 실기기 미검증. 기존 데이터 유지."
+  "notes": "R729 베타: 설정 기기 동기화 메뉴 자동 복구 및 QR 등록 진입 개선. 실기기 미검증. 기존 기록 유지."
 }
