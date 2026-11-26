@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 745,
-  "bytes": 10764536,
-  "sha256": "6e9a8b924553c638e2461350b20c19ffa84de11dbe66204f6124921192f1ae31",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r745.apk",
+  "versionCode": 747,
+  "bytes": 10773404,
+  "sha256": "451e240d713ceacfbcb8ceb4157be7083ddea85e7f3898e49f94dc4b6040eaac",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r747.apk",
   "published": true,
-  "notes": "R745 베타: 네이티브 갤러리 전체 파일 열기 규격 복원, R743 달력 썸네일 및 원본 사진 수정 보존. 실기기 재확인 필요."
+  "notes": "R747 베타: 선택 사진 원본 우선 디코딩 및 실제 화면 반영 경로 수정. 기존 달력·영상 유지. 실기기 화질 미검증."
 }
