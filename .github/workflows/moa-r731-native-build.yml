@@ -1,0 +1,72 @@
+name: MOA R731 compile isolated remote native adapter
+on:
+  push:
+    branches: [feature/moa-r731-remote-native-timeline-20261126]
+    paths: ['.github/workflows/moa-r731-native-build.yml','experiments/moa-r731/*.java','experiments/moa-r731/patch_native.py']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Android SDK35 and patch exact R729 DEX
+        shell: bash
+        run: |
+          set -euxo pipefail
+          apk=android/releases/moa-r729.apk
+          echo '4e9ce60ccaa4fd884729588ee5cacca945358390be7f2edcdbfeec2b7d0f1070  android/releases/moa-r729.apk' | sha256sum -c -
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          android="$sdk/platforms/android-35/android.jar"
+          test -f "$android"
+          bt="$(find "$sdk/build-tools" -name d8 | sort -V | tail -1)"
+          mkdir -p /tmp/moa731/classes /tmp/moa731/dex /tmp/moa731/smali /tmp/moa731/out
+          javac --release 8 -encoding UTF-8 -cp "$android" -d /tmp/moa731/classes experiments/moa-r731/MoaRemoteTimeline731.java experiments/moa-r731/MoaUpdate731.java
+          find /tmp/moa731/classes -name '*.class' -print0 | xargs -0 "$bt" --min-api 29 --lib "$android" --output /tmp/moa731/dex
+          curl -fsSL --retry 2 https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar -o /tmp/apktool.jar
+          cat >/tmp/Disassemble.java <<'JAVA'
+          import java.io.*;import java.nio.file.*;
+          import com.android.tools.smali.dexlib2.Opcodes;
+          import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile;
+          import com.android.tools.smali.baksmali.Baksmali;
+          import com.android.tools.smali.baksmali.BaksmaliOptions;
+          public class Disassemble{public static void main(String[] args)throws Exception{BaksmaliOptions o=new BaksmaliOptions();o.localsDirective=true;Baksmali.disassembleDexFile(new DexBackedDexFile(new Opcodes(26,-1),Files.readAllBytes(Paths.get(args[0])),0),new File(args[1]),2,o);}}
+          JAVA
+          cat >/tmp/Assemble.java <<'JAVA'
+          import brut.androlib.src.SmaliBuilder;
+          import com.android.tools.smali.dexlib2.Opcodes;
+          import com.android.tools.smali.dexlib2.writer.builder.DexBuilder;
+          import com.android.tools.smali.dexlib2.writer.io.FileDataStore;
+          import java.io.*;import java.nio.file.*;
+          public class Assemble {public static void main(String[] args)throws Exception{File root=new File(args[0]);SmaliBuilder b=new SmaliBuilder(root,26);DexBuilder dex=new DexBuilder(new Opcodes(26,-1));try(java.util.stream.Stream<Path> st=Files.walk(root.toPath())){for(Path p:(Iterable<Path>)st.filter(x->x.toString().endsWith(".smali")).sorted()::iterator)b.buildFile(root.toPath().relativize(p).toString(),dex);}dex.writeTo(new FileDataStore(new File(args[1])));}}
+          JAVA
+          javac -cp /tmp/apktool.jar /tmp/Disassemble.java /tmp/Assemble.java
+          for n in 6 20 22 24; do
+            unzip -p "$apk" classes$n.dex > /tmp/moa731/classes$n.dex
+            java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/moa731/classes$n.dex /tmp/moa731/smali/$n
+          done
+          python experiments/moa-r731/patch_native.py /tmp/moa731/smali
+          java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/moa731/dex/classes.dex /tmp/moa731/smali/helper
+          cp -rn /tmp/moa731/smali/helper/. /tmp/moa731/smali/24/
+          for n in 6 20 22 24; do
+            java -cp /tmp/apktool.jar:/tmp Assemble /tmp/moa731/smali/$n /tmp/moa731/out/classes$n.dex
+          done
+          sha256sum /tmp/moa731/out/*
+          mkdir -p experiments/moa-r731/build
+          python - <<'PY'
+          import hashlib,base64,json,pathlib
+          p=pathlib.Path('experiments/moa-r731/build')
+          for f in pathlib.Path('/tmp/moa731/out').glob('*.dex'):
+              b=f.read_bytes()
+              (p/(f.name+'.b64')).write_text(base64.b64encode(b).decode())
+          (p/'compile.json').write_text(json.dumps({'status':'COMPILED_NOT_SIGNED_NOT_DEVICE_TESTED','dex':{f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in pathlib.Path('/tmp/moa731/out').glob('*.dex')}},indent=2))
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add experiments/moa-r731/build
+          git commit -m 'R731 Android DEX compile outputs; not release'
+          git push origin HEAD:feature/moa-r731-remote-native-timeline-20261126
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r731-native-compiled-dex
+          path: /tmp/moa731/out/
