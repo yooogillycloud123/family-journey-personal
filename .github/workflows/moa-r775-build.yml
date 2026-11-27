@@ -1,0 +1,52 @@
+name: MOA R775 compact learning UX SDK compile
+on:
+  push:
+    branches: [feature/moa-r775-learning-ux-20261128]
+    paths: ['.github/workflows/moa-r775-build.yml','experiments/moa-r775/**']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact sources and compile SDK35
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/r771/{source,classes,dex,out}
+          cat experiments/moa-r771/native-{0,1,2,3,4}.b64 | base64 -d >/tmp/r771/native.zip
+          echo '0d60428ed4758a23ed4fdb05daa3e31094562808151db4f98fe7d94405ef87c2  /tmp/r771/native.zip' | sha256sum -c -
+          unzip -q /tmp/r771/native.zip -d /tmp/r771/source
+          cat experiments/moa-r771/web-{0..13}.b64 | base64 -d >/tmp/r771/web.zip
+          echo 'e79096bd476620a6bc064ab0547c455cad062a1cdc537250f3b9e5bd673be275  /tmp/r771/web.zip' | sha256sum -c -
+          unzip -q /tmp/r771/web.zip -d /tmp/r771/out
+          echo '9cf61830896f2006752826875fc7f84c9f0e9db32ef4f5638700bbaa7647755c  /tmp/r771/out/family-diary.js' | sha256sum -c -
+          echo '1733f8f2f481d03deaa43a759b5f66353d6c566c9785fdbd8218a43c9029ba5d  /tmp/r771/out/moa-r697-vertical-calendar.js' | sha256sum -c -
+          echo '3eb892d9c0dc0fa66d242457af446685551c1685878b3dd3e5ee52b32a57de76  /tmp/r771/out/moa-r755-inline-ai.js' | sha256sum -c -
+          mkdir -p /tmp/r773/changed
+          base64 -d experiments/moa-r773/changed.b64 >/tmp/r773/changed.zip
+          echo '37656d2bd2344ba529de44ed08595e51c0e6dfe795794fd889e6f2aed9a63f6b  /tmp/r773/changed.zip' | sha256sum -c -
+          unzip -q /tmp/r773/changed.zip -d /tmp/r773/changed
+          cp /tmp/r773/changed/native/*.java /tmp/r771/source/
+          cp /tmp/r773/changed/assets/web/moa-r755-inline-ai.js /tmp/r771/out/
+          mkdir -p /tmp/r775/changed
+          base64 -d experiments/moa-r775/changed.b64 >/tmp/r775/changed.zip
+          echo 'ed8301352c6802b7a66ba1051a97c70676ed754046b85650df5f5d2490406210  /tmp/r775/changed.zip' | sha256sum -c -
+          unzip -q /tmp/r775/changed.zip -d /tmp/r775/changed
+          cp /tmp/r775/changed/native/*.java /tmp/r771/source/
+          cp /tmp/r775/changed/assets/web/moa-r755-inline-ai.js /tmp/r771/out/
+          for js in /tmp/r771/out/*.js; do node --check "$js"; done
+          sdk="$ANDROID_HOME"
+          android="$sdk/platforms/android-35/android.jar"
+          d8="$(find "$sdk/build-tools" -name d8 | sort -V | tail -1)"
+          javac --release 8 -encoding UTF-8 -cp "$android" -d /tmp/r771/classes /tmp/r771/source/*.java
+          find /tmp/r771/classes -name '*.class' -print0 | xargs -0 "$d8" --min-api 29 --lib "$android" --output /tmp/r771/dex
+          cp /tmp/r771/dex/classes.dex /tmp/r771/out/classes27.dex
+          (cd /tmp/r771/out && sha256sum classes27.dex *.js >SHA256SUMS.txt)
+          echo 'SDK35 compile and JS syntax; physical uniform toolbar/inline translation/word actions/discovery/TTS PENDING; not signed or published' > /tmp/r771/out/status.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r775-learning-ux-dex-qa
+          path: /tmp/r771/out/
