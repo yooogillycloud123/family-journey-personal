@@ -1,0 +1,33 @@
+name: MOA R763 inline diary AI compile
+on:
+  push:
+    branches: [feature/moa-r763-inline-playback-20261127]
+    paths: ['.github/workflows/moa-r763-build.yml','experiments/moa-r763/**']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile isolated inline controller
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/r763/{source,classes,dex,out}
+          base64 -d experiments/moa-r763/native-source.b64 >/tmp/r763/source.zip
+          echo '6ce0d59078f406328244cd36fde3bf2a3ab491a0641b61e98cfbf248625feede  /tmp/r763/source.zip' | sha256sum -c -
+          unzip -q /tmp/r763/source.zip -d /tmp/r763/source
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          android="$sdk/platforms/android-35/android.jar"
+          d8="$(find "$sdk/build-tools" -name d8 | sort -V | tail -1)"
+          javac --release 8 -encoding UTF-8 -cp "$android" -d /tmp/r763/classes /tmp/r763/source/*.java
+          find /tmp/r763/classes -name '*.class' -print0 | xargs -0 "$d8" --min-api 29 --lib "$android" --output /tmp/r763/dex
+          cp /tmp/r763/dex/classes.dex /tmp/r763/out/classes27.dex
+          sha256sum /tmp/r763/out/classes27.dex
+          echo 'SDK35 javac + D8 compile PASS; physical account and media analysis NOT VERIFIED' > /tmp/r763/out/status.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r763-native-dex-qa
+          path: /tmp/r763/out/
