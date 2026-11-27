@@ -63,12 +63,7 @@ jobs:
               m=re.search(r'(?ms)^\.method [^\n]* '+re.escape(sig)+r'\n.*?^\.end method',s)
               assert m,sig
               b=m.group()
-              loc=re.search(r'(?m)^    \.locals (\d+)          echo 'SDK35 javac + D8 compile PASS; physical account and media analysis NOT VERIFIED' > /tmp/r761/out/status.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: moa-r761-native-dex-qa
-          path: /tmp/r761/out/
-,b)
+              loc=re.search(r'(?m)^    \.locals (\d+)$',b)
               assert loc
               n=int(loc.group(1))
               assert n>=1 and n<12,(sig,n)
@@ -78,12 +73,7 @@ jobs:
           inject('onPause()V','    const/4 v0, 0x0\n    iput-boolean v0, p0, '+field+'\n')
           for name in ('play','togglePlayback'):
               inject(name+'(Ljava/lang/String;Ljava/lang/String;)V','    iget-boolean v0, p0, '+field+'\n    if-nez v0, :moa761_foreground\n    return-void\n    :moa761_foreground\n')
-          assert not re.search(r'(?m)^\.method .* onStop\(\)V          echo 'SDK35 javac + D8 compile PASS; physical account and media analysis NOT VERIFIED' > /tmp/r761/out/status.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: moa-r761-native-dex-qa
-          path: /tmp/r761/out/
-,s)
+          assert not re.search(r'(?m)^\.method .* onStop\(\)V$',s)
           pos=s.index('\n.method ')
           s=s[:pos]+'\n.field private moa761Foreground:Z\n'+s[pos:]
           s+='\n.method protected onStop()V\n    .locals 1\n    const/4 v0, 0x0\n    iput-boolean v0, p0, '+field+'\n    invoke-virtual {p0}, '+cls+'->r217StopPlayback()V\n    invoke-super {p0}, Lcom/juhyeon/familyjourney/MoaMomentVoiceHostActivity;->onStop()V\n    return-void\n.end method\n'
