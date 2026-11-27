@@ -1,0 +1,108 @@
+name: MOA R753 verified Plus learning native beta publication
+on:
+  push:
+    branches: [moa-update-channel]
+    paths: ['.github/workflows/moa-publish-r753.yml']
+permissions:
+  contents: write
+concurrency:
+  group: moa-update-channel
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct exact signed APK and verify original signer and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64,hashlib,struct,zlib,pathlib,json,zipfile
+          p=pathlib.Path('android/releases')
+          base=(p/'moa-r749.apk').read_bytes()
+          assert hashlib.sha256(base).hexdigest()=='3c1cab5a74d3896a71a7b8e41bf7c5e6d3d3833a73a10ddbb39c77803ec6c835'
+          d=zlib.decompress(base64.b64decode(''.join(pathlib.Path(f'android/staging/r753/delta{i}.b64').read_text() for i in range(3)),validate=True))
+          assert len(d)==171088
+          i=0;out=bytearray()
+          while i<len(d):
+              op=d[i];i+=1
+              if op==0:
+                  s,n=struct.unpack_from('<II',d,i);i+=8
+                  assert s+n<=len(base)
+                  out.extend(base[s:s+n])
+              elif op==1:
+                  n=struct.unpack_from('<I',d,i)[0];i+=4
+                  assert i+n<=len(d)
+                  out.extend(d[i:i+n]);i+=n
+              else:raise ValueError(op)
+          assert len(out)==10856340 and hashlib.sha256(out).hexdigest()=='a397babf3bcfb89da8029d60e18338d16fbaa3795aa229461d86ad28e5cbc52a'
+          f=p/'moa-r753.apk';f.write_bytes(out)
+          with zipfile.ZipFile(p/'moa-r749.apk') as old,zipfile.ZipFile(f) as new:
+              assert new.testzip() is None
+              assert set(new.namelist())-set(old.namelist())=={'classes27.dex','assets/ai.html','assets/web/moa-r751-studio.js'}
+              assert set(old.namelist())<=set(new.namelist())
+              assert {n for n in old.namelist() if old.read(n)!=new.read(n)}=={'AndroidManifest.xml','assets/web/index.html','classes22.dex'}
+              for n in new.namelist():
+                  if n.endswith('.dex'):
+                      b=new.read(n);assert b[:4]==b'dex\n' and hashlib.sha1(b[32:]).digest()==b[12:32] and zlib.adler32(b[12:])&0xffffffff==struct.unpack_from('<I',b,8)[0]
+          assert json.loads(pathlib.Path('android/latest.json').read_text())['versionCode']==749
+          PY
+          test "$(git hash-object android/releases/moa-r753.apk)" = 0cf8acb009ba0bb3dfa4c20be9e37940dd300ad4
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BT="$(find "$SDK/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 android/releases/moa-r753.apk | tee /tmp/moa-cert
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/moa-cert
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/moa-cert
+          "$BT/aapt2" dump badging android/releases/moa-r753.apk > /tmp/moa-badging
+          grep -F "package: name='com.juhyeon.familyjournea' versionCode='753'" /tmp/moa-badging
+          "$BT/aapt2" dump xmltree --file AndroidManifest.xml android/releases/moa-r753.apk > /tmp/moa-manifest
+          grep -F 'com.juhyeon.familyjournea.ai.MoaAiActivity' /tmp/moa-manifest
+          grep -F 'android.intent.action.TTS_SERVICE' /tmp/moa-manifest
+          "$BT/zipalign" -c 4 android/releases/moa-r753.apk
+          python - <<'PY'
+          import json,pathlib
+          j={'packageName':'com.juhyeon.familyjournea','signerSha256':'5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15','versionCode':753,'bytes':10856340,'sha256':'a397babf3bcfb89da8029d60e18338d16fbaa3795aa229461d86ad28e5cbc52a','apkUrl':'https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r753.apk','published':True,'notes':'R753 베타: 기록 탭 모아 스튜디오, ChatGPT Plus 공식 계정 연동 시도, 교재 학습함, 영어·한글 기기 발음, 속도·반복·전체 듣기, 받아쓰기, 오프라인 음성인식 및 녹음 비교. 계정 연결·실기기 미검증. 기존 기록·동기화 유지.'}
+          pathlib.Path('android/latest.json').write_text(json.dumps(j,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Atomically activate exact verified APK and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r android/staging/r753
+          git add android/latest.json android/releases/moa-r753.apk
+          git commit -m 'Publish exact original-signed MOA R753 Plus learning native beta'
+          git push origin HEAD:moa-update-channel
+      - name: Verify actual public URLs and APK download
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p android/verification
+          python - <<'PY'
+          import json,urllib.request,time,hashlib,subprocess,pathlib
+          root='https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/'
+          base=root+'moa-update-channel/android/latest.json'
+          expected=json.loads(pathlib.Path('android/latest.json').read_text())
+          out={}
+          for attempt in range(13):
+              out={}
+              for label,url in [('exact',base),('nonce',base+'?moa_check='+str(time.time_ns())),('immutable',root+subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()+'/android/latest.json')]:
+                  try:
+                      with urllib.request.urlopen(url,timeout=15) as r:
+                          j=json.load(r);out[label]={'status':r.status,'versionCode':j.get('versionCode'),'matches':j==expected,'headers':{k:v for k,v in r.headers.items() if k.lower() in ('age','cache-control','x-cache','date','etag','x-served-by')}}
+                  except Exception as e:out[label]={'error':str(e)}
+              if all(x.get('matches') for x in out.values()):break
+              if attempt<12:time.sleep(25)
+          with urllib.request.urlopen(expected['apkUrl'],timeout=30) as r:
+              b=r.read(12000000);out['apk']={'status':r.status,'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest()}
+          assert all(out[k].get('matches') for k in ('exact','nonce','immutable')),out
+          assert out['apk']['bytes']==expected['bytes'] and out['apk']['sha256']==expected['sha256'],out
+          pathlib.Path('android/verification/r753-public-endpoint.json').write_text(json.dumps(out,indent=2)+'\n')
+          print(json.dumps(out,indent=2))
+          PY
+          git add android/verification/r753-public-endpoint.json
+          git commit -m 'Record R753 verified actual public update endpoint'
+          git push origin HEAD:moa-update-channel
