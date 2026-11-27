@@ -1,0 +1,51 @@
+name: R759 response wire host regression
+on:
+  push:
+    branches: [feature/moa-r759-real-response-media-20261127]
+    paths: ['.github/workflows/moa-r759-wire-test.yml']
+permissions:
+  contents: read
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute real Java decoder against SSE, JSON and error fixtures
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/wire/src /tmp/wire/classes
+          base64 -d experiments/moa-r759/native-source.b64 >/tmp/wire/src.zip
+          unzip -q /tmp/wire/src.zip -d /tmp/wire/src
+          curl -fsSL --retry 2 https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar -o /tmp/wire/json.jar
+          cat >/tmp/wire/src/Test.java <<'JAVA'
+          package com.juhyeon.familyjournea.ai;
+          import java.io.*;import java.nio.charset.StandardCharsets;
+          public class Test {
+            static String r(String body,String mime)throws Exception{return MoaResponse759.read(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)),mime,()->{});}
+            static void ok(String b,String m,String e)throws Exception{if(!r(b,m).equals(e))throw new AssertionError();}
+            static void fail(String b,String m)throws Exception{try{r(b,m);}catch(Exception e){return;}throw new AssertionError("invalid response accepted");}
+            public static void main(String[] args)throws Exception{
+              String completed="{\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"MOA_OK\"}]}]}";
+              String event="data: {\"type\":\"response.completed\",\"response\":"+completed+"}\n\n";
+              String delta="data: {\"type\":\"response.output_text.delta\",\"delta\":\"MOA_OK\"}\n\n";
+              ok(event,"text/event-stream","MOA_OK");
+              ok(delta+event,"application/json","MOA_OK");
+              ok(completed,"application/json; charset=utf-8","MOA_OK");
+              ok(completed,"text/plain","MOA_OK");
+              ok(":ping\n\nevent: response.completed\n"+event,null,"MOA_OK");
+              ok(delta+"data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}","text/event-stream","MOA_OK");
+              fail(delta,"text/event-stream");
+              fail("{\"error\":{\"code\":\"rate_limit\"}}","application/json");
+              fail("<html>login</html>","text/html");
+              fail("{\"status\":\"failed\",\"output_text\":\"MOA_OK\"}","application/json");
+              fail("{\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"refusal\",\"refusal\":\"No\"}]}]}","application/json");
+              fail("data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"code\":\"failed\"}}}\n\n","text/event-stream");
+              fail("","text/event-stream");
+              System.out.println("13/13 real Java parser fixture tests PASS; not live OpenAI or Android physical");
+            }
+          }
+          JAVA
+          javac --release 8 -cp /tmp/wire/json.jar -d /tmp/wire/classes /tmp/wire/src/MoaResponse759.java /tmp/wire/src/Test.java
+          java -cp /tmp/wire/classes:/tmp/wire/json.jar com.juhyeon.familyjournea.ai.Test
