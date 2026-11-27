@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 767,
-  "bytes": 10914408,
-  "sha256": "72d60d53bbf19eb9cf6fb714770c7937127d7dc21657447ae16ba90b1122283a",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r767.apk",
+  "versionCode": 769,
+  "bytes": 10948072,
+  "sha256": "f83c457717bb6c1f4216868041f8f001311662946f0480d977e2c9758a162ca4",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r769.apk",
   "published": true,
-  "notes": "R767 베타: 읽기·독해와 생활 회화, 질문 탭 재생·일시정지·재개, 기기 내 말하기 인식, 누적 단어장, 미디어 미리보기, YouGlish 브라우저 탭, 7개 과목과 선택형 촬영 위치 확인. R759 골든 보존. 실기기 검증 대기."
+  "notes": "R769 베타: 확대 원본 갤러리 상단 배움 및 학습 패널, 회화 한 문답 UI, 중복 미리보기 제거, 영어 모델 다운로드 및 동의 기반 기본 음성 인식 선택, 앱 내부 YouGlish 공개 웹 화면. R759 골든 보존. 실기기 검증 대기."
 }
