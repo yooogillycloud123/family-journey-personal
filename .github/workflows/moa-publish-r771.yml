@@ -1,0 +1,112 @@
+name: MOA R771 verified Plus learning native beta publication
+on:
+  push:
+    branches: [moa-update-channel]
+    paths: ['.github/workflows/moa-publish-r771.yml']
+permissions:
+  contents: write
+concurrency:
+  group: moa-update-channel
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct exact signed APK and verify original signer and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64,hashlib,struct,zlib,pathlib,json,zipfile
+          p=pathlib.Path('android/releases')
+          base=(p/'moa-r769.apk').read_bytes()
+          assert hashlib.sha256(base).hexdigest()=='f83c457717bb6c1f4216868041f8f001311662946f0480d977e2c9758a162ca4'
+          d=zlib.decompress(base64.b64decode(''.join(pathlib.Path(f'android/staging/r771/delta{i}.b64').read_text() for i in range(13)),validate=True))
+          assert len(d)==173558 and hashlib.sha256(d).hexdigest()=='a2f089f71b769867ad8e93bac9b95b5c058d54f03f5d4b07c1e84299a98ca6c7'
+          i=0;out=bytearray()
+          while i<len(d):
+              op=d[i];i+=1
+              if op==0:
+                  s,n=struct.unpack_from('<II',d,i);i+=8
+                  assert s+n<=len(base)
+                  out.extend(base[s:s+n])
+              elif op==1:
+                  n=struct.unpack_from('<I',d,i)[0];i+=4
+                  assert i+n<=len(d)
+                  out.extend(d[i:i+n]);i+=n
+              else:raise ValueError(op)
+          assert len(out)==10964905 and hashlib.sha256(out).hexdigest()=='2c045980073c93e08cdc8f09f41f2d749a54d1767f4f59884ec773bf7cc3c92d'
+          f=p/'moa-r771.apk';f.write_bytes(out)
+          with zipfile.ZipFile(p/'moa-r769.apk') as old,zipfile.ZipFile(f) as new:
+              assert new.testzip() is None
+              assert hashlib.sha256(new.read('assets/web/family-diary.js')).hexdigest()=='9cf61830896f2006752826875fc7f84c9f0e9db32ef4f5638700bbaa7647755c'
+              assert hashlib.sha256(new.read('classes27.dex')).hexdigest()=='4ad8ae00e40907ad26a129fb34b0402960c7da33c7a8286f9b5de2ed0023ab84'
+              assert hashlib.sha256(new.read('assets/web/moa-r755-inline-ai.js')).hexdigest()=='3eb892d9c0dc0fa66d242457af446685551c1685878b3dd3e5ee52b32a57de76'
+              assert hashlib.sha256(new.read('assets/web/moa-r697-vertical-calendar.js')).hexdigest()=='1733f8f2f481d03deaa43a759b5f66353d6c566c9785fdbd8218a43c9029ba5d'
+              assert set(new.namelist())==set(old.namelist())
+              assert {n for n in old.namelist() if old.read(n)!=new.read(n)}=={'AndroidManifest.xml','classes27.dex','assets/web/moa-r755-inline-ai.js','assets/web/moa-r697-vertical-calendar.js','assets/web/family-diary.js'}
+              for n in new.namelist():
+                  if n.endswith('.dex'):
+                      b=new.read(n);assert b[:4]==b'dex\n' and hashlib.sha1(b[32:]).digest()==b[12:32] and zlib.adler32(b[12:])&0xffffffff==struct.unpack_from('<I',b,8)[0]
+              assert b'<script src="moa-r751-studio.js"></script>' not in new.read('assets/web/index.html')
+          assert json.loads(pathlib.Path('android/latest.json').read_text())['versionCode']==769
+          PY
+          test "$(git hash-object android/releases/moa-r771.apk)" = b7ca9201325ba0777a5c8699a8f93a260bec9d76
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BT="$(find "$SDK/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 android/releases/moa-r771.apk | tee /tmp/moa-cert
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/moa-cert
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/moa-cert
+          "$BT/aapt2" dump badging android/releases/moa-r771.apk > /tmp/moa-badging
+          grep -F "package: name='com.juhyeon.familyjournea' versionCode='771'" /tmp/moa-badging
+          "$BT/aapt2" dump xmltree --file AndroidManifest.xml android/releases/moa-r771.apk > /tmp/moa-manifest
+          grep -F 'com.juhyeon.familyjournea.ai.MoaAiActivity' /tmp/moa-manifest
+          grep -F 'android.intent.action.TTS_SERVICE' /tmp/moa-manifest
+          "$BT/zipalign" -c 4 android/releases/moa-r771.apk
+          python - <<'PY'
+          import json,pathlib
+          j={'packageName':'com.juhyeon.familyjournea','signerSha256':'5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15','versionCode':771,'bytes':10964905,'sha256':'2c045980073c93e08cdc8f09f41f2d749a54d1767f4f59884ec773bf7cc3c92d','apkUrl':'https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r771.apk','published':True,'notes':'R771 베타: 신규 미디어 7과목 자동 생성 설정 및 대기열, 모델·음성 설정 보존, 기존 확대 갤러리 공간 분할·하단 배움 심볼·단어 재생 범위 및 탐색. R759 골든 보존. 실기기 검증 대기.'}
+          pathlib.Path('android/latest.json').write_text(json.dumps(j,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Atomically activate exact verified APK and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r android/staging/r771
+          git add android/latest.json android/releases/moa-r771.apk
+          git commit -m 'Publish exact original-signed MOA R771 Plus learning native beta'
+          git push origin HEAD:moa-update-channel
+      - name: Verify actual public URLs and APK download
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p android/verification
+          python - <<'PY'
+          import json,urllib.request,time,hashlib,subprocess,pathlib
+          root='https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/'
+          base=root+'moa-update-channel/android/latest.json'
+          expected=json.loads(pathlib.Path('android/latest.json').read_text())
+          out={}
+          for attempt in range(13):
+              out={}
+              for label,url in [('exact',base),('nonce',base+'?moa_check='+str(time.time_ns())),('immutable',root+subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()+'/android/latest.json')]:
+                  try:
+                      with urllib.request.urlopen(url,timeout=15) as r:
+                          j=json.load(r);out[label]={'status':r.status,'versionCode':j.get('versionCode'),'matches':j==expected,'headers':{k:v for k,v in r.headers.items() if k.lower() in ('age','cache-control','x-cache','date','etag','x-served-by')}}
+                  except Exception as e:out[label]={'error':str(e)}
+              if all(x.get('matches') for x in out.values()):break
+              if attempt<12:time.sleep(25)
+          with urllib.request.urlopen(expected['apkUrl'],timeout=30) as r:
+              b=r.read(12000000);out['apk']={'status':r.status,'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest()}
+          assert all(out[k].get('matches') for k in ('exact','nonce','immutable')),out
+          assert out['apk']['bytes']==expected['bytes'] and out['apk']['sha256']==expected['sha256'],out
+          pathlib.Path('android/verification/r771-public-endpoint.json').write_text(json.dumps(out,indent=2)+'\n')
+          print(json.dumps(out,indent=2))
+          PY
+          git add android/verification/r771-public-endpoint.json
+          git commit -m 'Record R771 verified actual public update endpoint'
+          git push origin HEAD:moa-update-channel
