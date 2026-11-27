@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 759,
-  "bytes": 10888258,
-  "sha256": "86174f8ed89622196ce446c6e9cfd42e1087b6dae8f165f4ca45d865ed5b2d44",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r759.apk",
+  "versionCode": 761,
+  "bytes": 10903760,
+  "sha256": "6a03b42bef22113da1b2c7daa322b8fb3a5bebfd5c2953fbe21274de8a8d2acb",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r761.apk",
   "published": true,
-  "notes": "R759 베타: 실제 AI 응답 검증, SSE 및 완료 JSON 처리, 영상 키프레임/FD/대표 썸네일 읽기, 일기 내 카드. 계정 실제 응답 및 영상 물리 검증 대기."
+  "notes": "R761 베타: 상세 영어·한글 이야기, 접기/펼치기, 컴팩트 읽기 진행 재생바, 일시정지·이어듣기·다시듣기·정지, TTS 범위 강조, 앱 백그라운드 음성 중지 개선. R759 골든 보존. 실기기 검증 대기."
 }
