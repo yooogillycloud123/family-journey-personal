@@ -1,0 +1,86 @@
+name: MOA R753 native AI and study SDK compile
+on:
+  push:
+    branches: [feature/moa-r753-plus-learning-native-20261127]
+    paths: ['.github/workflows/moa-r753-build.yml','experiments/moa-r753/**']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile isolated activity and preserve existing command methods
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/r753/{source,classes,dex,smali,check,out}
+          base64 -d experiments/moa-r753/source.b64 >/tmp/r753/source.zip
+          echo 'ebd79fcecd464486fdbbab953ef2eb91fb2d5f143f038ae8e2d08f3e08c69ac0  /tmp/r753/source.zip' | sha256sum -c -
+          unzip -q /tmp/r753/source.zip -d /tmp/r753/source
+          apk=android/releases/moa-r749.apk
+          echo '3c1cab5a74d3896a71a7b8e41bf7c5e6d3d3833a73a10ddbb39c77803ec6c835  android/releases/moa-r749.apk' | sha256sum -c -
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          android="$sdk/platforms/android-35/android.jar"
+          d8="$(find "$sdk/build-tools" -name d8 | sort -V | tail -1)"
+          javac --release 8 -encoding UTF-8 -cp "$android" -d /tmp/r753/classes /tmp/r753/source/*.java
+          find /tmp/r753/classes -name '*.class' -print0 | xargs -0 "$d8" --min-api 29 --lib "$android" --output /tmp/r753/dex
+          test -f /tmp/r753/dex/classes.dex
+          cp /tmp/r753/dex/classes.dex /tmp/r753/out/classes27.dex
+          curl -fsSL --retry 2 https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar -o /tmp/apktool.jar
+          cat >/tmp/Disassemble.java <<'JAVA'
+          import java.io.*;import java.nio.file.*;
+          import com.android.tools.smali.dexlib2.Opcodes;
+          import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile;
+          import com.android.tools.smali.baksmali.Baksmali;
+          import com.android.tools.smali.baksmali.BaksmaliOptions;
+          public class Disassemble{public static void main(String[] args)throws Exception{BaksmaliOptions o=new BaksmaliOptions();o.localsDirective=true;Baksmali.disassembleDexFile(new DexBackedDexFile(new Opcodes(26,-1),Files.readAllBytes(Paths.get(args[0])),0),new File(args[1]),2,o);}}
+          JAVA
+          cat >/tmp/Assemble.java <<'JAVA'
+          import brut.androlib.src.SmaliBuilder;
+          import com.android.tools.smali.dexlib2.Opcodes;
+          import com.android.tools.smali.dexlib2.writer.builder.DexBuilder;
+          import com.android.tools.smali.dexlib2.writer.io.FileDataStore;
+          import java.io.*;import java.nio.file.*;
+          public class Assemble{public static void main(String[] args)throws Exception{File root=new File(args[0]);SmaliBuilder b=new SmaliBuilder(root,26);DexBuilder dex=new DexBuilder(new Opcodes(26,-1));try(java.util.stream.Stream<Path> st=Files.walk(root.toPath())){for(Path p:(Iterable<Path>)st.filter(x->x.toString().endsWith(".smali")).sorted()::iterator)b.buildFile(root.toPath().relativize(p).toString(),dex);}dex.writeTo(new FileDataStore(new File(args[1])));}}
+          JAVA
+          javac -cp /tmp/apktool.jar /tmp/Disassemble.java /tmp/Assemble.java
+          unzip -p "$apk" classes22.dex > /tmp/r753/base.dex
+          java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/r753/base.dex /tmp/r753/smali
+          python - <<'PY'
+          from pathlib import Path
+          import re,hashlib,json
+          root=Path('/tmp/r753/smali')
+          p=next(root.rglob('MoaPeerProvider.smali'))
+          old=p.read_text()
+          m=re.search(r'(?ms)^\.method [^\n]* command\(Landroid/webkit/WebView;ILjava/lang/String;\)V\n.*?^\.end method',old)
+          assert m
+          body=m.group()
+          line=next(l for l in body.splitlines() if 'Lcom/juhyeon/familyjournea/MoaRemoteTimeline731;->handle' in l)
+          assert 'invoke-static' in line and '{p0, p1, p2, p3}' in line
+          assert re.search(r'\.locals [1-9][0-9]*',body)
+          hook='    invoke-static {p0, p1, p2, p3}, Lcom/juhyeon/familyjournea/ai/MoaAiActivity;->launch(Ljava/lang/Object;Landroid/webkit/WebView;ILjava/lang/String;)Z\n    move-result v0\n    if-eqz v0, :moa753_original\n    return-void\n    :moa753_original\n\n'
+          new=old[:m.start()]+body.replace(line,hook+line,1)+old[m.end():]
+          assert new.replace(hook,'')==old
+          p.write_text(new)
+          Path('/tmp/r753/out/hook.txt').write_text('One new prefix-gated dispatch before unchanged remote timeline handler; all other smali unchanged.\n')
+          PY
+          java -cp /tmp/apktool.jar:/tmp Assemble /tmp/r753/smali /tmp/r753/out/classes22.dex
+          java -cp /tmp/apktool.jar:/tmp Disassemble /tmp/r753/out/classes22.dex /tmp/r753/check
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,struct,zlib
+          for f in Path('/tmp/r753/out').glob('*.dex'):
+              b=f.read_bytes()
+              assert b[:4]==b'dex\n' and hashlib.sha1(b[32:]).digest()==b[12:32] and zlib.adler32(b[12:])&0xffffffff==struct.unpack_from('<I',b,8)[0]
+          a=Path('/tmp/r753/smali'); b=Path('/tmp/r753/check')
+          assert {x.relative_to(a) for x in a.rglob('*.smali')}=={x.relative_to(b) for x in b.rglob('*.smali')}
+          assert '->launch(Ljava/lang/Object;Landroid/webkit/WebView;ILjava/lang/String;)Z' in next(b.rglob('MoaPeerProvider.smali')).read_text()
+          PY
+          sha256sum /tmp/r753/out/*.dex
+          echo 'Android SDK35 javac, D8, existing provider hook assembly PASS; account and physical device NOT TESTED' > /tmp/r753/out/status.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r753-native-dex-qa
+          path: /tmp/r753/out/
