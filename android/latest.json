@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 761,
-  "bytes": 10903760,
-  "sha256": "6a03b42bef22113da1b2c7daa322b8fb3a5bebfd5c2953fbe21274de8a8d2acb",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r761.apk",
+  "versionCode": 763,
+  "bytes": 10905937,
+  "sha256": "edb982eec7485a6051d98faefbdd0a00e40cb7b0967a097428fd90bba12cca41",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r763.apk",
   "published": true,
-  "notes": "R761 베타: 상세 영어·한글 이야기, 접기/펼치기, 컴팩트 읽기 진행 재생바, 일시정지·이어듣기·다시듣기·정지, TTS 범위 강조, 앱 백그라운드 음성 중지 개선. R759 골든 보존. 실기기 검증 대기."
+  "notes": "R763 베타: 별도 재생바 제거, 기존 듣기 버튼 재생·일시정지·재개, 단어 탭과 읽기 구간 탐색, 배속 숫자 표시, 음성 오류·재시도 개선. R759 골든 보존. 실기기 TTS 검증 대기."
 }
