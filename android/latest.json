@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 771,
-  "bytes": 10964905,
-  "sha256": "2c045980073c93e08cdc8f09f41f2d749a54d1767f4f59884ec773bf7cc3c92d",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r771.apk",
+  "versionCode": 773,
+  "bytes": 10979728,
+  "sha256": "09b89a6560951ce12eade725a474b6a4cdf74f51842e998c686aa56153d7630b",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r773.apk",
   "published": true,
-  "notes": "R771 베타: 신규 미디어 7과목 자동 생성 설정 및 대기열, 모델·음성 설정 보존, 기존 확대 갤러리 공간 분할·하단 배움 심볼·단어 재생 범위 및 탐색. R759 골든 보존. 실기기 검증 대기."
+  "notes": "R773 베타: 최하단 학습 심볼, 7과목 한영 전환 및 연결 탐구, 기존 TTS 연동. R771 골든 보존. 실기기 검증 대기."
 }
