@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 755,
-  "bytes": 10877742,
-  "sha256": "1b87cf701afa6a47fd65c1c0df1ca717112ae4f7d77593a703f81f02bd72a0b8",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r755.apk",
+  "versionCode": 757,
+  "bytes": 10880261,
+  "sha256": "06556de109fedcc8f2d167c31eb2896d188e192d3f1921faf9d83ad360fbf059",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r757.apk",
   "published": true,
-  "notes": "R755 베타: 일기 상세에서 현재 사진 및 영상 프레임을 ChatGPT로 분석하고 영어·한글 카드 생성/저장/발음/퀴즈. 별도 AI 화면 이동 제거. 실제 계정 및 기기 검증 대기; 원격 미디어 미지원."
+  "notes": "R757 베타: 일기 AI 패널 지연 생성·접힌 상태 무작업, 계정 연결 브라우저 실행 및 오류 표시 개선, 중복 Studio 진입 제거. 기존 달력·갤러리·동기화 유지. 실기기 계정 및 스크롤 미검증."
 }
