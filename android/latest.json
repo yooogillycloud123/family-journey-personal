@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 775,
-  "bytes": 10987920,
-  "sha256": "81254675a8a8efe3f135514ec17f13e6885ec4e523918e5c19fef0fce1f38c27",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r775.apk",
+  "versionCode": 777,
+  "bytes": 10992016,
+  "sha256": "5699b1ce4e81a38817c4aae6ac539b713e10f85a67af1d8228e6bbecc38dc447",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r777.apk",
   "published": true,
-  "notes": "R775 베타: 학습 도구 모음 정렬, 단어별 저장 및 영상, 문장 번역 펼치기, 연결 탐구 화면 개선. 실기기 검증 대기."
+  "notes": "R777 베타: 별 심볼 잘림 수정, 핵심 카드 선저장 및 연결 탐구 분리, 생성 작업 복구·재시도·경과 표시. 실기기 검증 대기."
 }
