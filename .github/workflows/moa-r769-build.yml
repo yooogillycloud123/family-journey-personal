@@ -1,0 +1,40 @@
+name: MOA R769 isolated fullscreen study compile
+on:
+  push:
+    branches: [feature/moa-r769-gallery-study-20261127]
+    paths: ['.github/workflows/moa-r769-build.yml','experiments/moa-r769/**']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact native and web source, compile SDK35
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/r769/{source,classes,dex,out}
+          cat experiments/moa-r769/native-{0,1,2,3,4}.b64 | base64 -d >/tmp/r769/native.zip
+          echo '57e676d0c4fad7ec06653324b6620d919fe87181cace94683b4c154d254ac650  /tmp/r769/native.zip' | sha256sum -c -
+          unzip -q /tmp/r769/native.zip -d /tmp/r769/source
+          cat experiments/moa-r769/web-{0,1,2,3,4,5,6,7}.b64 | base64 -d >/tmp/r769/web.zip
+          echo '8ea36f5f9ee03c0c8b4a61f892f06d1b4346d4a37012a15fdd71e6d01d8c26c9  /tmp/r769/web.zip' | sha256sum -c -
+          unzip -q /tmp/r769/web.zip -d /tmp/r769/out
+          echo '5d15635a87f119c33438db8e5dd5e32b14a8581d5b4abe83d32c67545ce83727  /tmp/r769/out/moa-r697-vertical-calendar.js' | sha256sum -c -
+          echo '1e59a98c63890e2da6ed35e07029750c18910f0f37fe2734fde2c7822972d379  /tmp/r769/out/moa-r755-inline-ai.js' | sha256sum -c -
+          node --check /tmp/r769/out/moa-r697-vertical-calendar.js
+          node --check /tmp/r769/out/moa-r755-inline-ai.js
+          sdk="$ANDROID_HOME"
+          android="$sdk/platforms/android-35/android.jar"
+          d8="$(find "$sdk/build-tools" -name d8 | sort -V | tail -1)"
+          javac --release 8 -encoding UTF-8 -cp "$android" -d /tmp/r769/classes /tmp/r769/source/*.java
+          find /tmp/r769/classes -name '*.class' -print0 | xargs -0 "$d8" --min-api 29 --lib "$android" --output /tmp/r769/dex
+          cp /tmp/r769/dex/classes.dex /tmp/r769/out/classes27.dex
+          (cd /tmp/r769/out && sha256sum classes27.dex *.js >SHA256SUMS.txt)
+          echo 'SDK35 compile and JS syntax; physical gallery/STT/YouGlish PENDING; not signed or published' > /tmp/r769/out/status.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r769-fullscreen-study-dex-qa
+          path: /tmp/r769/out/
