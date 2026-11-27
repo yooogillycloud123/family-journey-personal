@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 773,
-  "bytes": 10979728,
-  "sha256": "09b89a6560951ce12eade725a474b6a4cdf74f51842e998c686aa56153d7630b",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r773.apk",
+  "versionCode": 775,
+  "bytes": 10987920,
+  "sha256": "81254675a8a8efe3f135514ec17f13e6885ec4e523918e5c19fef0fce1f38c27",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r775.apk",
   "published": true,
-  "notes": "R773 베타: 최하단 학습 심볼, 7과목 한영 전환 및 연결 탐구, 기존 TTS 연동. R771 골든 보존. 실기기 검증 대기."
+  "notes": "R775 베타: 학습 도구 모음 정렬, 단어별 저장 및 영상, 문장 번역 펼치기, 연결 탐구 화면 개선. 실기기 검증 대기."
 }
