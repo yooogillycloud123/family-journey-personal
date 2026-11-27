@@ -1,0 +1,32 @@
+name: MOA R773 frozen baseline and SDK tools
+on:
+  push:
+    branches: [feature/moa-r773-bilingual-discovery-20261128]
+    paths: ['.github/workflows/moa-r773-baseline-tools.yml']
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: a82519db4f613f52f21eb7148afb00fbb60be2b9
+          sparse-checkout: android/releases/moa-r771.apk
+          sparse-checkout-cone-mode: false
+      - name: Export exact baseline and SDK tools (no key)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/moa-r773-export
+          echo '2c045980073c93e08cdc8f09f41f2d749a54d1767f4f59884ec773bf7cc3c92d  android/releases/moa-r771.apk' | sha256sum -c -
+          cp android/releases/moa-r771.apk /tmp/moa-r773-export/
+          sdk="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)"
+          sdk="$(dirname "$sdk")"
+          cp "$sdk/lib/apksigner.jar" "$sdk/zipalign" "$sdk/aapt2" /tmp/moa-r773-export/
+          (cd /tmp/moa-r773-export && sha256sum * > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r773-frozen-r771-baseline-tools
+          path: /tmp/moa-r773-export/
