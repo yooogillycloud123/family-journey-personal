@@ -1,0 +1,26 @@
+[
+  {
+    "version": 783,
+    "base": 781,
+    "bytes": 11037072,
+    "sha256": "a355ec1cf7dbce64ccef0775f78fc9aa5efe23f9034aacf18ea450635e678529",
+    "entries": 184,
+    "dex": 27,
+    "changed": [
+      "AndroidManifest.xml",
+      "assets/web/family-diary.js",
+      "assets/web/moa-r755-inline-ai.js"
+    ]
+  },
+  {
+    "version": 784,
+    "base": 781,
+    "bytes": 11032976,
+    "sha256": "4f399e3e9692859662fc03e124cf26ae7b640366964374fa775cf99c99cb2a73",
+    "entries": 184,
+    "dex": 27,
+    "changed": [
+      "AndroidManifest.xml"
+    ]
+  }
+]
