@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 783,
-  "bytes": 11037072,
-  "sha256": "a355ec1cf7dbce64ccef0775f78fc9aa5efe23f9034aacf18ea450635e678529",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r783.apk",
+  "versionCode": 785,
+  "bytes": 11053533,
+  "sha256": "b3021949745299d47de71d424b0b29b5de94a726d3d77adf1ee434966e791f7d",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r785.apk",
   "published": true,
-  "notes": "R783 베타: 직접 추가 달력 누락 학습 자동 복구. 실기기 검증 대기."
+  "notes": "R785 베타: 독립 백그라운드 자동 학습 및 통합 설정. 실기기 검증 대기."
 }
