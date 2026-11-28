@@ -1,0 +1,150 @@
+name: MOA R781 verified original-signed release
+on:
+  push:
+    branches: [moa-update-channel]
+    paths: ['.github/workflows/moa-publish-r781.yml']
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: moa-update-channel
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 46118740358
+          name: moa-r781-r782-offline-signing-kit-no-private-key
+          github-token: ${{ github.token }}
+          path: kit
+      - name: Reconstruct exact locally signed bytes and check both payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd kit && sha256sum -c SHA256SUMS.txt)
+          python - <<'PY'
+          import base64,hashlib,struct,zlib,pathlib,zipfile,io,json
+          p=pathlib.Path('android/releases')
+          cert='5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15'
+          sha=lambda b:hashlib.sha256(b).hexdigest()
+          assert json.loads(pathlib.Path('android/latest.json').read_text())['versionCode']==779
+          blocks={"781":"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","782":"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"}
+          records=[]
+          for v,base,uh,sh,size,bh,changed in [
+           (781,779,'42478c9e9ee6784ac2b6db23aa25cb3ad18c3a6073effc2245046efa685494cd','b6e55392b63def4fe12bb50d554eda9e70c37ba0270b87c649495d405420246e',11032976,'5e10d4428fded0d0c74e188c4dcf9e92e852f6ba7f6af2ebcbc26ff84c867e61',{'AndroidManifest.xml','classes27.dex','assets/web/family-diary.js','assets/web/moa-r697-vertical-calendar.js','assets/web/moa-r755-inline-ai.js'}),
+           (782,771,'fd03abeacd367af3a46ebc17ff88a692dec60b36441d10b51ea789390b82c491','5a7479ccf0dde6afe9c5fbd75cf535f2d2dbc0948b0ecb26ac90f6fe153fa689',10996112,'2c045980073c93e08cdc8f09f41f2d749a54d1767f4f59884ec773bf7cc3c92d',{'AndroidManifest.xml'})]:
+           a=pathlib.Path(f'kit/MOA_R{v}_UNSIGNED_DO_NOT_INSTALL.apk').read_bytes()
+           assert sha(a)==uh
+           z=zipfile.ZipFile(io.BytesIO(a));out=bytearray();offsets={}
+           for x in sorted(z.infolist(),key=lambda x:x.header_offset):
+            h=x.header_offset;n,e=struct.unpack_from('<HH',a,h+26);name=a[h+30:h+30+n];d=h+30+n+e;offsets[h]=len(out);extra=b''
+            if x.compress_type==0:
+             pad=(-(len(out)+30+n+6))%4;extra=struct.pack('<HHH',0xd935,pad+2,4)+bytes(pad)
+            out+=a[h:h+28]+struct.pack('<H',len(extra))+name+extra+a[d:d+x.compress_size]
+           out+=bytes((-len(out))%4096)
+           block=zlib.decompress(base64.b64decode(blocks[str(v)],validate=True))
+           assert len(block)==4096 and block[-16:]==b'APK Sig Block 42'
+           out+=block;newcd=len(out);ap=z.start_dir
+           for x in z.infolist():
+            n,e,c=struct.unpack_from('<HHH',a,ap+28);length=46+n+e+c;h=struct.unpack_from('<I',a,ap+42)[0];out+=a[ap:ap+42]+struct.pack('<I',offsets[h])+a[ap+46:ap+length];ap+=length
+           assert a[ap:ap+4]==b'PK\x05\x06'
+           out+=a[ap:ap+16]+struct.pack('<I',newcd)+a[ap+20:]
+           assert len(out)==size and sha(out)==sh,(v,len(out),sha(out))
+           old=(p/f'moa-r{base}.apk').read_bytes();assert sha(old)==bh
+           with zipfile.ZipFile(io.BytesIO(out)) as new,zipfile.ZipFile(io.BytesIO(old)) as prior:
+            assert new.testzip() is None and set(new.namelist())==set(prior.namelist())==set(z.namelist())
+            assert all(new.read(n)==z.read(n) for n in z.namelist())
+            actual={n for n in new.namelist() if new.read(n)!=prior.read(n)}
+            assert actual==changed,(v,actual)
+            ds=[n for n in new.namelist() if n.endswith('.dex')];assert len(ds)==27
+            for n in ds:
+             b=new.read(n);assert b[:4]==b'dex\n' and hashlib.sha1(b[32:]).digest()==b[12:32] and zlib.adler32(b[12:])&0xffffffff==struct.unpack_from('<I',b,8)[0]
+            url=b'https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/latest.json'
+            assert url in new.read('classes24.dex') and new.read('classes24.dex')==prior.read('classes24.dex')
+            records.append(dict(version=v,base=base,sha256=sh,bytes=size,changed=sorted(actual),entries=len(new.namelist()),dex=len(ds)))
+           f=p/'moa-r781.apk' if v==781 else pathlib.Path('/tmp/moa-r782.apk')
+           f.write_bytes(out)
+           print('EXACT_LOCALLY_SIGNED_BYTES_AND_PAYLOAD_PASS',v,sh)
+          pathlib.Path('/tmp/moa-r781-diff.json').write_text(json.dumps(records,indent=2))
+          PY
+          test "$(git hash-object android/releases/moa-r781.apk)" = e433719d806020328918a3d7d5f70db8b73af2d3
+          test "$(git hash-object /tmp/moa-r782.apk)" = 046658f7050cca0c12345fc815199a733185b4ce
+          BT="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          for v in 781 782; do
+            f=android/releases/moa-r781.apk
+            if [ "$v" = 782 ]; then f=/tmp/moa-r782.apk; fi
+            "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 "$f" | tee /tmp/cert-$v.txt
+            grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/cert-$v.txt
+            grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/cert-$v.txt
+            "$BT/aapt2" dump badging "$f" | tee /tmp/badging-$v.txt
+            grep -F "package: name='com.juhyeon.familyjournea' versionCode='$v' versionName='MOA-R$v'" /tmp/badging-$v.txt
+            "$BT/zipalign" -c 4 "$f"
+          done
+          mkdir -p /tmp/moa-release-evidence
+          cp android/releases/moa-r781.apk /tmp/moa-release-evidence/MOA_R781_ORIGINAL_SIGNED.apk
+          cp /tmp/moa-r782.apk /tmp/moa-release-evidence/MOA_R782_ORIGINAL_SIGNED.apk
+          cp /tmp/moa-r781-diff.json /tmp/cert-*.txt /tmp/badging-*.txt /tmp/moa-release-evidence/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r781-r782-original-signed-verified
+          path: /tmp/moa-release-evidence/
+      - name: Atomically activate R781 only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin moa-update-channel
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/moa-update-channel)"
+          python - <<'PY'
+          import json,pathlib
+          p=pathlib.Path('android/latest.json')
+          assert json.loads(p.read_text())['versionCode']==779
+          p.write_text(json.dumps(json.loads("{\"packageName\":\"com.juhyeon.familyjournea\",\"signerSha256\":\"5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15\",\"versionCode\":781,\"bytes\":11032976,\"sha256\":\"b6e55392b63def4fe12bb50d554eda9e70c37ba0270b87c649495d405420246e\",\"apkUrl\":\"https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r781.apk\",\"published\":true,\"notes\":\"R781 베타: 영어 우선·사진/영상 중심 학습, 자동 생성 안정화 및 Sol 우선. 실기기 검증 대기.\"}"),ensure_ascii=False,indent=2)+'\n')
+          PY
+          mkdir -p android/verification
+          cp /tmp/moa-r781-diff.json android/verification/r781-payload-diff.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add android/latest.json android/releases/moa-r781.apk android/verification/r781-payload-diff.json
+          git commit -m 'Publish exact locally original-signed MOA R781 beta'
+          git push origin HEAD:moa-update-channel
+      - name: Verify unauthenticated exact nonce immutable endpoints and downloaded APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,urllib.request,time,hashlib,subprocess,pathlib,datetime
+          root='https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/'
+          base=root+'moa-update-channel/android/latest.json'
+          expected=json.loads(pathlib.Path('android/latest.json').read_text())
+          head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          for attempt in range(13):
+           out={}
+           for label,url in [('exact',base),('nonce',base+'?moa_check='+str(time.time_ns())),('immutable',root+head+'/android/latest.json')]:
+            try:
+             with urllib.request.urlopen(url,timeout=15) as r:
+              j=json.load(r);out[label]={'status':r.status,'versionCode':j.get('versionCode'),'matches':r.status==200 and j==expected,'headers':{k:v for k,v in r.headers.items() if k.lower() in ('age','cache-control','x-cache','date','etag','x-served-by')}}
+            except Exception as e:out[label]={'error':str(e)}
+           if all(x.get('matches') for x in out.values()):break
+           if attempt<12:time.sleep(25)
+          assert all(out[k].get('matches') for k in ('exact','nonce','immutable')),out
+          with urllib.request.urlopen(expected['apkUrl'],timeout=40) as r:
+           b=r.read();out['apk']={'status':r.status,'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'headers':{k:v for k,v in r.headers.items() if k.lower() in ('age','cache-control','x-cache','date','etag','x-served-by')}}
+          assert out['apk']['status']==200 and out['apk']['bytes']==expected['bytes'] and out['apk']['sha256']==expected['sha256'],out
+          pathlib.Path('/tmp/moa-r781-public.apk').write_bytes(b)
+          out['commit']=head;out['verifiedAtUTC']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+          pathlib.Path('android/verification/r781-public-endpoint.json').write_text(json.dumps(out,indent=2)+'\n')
+          print(json.dumps(out,indent=2))
+          PY
+          BT="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 /tmp/moa-r781-public.apk | tee /tmp/public-cert.txt
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/public-cert.txt
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/public-cert.txt
+          "$BT/aapt2" dump badging /tmp/moa-r781-public.apk > /tmp/public-badging.txt
+          grep -F "package: name='com.juhyeon.familyjournea' versionCode='781'" /tmp/public-badging.txt
+          git add android/verification/r781-public-endpoint.json
+          git commit -m 'Record R781 exact public endpoint and full APK verification'
+          git push origin HEAD:moa-update-channel
