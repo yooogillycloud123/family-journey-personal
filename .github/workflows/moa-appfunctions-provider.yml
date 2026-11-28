@@ -1,0 +1,163 @@
+name: MOA AppFunctions provider self-test
+on:
+  push:
+    branches: [feature/moa-chat-appfunctions-probe-20261128]
+    paths: ['.github/workflows/moa-appfunctions-provider.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Compile isolated provider and self-test
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p work/src/probe/moa/provider work/assets work/classes work/dex work/out
+          cd work
+          cat > AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="probe.moa.provider" android:versionCode="1" android:versionName="1.0">
+            <uses-sdk android:minSdkVersion="37" android:targetSdkVersion="37"/>
+            <application android:label="MOA 함수 왕복 실험" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+              <activity android:name=".Main" android:exported="true">
+                <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+              </activity>
+              <service android:name=".Provider" android:exported="true" android:permission="android.permission.BIND_APP_FUNCTION_SERVICE">
+                <property android:name="android.app.appfunctions" android:value="moa_lab_functions.xml"/>
+                <intent-filter><action android:name="android.app.appfunctions.AppFunctionService"/></intent-filter>
+              </service>
+            </application>
+          </manifest>
+          EOF
+          cat > assets/moa_lab_functions.xml <<'EOF'
+          <appfunctions>
+            <appfunction>
+              <id>moaLabGetSyntheticJob</id>
+              <enabledByDefault>true</enabledByDefault>
+              <description>Returns an explicitly armed synthetic test job identifier. No user data.</description>
+              <response><valueType><type>8</type><isNullable>false</isNullable></valueType></response>
+            </appfunction>
+            <appfunction>
+              <id>moaLabSaveSyntheticReceipt</id>
+              <enabledByDefault>true</enabledByDefault>
+              <description>Stores the exact synthetic test job identifier once. No user data.</description>
+              <parameters><name>jobId</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters>
+              <response><valueType><type>8</type><isNullable>false</isNullable></valueType></response>
+            </appfunction>
+          </appfunctions>
+          EOF
+          cat > src/probe/moa/provider/Provider.java <<'EOF'
+          package probe.moa.provider;
+          import android.app.appfunctions.*;
+          import android.app.appsearch.GenericDocument;
+          import android.content.SharedPreferences;
+          import android.content.pm.SigningInfo;
+          import android.os.*;
+          public final class Provider extends AppFunctionService {
+            static final String GET="moaLabGetSyntheticJob", SAVE="moaLabSaveSyntheticReceipt";
+            static final String RETURN=ExecuteAppFunctionResponse.PROPERTY_RETURN_VALUE;
+            @Override public void onExecuteFunction(ExecuteAppFunctionRequest request,String callingPackage,SigningInfo signingInfo,CancellationSignal cancel,OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException> callback){
+              try{
+                if(cancel.isCanceled()){callback.onError(new AppFunctionException(AppFunctionException.ERROR_CANCELLED,"cancelled"));return;}
+                SharedPreferences p=getSharedPreferences("lab",MODE_PRIVATE);
+                String value;
+                synchronized(Provider.class){
+                  String job=p.getString("armed","");
+                  if(job.isEmpty() || System.currentTimeMillis()>p.getLong("expires",0)){callback.onError(new AppFunctionException(AppFunctionException.ERROR_INVALID_ARGUMENT,"No armed synthetic job"));return;}
+                  switch(request.getFunctionIdentifier()){
+                    case GET:value=job;break;
+                    case SAVE:
+                      String got=request.getParameters().getPropertyString("jobId");
+                      if(!job.equals(got)){callback.onError(new AppFunctionException(AppFunctionException.ERROR_INVALID_ARGUMENT,"Synthetic job mismatch"));return;}
+                      if(!job.equals(p.getString("receipt",""))){
+                        if(!p.edit().putString("receipt",job).putInt("writes",p.getInt("writes",0)+1).commit())throw new IllegalStateException("receipt commit failed");
+                      }
+                      value=job;break;
+                    default:callback.onError(new AppFunctionException(AppFunctionException.ERROR_INVALID_ARGUMENT,"Unknown lab function"));return;
+                  }
+                }
+                GenericDocument doc=new GenericDocument.Builder<>("lab","response","LabResponse").setPropertyString(RETURN,value).build();
+                callback.onResult(new ExecuteAppFunctionResponse(doc));
+              }catch(Exception e){callback.onError(new AppFunctionException(AppFunctionException.ERROR_APP_UNKNOWN_ERROR,e.getClass().getSimpleName()));}
+            }
+          }
+          EOF
+          cat > src/probe/moa/provider/Main.java <<'EOF'
+          package probe.moa.provider;
+          import android.app.Activity;
+          import android.app.appfunctions.*;
+          import android.app.appsearch.GenericDocument;
+          import android.content.*;
+          import android.os.*;
+          import android.widget.*;
+          import java.util.*;
+          public final class Main extends Activity {
+            TextView out; Button run; int seq; AppFunctionManager mgr; CancellationSignal active;
+            final Handler handler=new Handler(Looper.getMainLooper());
+            @Override public void onCreate(Bundle b){
+              super.onCreate(b);LinearLayout l=new LinearLayout(this);l.setOrientation(1);l.setPadding(24,24,24,24);
+              run=new Button(this);run.setText("시스템 함수 왕복 테스트");l.addView(run);
+              Button copy=new Button(this);copy.setText("결과 복사");l.addView(copy);
+              ScrollView sc=new ScrollView(this);out=new TextView(this);out.setTextSize(15);out.setTextIsSelectable(true);sc.addView(out);l.addView(sc,new LinearLayout.LayoutParams(-1,0,1));setContentView(l);
+              mgr=getSystemService(AppFunctionManager.class);
+              line("MOA AppFunctions provider lab v1.0 / SDK="+Build.VERSION.SDK_INT);
+              line("실제 AI 미사용 / 실제 모아 데이터 접근 없음");
+              line("PREVIOUS_RECEIPT="+getPreferencesStore().getString("receipt","none"));
+              run.setOnClickListener(v->start());
+              copy.setOnClickListener(v->((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("MOA lab",out.getText())));
+            }
+            SharedPreferences getPreferencesStore(){return getSharedPreferences("lab",MODE_PRIVATE);}
+            void line(String s){out.append(s+"\n");}
+            void start(){
+              if(mgr==null){line("SYSTEM_SERVICE_UNAVAILABLE");return;}
+              final int id=++seq;run.setEnabled(false);out.setText("");line("SDK="+Build.VERSION.SDK_INT);
+              final String job="synthetic-"+UUID.randomUUID();
+              if(!getPreferencesStore().edit().putString("armed",job).putLong("expires",System.currentTimeMillis()+120000).remove("receipt").putInt("writes",0).commit()){finishTest(id,"ARM_COMMIT_FAIL");return;}
+              line("ARMED_SYNTHETIC_JOB");
+              handler.postDelayed(()->{if(seq==id&&!run.isEnabled())finishTest(id,"TIMEOUT");},30000);
+              try {
+                AppFunctionSearchSpec spec=new AppFunctionSearchSpec.Builder().setPackageNames(Collections.singleton(getPackageName())).build();
+                mgr.searchAppFunctions(spec,getMainExecutor(),new OutcomeReceiver<List<AppFunctionMetadata>,Exception>(){
+                  public void onResult(List<AppFunctionMetadata> list){if(!valid(id))return;Set<String> names=new HashSet<>();for(AppFunctionMetadata m:list)names.add(m.getName().getFunctionIdentifier());line("OWN_REGISTRY="+names);if(!names.contains(Provider.GET)||!names.contains(Provider.SAVE)){finishTest(id,"REGISTRATION_NOT_READY_OR_MISSING");return;} call(id,Provider.GET,null,job,()->call(id,Provider.SAVE,job,job,()->call(id,Provider.SAVE,job,job,()->{boolean saved=job.equals(getPreferencesStore().getString("receipt",""));int writes=getPreferencesStore().getInt("writes",-1);line("PERSISTED_RECEIPT="+saved+" WRITES="+writes);finishTest(id,saved&&writes==1?"SYSTEM_ROUNDTRIP_PASS":"PERSISTENCE_FAIL");}))); }
+                  public void onError(Exception e){finishTest(id,"DISCOVERY_ERROR="+e.getClass().getSimpleName());}
+                });
+              }catch(Exception e){finishTest(id,"DISCOVERY_EXCEPTION="+e.getClass().getSimpleName());}
+            }
+            boolean valid(int id){return seq==id&&!run.isEnabled();}
+            void call(int id,String function,String parameter,String expected,Runnable next){
+              if(!valid(id))return;
+              try{
+                ExecuteAppFunctionRequest.Builder b=new ExecuteAppFunctionRequest.Builder(getPackageName(),function);
+                if(parameter!=null)b.setParameters(new GenericDocument.Builder<>("lab","request","LabRequest").setPropertyString("jobId",parameter).build());
+                active=new CancellationSignal();
+                mgr.executeAppFunction(b.build(),getMainExecutor(),active,new OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException>(){
+                  public void onResult(ExecuteAppFunctionResponse r){if(!valid(id))return;String got=r.getResultDocument().getPropertyString(Provider.RETURN);line(function+" RETURN_MATCH="+expected.equals(got));if(!expected.equals(got)){finishTest(id,"RETURN_MISMATCH");return;}next.run();}
+                  public void onError(AppFunctionException e){finishTest(id,function+" ERROR="+e.getErrorCode()+" "+e.getMessage());}
+                });
+              }catch(Exception e){finishTest(id,function+" EXCEPTION="+e.getClass().getSimpleName());}
+            }
+            void finishTest(int id,String result){if(!valid(id))return;run.setEnabled(true);if(active!=null){active.cancel();active=null;}getPreferencesStore().edit().remove("armed").remove("expires").commit();line(result);line("CHATGPT_EXECUTION_NOT_TESTED");}
+            @Override protected void onDestroy(){seq++;if(active!=null)active.cancel();getPreferencesStore().edit().remove("armed").remove("expires").commit();super.onDestroy();}
+          }
+          EOF
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          platform=$(find "$sdk/platforms" -name android.jar | sort -V | tail -1)
+          bt=$(find "$sdk/build-tools" -name aapt2 | sort -V | tail -1 | xargs dirname)
+          "$bt/aapt2" link -I "$platform" -A assets --manifest AndroidManifest.xml -o base.apk
+          javac -encoding UTF-8 -source 8 -target 8 -classpath "$platform" -d classes $(find src -name '*.java')
+          "$bt/d8" --min-api 37 --lib "$platform" --output dex $(find classes -name '*.class')
+          zip -q -j base.apk dex/classes.dex
+          "$bt/zipalign" -f 4 base.apk aligned.apk
+          keytool -genkeypair -keystore test.jks -storepass lab-only -keypass lab-only -alias lab -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=MOA isolated AppFunctions lab'
+          "$bt/apksigner" sign --ks test.jks --ks-pass pass:lab-only --key-pass pass:lab-only --out out/MOA_APPFUNCTIONS_PROVIDER_LAB.apk aligned.apk
+          "$bt/apksigner" verify --verbose --print-certs out/MOA_APPFUNCTIONS_PROVIDER_LAB.apk > out/signature.txt
+          "$bt/aapt2" dump badging out/MOA_APPFUNCTIONS_PROVIDER_LAB.apk > out/badging.txt
+          "$bt/zipalign" -c 4 out/MOA_APPFUNCTIONS_PROVIDER_LAB.apk
+          cp AndroidManifest.xml out/
+          cp -r assets src out/
+          (cd out && sha256sum *.apk > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-appfunctions-provider-lab
+          path: work/out/
