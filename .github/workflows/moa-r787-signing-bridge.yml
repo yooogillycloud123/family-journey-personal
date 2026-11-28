@@ -37,7 +37,7 @@ jobs:
           mkdir -p /tmp/moa-r787-verified
           git fetch origin moa-update-channel
           git show origin/moa-update-channel:android/releases/moa-r785.apk > /tmp/r785.apk
-          echo 'a355ec1cf7dbce64ccef0775f78fc9aa5efe23f9034aacf18ea450635e678729  /tmp/r785.apk' | sha256sum -c -
+          echo 'b3021949745299d47de71d424b0b29b5de94a726d3d77adf1ee434966e791f7d  /tmp/r785.apk' | sha256sum -c -
           for v in 787 788; do
             f="signed/MOA_R${v}_ORIGINAL_SIGNED.apk"
             "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 "$f" | tee "/tmp/moa-r787-verified/cert-$v.txt"
@@ -91,7 +91,7 @@ jobs:
           python3 - <<'PY'
           import json,pathlib
           m=json.loads(pathlib.Path('android/latest.json').read_text())
-          assert m['published'] is True and m['versionCode']==785 and m['sha256']=='a355ec1cf7dbce64ccef0775f78fc9aa5efe23f9034aacf18ea450635e678729'
+          assert m['published'] is True and m['versionCode']==785 and m['sha256']=='b3021949745299d47de71d424b0b29b5de94a726d3d77adf1ee434966e791f7d'
           PY
           mkdir -p android/recovery/r788
           cp /tmp/moa-r787-verified/MOA_R788_ORIGINAL_SIGNED.apk android/recovery/r788/
