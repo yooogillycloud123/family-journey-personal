@@ -20,7 +20,7 @@ jobs:
               s=z.read('assets/web/'+name).decode()
               print('===',name,len(s))
               lines=s.splitlines()
-              ranges={'family-diary.js':[(78,116),(150,165),(2185,2206)],'moa-r697-vertical-calendar.js':[(749,785),(1878,1902),(1920,1954),(2038,2072)],'moa-r755-inline-ai.js':[(1,16),(28,40),(98,108)]}[name]
+              ranges={'family-diary.js':[(1011,1098)],'moa-r697-vertical-calendar.js':[(745,749)],'moa-r755-inline-ai.js':[(1,6),(9,12),(20,20),(34,38)]}[name]
               for a,b in ranges:
                   for i in range(a,b+1):
                       print(i,lines[i-1])
