@@ -1,3 +1,5 @@
+> **2026-11-28 R791:** Latest published original-signed beta R791, CI 46139204510 SUCCESS. Read [R791 bottom clearance handoff](MOA_R791_SETTINGS_BOTTOM_CLEARANCE_RELEASE_20261128.md); only Settings bottom inset and version changed, all R789 native/AI functions preserved. R792 emergency only, R771 Golden unchanged, real device PASS pending.
+
 > **2026-11-28 R789:** Original-signed R789 beta published; CI 46138668624 SUCCESS, actual manifest 789. Read [R789 handoff](MOA_R789_IMMEDIATE_STUDY_UNIFORM_SETTINGS_RELEASE_20261128.md) first. R787 real background/UI failure recorded; R789 actual device PASS pending. R790 emergency only. Exact settings dimension rule mandatory, R771 Golden untouched.
 
 > **2026-11-28 R787 release:** Latest original-signed beta R787 is actually published, CI 46136815721 SUCCESS, manifest 787. Read [latest handoff](MOA_R787_SETTINGS_UNIFIED_STUDY_MONITOR_RELEASE_20261128.md) and [PERMANENT Settings UI Golden contract](MOA_PERMANENT_SETTINGS_UI_GOLDEN_CONTRACT_20261128.md) before every Settings change. R788 emergency archive only; R771 Golden untouched. Real-device UI/background/updater installation pending.
