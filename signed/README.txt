@@ -1,0 +1,1 @@
+Place ONLY both original-signed APKs here: MOA_R783_ORIGINAL_SIGNED.apk and MOA_R784_ORIGINAL_SIGNED.apk. Never upload keystore, original backup, or password. GitHub release job verifies both before activating R783. R784 is separate recovery only.
