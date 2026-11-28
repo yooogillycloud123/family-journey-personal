@@ -1,0 +1,152 @@
+name: MOA R787 offline signing bridge and verified release
+on:
+  push:
+    branches: [release/moa-r787-signing-stage-20261128]
+    paths: ['.github/workflows/moa-r787-signing-bridge.yml','offline-r787/**','signed/README.txt','signed/MOA_R787_ORIGINAL_SIGNED.apk','signed/MOA_R788_ORIGINAL_SIGNED.apk']
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: moa-update-channel
+  cancel-in-progress: false
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 46136336863
+          name: moa-r787-r788-unsigned-verified
+          github-token: ${{ github.token }}
+          path: kit
+      - name: Verify immutable unsigned build and prepare offline PC kit
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd kit && sha256sum -c SHA256SUMS.txt)
+          python3 offline-r787/reconstruct-signed.py kit signed signed
+          echo "SIGNED_INPUTS_PRESENT=true" >> "$GITHUB_ENV"
+      - name: Verify original signer, exact payload, manifest, DEX, and base
+        if: env.SIGNED_INPUTS_PRESENT == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$(dirname "$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)")"
+          mkdir -p /tmp/moa-r787-verified
+          git fetch origin moa-update-channel
+          git show origin/moa-update-channel:android/releases/moa-r785.apk > /tmp/r785.apk
+          echo 'a355ec1cf7dbce64ccef0775f78fc9aa5efe23f9034aacf18ea450635e678729  /tmp/r785.apk' | sha256sum -c -
+          for v in 787 788; do
+            f="signed/MOA_R${v}_ORIGINAL_SIGNED.apk"
+            "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 "$f" | tee "/tmp/moa-r787-verified/cert-$v.txt"
+            grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' "/tmp/moa-r787-verified/cert-$v.txt"
+            test "$(grep -c 'certificate SHA-256 digest:' "/tmp/moa-r787-verified/cert-$v.txt")" = 1
+            grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' "/tmp/moa-r787-verified/cert-$v.txt"
+            "$BT/aapt2" dump badging "$f" | tee "/tmp/moa-r787-verified/badging-$v.txt"
+            grep -F "package: name='com.juhyeon.familyjournea' versionCode='$v' versionName='MOA-R$v'" "/tmp/moa-r787-verified/badging-$v.txt"
+            "$BT/zipalign" -c -p 4 "$f"
+            cp "$f" /tmp/moa-r787-verified/
+          done
+          python3 - <<'PY'
+          import pathlib as p,zipfile,hashlib,json,zlib,struct
+          root=p.Path('/tmp/moa-r787-verified')
+          base=p.Path('/tmp/r785.apk')
+          sha=lambda b:hashlib.sha256(b).hexdigest()
+          records=[]
+          for v in (787,788):
+           f=root/f'MOA_R{v}_ORIGINAL_SIGNED.apk'
+           u=p.Path(f'kit/MOA_R{v}_UNSIGNED_DO_NOT_INSTALL.apk')
+           with zipfile.ZipFile(f) as z,zipfile.ZipFile(u) as orig,zipfile.ZipFile(base) as prev:
+            assert z.testzip() is None and len(z.namelist())==len(set(z.namelist()))==185
+            assert set(z.namelist())==set(orig.namelist())==set(prev.namelist())
+            assert all(z.read(n)==orig.read(n) for n in z.namelist())
+            diff={n for n in prev.namelist() if z.read(n)!=prev.read(n)}
+            expected={'AndroidManifest.xml','assets/web/moa-r117-ui.js','assets/web/moa-r755-inline-ai.js'} if v==787 else {'AndroidManifest.xml'}
+            assert diff==expected,(v,diff)
+            ds=[n for n in z.namelist() if n.endswith('.dex')]
+            assert len(ds)==27
+            for n in ds:
+             b=z.read(n);assert b[:4]==b'dex\n' and hashlib.sha1(b[32:]).digest()==b[12:32] and zlib.adler32(b[12:])&0xffffffff==struct.unpack_from('<I',b,8)[0]
+            assert b'https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/latest.json' in z.read('classes24.dex')
+            records.append(dict(version=v,base=785,bytes=f.stat().st_size,sha256=sha(f.read_bytes()),entries=len(z.namelist()),dex=27,changed=sorted(diff)))
+          (root/'payload-diff.json').write_text(json.dumps(records,indent=2)+'\n')
+          print(json.dumps(records,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: env.SIGNED_INPUTS_PRESENT == 'true'
+        with:
+          name: MOA_R787_R788_ORIGINAL_SIGNED_VERIFIED
+          path: /tmp/moa-r787-verified/
+      - name: Archive recovery and atomically activate R787 only
+        if: env.SIGNED_INPUTS_PRESENT == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin moa-update-channel
+          git switch --detach origin/moa-update-channel
+          python3 - <<'PY'
+          import json,pathlib
+          m=json.loads(pathlib.Path('android/latest.json').read_text())
+          assert m['published'] is True and m['versionCode']==785 and m['sha256']=='a355ec1cf7dbce64ccef0775f78fc9aa5efe23f9034aacf18ea450635e678729'
+          PY
+          mkdir -p android/recovery/r788
+          cp /tmp/moa-r787-verified/MOA_R788_ORIGINAL_SIGNED.apk android/recovery/r788/
+          git add android/recovery/r788/MOA_R788_ORIGINAL_SIGNED.apk
+          git commit -m 'Archive verified exact R785 forward recovery R788 only'
+          git push origin HEAD:refs/heads/archive/moa-r788-original-signed-recovery-20261128
+          git switch --detach origin/moa-update-channel
+          test ! -e android/releases/moa-r787.apk
+          cp /tmp/moa-r787-verified/MOA_R787_ORIGINAL_SIGNED.apk android/releases/moa-r787.apk
+          mkdir -p android/verification
+          cp /tmp/moa-r787-verified/payload-diff.json android/verification/r787-payload-diff.json
+          python3 - <<'PY'
+          import json,pathlib
+          root=pathlib.Path('/tmp/moa-r787-verified')
+          a=json.loads((root/'payload-diff.json').read_text())[0]
+          m=dict(packageName='com.juhyeon.familyjournea',signerSha256='5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15',versionCode=787,bytes=a['bytes'],sha256=a['sha256'],apkUrl='https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r787.apk',published=True,notes='R787 베타: 설정 UI 통일 및 실제 학습 상태 확인. 실기기 검증 대기.')
+          pathlib.Path('android/latest.json').write_text(json.dumps(m,ensure_ascii=False,indent=2)+'\n')
+          PY
+          git add android/latest.json android/releases/moa-r787.apk android/verification/r787-payload-diff.json
+          git commit -m 'Publish verified original-signed MOA R787 beta'
+          git push origin HEAD:moa-update-channel
+      - name: Verify exact public URL, nonce, immutable commit and full APK
+        if: env.SIGNED_INPUTS_PRESENT == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,urllib.request,time,hashlib,subprocess,pathlib,datetime
+          root='https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/'
+          base=root+'moa-update-channel/android/latest.json'
+          expected=json.loads(pathlib.Path('android/latest.json').read_text())
+          head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          for attempt in range(13):
+           out={}
+           for label,url in [('exact',base),('nonce',base+'?moa_check='+str(time.time_ns())),('immutable',root+head+'/android/latest.json')]:
+            try:
+             with urllib.request.urlopen(url,timeout=15) as r:
+              j=json.load(r);out[label]={'status':r.status,'versionCode':j.get('versionCode'),'matches':r.status==200 and j==expected,'headers':{k:v for k,v in r.headers.items() if k.lower() in ('age','cache-control','x-cache','date','etag','x-served-by')}}
+            except Exception as e:out[label]={'error':str(e)}
+           if all(x.get('matches') for x in out.values()):break
+           if attempt<12:time.sleep(25)
+          assert all(out[k].get('matches') for k in ('exact','nonce','immutable')),out
+          with urllib.request.urlopen(expected['apkUrl'],timeout=40) as r:
+           b=r.read();out['apk']={'status':r.status,'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'headers':{k:v for k,v in r.headers.items() if k.lower() in ('age','cache-control','x-cache','date','etag','x-served-by')}}
+          assert out['apk']['status']==200 and out['apk']['bytes']==expected['bytes'] and out['apk']['sha256']==expected['sha256'],out
+          pathlib.Path('/tmp/moa-r787-public.apk').write_bytes(b)
+          out['commit']=head;out['verifiedAtUTC']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+          pathlib.Path('android/verification/r787-public-endpoint.json').write_text(json.dumps(out,indent=2)+'\n')
+          print(json.dumps(out,indent=2))
+          PY
+          BT="$(dirname "$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)")"
+          "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 /tmp/moa-r787-public.apk | tee /tmp/public-cert.txt
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/public-cert.txt
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/public-cert.txt
+          "$BT/aapt2" dump badging /tmp/moa-r787-public.apk | grep -F "package: name='com.juhyeon.familyjournea' versionCode='787'"
+          git add android/verification/r787-public-endpoint.json
+          git commit -m 'Record R787 exact public endpoint and full APK verification'
+          git push origin HEAD:moa-update-channel
