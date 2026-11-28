@@ -1,0 +1,36 @@
+name: MOA R781 offline signing recovery kit
+on:
+  push:
+    branches: [feature/moa-r781-region-sol-resilient-study-20261128]
+    paths: ['.github/workflows/moa-r781-offline-kit.yml','experiments/moa-r781/sign-offline.py']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  kit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 46114888818
+          name: moa-r781-r782-unsigned-ready-to-sign
+          github-token: ${{ github.token }}
+          path: kit
+      - name: Verify exact payloads and bundle official SDK signer
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd kit && sha256sum -c SHA256SUMS.txt)
+          sdk="$(dirname "$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)")"
+          cp "$sdk/lib/apksigner.jar" kit/
+          cp experiments/moa-r781/sign-offline.py kit/
+          (cd kit && sha256sum apksigner.jar >> SHA256SUMS.txt)
+          python3 kit/sign-offline.py --check-only
+          cat kit/SHA256SUMS.txt
+          printf '%s\n' 'UNSIGNED ONLY. Private key remains in personal Library. Requires local Python 3 and Java. No automatic publication.' > kit/STATUS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r781-r782-offline-signing-kit-no-private-key
+          path: kit/
