@@ -1,0 +1,168 @@
+name: MOA isolated real IndexedDB storage lab v3
+on:
+  push:
+    branches: [feature/moa-chat-appfunctions-probe-20261128]
+    paths: ['.github/workflows/moa-storage-lab-v3.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Extract exact R791 registration scope, build storage lab
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p work/src/probe/moa/storage3 work/assets work/classes work/dex work/out
+          cd work
+          curl -fLsS https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/7ad417bd0ca40a6e32d0d3e16ff5a6a7cb9da2ba/android/releases/moa-r791.apk -o golden.apk
+          echo 'd0c13a6e5fe73e9a0e520858a99430981c71494f8e238beb907a53af38d1815a  golden.apk' | sha256sum -c -
+          python3 - <<'PY'
+          import zipfile,re,pathlib
+          with zipfile.ZipFile('golden.apk') as z:
+           s=z.read('assets/web/moa-r755-inline-ai.js').decode()
+           m=re.search(r'function normalize783\(rows\)\{.*?\n\}',s,re.S)
+           assert m
+           pathlib.Path('assets/scope.js').write_text(m.group(0)+'\n')
+          PY
+          cat > AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="probe.moa.storage3" android:versionCode="3" android:versionName="3.0"><uses-sdk android:minSdkVersion="37" android:targetSdkVersion="37"/><application android:label="MOA 저장소 검증 v3" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar"><activity android:name=".Main" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>
+          EOF
+          cat > assets/index.html <<'EOF'
+          <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font:15px system-ui;background:#111;color:#eee;padding:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style><pre id="log"></pre><script src="validator.js"></script><script src="scope.js"></script><script src="storage.js"></script>
+          EOF
+          cat > assets/validator.js <<'EOF'
+          const SUBJECTS={english:'영어',math:'수학',science:'과학',social:'사회',history:'역사',geography:'지리',korean:'국어'};
+          const safeText=(s,n=2000)=>typeof s==='string'&&s.trim()&&s.length<=n;
+          function validLesson(x){const str=(s,max=2000)=>typeof s==='string'&&s.trim().length>0&&s.length<=max;if(!x||!str(x.summary)||!str(x.en,6000)||!str(x.ko,6000)||!str(x.story,6000)||(x.storyKo!==undefined&&!str(x.storyKo,6000))||!Array.isArray(x.words)||x.words.length<1||x.words.length>12||!Array.isArray(x.quiz)||!x.quiz.length||x.quiz.length>10)return false;return x.words.every(w=>w&&str(w.en,150)&&str(w.ko,200)&&str(w.example))&&x.quiz.every(q=>q&&str(q.question)&&Array.isArray(q.choices)&&q.choices.length===3&&q.choices.every(c=>str(c,300))&&Number.isInteger(q.answer)&&q.answer>=0&&q.answer<3)}
+          function subjectOK(x){return x&&x.id!=='english'&&Object.prototype.hasOwnProperty.call(SUBJECTS,x.id)&&['title','explanation','question','answer','activity'].every(k=>safeText(x[k],k==='explanation'?3000:1500))&&['observation','general_knowledge','needs_verification'].includes(x.confidence)}
+          function subjectCards(x){return Array.isArray(x?.subjects)?x.subjects.filter(subjectOK).slice(0,6):[]}
+          function subjectEn773(x){return x?.en&&['title','explanation','question','answer','activity'].every(k=>safeText(x.en[k],k==='explanation'?3000:1500))?x.en:null}
+          function discovery773(x){const keys=['title','question','answer','link'],limits={title:160,question:360,answer:1000,link:360};return Array.isArray(x?.discovery)?x.discovery.slice(0,5).filter(d=>d&&Object.prototype.hasOwnProperty.call(SUBJECTS,d.topic)&&['observation','general_knowledge','needs_verification'].includes(d.confidence)&&keys.every(k=>safeText(d[k],limits[k]))&&d.en&&keys.every(k=>safeText(d.en[k],limits[k]))):[]}
+          function complete779(x){const rows=subjectCards(x);return validLesson(x)&&new Set(rows.map(a=>a.id)).size===6&&rows.every(a=>subjectEn773(a)&&discovery773(a).length>=3)}
+          EOF
+          cat > fixture.cjs <<'EOF'
+          const SUBJECTS={english:'영어',math:'수학',science:'과학',social:'사회',history:'역사',geography:'지리',korean:'국어'};
+          const safeText=(s,n=2000)=>typeof s==='string'&&s.trim()&&s.length<=n;
+          function validLesson(x){const str=(s,max=2000)=>typeof s==='string'&&s.trim().length>0&&s.length<=max;if(!x||!str(x.summary)||!str(x.en,6000)||!str(x.ko,6000)||!str(x.story,6000)||(x.storyKo!==undefined&&!str(x.storyKo,6000))||!Array.isArray(x.words)||x.words.length<1||x.words.length>12||!Array.isArray(x.quiz)||!x.quiz.length||x.quiz.length>10)return false;return x.words.every(w=>w&&str(w.en,150)&&str(w.ko,200)&&str(w.example))&&x.quiz.every(q=>q&&str(q.question)&&Array.isArray(q.choices)&&q.choices.length===3&&q.choices.every(c=>str(c,300))&&Number.isInteger(q.answer)&&q.answer>=0&&q.answer<3)}
+          function subjectOK(x){return x&&x.id!=='english'&&Object.prototype.hasOwnProperty.call(SUBJECTS,x.id)&&['title','explanation','question','answer','activity'].every(k=>safeText(x[k],k==='explanation'?3000:1500))&&['observation','general_knowledge','needs_verification'].includes(x.confidence)}
+          function subjectCards(x){return Array.isArray(x?.subjects)?x.subjects.filter(subjectOK).slice(0,6):[]}
+          function subjectEn773(x){return x?.en&&['title','explanation','question','answer','activity'].every(k=>safeText(x.en[k],k==='explanation'?3000:1500))?x.en:null}
+          function discovery773(x){const keys=['title','question','answer','link'],limits={title:160,question:360,answer:1000,link:360};return Array.isArray(x?.discovery)?x.discovery.slice(0,5).filter(d=>d&&Object.prototype.hasOwnProperty.call(SUBJECTS,d.topic)&&['observation','general_knowledge','needs_verification'].includes(d.confidence)&&keys.every(k=>safeText(d[k],limits[k]))&&d.en&&keys.every(k=>safeText(d.en[k],limits[k]))):[]}
+          function complete779(x){const rows=subjectCards(x);return validLesson(x)&&new Set(rows.map(a=>a.id)).size===6&&rows.every(a=>subjectEn773(a)&&discovery773(a).length>=3)}
+          const f={title:'Synthetic test',explanation:'This is a schema-only fixture.',question:'What is this?',answer:'A test.',activity:'Read the test.'};
+          const d={topic:'science',confidence:'general_knowledge',title:'Test',question:'What?',answer:'Fixture',link:'Apple scene',en:{title:'Test',question:'What?',answer:'Fixture',link:'Apple scene'}};
+          const card={summary:'합성 사과 장면',en:'A red apple sits on a wooden table.',ko:'빨간 사과가 나무 탁자 위에 있습니다.',story:'A synthetic scene for transport testing.',storyKo:'전송 검증용 가상 장면입니다.',words:[{en:'apple',ko:'사과',example:'This is an apple.'}],quiz:[{question:'What is on the table?',choices:['Apple','Book','Cup'],answer:0}],subjects:['math','science','social','history','geography','korean'].map(id=>({id,...f,en:{...f},confidence:'general_knowledge',discovery:[d,d,d]}))};
+          if(!complete779(card))throw Error('valid fixture rejected');
+          for(const bad of [{...card,subjects:card.subjects.slice(0,5)},{...card,subjects:card.subjects.map(x=>({...x,discovery:[]}))},{...card,subjects:card.subjects.map(x=>({...x,en:null}))},{...card,quiz:[{question:'x',choices:['1','2','3'],answer:3}]},{summary:'bad'}])if(complete779(bad))throw Error('invalid fixture accepted');
+          require('fs').writeFileSync('assets/card.json',JSON.stringify(card));console.log('R791 exact JS schema: 6 fixture assertions PASS; semantic quality NOT tested');
+          EOF
+          cat > assets/storage.js <<'EOF'
+          'use strict';
+          const $=document.getElementById('log'), say=s=>{$.textContent+=s+'\n'};
+          const assert=(condition,name)=>{if(!condition)throw Error(name);say(name+'=PASS')};
+          const req=r=>new Promise((ok,no)=>{r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
+          const done=t=>new Promise((ok,no)=>{t.oncomplete=ok;t.onabort=()=>no(t.error||Error('aborted'));t.onerror=()=>no(t.error)});
+          const open=(n,v,upgrade)=>new Promise((ok,no)=>{let r=indexedDB.open(n,v);r.onupgradeneeded=()=>upgrade(r.result);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);r.onblocked=()=>no(Error('blocked'))});
+          let diary,cards,fixture,active=false;
+          async function init(){
+           diary=await open('familyjourney-diary-v1',2,d=>{d.createObjectStore('entries',{keyPath:'day'});d.createObjectStore('meta');d.createObjectStore('curated',{keyPath:'day'})});
+           cards=await open('moa.study.cards.v771',1,d=>d.createObjectStore('cards'));
+           fixture=JSON.parse(document.getElementById('fixture').textContent);
+           say('ISOLATED_INDEXEDDB_READY');let k=await read(diary,'meta','lastVerified');if(k){let c=await read(cards,'cards',k);say('REOPEN_CARD_EXACT='+String(JSON.stringify(c)===JSON.stringify(fixture)))}
+          }
+          const ready=new Promise((ok,no)=>{window.addEventListener('DOMContentLoaded',()=>init().then(ok,no),{once:true})});
+          async function read(db,store,key){const t=db.transaction(store,'readonly');const p=done(t);const v=await req(t.objectStore(store).get(key));await p;return v}
+          async function write(db,store,value,key){const t=db.transaction(store,'readwrite');const p=done(t);const s=t.objectStore(store);if(key===undefined)s.put(value);else s.put(value,key);await p}
+          async function readScope(day){let row=await read(diary,'curated',day);return normalize783(row?[row]:[])}
+          function revision(row,hash){return JSON.stringify([row.day,row.id,row.updated,row.note,hash])}
+          async function insertOnly(key,card){
+           const t=cards.transaction('cards','readwrite');const p=done(t);const s=t.objectStore('cards');let outcome;
+           const r=s.get(key);r.onsuccess=()=>{if(r.result!==undefined){outcome=JSON.stringify(r.result)===JSON.stringify(card)?'DUPLICATE':'EXISTING_CARD_PROTECTED';return}outcome='STORED';s.add(card,key)};await p;return outcome
+          }
+          async function consume(key,snapshot,hash,card){
+           if(!complete779(card))return 'SCHEMA_REJECTED';
+           const row=(await readScope(key.split('|')[0])).get(key);
+           if(!row)return 'REVOKED_SCOPE';
+           if(revision(row,hash)!==snapshot)return 'STALE_REVISION';
+           return insertOnly(key,card)
+          }
+          window.runStorage=async function(hash){
+           if(active)return;active=true;$.textContent='';
+           try{await ready;if(!/^[0-9a-f]{64}$/.test(hash))throw Error('MEDIA_HASH_REQUIRED');
+           say('MEDIA_BYTES_HASHED_LOCALLY=true');say('PRODUCTION_DATA_ACCESSED=false');
+           const day='2099-01-01',id=String(Date.now()),key=day+'|'+id,other=day+'|'+(BigInt(id)+1n),auto=day+'|'+(BigInt(id)+2n);
+           let row={day,selectionMode:'manual',photoIds:[id,other.split('|')[1]],removedMediaIds:[],body:'Isolated fixture only',updatedAt:Date.now()};
+           await write(diary,'curated',row);await write(diary,'entries',{day,selectionMode:'automatic',photoIds:[auto.split('|')[1]]});
+           let scope=await readScope(day);assert(scope.has(key)&&!scope.has(auto),'CURATED_ONLY');let snap=revision(scope.get(key),hash);
+           assert(await consume(key,snap,hash,{summary:'bad'})==='SCHEMA_REJECTED','INCOMPLETE_REJECTED');
+           row.removedMediaIds=[id];await write(diary,'curated',row);assert(await consume(key,snap,hash,fixture)==='REVOKED_SCOPE','REMOVED_REJECTED');
+           row.removedMediaIds=[];row.updatedAt++;await write(diary,'curated',row);assert(await consume(key,snap,hash,fixture)==='STALE_REVISION','REVISION_REJECTED');
+           scope=await readScope(day);snap=revision(scope.get(key),hash);
+           assert(await consume(key,snap,'0'.repeat(64),fixture)==='STALE_REVISION','MEDIA_HASH_CHANGE_REJECTED');
+           const partial={summary:'Existing partial fixture'};await write(cards,'cards',partial,other);
+           assert(await consume(other,revision(scope.get(other),hash),hash,fixture)==='EXISTING_CARD_PROTECTED','PARTIAL_PROTECTED');
+           assert(JSON.stringify(await read(cards,'cards',other))===JSON.stringify(partial),'PARTIAL_UNCHANGED');
+           const outcomes=await Promise.all([consume(key,snap,hash,fixture),consume(key,snap,hash,fixture)]);
+           assert(outcomes.filter(x=>x==='STORED').length===1&&outcomes.filter(x=>x==='DUPLICATE').length===1,'ATOMIC_SINGLE_INSERT');
+           const changed={...fixture,en:'Different valid card.'};assert(await consume(key,snap,hash,changed)==='EXISTING_CARD_PROTECTED','COMPLETE_PROTECTED');
+           assert(JSON.stringify(await read(cards,'cards',key))===JSON.stringify(fixture),'EXACT_INDEXEDDB_CARD');
+           await write(diary,'meta',key,'lastVerified');cards.close();cards=await open('moa.study.cards.v771',1,d=>d.createObjectStore('cards'));
+           assert(JSON.stringify(await read(cards,'cards',key))===JSON.stringify(fixture),'DB_REOPEN_PERSISTENCE');
+           say('REAL_INDEXEDDB_LAB_PASS');say('CHATGPT_EXECUTION_NOT_TESTED');
+           }catch(e){say('FAIL '+String(e.message||e))}finally{active=false}
+          };
+          EOF
+          cat > src/probe/moa/storage3/Main.java <<'EOF'
+          package probe.moa.storage3;
+          import android.app.Activity;import android.content.*;import android.net.Uri;import android.os.*;import android.webkit.*;import android.widget.*;import java.io.*;import java.security.*;
+          public final class Main extends Activity {
+           WebView web;Button pick;boolean loaded=false;
+           @Override public void onCreate(Bundle b){super.onCreate(b);
+           LinearLayout root=new LinearLayout(this);root.setOrientation(1);
+           pick=new Button(this);pick.setText("사진 1장 선택 후 저장소 검증");pick.setEnabled(false);root.addView(pick);
+           Button copy=new Button(this);copy.setText("결과 복사");root.addView(copy);
+           web=new WebView(this);root.addView(web,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
+           WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setBlockNetworkLoads(true);s.setAllowFileAccess(false);s.setAllowContentAccess(false);
+           web.setWebViewClient(new WebViewClient(){
+            @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest r){
+             String u=r.getUrl().toString();String prefix="https://moa-storage-lab.invalid/";
+             if(u.startsWith(prefix)){String n=u.substring(prefix.length());if(n.equals("validator.js")||n.equals("scope.js")||n.equals("storage.js"))try{return new WebResourceResponse("application/javascript","UTF-8",getAssets().open(n));}catch(Exception ignored){}}
+             return new WebResourceResponse("text/plain","UTF-8",new ByteArrayInputStream(new byte[0]));
+            }
+            @Override public void onPageFinished(WebView v,String url){loaded=true;pick.setEnabled(true);}
+           });
+           try{String html=asset("index.html");String card=asset("card.json");html=html.replace("<script src=\"storage.js\"></script>","<script id=\"fixture\" type=\"application/json\">"+card.replace("<","\\u003c")+"</script><script src=\"storage.js\"></script>");web.loadDataWithBaseURL("https://moa-storage-lab.invalid/",html,"text/html","UTF-8",null);}catch(Exception e){Toast.makeText(this,"초기화 실패",Toast.LENGTH_LONG).show();}
+           pick.setOnClickListener(v->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("image/*");startActivityForResult(i,1);});
+           copy.setOnClickListener(v->web.evaluateJavascript("JSON.stringify(document.getElementById('log').textContent)",r->{try{String text=(String)new org.json.JSONTokener(r).nextValue();((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("MOA storage",text));}catch(Exception ignored){}}));
+           }
+           String asset(String n)throws Exception{try(InputStream in=getAssets().open(n)){return new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8);}}
+           @Override protected void onActivityResult(int req,int result,Intent data){super.onActivityResult(req,result,data);if(req!=1||result!=RESULT_OK||data==null||data.getData()==null)return;Uri uri=data.getData();pick.setEnabled(false);
+           new Thread(()->{try(InputStream in=getContentResolver().openInputStream(uri)){if(in==null)throw new IOException("empty");MessageDigest d=MessageDigest.getInstance("SHA-256");byte[] buf=new byte[65536];long total=0;for(int n;(n=in.read(buf))!=-1;){total+=n;if(total>50L*1024*1024)throw new IOException("50MB limit");d.update(buf,0,n);}if(total==0)throw new IOException("empty");StringBuilder h=new StringBuilder();for(byte x:d.digest())h.append(String.format(java.util.Locale.ROOT,"%02x",x&255));runOnUiThread(()->{if(!isDestroyed()){web.evaluateJavascript("window.runStorage("+org.json.JSONObject.quote(h.toString())+")",null);pick.setEnabled(true);}});}catch(Exception e){runOnUiThread(()->{if(!isDestroyed()){pick.setEnabled(true);Toast.makeText(this,"사진 읽기 실패: "+e.getClass().getSimpleName(),Toast.LENGTH_LONG).show();}});}}).start();}
+           @Override protected void onDestroy(){web.destroy();super.onDestroy();}
+          }
+          EOF
+          node fixture.cjs | tee out/schema-fixture-tests.txt
+          node --check assets/storage.js
+          node --check assets/scope.js
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          platform=$(find "$sdk/platforms" -name android.jar | sort -V | tail -1)
+          bt=$(find "$sdk/build-tools" -name aapt2 | sort -V | tail -1 | xargs dirname)
+          "$bt/aapt2" link -I "$platform" -A assets --manifest AndroidManifest.xml -o base.apk
+          javac -encoding UTF-8 -source 8 -target 8 -classpath "$platform" -d classes $(find src -name '*.java')
+          "$bt/d8" --min-api 37 --lib "$platform" --output dex $(find classes -name '*.class')
+          zip -q -j base.apk dex/classes.dex
+          "$bt/zipalign" -f 4 base.apk aligned.apk
+          keytool -genkeypair -keystore test.jks -storepass lab-only -keypass lab-only -alias lab -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=MOA isolated storage lab'
+          "$bt/apksigner" sign --ks test.jks --ks-pass pass:lab-only --key-pass pass:lab-only --out out/MOA_STORAGE_LAB_V3.apk aligned.apk
+          "$bt/apksigner" verify --verbose --print-certs out/MOA_STORAGE_LAB_V3.apk > out/signature.txt
+          "$bt/aapt2" dump badging out/MOA_STORAGE_LAB_V3.apk > out/badging.txt
+          "$bt/zipalign" -c 4 out/MOA_STORAGE_LAB_V3.apk
+          cp AndroidManifest.xml out/
+          cp -r assets src out/
+          (cd out && sha256sum *.apk > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-storage-lab-v3
+          path: work/out/
