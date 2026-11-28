@@ -1,3 +1,5 @@
+> **2026-11-28 external submit physical PASS and permanent ledger:** Read [MOA AppFunctions development ledger](MOA_APPFUNCTIONS_DEVELOPMENT_LEDGER_20261128.md) before any continuation. User verified external claim and READY_SYNTHETIC_ONLY on S26, after queued/leased. External duplicate/restart still pending; actual ChatGPT execution/usage unverified. R791 Golden immutable; R794 exact recovery cannot update over R795+. Record all successes/failures/fixes and source/QA separately. Next isolated schema/persistence experiment; no production change.
+
 # MOA R791 — user-designated Golden, 2026-11-28
 User explicitly designated R791 as Golden and next update baseline. This approval supersedes R771 as latest designated Golden; R771/R759 and all previous Golden snapshots remain immutable. User has not explicitly reported all physical tests or actual background generation PASS; do not infer those from designation. No APK rebuild, no deployment change, no AI changes, no AirPods changes.
 ## Freeze
