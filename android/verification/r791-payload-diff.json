@@ -1,0 +1,25 @@
+[
+  {
+    "version": 791,
+    "base": 789,
+    "bytes": 11065821,
+    "sha256": "d0c13a6e5fe73e9a0e520858a99430981c71494f8e238beb907a53af38d1815a",
+    "entries": 185,
+    "dex": 27,
+    "changed": [
+      "AndroidManifest.xml",
+      "assets/web/moa-r117-ui.js"
+    ]
+  },
+  {
+    "version": 792,
+    "base": 789,
+    "bytes": 11065821,
+    "sha256": "fb66db911ac3748a16561cba6053a9fe99ee12fd919ab05171d1a1f52cdc7ec0",
+    "entries": 185,
+    "dex": 27,
+    "changed": [
+      "AndroidManifest.xml"
+    ]
+  }
+]
