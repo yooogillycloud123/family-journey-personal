@@ -1,4 +1,4 @@
-name: MOA R791 full-card AppFunctions schema lab
+name: MOA R791 full-card AppFunctions schema lab v2
 on:
   push:
     branches: [feature/moa-chat-appfunctions-probe-20261128]
@@ -14,12 +14,12 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          mkdir -p work/src/probe/moa/schema work/assets work/classes work/dex work/out
+          mkdir -p work/src/probe/moa/schema2 work/assets work/classes work/dex work/out
           cd work
           cat > AndroidManifest.xml <<'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="probe.moa.schema" android:versionCode="1" android:versionName="1.0">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="probe.moa.schema2" android:versionCode="2" android:versionName="2.0">
             <uses-sdk android:minSdkVersion="37" android:targetSdkVersion="37"/>
-            <application android:label="MOA 7과목 왕복 실험" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            <application android:label="MOA 7과목 왕복 실험 v2" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
               <activity android:name=".Main" android:exported="true">
                 <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
               </activity>
@@ -32,9 +32,9 @@ jobs:
           EOF
           cat > assets/moa_schema_functions.xml <<'EOF'
           <appfunctions>
-            <appfunction><id>claimSchemaDemo</id><enabledByDefault>true</enabledByDefault><description>Claim only the explicitly armed synthetic full-card fixture.</description><response><valueType><type>8</type><isNullable>false</isNullable></valueType></response></appfunction>
-            <appfunction><id>submitSchemaDemo</id><enabledByDefault>true</enabledByDefault><description>Validate and persist a synthetic R791-format card.</description><parameters><name>jobId</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><parameters><name>lease</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><parameters><name>cardJson</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><response><valueType><type>8</type><isNullable>false</isNullable></valueType></response></appfunction>
-            <appfunction><id>schemaStatus</id><enabledByDefault>true</enabledByDefault><description>Read synthetic fixture state.</description><response><valueType><type>8</type><isNullable>false</isNullable></valueType></response></appfunction>
+            <appfunction><id>claimSchemaDemo</id><enabledByDefault>true</enabledByDefault><description>Claim only the explicitly armed synthetic full-card fixture.</description><parameters><name>testCapability</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><response><valueType><type>8</type><isNullable>false</isNullable></valueType></response></appfunction>
+            <appfunction><id>submitSchemaDemo</id><enabledByDefault>true</enabledByDefault><description>Validate and persist a synthetic R791-format card.</description><parameters><name>testCapability</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><parameters><name>jobId</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><parameters><name>lease</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><parameters><name>cardJson</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><response><valueType><type>8</type><isNullable>false</isNullable></valueType></response></appfunction>
+            <appfunction><id>schemaStatus</id><enabledByDefault>true</enabledByDefault><description>Read synthetic fixture state.</description><parameters><name>testCapability</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><response><valueType><type>8</type><isNullable>false</isNullable></valueType></response></appfunction>
           </appfunctions>
           EOF
           cat > assets/validator.js <<'EOF'
@@ -64,8 +64,8 @@ jobs:
           require('fs').writeFileSync('assets/card.json',JSON.stringify(card));console.log('R791 exact JS schema: 6 fixture assertions PASS; semantic quality NOT tested');
           EOF
           node fixture.cjs | tee out/schema-fixture-tests.txt
-          cat > src/probe/moa/schema/Provider.java <<'EOF'
-          package probe.moa.schema;
+          cat > src/probe/moa/schema2/Provider.java <<'EOF'
+          package probe.moa.schema2;
           import android.app.appfunctions.*;
           import android.app.appsearch.GenericDocument;
           import android.content.SharedPreferences;
@@ -80,6 +80,9 @@ jobs:
           public final class Provider extends AppFunctionService {
            static final String CLAIM="claimSchemaDemo",SUBMIT="submitSchemaDemo",STATUS="schemaStatus",RETURN=ExecuteAppFunctionResponse.PROPERTY_RETURN_VALUE;
            static final Object LOCK=new Object();
+           static String sessionCapability=""; static long sessionUntil;
+           static boolean authorized(String provided){return provided!=null&&!sessionCapability.isEmpty()&&SystemClock.elapsedRealtime()<=sessionUntil&&java.security.MessageDigest.isEqual(sessionCapability.getBytes(StandardCharsets.UTF_8),provided.getBytes(StandardCharsets.UTF_8));}
+           static void revoke(String capability){synchronized(LOCK){if(sessionCapability.equals(capability)){sessionCapability="";sessionUntil=0;}}}
            static String asset(android.content.Context c,String name)throws Exception{try(InputStream in=c.getAssets().open(name)){return new String(in.readAllBytes(),StandardCharsets.UTF_8);}}
            static void answer(OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException> cb,String text){
              cb.onResult(new ExecuteAppFunctionResponse(new GenericDocument.Builder<>("lab","response","LabResponse").setPropertyString(RETURN,text).build()));
@@ -88,11 +91,14 @@ jobs:
            static SharedPreferences store(android.content.Context c){return c.getSharedPreferences("schema-fixture",MODE_PRIVATE);}
            static boolean armed(SharedPreferences p,String j,String l){return j!=null&&l!=null&&j.equals(p.getString("job",""))&&l.equals(p.getString("lease",""))&&System.currentTimeMillis()<=p.getLong("expires",0);}
            @Override public void onExecuteFunction(ExecuteAppFunctionRequest req,String caller,SigningInfo si,CancellationSignal cancel,OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException> cb){
-             // Deliberately isolated: real user media and unknown callers are never exposed by this fixture.
-             if(!getPackageName().equals(caller)){reject(cb,"SELF_TEST_ONLY");return;}
+             // Synthetic-only fixture. OS AppFunctions permission checks remain intact.
+             // Do not assume the platform callback caller string equals the Activity package.
+             // An ephemeral private, UI-armed capability authorizes only this local test session.
              try{
               final SharedPreferences p=store(this);final String f=req.getFunctionIdentifier();
               synchronized(LOCK){
+               String capability=req.getParameters().getPropertyString("testCapability");
+               if(!authorized(capability)){reject(cb,"SELF_TEST_ONLY");return;}
                String state=p.getString("state","disabled");
                if(cancel.isCanceled()){reject(cb,"CANCELLED");return;}
                if(STATUS.equals(f)){answer(cb,state);return;}
@@ -100,7 +106,7 @@ jobs:
                 if(!"queued".equals(state)){answer(cb,"NO_JOB:"+state);return;}
                 String lease=UUID.randomUUID().toString();
                 if(!p.edit().putString("state","leased").putString("lease",lease).putLong("expires",System.currentTimeMillis()+900000).commit())throw new IOException("claim commit");
-                answer(cb,new JSONObject().put("jobId",p.getString("job","")).put("lease",lease).put("scene","Synthetic apple test").toString());return;
+                answer(cb,new JSONObject().put("jobId",p.getString("job","")).put("lease",lease).put("scene","Synthetic apple test").put("observedCaller",caller==null?"(null)":caller).toString());return;
                }
                if(!SUBMIT.equals(f)){reject(cb,"UNKNOWN_FUNCTION");return;}
                String j=req.getParameters().getPropertyString("jobId"),l=req.getParameters().getPropertyString("lease"),card=req.getParameters().getPropertyString("cardJson");
@@ -108,11 +114,11 @@ jobs:
                if("ready".equals(state)){if(card.equals(p.getString("card","")))answer(cb,"READY_ALREADY");else reject(cb,"COMPLETED_RESULT_DIFFERS");return;}
                if(!"leased".equals(state)){reject(cb,"NOT_LEASED");return;}
                // Evaluate the exact extracted R791 JS validator in an offline, network-blocked WebView.
-               new Handler(Looper.getMainLooper()).post(()->validate(p,j,l,card,cancel,cb));
+               new Handler(Looper.getMainLooper()).post(()->validate(p,j,l,card,capability,cancel,cb));
               }
              }catch(Exception e){reject(cb,"ERROR:"+e.getClass().getSimpleName());}
            }
-           void validate(SharedPreferences p,String j,String l,String card,CancellationSignal cancel,OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException> cb){
+           void validate(SharedPreferences p,String j,String l,String card,String capability,CancellationSignal cancel,OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException> cb){
              final Handler h=new Handler(Looper.getMainLooper());final AtomicBoolean done=new AtomicBoolean(false);
              WebView w=null;
              try{
@@ -129,7 +135,7 @@ jobs:
                  if(!done.compareAndSet(false,true))return;h.removeCallbacks(timeout);web.destroy();
                  if(cancel.isCanceled()||!"true".equals(value)){reject(cb,"R791_SCHEMA_REJECTED");return;}
                  synchronized(LOCK){
-                  if(!armed(p,j,l)){reject(cb,"REVOKED_OR_EXPIRED");return;}
+                  if(!authorized(capability)||cancel.isCanceled()||!armed(p,j,l)){reject(cb,"REVOKED_OR_EXPIRED");return;}
                   if("ready".equals(p.getString("state",""))){if(card.equals(p.getString("card","")))answer(cb,"READY_ALREADY");else reject(cb,"COMPLETED_RESULT_DIFFERS");return;}
                   if(!"leased".equals(p.getString("state",""))){reject(cb,"NOT_LEASED");return;}
                   if(!p.edit().putString("card",card).putString("state","ready").putInt("writes",p.getInt("writes",0)+1).commit()){reject(cb,"STORE_FAILED");return;}
@@ -143,8 +149,8 @@ jobs:
            }
           }
           EOF
-          cat > src/probe/moa/schema/Main.java <<'EOF'
-          package probe.moa.schema;
+          cat > src/probe/moa/schema2/Main.java <<'EOF'
+          package probe.moa.schema2;
           import android.app.Activity;
           import android.app.appfunctions.*;
           import android.app.appsearch.GenericDocument;
@@ -154,39 +160,39 @@ jobs:
           import org.json.*;
           import java.util.*;
           public final class Main extends Activity {
-           TextView out;Button run;int seq;AppFunctionManager mgr;CancellationSignal active;Handler h=new Handler(Looper.getMainLooper());
+           TextView out;Button run;int seq;String capability="";AppFunctionManager mgr;CancellationSignal active;Handler h=new Handler(Looper.getMainLooper());
            @Override public void onCreate(Bundle b){super.onCreate(b);
             LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(24,24,24,24);
             run=new Button(this);run.setText("7과목 전체 카드 왕복 시험");root.addView(run);
             Button copy=new Button(this);copy.setText("결과 복사");root.addView(copy);
             ScrollView sc=new ScrollView(this);out=new TextView(this);out.setTextSize(15);out.setTextIsSelectable(true);sc.addView(out);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
-            mgr=getSystemService(AppFunctionManager.class);line("독립 실험 / R791 데이터 변경 없음 / 실제 AI 없음");
+            mgr=getSystemService(AppFunctionManager.class);line("독립 실험 v2 / R791 데이터 변경 없음 / 실제 AI 없음");
             SharedPreferences p=Provider.store(this);line("PREVIOUS_STATE="+p.getString("state","disabled")+" WRITES="+p.getInt("writes",0)+" CARD_STORED="+!p.getString("card","").isEmpty());
             run.setOnClickListener(v->start());copy.setOnClickListener(v->((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("MOA schema",out.getText())));
            }
            void line(String s){out.append(s+"\n");}
            boolean valid(int id){return seq==id&&!run.isEnabled();}
-           void finish(int id,String s){if(!valid(id))return;run.setEnabled(true);if(active!=null){active.cancel();active=null;}line(s);line("CHATGPT_EXECUTION_NOT_TESTED");}
+           void finish(int id,String s){if(!valid(id))return;run.setEnabled(true);Provider.revoke(capability);capability="";if(active!=null){active.cancel();active=null;}line(s);line("CHATGPT_EXECUTION_NOT_TESTED");}
            interface Next{void go(String value)throws Exception;}
            void call(int id,String f,GenericDocument params,String expected,boolean error,Next next){
             if(!valid(id))return;
-            try{ExecuteAppFunctionRequest.Builder b=new ExecuteAppFunctionRequest.Builder(getPackageName(),f);if(params!=null)b.setParameters(params);active=new CancellationSignal();
+            try{ExecuteAppFunctionRequest.Builder b=new ExecuteAppFunctionRequest.Builder(getPackageName(),f);if(params!=null)b.setParameters(params);else {GenericDocument.Builder<?> doc=new GenericDocument.Builder<>("lab","request","LabRequest");if(!"SELF_TEST_ONLY".equals(expected))doc.setPropertyString("testCapability",capability);b.setParameters(doc.build());}active=new CancellationSignal();
              mgr.executeAppFunction(b.build(),getMainExecutor(),active,new OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException>(){
               public void onResult(ExecuteAppFunctionResponse r){if(!valid(id))return;String v=r.getResultDocument().getPropertyString(Provider.RETURN);if(error||(expected!=null&&!expected.equals(v))){finish(id,"UNEXPECTED_RESULT "+f+" "+v);return;}line(f+" RESULT_PASS");try{next.go(v);}catch(Exception e){finish(id,"CALLBACK_FAIL "+e.getClass().getSimpleName());}}
               public void onError(AppFunctionException e){if(!valid(id))return;if(!error||e.getMessage()==null||!e.getMessage().contains(expected)){finish(id,"CALL_FAIL "+f+" "+e.getMessage());return;}line("EXPECTED_REJECTION "+expected);try{next.go("");}catch(Exception ex){finish(id,"CALLBACK_FAIL");}}
              });
             }catch(Exception e){finish(id,"CALL_EXCEPTION "+e.getClass().getSimpleName());}
            }
-           GenericDocument args(String job,String lease,String card){return new GenericDocument.Builder<>("lab","request","LabRequest").setPropertyString("jobId",job).setPropertyString("lease",lease).setPropertyString("cardJson",card).build();}
+           GenericDocument args(String job,String lease,String card){return new GenericDocument.Builder<>("lab","request","LabRequest").setPropertyString("testCapability",capability).setPropertyString("jobId",job).setPropertyString("lease",lease).setPropertyString("cardJson",card).build();}
            void start(){
             if(mgr==null){line("SYSTEM_SERVICE_UNAVAILABLE");return;}final int id=++seq;run.setEnabled(false);out.setText("");
-            SharedPreferences p=Provider.store(this);synchronized(Provider.LOCK){if(!p.edit().clear().putString("job","synthetic-"+UUID.randomUUID()).putString("state","queued").commit()){finish(id,"ARM_FAIL");return;}}
+            SharedPreferences p=Provider.store(this);synchronized(Provider.LOCK){capability=UUID.randomUUID().toString()+UUID.randomUUID().toString();Provider.sessionCapability=capability;Provider.sessionUntil=SystemClock.elapsedRealtime()+100000;if(!p.edit().clear().putString("job","synthetic-"+UUID.randomUUID()).putString("state","queued").commit()){finish(id,"ARM_FAIL");return;}}
             h.postDelayed(()->{if(valid(id))finish(id,"TEST_TIMEOUT");},90000);
             try{
              final String card=Provider.asset(this,"card.json");final String bad="{\"summary\":\"incomplete\"}";
              JSONObject altered=new JSONObject(card);altered.put("en","Different completed fixture.");final String different=altered.toString();
-             call(id,Provider.CLAIM,null,null,false,value->{
-              JSONObject job=new JSONObject(value);String j=job.getString("jobId"),l=job.getString("lease");
+             call(id,Provider.CLAIM,null,"SELF_TEST_ONLY",true,denied->call(id,Provider.CLAIM,null,null,false,value->{
+              JSONObject job=new JSONObject(value);String j=job.getString("jobId"),l=job.getString("lease");line("OBSERVED_CALLER="+job.optString("observedCaller","(missing)"));
               call(id,Provider.CLAIM,null,"NO_JOB:leased",false,x->
                call(id,Provider.SUBMIT,args(j,l,bad),"R791_SCHEMA_REJECTED",true,y->
                 call(id,Provider.SUBMIT,args(j,l,card),"READY_SYNTHETIC_SCHEMA_ONLY",false,z->
@@ -196,10 +202,10 @@ jobs:
                     boolean ok=card.equals(p.getString("card",""))&&p.getInt("writes",0)==1;
                     line("EXACT_STORED_CARD="+ok+" WRITES="+p.getInt("writes",0));finish(id,ok?"FULL_SCHEMA_ROUNDTRIP_PASS":"STORE_FAIL");
                    }))))));
-             });
+             }));
             }catch(Exception e){finish(id,"FIXTURE_ERROR "+e.getClass().getSimpleName());}
            }
-           @Override protected void onDestroy(){seq++;if(active!=null)active.cancel();super.onDestroy();}
+           @Override protected void onDestroy(){seq++;Provider.revoke(capability);if(active!=null)active.cancel();super.onDestroy();}
           }
           EOF
           sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
@@ -211,14 +217,14 @@ jobs:
           zip -q -j base.apk dex/classes.dex
           "$bt/zipalign" -f 4 base.apk aligned.apk
           keytool -genkeypair -keystore test.jks -storepass lab-only -keypass lab-only -alias lab -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=MOA isolated AppFunctions lab'
-          "$bt/apksigner" sign --ks test.jks --ks-pass pass:lab-only --key-pass pass:lab-only --out out/MOA_APPFUNCTIONS_SCHEMA_LAB.apk aligned.apk
-          "$bt/apksigner" verify --verbose --print-certs out/MOA_APPFUNCTIONS_SCHEMA_LAB.apk > out/signature.txt
-          "$bt/aapt2" dump badging out/MOA_APPFUNCTIONS_SCHEMA_LAB.apk > out/badging.txt
-          "$bt/zipalign" -c 4 out/MOA_APPFUNCTIONS_SCHEMA_LAB.apk
+          "$bt/apksigner" sign --ks test.jks --ks-pass pass:lab-only --key-pass pass:lab-only --out out/MOA_APPFUNCTIONS_SCHEMA_LAB_V2.apk aligned.apk
+          "$bt/apksigner" verify --verbose --print-certs out/MOA_APPFUNCTIONS_SCHEMA_LAB_V2.apk > out/signature.txt
+          "$bt/aapt2" dump badging out/MOA_APPFUNCTIONS_SCHEMA_LAB_V2.apk > out/badging.txt
+          "$bt/zipalign" -c 4 out/MOA_APPFUNCTIONS_SCHEMA_LAB_V2.apk
           cp AndroidManifest.xml out/
           cp -r assets src out/
           (cd out && sha256sum *.apk > SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
-          name: moa-appfunctions-schema-lab
+          name: moa-appfunctions-schema-lab-v2
           path: work/out/
