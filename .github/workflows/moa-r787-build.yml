@@ -1,0 +1,38 @@
+name: MOA R787 unified settings and actual study monitoring
+on:
+  push:
+    branches: [feature/moa-r787-settings-unified-study-status-20261128]
+    paths: ['experiments/moa-r787/**','.github/workflows/moa-r787-build.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch exact R785 and verify unsigned pair
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/r787/{web,kit}
+          curl -fLsS https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/93a5a0e518a3db138c4a1c848829919b31969a49/android/releases/moa-r785.apk -o /tmp/r787/moa-r785.apk
+          echo 'b3021949745299d47de71d424b0b29b5de94a726d3d77adf1ee434966e791f7d  /tmp/r787/moa-r785.apk' | sha256sum -c -
+          unzip -q -j /tmp/r787/moa-r785.apk assets/web/moa-r755-inline-ai.js assets/web/moa-r117-ui.js -d /tmp/r787/web
+          python3 experiments/moa-r787/patch.py /tmp/r787/web
+          for js in /tmp/r787/web/*.js; do node --check "$js"; done
+          python3 experiments/moa-r787/prepare.py /tmp/r787 | tee /tmp/r787/kit/payload-diff.jsonl
+          sdk="$(dirname "$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)")"
+          for v in 787 788; do
+            "$sdk/zipalign" -f -p 4 "/tmp/r787/r$v-unaligned.apk" "/tmp/r787/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk"
+            "$sdk/zipalign" -c -p 4 "/tmp/r787/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk"
+            "$sdk/aapt2" dump badging "/tmp/r787/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk" | tee "/tmp/r787/kit/r$v-badging.txt"
+            grep "package: name='com.juhyeon.familyjournea' versionCode='$v'" "/tmp/r787/kit/r$v-badging.txt"
+          done
+          cp "$sdk/lib/apksigner.jar" /tmp/r787/kit/
+          cp /tmp/r787/web/*.js /tmp/r787/kit/
+          (cd /tmp/r787/kit && sha256sum *.apk apksigner.jar *.js >SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r787-r788-unsigned-verified
+          path: /tmp/r787/kit/
