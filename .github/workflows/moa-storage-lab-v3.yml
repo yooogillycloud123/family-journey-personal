@@ -72,7 +72,7 @@ jobs:
            fixture=JSON.parse(document.getElementById('fixture').textContent);
            say('ISOLATED_INDEXEDDB_READY');let k=await read(diary,'meta','lastVerified');if(k){let c=await read(cards,'cards',k);say('REOPEN_CARD_EXACT='+String(JSON.stringify(c)===JSON.stringify(fixture)))}
           }
-          const ready=new Promise((ok,no)=>{window.addEventListener('DOMContentLoaded',()=>init().then(ok,no),{once:true})});
+          const ready=new Promise((ok,no)=>{window.addEventListener('DOMContentLoaded',()=>init().then(ok,e=>{say("INIT_FAIL "+String(e.message||e));no(e)}),{once:true})});
           async function read(db,store,key){const t=db.transaction(store,'readonly');const p=done(t);const v=await req(t.objectStore(store).get(key));await p;return v}
           async function write(db,store,value,key){const t=db.transaction(store,'readwrite');const p=done(t);const s=t.objectStore(store);if(key===undefined)s.put(value);else s.put(value,key);await p}
           async function readScope(day){let row=await read(diary,'curated',day);return normalize783(row?[row]:[])}
@@ -133,7 +133,7 @@ jobs:
             }
             @Override public void onPageFinished(WebView v,String url){loaded=true;pick.setEnabled(true);}
            });
-           try{String html=asset("index.html");String card=asset("card.json");html=html.replace("<script src=\"storage.js\"></script>","<script id=\"fixture\" type=\"application/json\">"+card.replace("<","\\u003c")+"</script><script src=\"storage.js\"></script>");web.loadDataWithBaseURL("https://moa-storage-lab.invalid/",html,"text/html","UTF-8",null);}catch(Exception e){Toast.makeText(this,"초기화 실패",Toast.LENGTH_LONG).show();}
+           try{String html=asset("index.html");String card=asset("card.json");html=html.replace("<script src=\"storage.js\"></script>","<script id=\"fixture\" type=\"application/json\">"+card.replace("<","\\u003c")+"</script><script src=\"storage.js\"></script>");for(String n:new String[]{"validator.js","scope.js","storage.js"})html=html.replace("<script src=\""+n+"\"></script>","<script>"+asset(n)+"</script>");web.loadDataWithBaseURL("https://moa-storage-lab.invalid/",html,"text/html","UTF-8",null);}catch(Exception e){Toast.makeText(this,"초기화 실패",Toast.LENGTH_LONG).show();}
            pick.setOnClickListener(v->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("image/*");startActivityForResult(i,1);});
            copy.setOnClickListener(v->web.evaluateJavascript("JSON.stringify(document.getElementById('log').textContent)",r->{try{String text=(String)new org.json.JSONTokener(r).nextValue();((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("MOA storage",text));}catch(Exception ignored){}}));
            }
