@@ -1,3 +1,5 @@
+> **R789 user correction (2026-11-28):** A minimum height is NOT uniformity. Use exact closed card outer height 58 CSS px, header 56 CSS px, border 1 px, bottom gap 10 px, title 16 px/750, aligned left text and right chevron, remove isolated header icons that shift alignment. Override legacy ID-specific padding, margin and min-height; expanded bodies grow independently. Browser DOM geometry assertions and original handler tests required, not just source or visual intent. Actual R789 fixture measured 11 cards exactly 58px/10px; full phone/tablet verification still required. Preserve R771 Golden bytes.
+
 # MOA permanent settings UI contract — user requirement 2026-11-28
 This is a mandatory future Settings release gate, not a promotion or alteration of user Golden R771/R759. Applies to adding, moving or changing ANY Settings item. Existing functionality, preferences, package, storage, bridge, callbacks and user data remain protected.
 - Version row must be first, with actual PackageManager version; existing in-app GitHub update action immediately below it. Never use a hard-coded fake version. Update remains an action, not a pretend accordion.
