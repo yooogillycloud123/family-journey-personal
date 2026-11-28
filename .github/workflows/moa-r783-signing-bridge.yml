@@ -31,6 +31,7 @@ jobs:
           python3 kit/SIGN_R783.py --check-only
           python3 -m py_compile kit/SIGN_R783.py
           rm -rf kit/__pycache__
+          python3 offline-r783/reconstruct-signed.py kit signed/signed-pair.delta.json signed
           if [ -f signed/MOA_R783_ORIGINAL_SIGNED.apk ] && [ -f signed/MOA_R784_ORIGINAL_SIGNED.apk ]; then
             echo "SIGNED_INPUTS_PRESENT=true" >> "$GITHUB_ENV"
           else
