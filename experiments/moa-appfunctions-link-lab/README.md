@@ -3,3 +3,5 @@ Goal remains automatic ordinary ChatGPT learning with maximum thinking and no ag
 Build: gradle -p experiments/moa-appfunctions-link-lab :app:testDebugUnitTest :app:assembleDebug
 Device gate: install separate debug APK; register synthetic fixture; use official app_function list-app-functions --package com.juhyeon.moa.linklab and inspect exact function IDs; invoke the lab functions with authorized test agent only. Do not grant privileged permissions by bypass or change ChatGPT settings. Real ChatGPT authorized caller/ordinary chat initiation/usage measurement remain gates. No claim of full learning or actual model execution.
 References: https://developer.android.com/ai/appfunctions/add-appfunctions ; https://developer.android.com/ai/appfunctions ; https://github.com/android/appfunctions ; https://developer.android.com/agents/skills/device-ai/appfunctions/references/adb-interaction-testing .
+
+CI is isolated: it builds only the lab package with its debug signing identity. It must never publish to moa-update-channel or replace the installed MOA app. SDK/Gradle availability and device registration require actual evidence.
