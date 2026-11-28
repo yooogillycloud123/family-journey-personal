@@ -1,0 +1,38 @@
+name: MOA R791 Settings last-card clearance
+on:
+  push:
+    branches: [feature/moa-r791-settings-bottom-clearance-20261128]
+    paths: ['experiments/moa-r791/**','.github/workflows/moa-r791-build.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exact R789 settings-only patch and APK validation
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/r791/{web,kit}
+          curl -fLsS https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/4edc88f1f792ad549b20ef7645bc9855681bcd69/android/releases/moa-r789.apk -o /tmp/r791/moa-r789.apk
+          echo 'e7f5afbaf637d231f80f754b488d77f88d2e12a5ef85fcd0bfc972499a81fbf7  /tmp/r791/moa-r789.apk' | sha256sum -c -
+          unzip -q -j /tmp/r791/moa-r789.apk assets/web/moa-r117-ui.js -d /tmp/r791/web
+          python3 experiments/moa-r791/patch.py /tmp/r791/web/moa-r117-ui.js
+          node --check /tmp/r791/web/moa-r117-ui.js
+          python3 experiments/moa-r791/prepare.py /tmp/r791 | tee /tmp/r791/kit/payload-diff.jsonl
+          sdk="$(dirname "$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)")"
+          for v in 791 792; do
+            "$sdk/zipalign" -f -p 4 "/tmp/r791/r$v-unaligned.apk" "/tmp/r791/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk"
+            "$sdk/zipalign" -c -p 4 "/tmp/r791/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk"
+            "$sdk/aapt2" dump badging "/tmp/r791/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk" | tee "/tmp/r791/kit/r$v-badging.txt"
+            grep "package: name='com.juhyeon.familyjournea' versionCode='$v'" "/tmp/r791/kit/r$v-badging.txt"
+          done
+          cp "$sdk/lib/apksigner.jar" /tmp/r791/kit/
+          cp /tmp/r791/web/*.js /tmp/r791/kit/
+          (cd /tmp/r791/kit && sha256sum *.apk apksigner.jar *.js >SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r791-r792-unsigned-settings-verified
+          path: /tmp/r791/kit/
