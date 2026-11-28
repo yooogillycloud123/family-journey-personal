@@ -21,9 +21,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.9.1'
-      - uses: android-actions/setup-android@v3
-      - name: Install SDK
-        run: sdkmanager "platforms;android-37"
+      - name: Install SDK using runner preinstalled command-line tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          if [ ! -f "$ANDROID_HOME/platforms/android-37/android.jar" ]; then
+            "$SDKMANAGER" "platforms;android-37"
+          fi
+          test -f "$ANDROID_HOME/platforms/android-37/android.jar"
       - name: Test and assemble isolated package
         run: gradle -p experiments/moa-appfunctions-link-lab :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
       - name: Collect build evidence
