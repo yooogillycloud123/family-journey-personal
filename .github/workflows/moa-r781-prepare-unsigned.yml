@@ -1,0 +1,55 @@
+name: MOA R781 unsigned preparation only
+on:
+  push:
+    branches: [feature/moa-r781-region-sol-resilient-study-20261128]
+    paths: ['.github/workflows/moa-r781-prepare-unsigned.yml','experiments/moa-r781/prepare-unsigned.py']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: 836c8017bcea2ad9a6a7a57086f762ba958ccd25
+          path: baseline
+          sparse-checkout: |
+            android/releases/moa-r779.apk
+            android/releases/moa-r771.apk
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 46113768848
+          name: moa-r781-regional-auto-dex-qa
+          github-token: ${{ github.token }}
+          path: compiled
+      - name: Verify original APKs and prepare unsigned payloads
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sdk="$(dirname "$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)")"
+          (cd compiled && sha256sum -c SHA256SUMS.txt)
+          for version in 779 771; do
+            "$sdk/apksigner" verify --print-certs "baseline/android/releases/moa-r$version.apk" | tee "/tmp/original-$version.txt"
+            grep -i 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' "/tmp/original-$version.txt"
+          done
+          mkdir -p /tmp/unsigned-moa /tmp/ready-to-sign
+          python3 experiments/moa-r781/prepare-unsigned.py baseline/android/releases compiled /tmp/unsigned-moa | tee /tmp/ready-to-sign/payload-diff.jsonl
+          for v in 781 782; do
+            in="$(find /tmp/unsigned-moa -name "R${v}_*.apk" -print -quit)"
+            out="/tmp/ready-to-sign/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk"
+            "$sdk/zipalign" -f -P 16 4 "$in" "$out"
+            "$sdk/zipalign" -c -P 16 4 "$out"
+            "$sdk/aapt2" dump badging "$out" > "/tmp/ready-to-sign/R${v}_badging.txt"
+            grep "package: name='com.juhyeon.familyjournea' versionCode='$v' versionName='MOA-R$v'" "/tmp/ready-to-sign/R${v}_badging.txt"
+            if "$sdk/apksigner" verify "$out"; then echo 'Unexpected existing signature' >&2; exit 1; fi
+          done
+          echo 'UNSIGNED ONLY — local original signer required. Do not install or publish.' > /tmp/ready-to-sign/STATUS.txt
+          (cd /tmp/ready-to-sign && sha256sum *.apk > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r781-r782-unsigned-ready-to-sign
+          path: /tmp/ready-to-sign/
