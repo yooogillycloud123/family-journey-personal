@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 785,
-  "bytes": 11053533,
-  "sha256": "b3021949745299d47de71d424b0b29b5de94a726d3d77adf1ee434966e791f7d",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r785.apk",
+  "versionCode": 787,
+  "bytes": 11057629,
+  "sha256": "2b64ceac823bcb4ea587fc4482b2c0600670d697bbf33b88011059fafe089c91",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r787.apk",
   "published": true,
-  "notes": "R785 베타: 독립 백그라운드 자동 학습 및 통합 설정. 실기기 검증 대기."
+  "notes": "R787 베타: 설정 UI 통일 및 실제 학습 상태 확인. 실기기 검증 대기."
 }
