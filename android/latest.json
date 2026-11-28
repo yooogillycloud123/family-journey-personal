@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 787,
-  "bytes": 11057629,
-  "sha256": "2b64ceac823bcb4ea587fc4482b2c0600670d697bbf33b88011059fafe089c91",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r787.apk",
+  "versionCode": 789,
+  "bytes": 11065821,
+  "sha256": "e7f5afbaf637d231f80f754b488d77f88d2e12a5ef85fcd0bfc972499a81fbf7",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r789.apk",
   "published": true,
-  "notes": "R787 베타: 설정 UI 통일 및 실제 학습 상태 확인. 실기기 검증 대기."
+  "notes": "R789 베타: 즉시 자동 학습 서비스, 인증 대기 오류 복구, 연속 생성 및 동일 설정 카드 높이. 실기기 검증 대기."
 }
