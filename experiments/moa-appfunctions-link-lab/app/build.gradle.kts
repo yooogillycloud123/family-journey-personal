@@ -18,6 +18,7 @@ android {
     }
 }
 dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("androidx.appfunctions:appfunctions:1.0.0-rc01")
     ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-rc01")
     testImplementation("junit:junit:4.13.2")
