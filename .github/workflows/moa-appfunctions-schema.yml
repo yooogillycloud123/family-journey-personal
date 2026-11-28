@@ -1,0 +1,224 @@
+name: MOA R791 full-card AppFunctions schema lab
+on:
+  push:
+    branches: [feature/moa-chat-appfunctions-probe-20261128]
+    paths: ['.github/workflows/moa-appfunctions-schema.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Compile isolated provider and self-test
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p work/src/probe/moa/schema work/assets work/classes work/dex work/out
+          cd work
+          cat > AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="probe.moa.schema" android:versionCode="1" android:versionName="1.0">
+            <uses-sdk android:minSdkVersion="37" android:targetSdkVersion="37"/>
+            <application android:label="MOA 7과목 왕복 실험" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+              <activity android:name=".Main" android:exported="true">
+                <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+              </activity>
+              <service android:name=".Provider" android:exported="true" android:permission="android.permission.BIND_APP_FUNCTION_SERVICE">
+                <property android:name="android.app.appfunctions" android:value="moa_schema_functions.xml"/>
+                <intent-filter><action android:name="android.app.appfunctions.AppFunctionService"/></intent-filter>
+              </service>
+            </application>
+          </manifest>
+          EOF
+          cat > assets/moa_schema_functions.xml <<'EOF'
+          <appfunctions>
+            <appfunction><id>claimSchemaDemo</id><enabledByDefault>true</enabledByDefault><description>Claim only the explicitly armed synthetic full-card fixture.</description><response><valueType><type>8</type><isNullable>false</isNullable></valueType></response></appfunction>
+            <appfunction><id>submitSchemaDemo</id><enabledByDefault>true</enabledByDefault><description>Validate and persist a synthetic R791-format card.</description><parameters><name>jobId</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><parameters><name>lease</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><parameters><name>cardJson</name><isRequired>true</isRequired><dataType><type>8</type><isNullable>false</isNullable></dataType></parameters><response><valueType><type>8</type><isNullable>false</isNullable></valueType></response></appfunction>
+            <appfunction><id>schemaStatus</id><enabledByDefault>true</enabledByDefault><description>Read synthetic fixture state.</description><response><valueType><type>8</type><isNullable>false</isNullable></valueType></response></appfunction>
+          </appfunctions>
+          EOF
+          cat > assets/validator.js <<'EOF'
+          const SUBJECTS={english:'영어',math:'수학',science:'과학',social:'사회',history:'역사',geography:'지리',korean:'국어'};
+          const safeText=(s,n=2000)=>typeof s==='string'&&s.trim()&&s.length<=n;
+          function validLesson(x){const str=(s,max=2000)=>typeof s==='string'&&s.trim().length>0&&s.length<=max;if(!x||!str(x.summary)||!str(x.en,6000)||!str(x.ko,6000)||!str(x.story,6000)||(x.storyKo!==undefined&&!str(x.storyKo,6000))||!Array.isArray(x.words)||x.words.length<1||x.words.length>12||!Array.isArray(x.quiz)||!x.quiz.length||x.quiz.length>10)return false;return x.words.every(w=>w&&str(w.en,150)&&str(w.ko,200)&&str(w.example))&&x.quiz.every(q=>q&&str(q.question)&&Array.isArray(q.choices)&&q.choices.length===3&&q.choices.every(c=>str(c,300))&&Number.isInteger(q.answer)&&q.answer>=0&&q.answer<3)}
+          function subjectOK(x){return x&&x.id!=='english'&&Object.prototype.hasOwnProperty.call(SUBJECTS,x.id)&&['title','explanation','question','answer','activity'].every(k=>safeText(x[k],k==='explanation'?3000:1500))&&['observation','general_knowledge','needs_verification'].includes(x.confidence)}
+          function subjectCards(x){return Array.isArray(x?.subjects)?x.subjects.filter(subjectOK).slice(0,6):[]}
+          function subjectEn773(x){return x?.en&&['title','explanation','question','answer','activity'].every(k=>safeText(x.en[k],k==='explanation'?3000:1500))?x.en:null}
+          function discovery773(x){const keys=['title','question','answer','link'],limits={title:160,question:360,answer:1000,link:360};return Array.isArray(x?.discovery)?x.discovery.slice(0,5).filter(d=>d&&Object.prototype.hasOwnProperty.call(SUBJECTS,d.topic)&&['observation','general_knowledge','needs_verification'].includes(d.confidence)&&keys.every(k=>safeText(d[k],limits[k]))&&d.en&&keys.every(k=>safeText(d.en[k],limits[k]))):[]}
+          function complete779(x){const rows=subjectCards(x);return validLesson(x)&&new Set(rows.map(a=>a.id)).size===6&&rows.every(a=>subjectEn773(a)&&discovery773(a).length>=3)}
+          EOF
+          cat > fixture.cjs <<'EOF'
+          const SUBJECTS={english:'영어',math:'수학',science:'과학',social:'사회',history:'역사',geography:'지리',korean:'국어'};
+          const safeText=(s,n=2000)=>typeof s==='string'&&s.trim()&&s.length<=n;
+          function validLesson(x){const str=(s,max=2000)=>typeof s==='string'&&s.trim().length>0&&s.length<=max;if(!x||!str(x.summary)||!str(x.en,6000)||!str(x.ko,6000)||!str(x.story,6000)||(x.storyKo!==undefined&&!str(x.storyKo,6000))||!Array.isArray(x.words)||x.words.length<1||x.words.length>12||!Array.isArray(x.quiz)||!x.quiz.length||x.quiz.length>10)return false;return x.words.every(w=>w&&str(w.en,150)&&str(w.ko,200)&&str(w.example))&&x.quiz.every(q=>q&&str(q.question)&&Array.isArray(q.choices)&&q.choices.length===3&&q.choices.every(c=>str(c,300))&&Number.isInteger(q.answer)&&q.answer>=0&&q.answer<3)}
+          function subjectOK(x){return x&&x.id!=='english'&&Object.prototype.hasOwnProperty.call(SUBJECTS,x.id)&&['title','explanation','question','answer','activity'].every(k=>safeText(x[k],k==='explanation'?3000:1500))&&['observation','general_knowledge','needs_verification'].includes(x.confidence)}
+          function subjectCards(x){return Array.isArray(x?.subjects)?x.subjects.filter(subjectOK).slice(0,6):[]}
+          function subjectEn773(x){return x?.en&&['title','explanation','question','answer','activity'].every(k=>safeText(x.en[k],k==='explanation'?3000:1500))?x.en:null}
+          function discovery773(x){const keys=['title','question','answer','link'],limits={title:160,question:360,answer:1000,link:360};return Array.isArray(x?.discovery)?x.discovery.slice(0,5).filter(d=>d&&Object.prototype.hasOwnProperty.call(SUBJECTS,d.topic)&&['observation','general_knowledge','needs_verification'].includes(d.confidence)&&keys.every(k=>safeText(d[k],limits[k]))&&d.en&&keys.every(k=>safeText(d.en[k],limits[k]))):[]}
+          function complete779(x){const rows=subjectCards(x);return validLesson(x)&&new Set(rows.map(a=>a.id)).size===6&&rows.every(a=>subjectEn773(a)&&discovery773(a).length>=3)}
+          const f={title:'Synthetic test',explanation:'This is a schema-only fixture.',question:'What is this?',answer:'A test.',activity:'Read the test.'};
+          const d={topic:'science',confidence:'general_knowledge',title:'Test',question:'What?',answer:'Fixture',link:'Apple scene',en:{title:'Test',question:'What?',answer:'Fixture',link:'Apple scene'}};
+          const card={summary:'합성 사과 장면',en:'A red apple sits on a wooden table.',ko:'빨간 사과가 나무 탁자 위에 있습니다.',story:'A synthetic scene for transport testing.',storyKo:'전송 검증용 가상 장면입니다.',words:[{en:'apple',ko:'사과',example:'This is an apple.'}],quiz:[{question:'What is on the table?',choices:['Apple','Book','Cup'],answer:0}],subjects:['math','science','social','history','geography','korean'].map(id=>({id,...f,en:{...f},confidence:'general_knowledge',discovery:[d,d,d]}))};
+          if(!complete779(card))throw Error('valid fixture rejected');
+          for(const bad of [{...card,subjects:card.subjects.slice(0,5)},{...card,subjects:card.subjects.map(x=>({...x,discovery:[]}))},{...card,subjects:card.subjects.map(x=>({...x,en:null}))},{...card,quiz:[{question:'x',choices:['1','2','3'],answer:3}]},{summary:'bad'}])if(complete779(bad))throw Error('invalid fixture accepted');
+          require('fs').writeFileSync('assets/card.json',JSON.stringify(card));console.log('R791 exact JS schema: 6 fixture assertions PASS; semantic quality NOT tested');
+          EOF
+          node fixture.cjs | tee out/schema-fixture-tests.txt
+          cat > src/probe/moa/schema/Provider.java <<'EOF'
+          package probe.moa.schema;
+          import android.app.appfunctions.*;
+          import android.app.appsearch.GenericDocument;
+          import android.content.SharedPreferences;
+          import android.content.pm.SigningInfo;
+          import android.os.*;
+          import android.webkit.*;
+          import org.json.*;
+          import java.io.*;
+          import java.nio.charset.StandardCharsets;
+          import java.util.UUID;
+          import java.util.concurrent.atomic.AtomicBoolean;
+          public final class Provider extends AppFunctionService {
+           static final String CLAIM="claimSchemaDemo",SUBMIT="submitSchemaDemo",STATUS="schemaStatus",RETURN=ExecuteAppFunctionResponse.PROPERTY_RETURN_VALUE;
+           static final Object LOCK=new Object();
+           static String asset(android.content.Context c,String name)throws Exception{try(InputStream in=c.getAssets().open(name)){return new String(in.readAllBytes(),StandardCharsets.UTF_8);}}
+           static void answer(OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException> cb,String text){
+             cb.onResult(new ExecuteAppFunctionResponse(new GenericDocument.Builder<>("lab","response","LabResponse").setPropertyString(RETURN,text).build()));
+           }
+           static void reject(OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException> cb,String text){cb.onError(new AppFunctionException(AppFunctionException.ERROR_INVALID_ARGUMENT,text));}
+           static SharedPreferences store(android.content.Context c){return c.getSharedPreferences("schema-fixture",MODE_PRIVATE);}
+           static boolean armed(SharedPreferences p,String j,String l){return j!=null&&l!=null&&j.equals(p.getString("job",""))&&l.equals(p.getString("lease",""))&&System.currentTimeMillis()<=p.getLong("expires",0);}
+           @Override public void onExecuteFunction(ExecuteAppFunctionRequest req,String caller,SigningInfo si,CancellationSignal cancel,OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException> cb){
+             // Deliberately isolated: real user media and unknown callers are never exposed by this fixture.
+             if(!getPackageName().equals(caller)){reject(cb,"SELF_TEST_ONLY");return;}
+             try{
+              final SharedPreferences p=store(this);final String f=req.getFunctionIdentifier();
+              synchronized(LOCK){
+               String state=p.getString("state","disabled");
+               if(cancel.isCanceled()){reject(cb,"CANCELLED");return;}
+               if(STATUS.equals(f)){answer(cb,state);return;}
+               if(CLAIM.equals(f)){
+                if(!"queued".equals(state)){answer(cb,"NO_JOB:"+state);return;}
+                String lease=UUID.randomUUID().toString();
+                if(!p.edit().putString("state","leased").putString("lease",lease).putLong("expires",System.currentTimeMillis()+900000).commit())throw new IOException("claim commit");
+                answer(cb,new JSONObject().put("jobId",p.getString("job","")).put("lease",lease).put("scene","Synthetic apple test").toString());return;
+               }
+               if(!SUBMIT.equals(f)){reject(cb,"UNKNOWN_FUNCTION");return;}
+               String j=req.getParameters().getPropertyString("jobId"),l=req.getParameters().getPropertyString("lease"),card=req.getParameters().getPropertyString("cardJson");
+               if(!armed(p,j,l)||card==null||card.getBytes(StandardCharsets.UTF_8).length>262144){reject(cb,"INVALID_LEASE_OR_SIZE");return;}
+               if("ready".equals(state)){if(card.equals(p.getString("card","")))answer(cb,"READY_ALREADY");else reject(cb,"COMPLETED_RESULT_DIFFERS");return;}
+               if(!"leased".equals(state)){reject(cb,"NOT_LEASED");return;}
+               // Evaluate the exact extracted R791 JS validator in an offline, network-blocked WebView.
+               new Handler(Looper.getMainLooper()).post(()->validate(p,j,l,card,cancel,cb));
+              }
+             }catch(Exception e){reject(cb,"ERROR:"+e.getClass().getSimpleName());}
+           }
+           void validate(SharedPreferences p,String j,String l,String card,CancellationSignal cancel,OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException> cb){
+             final Handler h=new Handler(Looper.getMainLooper());final AtomicBoolean done=new AtomicBoolean(false);
+             WebView w=null;
+             try{
+              w=new WebView(this);final WebView web=w;
+              WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setBlockNetworkLoads(true);s.setAllowFileAccess(false);s.setAllowContentAccess(false);s.setDomStorageEnabled(false);
+              String source=asset(this,"validator.js");
+              Runnable timeout=()->{if(done.compareAndSet(false,true)){web.destroy();reject(cb,"VALIDATOR_TIMEOUT");}};
+              h.postDelayed(timeout,12000);
+              web.setWebViewClient(new WebViewClient(){
+               boolean started;
+               @Override public void onPageFinished(WebView v,String url){
+                if(started||done.get())return;started=true;
+                v.evaluateJavascript("(function(){try{"+source+"\nreturn complete779(JSON.parse("+JSONObject.quote(card)+"));}catch(e){return false;}})()",value->{
+                 if(!done.compareAndSet(false,true))return;h.removeCallbacks(timeout);web.destroy();
+                 if(cancel.isCanceled()||!"true".equals(value)){reject(cb,"R791_SCHEMA_REJECTED");return;}
+                 synchronized(LOCK){
+                  if(!armed(p,j,l)){reject(cb,"REVOKED_OR_EXPIRED");return;}
+                  if("ready".equals(p.getString("state",""))){if(card.equals(p.getString("card","")))answer(cb,"READY_ALREADY");else reject(cb,"COMPLETED_RESULT_DIFFERS");return;}
+                  if(!"leased".equals(p.getString("state",""))){reject(cb,"NOT_LEASED");return;}
+                  if(!p.edit().putString("card",card).putString("state","ready").putInt("writes",p.getInt("writes",0)+1).commit()){reject(cb,"STORE_FAILED");return;}
+                 }
+                 answer(cb,"READY_SYNTHETIC_SCHEMA_ONLY");
+                });
+               }
+              });
+              web.loadDataWithBaseURL("https://moa-schema-lab.invalid/","<!doctype html><title>Offline validator</title>","text/html","UTF-8",null);
+             }catch(Exception e){if(done.compareAndSet(false,true)){if(w!=null)w.destroy();reject(cb,"VALIDATOR_INIT:"+e.getClass().getSimpleName());}}
+           }
+          }
+          EOF
+          cat > src/probe/moa/schema/Main.java <<'EOF'
+          package probe.moa.schema;
+          import android.app.Activity;
+          import android.app.appfunctions.*;
+          import android.app.appsearch.GenericDocument;
+          import android.content.*;
+          import android.os.*;
+          import android.widget.*;
+          import org.json.*;
+          import java.util.*;
+          public final class Main extends Activity {
+           TextView out;Button run;int seq;AppFunctionManager mgr;CancellationSignal active;Handler h=new Handler(Looper.getMainLooper());
+           @Override public void onCreate(Bundle b){super.onCreate(b);
+            LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(24,24,24,24);
+            run=new Button(this);run.setText("7과목 전체 카드 왕복 시험");root.addView(run);
+            Button copy=new Button(this);copy.setText("결과 복사");root.addView(copy);
+            ScrollView sc=new ScrollView(this);out=new TextView(this);out.setTextSize(15);out.setTextIsSelectable(true);sc.addView(out);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
+            mgr=getSystemService(AppFunctionManager.class);line("독립 실험 / R791 데이터 변경 없음 / 실제 AI 없음");
+            SharedPreferences p=Provider.store(this);line("PREVIOUS_STATE="+p.getString("state","disabled")+" WRITES="+p.getInt("writes",0)+" CARD_STORED="+!p.getString("card","").isEmpty());
+            run.setOnClickListener(v->start());copy.setOnClickListener(v->((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("MOA schema",out.getText())));
+           }
+           void line(String s){out.append(s+"\n");}
+           boolean valid(int id){return seq==id&&!run.isEnabled();}
+           void finish(int id,String s){if(!valid(id))return;run.setEnabled(true);if(active!=null){active.cancel();active=null;}line(s);line("CHATGPT_EXECUTION_NOT_TESTED");}
+           interface Next{void go(String value)throws Exception;}
+           void call(int id,String f,GenericDocument params,String expected,boolean error,Next next){
+            if(!valid(id))return;
+            try{ExecuteAppFunctionRequest.Builder b=new ExecuteAppFunctionRequest.Builder(getPackageName(),f);if(params!=null)b.setParameters(params);active=new CancellationSignal();
+             mgr.executeAppFunction(b.build(),getMainExecutor(),active,new OutcomeReceiver<ExecuteAppFunctionResponse,AppFunctionException>(){
+              public void onResult(ExecuteAppFunctionResponse r){if(!valid(id))return;String v=r.getResultDocument().getPropertyString(Provider.RETURN);if(error||(expected!=null&&!expected.equals(v))){finish(id,"UNEXPECTED_RESULT "+f+" "+v);return;}line(f+" RESULT_PASS");try{next.go(v);}catch(Exception e){finish(id,"CALLBACK_FAIL "+e.getClass().getSimpleName());}}
+              public void onError(AppFunctionException e){if(!valid(id))return;if(!error||e.getMessage()==null||!e.getMessage().contains(expected)){finish(id,"CALL_FAIL "+f+" "+e.getMessage());return;}line("EXPECTED_REJECTION "+expected);try{next.go("");}catch(Exception ex){finish(id,"CALLBACK_FAIL");}}
+             });
+            }catch(Exception e){finish(id,"CALL_EXCEPTION "+e.getClass().getSimpleName());}
+           }
+           GenericDocument args(String job,String lease,String card){return new GenericDocument.Builder<>("lab","request","LabRequest").setPropertyString("jobId",job).setPropertyString("lease",lease).setPropertyString("cardJson",card).build();}
+           void start(){
+            if(mgr==null){line("SYSTEM_SERVICE_UNAVAILABLE");return;}final int id=++seq;run.setEnabled(false);out.setText("");
+            SharedPreferences p=Provider.store(this);synchronized(Provider.LOCK){if(!p.edit().clear().putString("job","synthetic-"+UUID.randomUUID()).putString("state","queued").commit()){finish(id,"ARM_FAIL");return;}}
+            h.postDelayed(()->{if(valid(id))finish(id,"TEST_TIMEOUT");},90000);
+            try{
+             final String card=Provider.asset(this,"card.json");final String bad="{\"summary\":\"incomplete\"}";
+             JSONObject altered=new JSONObject(card);altered.put("en","Different completed fixture.");final String different=altered.toString();
+             call(id,Provider.CLAIM,null,null,false,value->{
+              JSONObject job=new JSONObject(value);String j=job.getString("jobId"),l=job.getString("lease");
+              call(id,Provider.CLAIM,null,"NO_JOB:leased",false,x->
+               call(id,Provider.SUBMIT,args(j,l,bad),"R791_SCHEMA_REJECTED",true,y->
+                call(id,Provider.SUBMIT,args(j,l,card),"READY_SYNTHETIC_SCHEMA_ONLY",false,z->
+                 call(id,Provider.SUBMIT,args(j,l,card),"READY_ALREADY",false,a->
+                  call(id,Provider.SUBMIT,args(j,l,different),"COMPLETED_RESULT_DIFFERS",true,c->
+                   call(id,Provider.STATUS,null,"ready",false,d->{
+                    boolean ok=card.equals(p.getString("card",""))&&p.getInt("writes",0)==1;
+                    line("EXACT_STORED_CARD="+ok+" WRITES="+p.getInt("writes",0));finish(id,ok?"FULL_SCHEMA_ROUNDTRIP_PASS":"STORE_FAIL");
+                   }))))));
+             });
+            }catch(Exception e){finish(id,"FIXTURE_ERROR "+e.getClass().getSimpleName());}
+           }
+           @Override protected void onDestroy(){seq++;if(active!=null)active.cancel();super.onDestroy();}
+          }
+          EOF
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          platform=$(find "$sdk/platforms" -name android.jar | sort -V | tail -1)
+          bt=$(find "$sdk/build-tools" -name aapt2 | sort -V | tail -1 | xargs dirname)
+          "$bt/aapt2" link -I "$platform" -A assets --manifest AndroidManifest.xml -o base.apk
+          javac -encoding UTF-8 -source 8 -target 8 -classpath "$platform" -d classes $(find src -name '*.java')
+          "$bt/d8" --min-api 37 --lib "$platform" --output dex $(find classes -name '*.class')
+          zip -q -j base.apk dex/classes.dex
+          "$bt/zipalign" -f 4 base.apk aligned.apk
+          keytool -genkeypair -keystore test.jks -storepass lab-only -keypass lab-only -alias lab -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=MOA isolated AppFunctions lab'
+          "$bt/apksigner" sign --ks test.jks --ks-pass pass:lab-only --key-pass pass:lab-only --out out/MOA_APPFUNCTIONS_SCHEMA_LAB.apk aligned.apk
+          "$bt/apksigner" verify --verbose --print-certs out/MOA_APPFUNCTIONS_SCHEMA_LAB.apk > out/signature.txt
+          "$bt/aapt2" dump badging out/MOA_APPFUNCTIONS_SCHEMA_LAB.apk > out/badging.txt
+          "$bt/zipalign" -c 4 out/MOA_APPFUNCTIONS_SCHEMA_LAB.apk
+          cp AndroidManifest.xml out/
+          cp -r assets src out/
+          (cd out && sha256sum *.apk > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-appfunctions-schema-lab
+          path: work/out/
