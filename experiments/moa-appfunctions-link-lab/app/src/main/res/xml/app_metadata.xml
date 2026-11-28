@@ -1,0 +1,1 @@
+<AppFunctionAppMetadata xmlns:appfn="http://schemas.android.com/apk/androidx.appfunctions" appfn:description="Only synthetic demo data. User must enable the lab before claiming. Call claimDemo before submitDemo. No real media, no automatic AI invocation." appfn:displayDescription="@string/app_name"/>
