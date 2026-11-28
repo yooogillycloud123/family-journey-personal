@@ -1,0 +1,52 @@
+{
+  "exact": {
+    "status": 200,
+    "versionCode": 785,
+    "matches": true,
+    "headers": {
+      "Cache-Control": "max-age=300",
+      "ETag": "\"87497c2bbbe63c950024a75508ef406158c4f1d19ae193fe8640865b27607055\"",
+      "Date": "Sat, 28 Nov 2026 10:16:41 GMT",
+      "X-Served-By": "cache-dfw-kdfw8210098-DFW",
+      "X-Cache": "MISS"
+    }
+  },
+  "nonce": {
+    "status": 200,
+    "versionCode": 785,
+    "matches": true,
+    "headers": {
+      "Cache-Control": "max-age=300",
+      "ETag": "\"87497c2bbbe63c950024a75508ef406158c4f1d19ae193fe8640865b27607055\"",
+      "Date": "Sat, 28 Nov 2026 10:16:41 GMT",
+      "X-Served-By": "cache-chi-kmdw8640066-CHI",
+      "X-Cache": "MISS"
+    }
+  },
+  "immutable": {
+    "status": 200,
+    "versionCode": 785,
+    "matches": true,
+    "headers": {
+      "Cache-Control": "max-age=300",
+      "ETag": "\"87497c2bbbe63c950024a75508ef406158c4f1d19ae193fe8640865b27607055\"",
+      "Date": "Sat, 28 Nov 2026 10:16:41 GMT",
+      "X-Served-By": "cache-chi-kmdw8640086-CHI",
+      "X-Cache": "MISS"
+    }
+  },
+  "apk": {
+    "status": 200,
+    "bytes": 11053533,
+    "sha256": "b3021949745299d47de71d424b0b29b5de94a726d3d77adf1ee434966e791f7d",
+    "headers": {
+      "Cache-Control": "max-age=300",
+      "ETag": "\"26a724fc4aacdc5e535c17aa7247071d73cff5ccdc4983736248ec52c20393d4\"",
+      "Date": "Sat, 28 Nov 2026 10:16:41 GMT",
+      "X-Served-By": "cache-dfw-kdfw8210036-DFW",
+      "X-Cache": "MISS"
+    }
+  },
+  "commit": "d9c3fcbcbd5d84917d8dc1bb810898e7a1575660",
+  "verifiedAtUTC": "2026-11-28T10:16:42.023233+00:00"
+}
