@@ -1,0 +1,28 @@
+[
+  {
+    "version": 781,
+    "base": 779,
+    "sha256": "b6e55392b63def4fe12bb50d554eda9e70c37ba0270b87c649495d405420246e",
+    "bytes": 11032976,
+    "changed": [
+      "AndroidManifest.xml",
+      "assets/web/family-diary.js",
+      "assets/web/moa-r697-vertical-calendar.js",
+      "assets/web/moa-r755-inline-ai.js",
+      "classes27.dex"
+    ],
+    "entries": 184,
+    "dex": 27
+  },
+  {
+    "version": 782,
+    "base": 771,
+    "sha256": "5a7479ccf0dde6afe9c5fbd75cf535f2d2dbc0948b0ecb26ac90f6fe153fa689",
+    "bytes": 10996112,
+    "changed": [
+      "AndroidManifest.xml"
+    ],
+    "entries": 184,
+    "dex": 27
+  }
+]
