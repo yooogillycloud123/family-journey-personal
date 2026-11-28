@@ -1,0 +1,42 @@
+name: MOA R783 curated-only automatic study unsigned build
+on:
+  push:
+    branches: [feature/moa-r783-registered-only-reconcile-20261128]
+    paths: ['.github/workflows/moa-r783-build.yml','experiments/moa-r783/**']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch and test exact R781 release
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/r783/{web,kit}
+          curl -fLsS https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/ac74bc93046fdc2533e93dea2d9fe9eaefc40661/android/releases/moa-r781.apk -o /tmp/r783/moa-r781.apk
+          echo 'b6e55392b63def4fe12bb50d554eda9e70c37ba0270b87c649495d405420246e  /tmp/r783/moa-r781.apk' | sha256sum -c -
+          unzip -q -j /tmp/r783/moa-r781.apk assets/web/family-diary.js assets/web/moa-r755-inline-ai.js -d /tmp/r783/web
+          python3 experiments/moa-r783/patch.py /tmp/r783/web
+          for js in /tmp/r783/web/*.js; do node --check "$js"; done
+          node experiments/moa-r783/test.cjs /tmp/r783/web/moa-r755-inline-ai.js | tee /tmp/r783/kit/host-tests.txt
+          python3 experiments/moa-r783/prepare-unsigned.py /tmp/r783 /tmp/r783/web /tmp/r783 | tee /tmp/r783/kit/payload-diff.jsonl
+          sdk="$(dirname "$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)")"
+          for v in 783 784; do
+            "$sdk/zipalign" -f -p 4 "/tmp/r783/r$v-unaligned.apk" "/tmp/r783/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk"
+            "$sdk/zipalign" -c -p 4 "/tmp/r783/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk"
+            "$sdk/aapt2" dump badging "/tmp/r783/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk" | tee "/tmp/r783/kit/r$v-badging.txt"
+            grep "package: name='com.juhyeon.familyjournea' versionCode='$v'" "/tmp/r783/kit/r$v-badging.txt"
+          done
+          cp "$sdk/lib/apksigner.jar" /tmp/r783/kit/
+          cp experiments/moa-r783/sign-offline.py /tmp/r783/kit/
+          cp /tmp/r783/web/*.js /tmp/r783/kit/
+          (cd /tmp/r783/kit && sha256sum *.apk apksigner.jar *.js > SHA256SUMS.txt)
+          python3 /tmp/r783/kit/sign-offline.py --check-only
+          echo 'UNSIGNED. Do not install. Original signer required. R784 exact R781 recovery only. No publication. Real device and AI latency PENDING.' > /tmp/r783/kit/STATUS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r783-r784-offline-signing-kit-no-private-key
+          path: /tmp/r783/kit/
