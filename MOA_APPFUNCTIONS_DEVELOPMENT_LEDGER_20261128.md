@@ -36,3 +36,21 @@ Use append-only dated ledger entries with source/commit, artifact SHA, test scop
 - Exact source e5ccce73502d0f8d9cab060b2b24a2e332081dc4. GitHub Actions run 46149055170 completed SUCCESS, artifact 15264882774, ZIP 29714 bytes SHA256 41d885e603759b179fc81137b0a2c3442b9abfe9a873eb164b5fe20ff215db5e matched downloaded bytes. This supersedes the prior unavailable-build note.
 - APK MOA_APPFUNCTIONS_SCHEMA_LAB_V2.apk, package probe.moa.schema2, versionCode 2 versionName 2.0 SDK37, 25197 bytes, SHA256 9e576ffba8dae015ca928a547c4f684ae45378cd1338cce01cd7a8e4bf4362df. CI apksigner verifies v3 (v2 false; Android 17 isolated lab), signer SHA256 22a9546fdd6c8c445bd89337ef073c220a6054be271c8f71358ee47ba129e9d5, CI zipalign success. Locally ZIP/APK CRC, SHA256SUMS, DEX header size/SHA1/Adler32, packaged fixture and validator exact artifact source bytes PASS; CI six fixture assertions PASS. No independent local apksigner binary. 
 - Library exact v2 ZIP libfile_d93167c50ca08191870a1a7d8115463b and APK libfile_0c3174d30bb48191a811e92e09740a9f saved. Install v2 separately, press 7과목 전체 카드 왕복 시험 once, copy full output. Expected initial EXPECTED_REJECTION SELF_TEST_ONLY (intentional negative test), OBSERVED_CALLER, EXACT_STORED_CARD=true WRITES=1, FULL_SCHEMA_ROUNDTRIP_PASS. Reopen without pressing run again and check PREVIOUS_STATE=ready WRITES=1 CARD_STORED=true. No PC/ADB required. Physical v2 PENDING, actual AI execution NOT TESTED; no changes to production, R791/R794, or AirPods. Do not repeat v1.
+
+## Full-card v2 physical PASS — 2026-11-28
+User actual log:
+```
+EXPECTED_REJECTION SELF_TEST_ONLY
+claimSchemaDemo RESULT_PASS
+OBSERVED_CALLER=
+claimSchemaDemo RESULT_PASS
+EXPECTED_REJECTION R791_SCHEMA_REJECTED
+submitSchemaDemo RESULT_PASS
+submitSchemaDemo RESULT_PASS
+EXPECTED_REJECTION COMPLETED_RESULT_DIFFERS
+schemaStatus RESULT_PASS
+EXACT_STORED_CARD=true WRITES=1
+FULL_SCHEMA_ROUNDTRIP_PASS
+CHATGPT_EXECUTION_NOT_TESTED
+```
+Confirms full synthetic R791 card OS roundtrip, invalid capability and incomplete card rejection, duplicate claim/result handling, conflicting overwrite rejection and exact one write on S26. Caller observed empty string; never use it as production identity. Freeze v2 source e5ccce73502d0f8d9cab060b2b24a2e332081dc4 / APK 9e576ffba8dae015ca928a547c4f684ae45378cd1338cce01cd7a8e4bf4362df. Do not repeat successful test. Reopen persistence not yet reported. Actual production IndexedDB/media, actual external full-schema caller and ChatGPT authorization/execution/usage still unverified. Next: actual storage contract on isolated WebView, user-selected media only, no synthetic cards in production. No R791 changes.
