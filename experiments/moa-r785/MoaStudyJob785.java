@@ -41,7 +41,7 @@ public final class MoaStudyJob785 extends JobService {
         Context ctx=c.getApplicationContext();
         boolean on=j.optBoolean("enabled"),wifi=j.optBoolean("wifi"),charge=j.optBoolean("charge");
         SharedPreferences p=pref(ctx);
-        boolean changed=on!=p.getBoolean("enabled")||wifi!=p.getBoolean("wifi")||charge!=p.getBoolean("charge");
+        boolean changed=on!=p.getBoolean("enabled",false)||wifi!=p.getBoolean("wifi",false)||charge!=p.getBoolean("charge",false);
         if(!p.edit().putBoolean("enabled",on).putBoolean("wifi",wifi).putBoolean("charge",charge).commit())
             throw new IOException("자동 학습 설정 저장 실패");
         JobScheduler s=ctx.getSystemService(JobScheduler.class);
@@ -67,8 +67,8 @@ public final class MoaStudyJob785 extends JobService {
             SharedPreferences p=pref(ctx);
             JobInfo.Builder b=new JobInfo.Builder(JOB,new ComponentName(ctx,MoaStudyJob785.class))
                 .setPersisted(true).setMinimumLatency(Math.max(1000,Math.min(delay,21600000L)))
-                .setRequiresCharging(p.getBoolean("charge"));
-            if(p.getBoolean("wifi")){
+                .setRequiresCharging(p.getBoolean("charge",false));
+            if(p.getBoolean("wifi",false)){
                 b.setRequiredNetwork(new NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
                     .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build());
             }else b.setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY);
