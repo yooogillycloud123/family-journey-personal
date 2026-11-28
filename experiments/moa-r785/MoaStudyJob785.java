@@ -36,6 +36,7 @@ public final class MoaStudyJob785 extends JobService {
     static SharedPreferences pref(Context c){return c.getSharedPreferences(PREF,Context.MODE_PRIVATE);}
     static boolean enabled(Context c){return pref(c).getBoolean("enabled",false);}
     static boolean ownsWorker(){return live!=null;}
+    static JSONObject status(Context c)throws JSONException{JobScheduler j=c.getSystemService(JobScheduler.class);return new JSONObject().put("enabled",enabled(c)).put("running",live!=null).put("scheduled",j!=null&&j.getPendingJob(JOB)!=null).put("error",pref(c).getString("lastError",""));}
     static void configure(Context c,JSONObject j)throws IOException{
         Context ctx=c.getApplicationContext();
         boolean on=j.optBoolean("enabled"),wifi=j.optBoolean("wifi"),charge=j.optBoolean("charge");
@@ -153,6 +154,6 @@ public final class MoaStudyJob785 extends JobService {
         jobFinished(p,false);
         if(next>=0&&enabled(this)){Context c=getApplicationContext();MAIN.postDelayed(()->schedule(c,next,true),1000);}
     }
-    @Override public boolean onStopJob(JobParameters p){if(params==p)cleanup();return enabled(this);}
+    @Override public boolean onStopJob(JobParameters p){if(params==null)return false;cleanup();return enabled(this);}
     @Override public void onDestroy(){cleanup();super.onDestroy();}
 }

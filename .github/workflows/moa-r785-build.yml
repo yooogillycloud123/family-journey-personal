@@ -1,0 +1,90 @@
+name: MOA R785 OS background study candidate unsigned build
+on:
+  push:
+    branches: [feature/moa-r785-background-study-20261128]
+    paths: ['experiments/moa-r785/**','.github/workflows/moa-r785-build.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct exact corrected R781 native source and R783 payload
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/r771/{source,classes,dex,out}
+          cat experiments/moa-r771/native-{0,1,2,3,4}.b64 | base64 -d >/tmp/r771/native.zip
+          echo '0d60428ed4758a23ed4fdb05daa3e31094562808151db4f98fe7d94405ef87c2  /tmp/r771/native.zip' | sha256sum -c -
+          unzip -q /tmp/r771/native.zip -d /tmp/r771/source
+          cat experiments/moa-r771/web-{0..13}.b64 | base64 -d >/tmp/r771/web.zip
+          echo 'e79096bd476620a6bc064ab0547c455cad062a1cdc537250f3b9e5bd673be275  /tmp/r771/web.zip' | sha256sum -c -
+          unzip -q /tmp/r771/web.zip -d /tmp/r771/out
+          echo '9cf61830896f2006752826875fc7f84c9f0e9db32ef4f5638700bbaa7647755c  /tmp/r771/out/family-diary.js' | sha256sum -c -
+          echo '1733f8f2f481d03deaa43a759b5f66353d6c566c9785fdbd8218a43c9029ba5d  /tmp/r771/out/moa-r697-vertical-calendar.js' | sha256sum -c -
+          echo '3eb892d9c0dc0fa66d242457af446685551c1685878b3dd3e5ee52b32a57de76  /tmp/r771/out/moa-r755-inline-ai.js' | sha256sum -c -
+          mkdir -p /tmp/r773/changed
+          base64 -d experiments/moa-r773/changed.b64 >/tmp/r773/changed.zip
+          echo '37656d2bd2344ba529de44ed08595e51c0e6dfe795794fd889e6f2aed9a63f6b  /tmp/r773/changed.zip' | sha256sum -c -
+          unzip -q /tmp/r773/changed.zip -d /tmp/r773/changed
+          cp /tmp/r773/changed/native/*.java /tmp/r771/source/
+          cp /tmp/r773/changed/assets/web/moa-r755-inline-ai.js /tmp/r771/out/
+          mkdir -p /tmp/r775/changed
+          base64 -d experiments/moa-r775/changed.b64 >/tmp/r775/changed.zip
+          echo 'ed8301352c6802b7a66ba1051a97c70676ed754046b85650df5f5d2490406210  /tmp/r775/changed.zip' | sha256sum -c -
+          unzip -q /tmp/r775/changed.zip -d /tmp/r775/changed
+          cp /tmp/r775/changed/native/*.java /tmp/r771/source/
+          cp /tmp/r775/changed/assets/web/moa-r755-inline-ai.js /tmp/r771/out/
+          mkdir -p /tmp/r777/changed
+          base64 -d experiments/moa-r777/changed.b64 >/tmp/r777/changed.zip
+          echo 'dd1e058e9485388db43de922504dcb7012a78e1a47f4eb930cd8fbf70490b03e  /tmp/r777/changed.zip' | sha256sum -c -
+          unzip -q /tmp/r777/changed.zip -d /tmp/r777/changed
+          cp /tmp/r777/changed/native/*.java /tmp/r771/source/
+          cp /tmp/r777/changed/assets/web/moa-r755-inline-ai.js /tmp/r771/out/
+          mkdir -p /tmp/r779/changed
+          base64 -d experiments/moa-r779/source-qa.b64 >/tmp/r779/changed.zip
+          echo 'b8176f8903f453d6f063c87b2cce94fe4b6b7959e2fc7c6adc7ea953a7f70c7d  /tmp/r779/changed.zip' | sha256sum -c -
+          unzip -q /tmp/r779/changed.zip -d /tmp/r779/changed
+          cp /tmp/r779/changed/assets/web/*.js /tmp/r771/out/
+          echo 'bd07b9bc72ee780710ea9427bb22c6ce4ecbf026a53327017ae1a835e33a0524  /tmp/r771/out/family-diary.js' | sha256sum -c -
+          echo '335386f481ff537e7646308015fdfa94ddb583d102944a04fcb5d15bd352b207  /tmp/r771/out/moa-r755-inline-ai.js' | sha256sum -c -
+          python3 experiments/moa-r785/r781-corrected.py /tmp/r771/source /tmp/r771/out
+          mkdir -p /tmp/r785/{web,classes,dex,kit}
+          curl -fLsS https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/1fdc06b8ecb35a38f3038c85fb432eec97139cda/android/releases/moa-r783.apk -o /tmp/r785/moa-r783.apk
+          echo 'a355ec1cf7dbce64ccef0775f78fc9aa5efe23f9034aacf18ea450635e678529  /tmp/r785/moa-r783.apk' | sha256sum -c -
+          unzip -q -j /tmp/r785/moa-r783.apk assets/web/family-diary.js assets/web/moa-r755-inline-ai.js -d /tmp/r785/web
+          echo 'b285e87dc048d3f837daa95d2ea52d8fbb0851770d331263cdf62351dc408e59  /tmp/r785/web/moa-r755-inline-ai.js' | sha256sum -c -
+          python3 experiments/moa-r785/patch-settings.py /tmp/r785/web/moa-r755-inline-ai.js
+          python3 experiments/moa-r785/patch-background.py /tmp/r785/web/moa-r755-inline-ai.js
+          python3 experiments/moa-r785/patch-diary.py /tmp/r785/web/family-diary.js
+          python3 experiments/moa-r785/patch-native.py /tmp/r771/source
+          cp experiments/moa-r785/MoaStudyJob785.java /tmp/r771/source/
+          for js in /tmp/r785/web/*.js; do node --check "$js"; done
+          sdk="$(dirname "$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)")"
+          android="$ANDROID_HOME/platforms/android-35/android.jar"
+          javac --release 8 -encoding UTF-8 -cp "$android" -d /tmp/r785/classes /tmp/r771/source/*.java
+          find /tmp/r785/classes -name '*.class' -print0 | xargs -0 "$sdk/d8" --min-api 29 --lib "$android" --output /tmp/r785/dex
+          python3 experiments/moa-r785/prepare.py /tmp/r785 | tee /tmp/r785/kit/payload-diff.jsonl
+          for v in 785 786; do
+            "$sdk/zipalign" -f -p 4 "/tmp/r785/r$v-unaligned.apk" "/tmp/r785/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk"
+            "$sdk/zipalign" -c -p 4 "/tmp/r785/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk"
+            "$sdk/aapt2" dump badging "/tmp/r785/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk" | tee "/tmp/r785/kit/r$v-badging.txt"
+            grep "package: name='com.juhyeon.familyjournea' versionCode='$v'" "/tmp/r785/kit/r$v-badging.txt"
+            "$sdk/aapt2" dump xmltree "/tmp/r785/kit/MOA_R${v}_UNSIGNED_DO_NOT_INSTALL.apk" --file AndroidManifest.xml >"/tmp/r785/kit/r$v-manifest.txt"
+          done
+          grep -q 'com.juhyeon.familyjournea.ai.MoaStudyJob785' /tmp/r785/kit/r785-manifest.txt
+          grep -q 'android.permission.BIND_JOB_SERVICE' /tmp/r785/kit/r785-manifest.txt
+          grep -q 'android.permission.RECEIVE_BOOT_COMPLETED' /tmp/r785/kit/r785-manifest.txt
+          ! grep -q 'com.juhyeon.familyjournea.ai.MoaStudyJob785' /tmp/r785/kit/r786-manifest.txt
+          cp "$sdk/lib/apksigner.jar" /tmp/r785/kit/
+          cp /tmp/r785/web/*.js /tmp/r785/kit/
+          cp /tmp/r771/source/MoaInline755.java /tmp/r785/kit/
+          cp experiments/moa-r785/MoaStudyJob785.java /tmp/r785/kit/
+          (cd /tmp/r785/kit && sha256sum *.apk apksigner.jar *.js *.java >SHA256SUMS.txt)
+          echo 'UNSIGNED; Android actual JobService, WebView storage sharing, AI requests and device update PENDING. Not a release.' >/tmp/r785/kit/STATUS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-r785-r786-unsigned-background-candidate
+          path: /tmp/r785/kit/

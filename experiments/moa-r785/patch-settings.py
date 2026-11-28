@@ -21,8 +21,8 @@ function preference785(k,value){
   if(value&&!prefs.autoPlace&&!confirm('원본 미디어의 GPS를 OS 위치 검색에 사용하고, 도시·지역 후보만 ChatGPT에 전달합니다. 허용할까요?'))return false;
   prefs[k]=!!value;
  }else if(['background785','wifi785','charge785'].includes(k)){
-  if(k==='background785'&&!value)readQueue785();
   prefs[k]=!!value;
+  if(k==='background785'&&!value)readQueue785();
  }else if(voiceOptions785[k]?.some(([v])=>v===value)){prefs[k]=value}else{return false}
  const ok=persist771();sync();autoStatus771();if(!Object.keys(voiceOptions785).includes(k))wake783();return ok;
 }

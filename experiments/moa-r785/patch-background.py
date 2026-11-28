@@ -22,7 +22,7 @@ rep("const ACTIVE777='moa.study.active.v777',RETRY777=", "const LEGACYACTIVE785=
 fn('persist771',r"""function persist771(){try{let disk={};try{disk=JSON.parse(localStorage.getItem(PREF771)||'{}')||{}}catch{}if(BG785){for(const k of CFG785)if(Object.prototype.hasOwnProperty.call(disk,k))prefs[k]=disk[k];localStorage.setItem(PREF771,JSON.stringify({...disk,...prefs}));}else if(prefs.background785){const next={...disk};for(const k of CFG785)if(Object.prototype.hasOwnProperty.call(prefs,k))next[k]=prefs[k];localStorage.setItem(PREF771,JSON.stringify(next));}else localStorage.setItem(PREF771,JSON.stringify(prefs));if(BG785||!prefs.background785)localStorage.setItem(QUEUE771,JSON.stringify(pending));return true}catch(e){status('자동 학습 저장 공간 확인 · '+e.message);return false}}""")
 rep("function wake783(){scanDirty783=true;schedule771(100)}",r"""function wake783(){scanDirty783=true;if(!BG785)configure785();schedule771(100)}""")
 helper=r"""
-function readQueue785(){try{const x=JSON.parse(localStorage.getItem(QUEUE771)||'{}');if(x&&typeof x==='object'&&!Array.isArray(x))pending=x}catch{}}
+function readQueue785(){try{const x=JSON.parse(localStorage.getItem(QUEUE771)||'{}');if(x&&typeof x==='object'&&!Array.isArray(x)){pending=x;if(!BG785&&!prefs.background785)for(const q of Object.values(pending))if(q?.state==='running')q.state='pending'}}catch{}}
 function readConfig785(){
  try{const disk=JSON.parse(localStorage.getItem(PREF771)||'{}');for(const k of CFG785)if(Object.prototype.hasOwnProperty.call(disk,k))prefs[k]=disk[k];return true}catch{return false}
 }

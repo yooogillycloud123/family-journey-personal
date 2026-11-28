@@ -39,7 +39,7 @@ rep('private static final String JOB777="moa.study.job.v777";','''private static
 rep('ctx.getSharedPreferences(JOB777,0)','ctx.getSharedPreferences(journalName785(),0)',3)
 rep('w.post(()->{if(trusted(w))w.evaluateJavascript("window.MoaInline755&&window.MoaInline755.event(JSON.parse("+data+"))",null);});','''Runnable deliver=()->{if(!closed&&trusted(w))w.evaluateJavascript("window.MoaInline755&&window.MoaInline755.event(JSON.parse("+data+"))",null);};
         if(background785)MAIN785.post(deliver);else w.post(deliver);''')
-rep('if("studyRecover777".equals(op)){recover777(id);return;}','''if("bgConfig785".equals(op)&&!background785){MoaStudyJob785.configure(ctx,j);return;}
+rep('if("studyRecover777".equals(op)){recover777(id);return;}','''if("bgConfig785".equals(op)&&!background785){MoaStudyJob785.configure(ctx,j);JSONObject st=MoaStudyJob785.status(ctx);st.put("type","bgStatus785");st.put("id",id);emit(st);return;}
         if("bgInvalidate785".equals(op)&&!background785){MoaStudyJob785.invalidate(ctx,j.optString("day"));return;}
         if("studyRecover777".equals(op)){recover777(id);return;}''')
 rep('busy=true;job=id;cancelled=false;final boolean generation="generate".equals(op);','''if(!background785&&MoaStudyJob785.ownsWorker()){emit(obj("id",id,"type","error","message","백그라운드 자동 학습 진행 중 · 현재 작업 종료 후 다시 시도"));return;}
@@ -48,6 +48,7 @@ rep('busy=true;job=id;cancelled=false;final boolean generation="generate".equals
         if(background785&&generation)backgroundDay785=j.optString("day");''')
 rep('String msg=cancelled?"요청 취소":e instanceof UserError?e.getMessage():"AI 처리 실패 · "+e.getClass().getSimpleName();','String msg=stopping785?"백그라운드 작업 중단 · 자동 재시도":cancelled?"요청 취소":e instanceof UserError?e.getMessage():"AI 처리 실패 · "+e.getClass().getSimpleName();')
 rep('if(generation)ACTIVE777.remove(id);busy=false;','if(generation)ACTIVE777.remove(id);backgroundDay785="";busy=false;AI785.set(false);')
+rep('journal777(id,"running",null,"시작");','try{journal777(id,"running",null,"시작");}catch(RuntimeException e){ACTIVE777.remove(id);busy=false;AI785.set(false);emit(obj("id",id,"type","error","message","학습 작업 저장 실패"));return;}')
 # Persisted core/final results must not be acknowledged if native disk commit failed.
 rep('ctx.getSharedPreferences(journalName785(),0).edit().putString("record",r.toString()).commit();}catch(Exception ignored){}}','''boolean saved=ctx.getSharedPreferences(journalName785(),0).edit().putString("record",r.toString()).commit();if(background785&&!saved)throw new IllegalStateException("study journal write failed");}catch(Exception e){if(background785)throw new IllegalStateException("study journal write failed",e);}}''')
 # Existing authenticated native AI call and media extraction are reused. Cancel/disable gates
