@@ -1,0 +1,28 @@
+name: MOA R783 registered calendar source inspection
+on:
+  push:
+    branches: [feature/moa-r783-registered-only-reconcile-20261128]
+    paths: ['.github/workflows/moa-r783-inspect.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect exact released R781 assets
+        run: |
+          curl -fLsS https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/ac74bc93046fdc2533e93dea2d9fe9eaefc40661/android/releases/moa-r781.apk -o /tmp/r781.apk
+          echo 'b6e55392b63def4fe12bb50d554eda9e70c37ba0270b87c649495d405420246e  /tmp/r781.apk' | sha256sum -c -
+          python3 - <<'PY'
+          import zipfile,re
+          z=zipfile.ZipFile('/tmp/r781.apk')
+          for name in ['family-diary.js','moa-r697-vertical-calendar.js','moa-r755-inline-ai.js']:
+              s=z.read('assets/web/'+name).decode()
+              print('===',name,len(s))
+              for i,l in enumerate(s.splitlines(),1):
+                  if name=='moa-r755-inline-ai.js':
+                      match=re.search(r'function (?:complete779|queue771|drain779|persist771|pump771|finishAuto771|migrate779|autoStatus771|seed777|subjectCards|schedule771)|storageReady771|moa:study-media-committed|sessionBlocked781|prefs.auto=|function request\(',l)
+                  else:
+                      match=re.search(r'newStudyIds|studyDurable781|appended|calendarMode|registered|manual|selectedOnly|onlyAdded|loadEntries|loadDiary|listEntries|diaryEntries|Native.*(?:Diary|Entry)|(?:const|let|function|async function) .*?(?:diary|entries|Entry|Calendar|calendar|photos|Photos)',l,re.I)
+                  if match: print(i,l[:1800])
+          PY
