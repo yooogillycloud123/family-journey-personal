@@ -1,10 +1,10 @@
 {
   "packageName": "com.juhyeon.familyjournea",
   "signerSha256": "5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15",
-  "versionCode": 779,
-  "bytes": 10996112,
-  "sha256": "5e10d4428fded0d0c74e188c4dcf9e92e852f6ba7f6af2ebcbc26ff84c867e61",
-  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r779.apk",
+  "versionCode": 781,
+  "bytes": 11032976,
+  "sha256": "b6e55392b63def4fe12bb50d554eda9e70c37ba0270b87c649495d405420246e",
+  "apkUrl": "https://raw.githubusercontent.com/yooogillycloud123/family-journey-personal/moa-update-channel/android/releases/moa-r781.apk",
   "published": true,
-  "notes": "R779 베타: 바로기록 저장 완료 자동 학습 등록, 실패 원인 표시 및 제한적 자동 재시도, 중복 생성 방지. 실기기 검증 대기."
+  "notes": "R781 베타: 영어 우선·사진/영상 중심 학습, 자동 생성 안정화 및 Sol 우선. 실기기 검증 대기."
 }
