@@ -19,10 +19,12 @@ jobs:
           for name in ['family-diary.js','moa-r697-vertical-calendar.js','moa-r755-inline-ai.js']:
               s=z.read('assets/web/'+name).decode()
               print('===',name,len(s))
-              for i,l in enumerate(s.splitlines(),1):
-                  if name=='moa-r755-inline-ai.js':
-                      match=re.search(r'function (?:complete779|queue771|drain779|persist771|pump771|finishAuto771|migrate779|autoStatus771|seed777|subjectCards|schedule771)|storageReady771|moa:study-media-committed|sessionBlocked781|prefs.auto=|function request\(',l)
-                  else:
-                      match=re.search(r'newStudyIds|studyDurable781|appended|calendarMode|registered|manual|selectedOnly|onlyAdded|loadEntries|loadDiary|listEntries|diaryEntries|Native.*(?:Diary|Entry)|(?:const|let|function|async function) .*?(?:diary|entries|Entry|Calendar|calendar|photos|Photos)',l,re.I)
-                  if match: print(i,l[:1800])
+              lines=s.splitlines()
+              ranges={'family-diary.js':[(78,116),(150,165),(2185,2206)],'moa-r697-vertical-calendar.js':[(749,785),(1878,1902),(1920,1954),(2038,2072)],'moa-r755-inline-ai.js':[(1,16),(28,40),(98,108)]}[name]
+              for a,b in ranges:
+                  for i in range(a,b+1):
+                      print(i,lines[i-1])
+              if name=='family-diary.js':
+                  for i,l in enumerate(lines,1):
+                      if 'r98MountAppSettings' in l or ('settings' in l.lower() and 'append' in l and 'r98' in l): print(i,l)
           PY
