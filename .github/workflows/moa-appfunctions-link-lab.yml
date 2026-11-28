@@ -27,10 +27,10 @@ jobs:
           set -euo pipefail
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           test -x "$SDKMANAGER"
-          if [ ! -f "$ANDROID_HOME/platforms/android-36/android.jar" ]; then
-            "$SDKMANAGER" "platforms;android-36"
+          if [ ! -f "$ANDROID_HOME/platforms/android-37.0/android.jar" ]; then
+            "$SDKMANAGER" "platforms;android-37.0"
           fi
-          test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+          test -f "$ANDROID_HOME/platforms/android-37.0/android.jar"
       - name: Test and assemble isolated package
         run: gradle -p experiments/moa-appfunctions-link-lab :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
       - name: Collect build evidence
