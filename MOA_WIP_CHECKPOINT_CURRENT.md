@@ -1,3 +1,5 @@
+> **2026-11-28 Installed ChatGPT public Android integration:** [Current development gate](MOA_CHAT_APP_DIRECT_LINK_DEVELOPMENT_GATE_20261128.md). R791 remains Golden and published. Isolated probe build run 46143660249, physical capability/actual ordinary Chat generation/usage not verified. No production change. Preserve exact R794 rollback and existing Sol engine.
+
 > **2026-11-28 R793 research / R794 recovery:** Read [latest checkpoint](MOA_R793_PROJECT_AUTOMATION_GATE_R794_EXACT_R791_RECOVERY_20261128.md). R791 remains published and latest Golden. Actual exact R791 R794 recovery signed and private Library saved; isolated queue tests pass. Ordinary Chat project automatic generation with no agentic usage is NOT verified or deployed. No changes to production.
 
 > **2026-11-28 USER GOLDEN R791:** Latest user-designated Golden and next baseline is R791. Read [R791 Golden lock](MOA_R791_USER_GOLDEN_LOCK_20261128.md) first. Golden source and original APK branches frozen, R771/R759 preserved as historical Golden. No new release; physical full QA remains unconfirmed. Next candidate >=793, R792 is R789 recovery only. All permanent UI and release gates apply.
