@@ -73,8 +73,8 @@ function delay783(q,kind,now){
 }
 function migrateQueue783(now){
  let changed=false;
- for(const q of Object.values(pending)){
-  if(!q||typeof q!=='object')continue;
+ for(const [k,q] of Object.entries(pending)){
+  if(!registered783?.has(k)||!q||typeof q!=='object')continue;
   if(q.state==='failed'&&!q.policy783){q.policy783=true;q.kind783=classify783(q.error);delay783(q,q.kind783,now);changed=true}
  }
  return changed;
@@ -161,7 +161,7 @@ function mountAutoSettings783(){
 }
 function recoverBlocked783(){
  let changed=false;
- for(const q of Object.values(pending))if(q.state==='blocked'&&(q.kind783==='auth'||q.kind783==='model'&&autoModel781())){q.state='pending';q.nextAt=0;q.attempt=0;q.kind783='';changed=true}
+ for(const q of Object.values(pending))if(q.state==='blocked'&&(q.kind783==='auth'||q.kind783==='model'&&autoModel781()&&autoModel781()!==q.model783)){q.state='pending';q.nextAt=0;q.attempt=0;q.kind783='';changed=true}
  if(changed)persist771();
 }
 async function pumpScoped783(){
@@ -178,8 +178,9 @@ async function pumpScoped783(){
  if(active?.auto&&!registered783.has(active.key)){write777(ACTIVE777,null);command('cancel',{},active.id).catch(()=>{})}
  const now=Date.now();
  if(Number(prefs.quotaUntil783)>now){autoStatus771();return}
+ if(!Object.entries(pending).some(([k,q])=>registered783.has(k)&&q.state!=='paused'&&q.state!=='running'))return;
  if(!state.connected){
-  if(sessionBlocked781&&now>=Number(prefs.authCheckAfter783||0)){sessionBlocked781=false;sessionRetries779=0}
+  if((sessionBlocked781||sessionRetries779>=3)&&now>=Number(prefs.authCheckAfter783||0)){sessionBlocked781=false;sessionRetries779=0}
   if(!state.autoChecking&&!sessionBlocked781&&sessionRetries779<3){state.autoChecking=true;prefs.authCheckAfter783=now+1800000;persist771();request('session')}
   return;
  }
@@ -201,12 +202,12 @@ async function pumpScoped783(){
 }
 """
 rep("function complete779(x)",helper+"\nfunction complete779(x)")
-fn("migrate779","function migrate779(){if(migrateQueue783(Date.now()))persist771()}")
+fn("migrate779","function migrate779(){/* Deferred until canonical scope is available. */}")
 fn("queue771","function queue771(day,id,note=''){if(prefs.auto)wake783();return false}")
 fn("drain779",r"""function drain779(){if(!registered783||!storageReady771||!prefs.auto)return;let rows;try{rows=JSON.parse(localStorage.getItem(INBOX779)||'{}')}catch{return}if(!rows||typeof rows!=='object'||Array.isArray(rows))return;let changed=false,queueChanged=false;for(const [k,r] of Object.entries(rows)){if(!r||!registered783.has(k)||complete779(state.lessons[k])){delete rows[k];changed=true;continue}const q=pending[k];if(q){if(!q.note&&typeof r.note==='string'&&r.note&&q.state!=='running'){q.note=r.note.slice(0,12000);queueChanged=true}delete rows[k];changed=true}}if(queueChanged&&!persist771())return;if(changed)write777(INBOX779,Object.keys(rows).length?rows:null)}""")
 fn("autoStatus771","function autoStatus771(){const msg=progress783(),v=state.view;if(v?.autoInfo)v.autoInfo.textContent=msg;if(v?.autoToggle783)v.autoToggle783.checked=!!prefs.auto;const info=document.getElementById('moa-r783-auto-info'),toggle=document.getElementById('moa-r783-auto-toggle');if(info)info.textContent=msg;if(toggle)toggle.checked=!!prefs.auto}")
 fn("pump771","function pump771(){if(pumping783)return;pumping783=true;void pumpScoped783().catch(e=>{scopeError783=String(e.message||e);autoStatus771()}).finally(()=>{pumping783=false})}")
-fn("finishAuto771",r"""function finishAuto771(j,ok,message=''){if(j?.op==='generate'&&pending[j.key]){const q=pending[j.key];if(complete779(state.lessons[j.key])){delete pending[j.key];if(j.auto)prefs.lastJobMs783=Math.max(1,Date.now()-j.start);persist771()}else if(j.auto){q.error=String(message||'일부 과목 누락').slice(0,200);q.policy783=true;q.kind783=classify783(q.error);delay783(q,q.kind783,Date.now());if(q.kind783==='auth'){state.connected=false;sessionBlocked781=true;prefs.authCheckAfter783=Date.now()+1800000}persist771()}}autoStatus771();schedule771(1200)}""")
+fn("finishAuto771",r"""function finishAuto771(j,ok,message=''){if(j?.op==='generate'&&pending[j.key]){const q=pending[j.key];if(complete779(state.lessons[j.key])){delete pending[j.key];if(j.auto)prefs.lastJobMs783=Math.max(1,Date.now()-j.start);persist771()}else if(j.auto){q.error=String(message||'일부 과목 누락').slice(0,200);q.policy783=true;q.kind783=classify783(q.error);q.model783=j.body?.model||'';delay783(q,q.kind783,Date.now());if(q.kind783==='auth'){state.connected=false;sessionBlocked781=true;prefs.authCheckAfter783=Date.now()+1800000}persist771()}}autoStatus771();schedule771(1200)}""")
 # Use the existing card primary storage, but avoid serializing a growing entire mirror for every success.
 rep("const next={...state.lessons,[k]:lesson};try{const mirror=JSON.stringify(next);if(!primary||mirror.length<1500000)localStorage.setItem(K,mirror)}catch(e){if(!primary)throw e}state.lessons=next;return true",
 """if(primary){state.lessons[k]=lesson;if(Object.keys(state.lessons).length<=120){try{const mirror=JSON.stringify(state.lessons);if(mirror.length<1500000)localStorage.setItem(K,mirror)}catch{}}return true}const next={...state.lessons,[k]:lesson};localStorage.setItem(K,JSON.stringify(next));state.lessons=next;return true""")
