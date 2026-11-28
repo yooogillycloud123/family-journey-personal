@@ -27,4 +27,20 @@ check('quota, auth, explicit cancellation not looped',()=>{for(const s of ['HTTP
 check('prior transient failed job gets one migration, no quota retry',()=>{ctx.pending[k]={day:'2026-11-28',id:'123',state:'failed',attempt:3,error:'응답 시간 초과',retryPolicy779:true};ctx.pending.other={state:'failed',attempt:1,error:'HTTP 429'};ctx.migrate779();assert.equal(ctx.pending[k].state,'pending');assert.equal(ctx.pending.other.state,'failed');assert.ok(ctx.pending[k].retryPolicy781)});
 check('successful all-stage save clears only matching queue job',()=>{ctx.state.lessons[k]=full;ctx.finishAuto771({op:'generate',key:k,subject:'all',auto:true},true);assert.equal(ctx.pending[k],undefined);assert.ok(ctx.pending.other)});
 check('consent off prevents new queued media',()=>{ctx.prefs.auto=false;assert.equal(ctx.queue771('2026-11-28','456'),false)});
+for(const name of ['family-diary.js','moa-r697-vertical-calendar.js']){
+ const f=fs.readFileSync(require('node:path').join(require('node:path').dirname(process.argv[2]),name),'utf8');
+ const code=f.split('\n').find(x=>x.trim().startsWith('function storeStudyReceipts781('));assert.ok(code,name);
+ const storage=new Map(),c={localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)}};
+ vm.createContext(c);vm.runInContext(code,c);
+ check(name+' consent-off receipt suppression',()=>{assert.equal(c.storeStudyReceipts781('2026-11-28',['123']),false);assert.equal(storage.size,0)});
+ check(name+' durable local commit receipt and exact ID deduplication',()=>{
+  storage.set('moa.study.preferences.v771','{"auto":true}');
+  assert.ok(c.storeStudyReceipts781('2026-11-28',['123','v456','invalid']));
+  const key='moa.study.commit-inbox.v779', old=JSON.parse(storage.get(key));old['2026-11-28|123'].note='original note';storage.set(key,JSON.stringify(old));
+  assert.ok(c.storeStudyReceipts781('2026-11-28',['123','789']));
+  const q=JSON.parse(storage.get(key));assert.equal(Object.keys(q).length,3);assert.equal(q['2026-11-28|123'].note,'original note');assert.equal(q['2026-11-28|v456'].nativeCommit779,true);
+ });
+}
+check('HTTP 408 is retryable but ordinary HTTP 4xx is blocked',()=>{assert.ok(ctx.retryable779('HTTP 408'));assert.equal(ctx.retryable779('HTTP 403'),false)});
+
 console.log(n+' mock function tests PASS; no real AI, Android, or database validation');
