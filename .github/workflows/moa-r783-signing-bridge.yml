@@ -2,7 +2,7 @@ name: MOA R783 offline signing bridge and verified release
 on:
   push:
     branches: [release/moa-r783-signing-stage-20261128]
-    paths: ['.github/workflows/moa-r783-signing-bridge.yml','offline-r783/**','signed/MOA_R783_ORIGINAL_SIGNED.apk','signed/MOA_R784_ORIGINAL_SIGNED.apk']
+    paths: ['.github/workflows/moa-r783-signing-bridge.yml','offline-r783/**','signed/README.txt','signed/MOA_R783_ORIGINAL_SIGNED.apk','signed/MOA_R784_ORIGINAL_SIGNED.apk']
 permissions:
   contents: write
   actions: read
@@ -28,6 +28,9 @@ jobs:
           (cd kit && sha256sum -c SHA256SUMS.txt)
           python3 kit/sign-offline.py --check-only
           cp offline-r783/* kit/
+          python3 kit/SIGN_R783.py --check-only
+          python3 -m py_compile kit/SIGN_R783.py
+          rm -rf kit/__pycache__
           if [ -f signed/MOA_R783_ORIGINAL_SIGNED.apk ] && [ -f signed/MOA_R784_ORIGINAL_SIGNED.apk ]; then
             echo "SIGNED_INPUTS_PRESENT=true" >> "$GITHUB_ENV"
           else
