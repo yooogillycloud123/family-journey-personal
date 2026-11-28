@@ -1,0 +1,117 @@
+name: MOA isolated ChatGPT capability probe
+on:
+  push:
+    branches: [feature/moa-chat-appfunctions-probe-20261128]
+    paths: ['.github/workflows/moa-chat-appfunctions-probe.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Build standalone read-only probe
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p probe/src/probe/moa probe/classes probe/dex probe/out
+          cd probe
+          cat > AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="probe.moa.chatfunctions" android:versionCode="1" android:versionName="1.0">
+            <uses-sdk android:minSdkVersion="30" android:targetSdkVersion="35"/>
+            <uses-permission android:name="android.permission.DISCOVER_APP_FUNCTIONS"/>
+            <queries>
+              <package android:name="com.openai.chatgpt"/>
+              <package android:name="com.juhyeon.familyjournea"/>
+            </queries>
+            <application android:label="MOA 연결 진단" android:allowBackup="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+              <activity android:name=".Main" android:exported="true">
+                <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOF
+          mkdir -p src/probe/moa/chatfunctions
+          cat > src/probe/moa/chatfunctions/Main.java <<'EOF'
+          package probe.moa.chatfunctions;
+          import android.app.Activity;
+          import android.content.*;
+          import android.content.pm.*;
+          import android.os.*;
+          import android.widget.*;
+          import java.lang.reflect.*;
+          import java.util.*;
+          import java.util.concurrent.Executor;
+          public final class Main extends Activity {
+            static final String TARGET="com.openai.chatgpt";
+            static final String[] PERMS={"android.permission.DISCOVER_APP_FUNCTIONS","android.permission.EXECUTE_APP_FUNCTIONS","android.permission.EXECUTE_APP_FUNCTIONS_SYSTEM"};
+            TextView output; int scanId=0;
+            @Override public void onCreate(Bundle b) {
+              super.onCreate(b);
+              LinearLayout root=new LinearLayout(this); root.setOrientation(1);
+              int p=(int)(16*getResources().getDisplayMetrics().density);root.setPadding(p,p,p,p);
+              Button scan=new Button(this);scan.setText("공개 연결 기능 조회");root.addView(scan);
+              Button copy=new Button(this);copy.setText("진단 결과 복사");root.addView(copy);
+              ScrollView scroll=new ScrollView(this);output=new TextView(this);output.setTextIsSelectable(true);output.setTextSize(14);scroll.addView(output);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+              setContentView(root);scan.setOnClickListener(v->scan());copy.setOnClickListener(v->{((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("MOA probe",output.getText()));Toast.makeText(this,"복사 완료",Toast.LENGTH_SHORT).show();});scan();
+            }
+            void line(String s){output.append(s+"\n");}
+            void scan(){
+              final int id=++scanId;output.setText("");
+              line("MOA 독립 진단 v1.0 / 읽기 전용");line("SDK="+Build.VERSION.SDK_INT);
+              PackageManager pm=getPackageManager();
+              for(String pkg:new String[]{TARGET,"com.juhyeon.familyjournea"}){
+                try{PackageInfo info=pm.getPackageInfo(pkg,0);line(pkg+" version="+info.versionName);}
+                catch(PackageManager.NameNotFoundException e){line(pkg+" NOT_VISIBLE_OR_INSTALLED");}
+              }
+              for(String perm:PERMS){
+                line(perm+" caller="+(checkSelfPermission(perm)==PackageManager.PERMISSION_GRANTED)+" chatgpt="+(pm.checkPermission(perm,TARGET)==PackageManager.PERMISSION_GRANTED));
+              }
+              for(String type:new String[]{"text/plain","image/jpeg","application/json"}){
+                Intent i=new Intent(Intent.ACTION_SEND).setType(type).setPackage(TARGET);
+                line("SEND "+type+" visible_handlers="+pm.queryIntentActivities(i,0).size());
+              }
+              Intent svc=new Intent("android.app.appfunctions.AppFunctionService").setPackage(TARGET);
+              line("AppFunctionService visible="+pm.queryIntentServices(svc,0).size());
+              if(Build.VERSION.SDK_INT<37){line("REGISTRY_API_UNAVAILABLE_BELOW_37");return;}
+              try{
+                Class<?> mgr=Class.forName("android.app.appfunctions.AppFunctionManager");
+                Object service=getSystemService(mgr);
+                if(service==null){line("REGISTRY_SERVICE_UNAVAILABLE");return;}
+                Class<?> spec=Class.forName("android.app.appfunctions.AppFunctionSearchSpec");
+                Class<?> builder=Class.forName("android.app.appfunctions.AppFunctionSearchSpec$Builder");
+                Object b=builder.getConstructor().newInstance();
+                builder.getMethod("setPackageNames",Set.class).invoke(b,Collections.singleton(TARGET));
+                Object request=builder.getMethod("build").invoke(b);
+                line("REGISTRY_QUERY_PENDING");
+                final boolean[] done={false};
+                OutcomeReceiver<List<?>,Exception> callback=new OutcomeReceiver<List<?>,Exception>(){
+                  @Override public void onResult(List<?> list){if(id!=scanId||done[0])return;done[0]=true;line("REGISTRY_VISIBLE_COUNT="+list.size());for(Object m:list){try{Object name=m.getClass().getMethod("getName").invoke(m);line("function="+name.getClass().getMethod("getFunctionIdentifier").invoke(name));}catch(Exception e){line("METADATA_ERROR="+e.getClass().getSimpleName());}}line("DISCOVERY_ONLY_NOT_EXECUTION");}
+                  @Override public void onError(Exception e){if(id!=scanId||done[0])return;done[0]=true;line("REGISTRY_QUERY_ERROR="+e.getClass().getSimpleName());}
+                };
+                mgr.getMethod("searchAppFunctions",spec,Executor.class,OutcomeReceiver.class).invoke(service,request,getMainExecutor(),callback);
+                new Handler(Looper.getMainLooper()).postDelayed(()->{if(id==scanId&&!done[0]){done[0]=true;line("REGISTRY_QUERY_TIMEOUT");}},8000);
+              }catch(Exception e){Throwable t=e instanceof InvocationTargetException?((InvocationTargetException)e).getCause():e;line("REGISTRY_QUERY_ERROR="+(t==null?"unknown":t.getClass().getSimpleName()));}
+            }
+          }
+          EOF
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          platform=$(find "$sdk/platforms" -name android.jar | sort -V | tail -1)
+          bt=$(find "$sdk/build-tools" -name aapt2 | sort -V | tail -1 | xargs dirname)
+          "$bt/aapt2" link -I "$platform" --manifest AndroidManifest.xml -o base.apk
+          javac -encoding UTF-8 -source 8 -target 8 -classpath "$platform" -d classes src/probe/moa/chatfunctions/Main.java
+          "$bt/d8" --min-api 30 --lib "$platform" --output dex $(find classes -name '*.class')
+          zip -q -j base.apk dex/classes.dex
+          "$bt/zipalign" -f 4 base.apk aligned.apk
+          keytool -genkeypair -keystore probe.jks -storepass probe-only -keypass probe-only -alias probe -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=MOA isolated test probe'
+          "$bt/apksigner" sign --ks probe.jks --ks-pass pass:probe-only --key-pass pass:probe-only --out out/MOA_CHAT_APPFUNCTIONS_PROBE.apk aligned.apk
+          "$bt/apksigner" verify --verbose --print-certs out/MOA_CHAT_APPFUNCTIONS_PROBE.apk > out/signature.txt
+          "$bt/aapt2" dump badging out/MOA_CHAT_APPFUNCTIONS_PROBE.apk > out/badging.txt
+          "$bt/zipalign" -c 4 out/MOA_CHAT_APPFUNCTIONS_PROBE.apk
+          cp AndroidManifest.xml out/
+          cp src/probe/moa/chatfunctions/Main.java out/
+          (cd out && sha256sum *.apk > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moa-chat-appfunctions-probe
+          path: probe/out/
