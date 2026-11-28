@@ -4,11 +4,11 @@ plugins {
 }
 android {
     namespace = "com.juhyeon.moa.linklab"
-    compileSdk = 37
+    compileSdk = 36
     defaultConfig {
         applicationId = "com.juhyeon.moa.linklab"
         minSdk = 36
-        targetSdk = 37
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0-lab"
     }
@@ -18,8 +18,8 @@ android {
     }
 }
 dependencies {
-    implementation("androidx.appfunctions:appfunctions:1.0.0-rc01")
-    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-rc01")
+    implementation("androidx.appfunctions:appfunctions:1.0.0-alpha10")
+    ksp("androidx.appfunctions:appfunctions-compiler:1.0.0-alpha10")
     testImplementation("junit:junit:4.13.2")
 }
 ksp { arg("appfunctions:aggregateAppFunctions", "true") }
