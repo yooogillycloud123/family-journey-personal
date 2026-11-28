@@ -1,0 +1,25 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'">
+<title>모아 자동 학습 작업</title></head><body>
+<script>
+'use strict';
+window.MoaBackground785=true;
+window.MoaPeerControl={request:async function(v){
+ const p='timeline731:ai753:inline755:';
+ if(typeof v!=='string'||!v.startsWith(p)||!window.MoaBackgroundNative785.send(v.slice(p.length)))throw Error('백그라운드 AI 연결 실패');
+ return true;
+}};
+window.MoaStudyCurated783=async function(day){
+ const db=await new Promise((resolve,reject)=>{
+  const r=indexedDB.open('familyjourney-diary-v1');
+  r.onupgradeneeded=()=>{r.transaction.abort();reject(Error('등록 달력 저장소 없음'))};
+  r.onblocked=()=>reject(Error('등록 달력 저장소 잠김'));
+  r.onerror=()=>reject(r.error);r.onsuccess=()=>resolve(r.result);
+ });
+ try{return await new Promise((resolve,reject)=>{
+  const tx=db.transaction('curated','readonly'),s=tx.objectStore('curated'),r=day?s.get(day):s.getAll();
+  r.onsuccess=()=>resolve(day?(r.result?[r.result]:[]):r.result);
+  r.onerror=()=>reject(r.error);tx.onabort=()=>reject(tx.error||Error('등록 확인 중단'));
+ });}finally{db.close()}
+};
+</script><script src="inline.js"></script></body></html>
