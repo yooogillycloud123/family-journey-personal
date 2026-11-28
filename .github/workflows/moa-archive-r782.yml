@@ -1,0 +1,43 @@
+name: Archive R782 exact signed R771 emergency recovery
+on:
+  push:
+    branches: [archive/moa-r782-original-signed-recovery-20261128]
+    paths: ['.github/workflows/moa-archive-r782.yml']
+permissions:
+  contents: write
+  actions: read
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 46119978303
+          name: moa-r781-r782-original-signed-verified
+          github-token: ${{ github.token }}
+          path: verified
+      - name: Preserve signed R782 outside auto update channel
+        shell: bash
+        run: |
+          set -euo pipefail
+          f=verified/MOA_R782_ORIGINAL_SIGNED.apk
+          echo '5a7479ccf0dde6afe9c5fbd75cf535f2d2dbc0948b0ecb26ac90f6fe153fa689  verified/MOA_R782_ORIGINAL_SIGNED.apk' | sha256sum -c -
+          test "$(stat -c%s "$f")" = 10996112
+          test "$(git hash-object "$f")" = 046658f7050cca0c12345fc815199a733185b4ce
+          BT="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1 | xargs dirname)"
+          "$BT/apksigner" verify --verbose --print-certs --min-sdk-version 29 "$f" | tee /tmp/cert.txt
+          grep -F 'certificate SHA-256 digest: 5a86862beacac780a83729f3c01584d6d0ea5be88cf51827cb0b257d9caa0f15' /tmp/cert.txt
+          grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/cert.txt
+          "$BT/aapt2" dump badging "$f" | grep -F "package: name='com.juhyeon.familyjournea' versionCode='782'"
+          "$BT/zipalign" -c 4 "$f"
+          mkdir -p android/recovery/r782
+          cp "$f" android/recovery/r782/MOA_R782_ORIGINAL_SIGNED.apk
+          cp verified/moa-r781-diff.json android/recovery/r782/payload-diff.json
+          printf '%s\n' 'Emergency recovery ONLY. Exact R771 functional payload; manifest version only. Never activate automatically; no uninstall/data clear. R781 remains normal update.' > android/recovery/r782/README.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add android/recovery/r782
+          git commit -m 'Archive original-signed R782 exact R771 emergency recovery (not auto-published)'
+          git push origin HEAD:archive/moa-r782-original-signed-recovery-20261128
